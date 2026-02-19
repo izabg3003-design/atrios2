@@ -1,5 +1,4 @@
-
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import { 
   Plus, 
   Trash2, 
@@ -21,7 +20,9 @@ import {
   MessageSquare,
   Percent,
   Clock,
-  Banknote
+  Banknote,
+  Eye,
+  Download
 } from 'lucide-react';
 import { 
   Budget, 
@@ -61,6 +62,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   const t = translations[locale];
   const currencyInfo = CURRENCIES[currencyCode];
   const [activeTab, setActiveTab] = useState<FormTab>('items');
+  const fileInputRefs = useRef<{ [key: string]: HTMLInputElement | null }>({});
   
   const [clientName, setClientName] = useState(initialData?.clientName || '');
   const [contactName, setContactName] = useState(initialData?.contactName || '');
@@ -174,6 +176,37 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
       return p;
     });
     setPayments(updatedPayments);
+  };
+
+  const handlePaymentProofUpload = (id: string, e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      if (file.size > 500000) { // 500kb limit
+        alert(translations[locale].imageTooLarge);
+        return;
+      }
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        updatePayment(id, 'proofUrl', reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const downloadProof = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `comprovativo_${name}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const viewProof = (url: string) => {
+    const win = window.open();
+    if (win) {
+      win.document.write(`<img src="${url}" style="max-width:100%">`);
+    }
   };
 
   const toggleService = (serviceId: string) => {
@@ -594,7 +627,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                   <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
                     <th className="p-5 border-b border-slate-100 w-48">{t.date}</th>
                     <th className="p-5 border-b border-slate-100">{t.amountLabel}</th>
-                    <th className="p-5 border-b border-slate-100 w-24 text-center">%</th>
+                    <th className="p-5 border-b border-slate-100 w-24 text-center">{t.percentagePaid} (%)</th>
                     <th className="p-5 border-b border-slate-100 w-48 text-center">{t.proofLabel}</th>
                     <th className="p-5 border-b border-slate-100 w-16"></th>
                   </tr>
@@ -626,9 +659,51 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                         </div>
                       </td>
                       <td className="p-5 text-center">
-                        <button type="button" className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2 mx-auto">
-                          <Upload size={14} /> {t.uploadProofBtn}
-                        </button>
+                        <div className="flex flex-col items-center gap-2">
+                          {!payment.proofUrl ? (
+                            <button 
+                              type="button" 
+                              onClick={() => fileInputRefs.current[payment.id]?.click()}
+                              className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2"
+                            >
+                              <Upload size={14} /> {t.uploadProofBtn}
+                            </button>
+                          ) : (
+                            <div className="flex items-center gap-2">
+                              <button 
+                                type="button" 
+                                onClick={() => viewProof(payment.proofUrl!)}
+                                className="text-emerald-600 hover:text-emerald-700 p-1.5 bg-emerald-50 rounded-lg transition-all"
+                                title={t.viewProof}
+                              >
+                                <Eye size={16} />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => downloadProof(payment.proofUrl!, payment.id)}
+                                className="text-blue-600 hover:text-blue-700 p-1.5 bg-blue-50 rounded-lg transition-all"
+                                title={t.exportPdf}
+                              >
+                                <Download size={16} />
+                              </button>
+                              <button 
+                                type="button" 
+                                onClick={() => fileInputRefs.current[payment.id]?.click()}
+                                className="text-slate-400 hover:text-slate-900 p-1.5 bg-slate-50 rounded-lg transition-all"
+                                title={t.uploadProofBtn}
+                              >
+                                <Upload size={16} />
+                              </button>
+                            </div>
+                          )}
+                          <input 
+                            type="file" 
+                            className="hidden" 
+                            accept="image/*"
+                            ref={el => { fileInputRefs.current[payment.id] = el; }}
+                            onChange={(e) => handlePaymentProofUpload(payment.id, e)}
+                          />
+                        </div>
                       </td>
                       <td className="p-5 text-right">
                         <button type="button" onClick={() => removePayment(payment.id)} className="p-2 text-slate-200 hover:text-red-500 transition-all">

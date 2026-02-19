@@ -1,4 +1,3 @@
-
 import React, { useState, useRef } from 'react';
 import { 
   X, 
@@ -11,7 +10,8 @@ import {
   Check,
   Crown,
   Eye,
-  FileText
+  FileText,
+  Download
 } from 'lucide-react';
 import { Budget, PaymentRecord, PlanType, CurrencyCode, CURRENCIES } from '../types';
 import { FREE_PAYMENT_LIMIT } from '../constants';
@@ -43,7 +43,7 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
 
   const totalPaid = (budget.payments || []).reduce((sum, p) => sum + p.amount, 0);
   const remaining = budget.totalAmount - totalPaid;
-  const percentage = Math.min(100, Math.round((totalPaid / budget.totalAmount) * 100));
+  const percentage = budget.totalAmount > 0 ? Math.min(100, Math.round((totalPaid / budget.totalAmount) * 100)) : 0;
 
   const formatValue = (val: number) => {
     return (val * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode });
@@ -52,7 +52,7 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
   const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 200000) {
+      if (file.size > 500000) { // 500kb limit
         alert(translations[locale].imageTooLarge);
         return;
       }
@@ -61,6 +61,22 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
         setProofUrl(reader.result as string);
       };
       reader.readAsDataURL(file);
+    }
+  };
+
+  const downloadProof = (url: string, id: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `comprovativo_pagamento_${id}.png`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
+  const viewProof = (url: string) => {
+    const win = window.open();
+    if (win) {
+      win.document.write(`<img src="${url}" style="max-width:100%">`);
     }
   };
 
@@ -235,13 +251,22 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
                   </div>
                   <div className="flex items-center gap-2">
                     {payment.proofUrl && (
-                      <button 
-                        onClick={() => window.open(payment.proofUrl, '_blank')}
-                        className="p-2 text-blue-500 bg-blue-50 rounded-xl hover:bg-blue-500 hover:text-white transition-all"
-                        title={t.viewProof}
-                      >
-                        <Eye size={18} />
-                      </button>
+                      <>
+                        <button 
+                          onClick={() => viewProof(payment.proofUrl!)}
+                          className="p-2 text-emerald-600 bg-emerald-50 rounded-xl hover:bg-emerald-600 hover:text-white transition-all"
+                          title={t.viewProof}
+                        >
+                          <Eye size={18} />
+                        </button>
+                        <button 
+                          onClick={() => downloadProof(payment.proofUrl!, payment.id)}
+                          className="p-2 text-blue-600 bg-blue-50 rounded-xl hover:bg-blue-600 hover:text-white transition-all"
+                          title={t.exportPdf}
+                        >
+                          <Download size={18} />
+                        </button>
+                      </>
                     )}
                     <button onClick={() => removePayment(payment.id)} className="p-2 text-slate-200 hover:text-red-500 transition-all"><Trash2 size={18} /></button>
                   </div>
