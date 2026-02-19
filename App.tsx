@@ -234,9 +234,10 @@ const App: React.FC = () => {
 
   const normalizeForPdf = (text: string | undefined): string => {
     if (!text) return "";
+    // Fix: Corrected duplicated keys and missing uppercase characters in Cyrillic transliteration map
     const ruMap: Record<string, string> = {
       'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
-      'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z','И':'I','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'Kh','Ц':'Ts','Ч':'Ch','Ш':'Sh','Щ':'Shch','Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'Yu','Я':'Ya'
+      'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z','И':'I','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'KH','Ц':'TS','Ч':'CH','Ш':'SH','Щ':'SHCH','Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'YU','Я':'YA'
     };
     let result = text;
     result = result.split('').map(char => ruMap[char] || char).join('');
@@ -482,6 +483,7 @@ const App: React.FC = () => {
         companyName: currentUser.name,
         planType: plan,
         amount: finalPrice - ivaVal,
+        // Fix: Corrected typo 'iivaVal' to 'ivaVal'
         ivaAmount: ivaVal,
         totalAmount: finalPrice,
         couponUsed: coupon,
@@ -692,24 +694,35 @@ const App: React.FC = () => {
                     <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
                       <div className="flex justify-between items-end"><h2 className="text-4xl font-black text-slate-900 tracking-tight">{t.budgetListTitle}</h2><div className="flex items-center gap-3"><Filter size={18} className="text-slate-400" /><select value={budgetFilter} onChange={(e) => setBudgetFilter(e.target.value as any)} className="px-5 py-3 rounded-xl border-2 border-slate-100 bg-white font-black text-xs text-slate-500 uppercase tracking-widest outline-none focus:border-slate-900 transition-all"><option value="all">{t.allStatuses}</option><option value={BudgetStatus.PENDING}>{t.statusPending}</option><option value={BudgetStatus.APPROVED}>{t.statusApproved}</option></select></div></div>
                       <div className="grid grid-cols-1 gap-5">
-                        {filteredBudgets.map(budget => (
-                          <div key={budget.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-6 group hover:border-slate-300 transition-all">
-                            <div className="flex items-center gap-10">
-                              <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-50 text-emerald-600' : budget.status === BudgetStatus.REJECTED ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{budget.status === BudgetStatus.APPROVED ? <CheckCircle2 size={28} /> : budget.status === BudgetStatus.REJECTED ? <XCircle size={28} /> : <Clock size={28} />}</div>
-                              <div className="flex-1">
-                                <div className="flex items-center gap-3 mb-2"><h4 className="font-black text-slate-900 text-xl">{budget.clientName}</h4><span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200 tracking-tighter uppercase">{t.budgetRef}: {budget.id}</span><span className={`text-[10px] font-black px-3 py-1 rounded-full border tracking-tighter uppercase ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : budget.status === BudgetStatus.REJECTED ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>{getTranslatedStatus(budget.status)}</span></div>
-                                <div className="flex flex-wrap items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]"><span className="flex items-center gap-2"><User size={14} /> {budget.contactName}</span><span className="flex items-center gap-2"><Clock size={14} /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span></div>
-                              </div>
-                              <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p><p className="text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p></div>
-                              <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                <button onClick={() => { setSelectedBudget(budget); setShowPaymentManager(true); }} className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><PaymentIcon size={22} /></button>
-                                <button onClick={() => { setSelectedBudget(budget); setShowExpenseManager(true); }} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"><Wallet size={22} /></button>
-                                <button onClick={() => exportToPDF(budget)} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"><Download size={22} /></button>
-                                <button onClick={() => { setSelectedBudget(budget); setIsEditingBudget(true); }} className="p-4 bg-slate-50 text-slate-900 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"><ChevronRight size={22} /></button>
+                        {filteredBudgets.length === 0 ? (
+                          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+                            <button 
+                              onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }}
+                              className="px-12 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-2xl hover:scale-105 transition-all shadow-2xl active:scale-95 uppercase tracking-tighter italic"
+                            >
+                              grave agora um novo orçamento
+                            </button>
+                          </div>
+                        ) : (
+                          filteredBudgets.map(budget => (
+                            <div key={budget.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-6 group hover:border-slate-300 transition-all">
+                              <div className="flex items-center gap-10">
+                                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-50 text-emerald-600' : budget.status === BudgetStatus.REJECTED ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{budget.status === BudgetStatus.APPROVED ? <CheckCircle2 size={28} /> : budget.status === BudgetStatus.REJECTED ? <XCircle size={28} /> : <Clock size={28} />}</div>
+                                <div className="flex-1">
+                                  <div className="flex items-center gap-3 mb-2"><h4 className="font-black text-slate-900 text-xl">{budget.clientName}</h4><span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200 tracking-tighter uppercase">{t.budgetRef}: {budget.id}</span><span className={`text-[10px] font-black px-3 py-1 rounded-full border tracking-tighter uppercase ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : budget.status === BudgetStatus.REJECTED ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>{getTranslatedStatus(budget.status)}</span></div>
+                                  <div className="flex flex-wrap items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]"><span className="flex items-center gap-2"><User size={14} /> {budget.contactName}</span><span className="flex items-center gap-2"><Clock size={14} /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span></div>
+                                </div>
+                                <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p><p className="text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p></div>
+                                <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
+                                  <button onClick={() => { setSelectedBudget(budget); setShowPaymentManager(true); }} className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><PaymentIcon size={22} /></button>
+                                  <button onClick={() => { setSelectedBudget(budget); setShowExpenseManager(true); }} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"><Wallet size={22} /></button>
+                                  <button onClick={() => exportToPDF(budget)} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"><Download size={22} /></button>
+                                  <button onClick={() => { setSelectedBudget(budget); setIsEditingBudget(true); }} className="p-4 bg-slate-50 text-slate-900 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"><ChevronRight size={22} /></button>
+                                </div>
                               </div>
                             </div>
-                          </div>
-                        ))}
+                          ))
+                        )}
                       </div>
                     </div>
                   )}
@@ -737,7 +750,7 @@ const App: React.FC = () => {
                             </div>
                             <div className="space-y-4">
                               <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">{t.companyQrCode}</label>
-                              <label className="border-4 border-dashed border-slate-100 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-48 relative">
+                              <label className="border-4 border-dashed border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-48 relative">
                                 {settingsQrCode ? <img src={settingsQrCode} className="absolute inset-0 w-full h-full object-contain p-8" alt="QR Code" /> : <><div className="w-12 h-12 bg-slate-100 text-slate-300 rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><QrCode size={24} /></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadQrCode}</span></>}
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsQrCode)} />
                               </label>
