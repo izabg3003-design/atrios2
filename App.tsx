@@ -356,6 +356,75 @@ const App: React.FC = () => {
     doc.setDrawColor(241, 245, 249).line(20, 78, 190, 78);
     doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
     doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), 20, 88);
+    
+    // Services section moved to the right, below QR code area
+    if (budget.servicesSelected && budget.servicesSelected.length > 0) {
+      doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
+      doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 120, 88);
+      
+      let serviceY = 95;
+      let iconX = 120;
+      budget.servicesSelected.forEach((serviceId) => {
+        const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
+        const textWidth = doc.getTextWidth(label);
+        
+        // Tag background - slightly larger
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(iconX, serviceY - 6, textWidth + 14, 9, 2, 2, 'F');
+        
+        // Draw larger icons
+        doc.setLineWidth(0.4);
+        if (serviceId === 'eletricista') {
+          doc.setDrawColor(245, 158, 11);
+          doc.line(iconX + 3.5, serviceY - 5, iconX + 2.5, serviceY - 2.5); 
+          doc.line(iconX + 2.5, serviceY - 2.5, iconX + 4.5, serviceY - 2.5); 
+          doc.line(iconX + 4.5, serviceY - 2.5, iconX + 3.5, serviceY);
+        } else if (serviceId === 'pintura') {
+          doc.setDrawColor(59, 130, 246);
+          doc.rect(iconX + 2.5, serviceY - 5, 4, 4);
+          doc.line(iconX + 2.5, serviceY - 5, iconX + 6.5, serviceY - 5);
+        } else if (serviceId === 'canalizador') {
+          doc.setDrawColor(71, 85, 105);
+          doc.circle(iconX + 4, serviceY - 2, 1.5);
+          doc.line(iconX + 4, serviceY - 2, iconX + 4, serviceY - 5);
+        } else if (serviceId === 'capoto') {
+          doc.setDrawColor(16, 185, 129);
+          doc.line(iconX + 2.5, serviceY, iconX + 4.5, serviceY - 5);
+          doc.line(iconX + 4.5, serviceY - 5, iconX + 6.5, serviceY);
+          doc.line(iconX + 2.5, serviceY, iconX + 6.5, serviceY);
+        } else if (serviceId === 'carpinteiro') {
+          doc.setDrawColor(120, 53, 15);
+          doc.line(iconX + 2.5, serviceY - 5, iconX + 6.5, serviceY - 1);
+          doc.line(iconX + 2.5, serviceY - 1, iconX + 6.5, serviceY - 5);
+        } else if (serviceId === 'estuque') {
+          doc.setDrawColor(148, 163, 184);
+          doc.circle(iconX + 4.5, serviceY - 3, 2, 'S');
+          doc.line(iconX + 4.5, serviceY - 3, iconX + 6.5, serviceY - 5);
+        } else if (serviceId === 'pladur') {
+          doc.setDrawColor(148, 163, 184);
+          doc.rect(iconX + 2.5, serviceY - 5, 4, 2);
+          doc.rect(iconX + 2.5, serviceY - 3, 4, 2);
+        } else if (serviceId === 'pedreiro') {
+          doc.setDrawColor(120, 113, 108);
+          doc.rect(iconX + 2.5, serviceY - 5, 2, 2);
+          doc.rect(iconX + 4.5, serviceY - 5, 2, 2);
+          doc.rect(iconX + 2.5, serviceY - 3, 4, 2);
+        } else {
+          doc.setDrawColor(148, 163, 184);
+          doc.circle(iconX + 4.5, serviceY - 3, 2);
+        }
+        
+        doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
+        doc.text(label, iconX + 9, serviceY);
+        
+        iconX += textWidth + 20;
+        if (iconX > 175) {
+          iconX = 120;
+          serviceY += 12;
+        }
+      });
+    }
+
     doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
     let curY = 95;
     doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, 20, curY); curY += 5;
@@ -364,7 +433,8 @@ const App: React.FC = () => {
     if (budget.clientNif) { doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, 20, curY); curY += 5; }
     doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, 20, curY); curY += 5;
     doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, 20, curY); curY += 5;
-    doc.text(`${normalizeForPdf(pdfT.workPostalCode)}: ${normalizeForPdf(budget.workPostalCode)}`, 20, curY); curY += 5;
+    doc.text(`${normalizeForPdf(pdfT.workPostalCode)}: ${normalizeForPdf(budget.workPostalCode)}`, 20, curY); curY += 10;
+
     autoTable(doc, {
       startY: curY + 5,
       head: [[
@@ -485,12 +555,20 @@ const App: React.FC = () => {
       email,
       password,
       plan: PlanType.FREE,
-      verified: false,
+      verified: true,
       createdAt: new Date().toISOString(),
+      firstLoginAt: new Date().toISOString(),
       lastLocale: locale
     };
     saveCompany(newCompany);
-    setView('verify');
+    
+    setCurrentUser(newCompany);
+    currentUserRef.current = newCompany;
+    setShowWelcome(true);
+    setTimeout(() => {
+      setShowWelcome(false);
+      setView('app');
+    }, 3500);
   };
 
   const handleVerify = async () => {
@@ -687,15 +765,6 @@ const App: React.FC = () => {
             <div className="mt-8 text-center"><button onClick={() => setView(view === 'login' ? 'signup' : 'login')} className="text-slate-400 font-bold hover:text-slate-900 underline">{view === 'login' ? t.noAccount : t.haveAccount}</button></div>
           </div>
         </div>
-      ) : view === 'verify' ? (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 w-full text-center">
-          <div className="bg-white w-full max-w-md p-12 rounded-[3rem] shadow-2xl border border-slate-100">
-            <div className="w-24 h-24 bg-emerald-50 text-emerald-500 rounded-[2rem] flex items-center justify-center mx-auto mb-8"><Bell size={48} /></div>
-            <h2 className="text-3xl font-black mb-4">{t.verifyEmailTitle}</h2>
-            <p className="text-slate-500 mb-10">{t.verifyEmailDesc} <b>{email}</b>.</p>
-            <button onClick={handleVerify} className="w-full py-5 bg-emerald-600 text-white rounded-3xl font-black text-xl">{t.simulateVerify}</button>
-          </div>
-        </div>
       ) : (
         <>
           <aside className="w-80 bg-white border-r border-slate-100 flex flex-col shrink-0 shadow-sm">
@@ -725,13 +794,27 @@ const App: React.FC = () => {
                 })}
               </nav>
             </div>
-            <div className="mt-auto p-10 border-t border-slate-50 space-y-6">
+            <div className="mt-auto p-6 border-t border-slate-50 space-y-2">
               <div className="bg-slate-50 p-4 rounded-3xl flex items-center gap-3 relative">
-                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden">{currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}</div>
-                <div className="flex-1 min-w-0"><p className="font-black text-slate-900 truncate text-sm">{currentUser?.name}</p><p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p></div>
-                {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">{unreadCount}</span>}
+                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden">
+                  {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-slate-900 truncate text-sm">{currentUser?.name}</p>
+                  <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p>
+                </div>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
+                    {unreadCount}
+                  </span>
+                )}
               </div>
-              <button onClick={() => { setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} className="w-full flex items-center gap-4 px-6 py-4 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-xs"><LogOut size={18} /> {t.logout}</button>
+              <button 
+                onClick={() => { setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
+                className="w-full flex items-center gap-4 px-6 py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[10px]"
+              >
+                <LogOut size={18} /> {t.logout}
+              </button>
             </div>
           </aside>
           <main className="flex-1 flex flex-col overflow-hidden">

@@ -94,10 +94,22 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [newCouponCode, setNewCouponCode] = useState('');
   const [newCouponDiscount, setNewCouponDiscount] = useState(10);
 
-  const loadData = () => {
+  const loadData = async () => {
     setActiveNotifications(getGlobalNotifications());
-    const allCompanies = getStoredCompanies().filter(c => c.email !== 'jeferson.goes36@gmail.com');
     
+    // Buscar empresas diretamente do Supabase para garantir que todos os usuários apareçam
+    const { data: cloudCompanies } = await supabase
+      .from('companies')
+      .select('*')
+      .neq('email', 'jeferson.goes36@gmail.com');
+    
+    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => c.email !== 'jeferson.goes36@gmail.com');
+    
+    // Atualizar localStorage com os dados da nuvem
+    if (cloudCompanies) {
+      localStorage.setItem('atrios_companies', JSON.stringify(cloudCompanies));
+    }
+
     // Alertas de Desbloqueio
     const unlockCount = allCompanies.filter(c => c.unlockRequested).length;
     if (unlockCount > prevUnlockCount.current) {
@@ -106,8 +118,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
     prevUnlockCount.current = unlockCount;
 
-    // Alertas de Mensagem
-    const allMsgs = getMessages();
+    // Buscar mensagens do Supabase
+    const { data: cloudMessages } = await supabase.from('messages').select('*');
+    if (cloudMessages) {
+      localStorage.setItem('atrios_messages', JSON.stringify(cloudMessages));
+    }
+
+    const allMsgs = cloudMessages || getMessages();
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
     if (unreadCount > prevUnreadCount.current) {
@@ -123,7 +140,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setCoupons(getCoupons());
 
     if (selectedCompanyId) {
-      setMessages(getMessages(selectedCompanyId));
+      setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
     }
   };
 
@@ -162,33 +179,42 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           // Recarregar mensagens se o chat estiver aberto
           if (selectedCompanyId === newMessage.companyId) {
             setMessages(getMessages(selectedCompanyId));
+          } else {
+            // Forçar atualização da lista lateral para mostrar badges de não lidas
+            setCompanies(prev => [...prev]);
           }
         }
       )
       .subscribe();
 
-    // Subscrição para mudanças nas empresas (pedidos de desbloqueio)
+    // Subscrição para mudanças nas empresas (novos usuários e pedidos de desbloqueio)
     const companyChannel = supabase
       .channel('master-companies')
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'companies' },
+        { event: '*', schema: 'public', table: 'companies' },
         (payload) => {
           const updatedCompany = payload.new as Company;
-          if (!updatedCompany) return;
+          if (!updatedCompany || updatedCompany.email === 'jeferson.goes36@gmail.com') return;
           
           // Atualizar localStorage
           const companies = getStoredCompanies();
           const idx = companies.findIndex(c => c.id === updatedCompany.id);
+          
           if (idx > -1) {
+            // Atualização de usuário existente
             const old = companies[idx];
             if (!old.unlockRequested && updatedCompany.unlockRequested) {
               setLastUnlockAlert(updatedCompany.name);
             }
             companies[idx] = updatedCompany;
-            localStorage.setItem('atrios_companies', JSON.stringify(companies));
-            setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          } else {
+            // Novo usuário cadastrado
+            companies.push(updatedCompany);
           }
+          
+          localStorage.setItem('atrios_companies', JSON.stringify(companies));
+          setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
         }
       )
       .subscribe();
