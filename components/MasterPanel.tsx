@@ -51,6 +51,7 @@ import {
   saveCoupon,
   removeCoupon
 } from '../services/storage';
+import { supabase } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -128,8 +129,69 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   useEffect(() => {
     loadData();
-    const interval = setInterval(loadData, 5000);
-    return () => clearInterval(interval);
+
+    // Subscrição para novas mensagens (todas, para o Master)
+    const msgChannel = supabase
+      .channel('public:messages:master')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'messages' },
+        (payload) => {
+          const newMessage = payload.new as SupportMessage;
+          
+          // Atualizar localStorage
+          const allMsgs = getMessages();
+          if (!allMsgs.find(m => m.id === newMessage.id)) {
+            allMsgs.push(newMessage);
+            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+          }
+
+          // Se for do usuário, mostrar alerta se não estiver no chat dele
+          if (newMessage.senderRole === 'user') {
+            const allCompanies = getStoredCompanies();
+            const sender = allCompanies.find(c => c.id === newMessage.companyId);
+            if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
+              setLastMessageAlert({ name: sender.name, content: newMessage.content });
+            }
+          }
+
+          // Recarregar mensagens se o chat estiver aberto
+          if (selectedCompanyId === newMessage.companyId) {
+            setMessages(getMessages(selectedCompanyId));
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscrição para mudanças nas empresas (pedidos de desbloqueio)
+    const companyChannel = supabase
+      .channel('public:companies:master')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'companies' },
+        (payload) => {
+          const updatedCompany = payload.new as Company;
+          
+          // Atualizar localStorage
+          const companies = getStoredCompanies();
+          const idx = companies.findIndex(c => c.id === updatedCompany.id);
+          if (idx > -1) {
+            const old = companies[idx];
+            if (!old.unlockRequested && updatedCompany.unlockRequested) {
+              setLastUnlockAlert(updatedCompany.name);
+            }
+            companies[idx] = updatedCompany;
+            localStorage.setItem('atrios_companies', JSON.stringify(companies));
+            setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(msgChannel);
+      supabase.removeChannel(companyChannel);
+    };
   }, [activeTab, selectedCompanyId]);
 
   useEffect(() => {

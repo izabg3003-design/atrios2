@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { X, Send, MessageSquare, Headphones, Loader2 } from 'lucide-react';
 import { SupportMessage, Company } from '../types';
 import { getMessages, saveMessage, markMessagesAsRead } from '../services/storage';
+import { supabase } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -24,8 +25,40 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
     };
 
     fetchMsgs();
-    const interval = setInterval(fetchMsgs, 3000); 
-    return () => clearInterval(interval);
+    
+    // Subscrição em tempo real para novas mensagens
+    const channel = supabase
+      .channel(`public:messages:companyId=eq.${company.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'messages',
+          filter: `companyId=eq.${company.id}`
+        },
+        (payload) => {
+          const newMessage = payload.new as SupportMessage;
+          // Evitar duplicados se já estiver no local (enviado pelo próprio usuário)
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMessage.id)) return prev;
+            
+            // Atualizar localStorage para manter consistência
+            const allMsgs = getMessages();
+            if (!allMsgs.find(m => m.id === newMessage.id)) {
+              allMsgs.push(newMessage);
+              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            }
+            
+            return [...prev, newMessage];
+          });
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [company.id]);
 
   useEffect(() => {

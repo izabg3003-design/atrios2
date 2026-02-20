@@ -105,21 +105,72 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && view === 'app') {
-      const interval = setInterval(() => {
-        const all = getStoredCompanies();
-        const updated = all.find(c => c.id === currentUser.id);
-        if (updated) {
-          if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
-            setShowUnlockAlert(true);
-            setTimeout(() => setShowUnlockAlert(false), 8000);
-          }
-          if (JSON.stringify(currentUserRef.current) !== JSON.stringify(updated)) {
+      // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado)
+      const companyChannel = supabase
+        .channel(`public:companies:id=eq.${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'UPDATE',
+            schema: 'public',
+            table: 'companies',
+            filter: `id=eq.${currentUser.id}`
+          },
+          (payload) => {
+            const updated = payload.new as Company;
+            if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
+              setShowUnlockAlert(true);
+              setTimeout(() => setShowUnlockAlert(false), 8000);
+            }
+            
+            // Atualizar localStorage e estado
+            const companies = getStoredCompanies();
+            const idx = companies.findIndex(c => c.id === updated.id);
+            if (idx > -1) {
+              companies[idx] = updated;
+              localStorage.setItem('atrios_companies', JSON.stringify(companies));
+            }
+            
             setCurrentUser(updated);
             currentUserRef.current = updated;
           }
-        }
-      }, 5000);
-      return () => clearInterval(interval);
+        )
+        .subscribe();
+
+      // Subscrição para novas mensagens do Master
+      const msgChannel = supabase
+        .channel(`public:messages:user:${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: 'INSERT',
+            schema: 'public',
+            table: 'messages',
+            filter: `companyId=eq.${currentUser.id}`
+          },
+          (payload) => {
+            const newMessage = payload.new as SupportMessage;
+            
+            // Atualizar localStorage
+            const allMsgs = getMessages();
+            if (!allMsgs.find(m => m.id === newMessage.id)) {
+              allMsgs.push(newMessage);
+              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            }
+
+            if (newMessage.senderRole === 'master' && !newMessage.read) {
+              setShowNewMessageAlert(true);
+              setTimeout(() => setShowNewMessageAlert(false), 8000);
+              setUnreadCount(prev => prev + 1);
+            }
+          }
+        )
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(companyChannel);
+        supabase.removeChannel(msgChannel);
+      };
     }
   }, [view, currentUser?.id]);
 
@@ -137,18 +188,12 @@ const App: React.FC = () => {
       const checkMessages = () => {
         const msgs = getMessages(currentUser.id);
         const unread = msgs.filter(m => m.senderRole === 'master' && !m.read);
-        if (unread.length > unreadCount) {
-          setShowNewMessageAlert(true);
-          setTimeout(() => setShowNewMessageAlert(false), 8000);
-        }
         setUnreadCount(unread.length);
       };
 
       checkMessages();
-      const interval = setInterval(checkMessages, 5000);
-      return () => clearInterval(interval);
     }
-  }, [currentUser?.id, unreadCount]);
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (currentUser && currentUser.lastLocale !== locale) {
