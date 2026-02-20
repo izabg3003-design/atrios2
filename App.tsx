@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -649,9 +649,15 @@ const App: React.FC = () => {
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
+                  const hasPendingUnlock = item.id === 'settings' && currentUser?.unlockRequested;
+                  
                   return (
                     <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-5 px-6 py-4 rounded-[1.5rem] font-black transition-all ${activeTab === item.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-400 hover:bg-slate-50'}`}>
-                      <div className="relative"><item.icon size={20} />{isReportsLocked && <Lock size={10} className="absolute -top-1 -right-1 text-amber-500" />}</div>
+                      <div className="relative">
+                        <item.icon size={20} />
+                        {isReportsLocked && <Lock size={10} className="absolute -top-1 -right-1 text-amber-500" />}
+                        {hasPendingUnlock && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white animate-pulse" />}
+                      </div>
                       {item.label}
                     </button>
                   );
@@ -659,9 +665,10 @@ const App: React.FC = () => {
               </nav>
             </div>
             <div className="mt-auto p-10 border-t border-slate-50 space-y-6">
-              <div className="bg-slate-50 p-4 rounded-3xl flex items-center gap-3">
+              <div className="bg-slate-50 p-4 rounded-3xl flex items-center gap-3 relative">
                 <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden">{currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}</div>
                 <div className="flex-1 min-w-0"><p className="font-black text-slate-900 truncate text-sm">{currentUser?.name}</p><p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p></div>
+                {unreadCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">{unreadCount}</span>}
               </div>
               <button onClick={() => { setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} className="w-full flex items-center gap-4 px-6 py-4 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-xs"><LogOut size={18} /> {t.logout}</button>
             </div>
