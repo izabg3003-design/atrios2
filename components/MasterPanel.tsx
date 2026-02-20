@@ -132,22 +132,26 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Subscrição para novas mensagens (todas, para o Master)
     const msgChannel = supabase
-      .channel('public:messages:master')
+      .channel('master-messages')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'messages' },
+        { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
           const newMessage = payload.new as SupportMessage;
+          if (!newMessage || !newMessage.id) return;
           
           // Atualizar localStorage
           const allMsgs = getMessages();
-          if (!allMsgs.find(m => m.id === newMessage.id)) {
+          const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
+          if (existingIdx === -1) {
             allMsgs.push(newMessage);
-            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+          } else {
+            allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
           }
+          localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
 
           // Se for do usuário, mostrar alerta se não estiver no chat dele
-          if (newMessage.senderRole === 'user') {
+          if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
             const allCompanies = getStoredCompanies();
             const sender = allCompanies.find(c => c.id === newMessage.companyId);
             if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
@@ -165,12 +169,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Subscrição para mudanças nas empresas (pedidos de desbloqueio)
     const companyChannel = supabase
-      .channel('public:companies:master')
+      .channel('master-companies')
       .on(
         'postgres_changes',
         { event: 'UPDATE', schema: 'public', table: 'companies' },
         (payload) => {
           const updatedCompany = payload.new as Company;
+          if (!updatedCompany) return;
           
           // Atualizar localStorage
           const companies = getStoredCompanies();
@@ -188,9 +193,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
+    // Fallback polling para o Master
+    const fallback = setInterval(loadData, 15000);
+
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(companyChannel);
+      clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);
 

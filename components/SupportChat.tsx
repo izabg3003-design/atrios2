@@ -28,20 +28,24 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
     
     // Subscrição em tempo real para novas mensagens
     const channel = supabase
-      .channel(`public:messages:companyId=eq.${company.id}`)
+      .channel(`chat-${company.id}`)
       .on(
         'postgres_changes',
         {
-          event: 'INSERT',
+          event: '*',
           schema: 'public',
           table: 'messages',
           filter: `companyId=eq.${company.id}`
         },
         (payload) => {
           const newMessage = payload.new as SupportMessage;
-          // Evitar duplicados se já estiver no local (enviado pelo próprio usuário)
+          if (!newMessage || !newMessage.id) return;
+
           setMessages(prev => {
-            if (prev.find(m => m.id === newMessage.id)) return prev;
+            if (prev.find(m => m.id === newMessage.id)) {
+              // Se já existe, apenas atualizamos o estado de leitura se necessário
+              return prev.map(m => m.id === newMessage.id ? { ...m, ...newMessage } : m);
+            }
             
             // Atualizar localStorage para manter consistência
             const allMsgs = getMessages();
@@ -54,10 +58,18 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
           });
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') {
+          console.warn("Realtime não disponível, usando fallback...");
+        }
+      });
+
+    // Fallback: Busca a cada 10 segundos caso o Realtime falhe
+    const fallbackInterval = setInterval(fetchMsgs, 10000);
 
     return () => {
       supabase.removeChannel(channel);
+      clearInterval(fallbackInterval);
     };
   }, [company.id]);
 

@@ -107,7 +107,7 @@ const App: React.FC = () => {
     if (currentUser && view === 'app') {
       // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado)
       const companyChannel = supabase
-        .channel(`public:companies:id=eq.${currentUser.id}`)
+        .channel(`user-company-${currentUser.id}`)
         .on(
           'postgres_changes',
           {
@@ -118,6 +118,7 @@ const App: React.FC = () => {
           },
           (payload) => {
             const updated = payload.new as Company;
+            if (!updated) return;
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
               setShowUnlockAlert(true);
               setTimeout(() => setShowUnlockAlert(false), 8000);
@@ -139,26 +140,30 @@ const App: React.FC = () => {
 
       // Subscrição para novas mensagens do Master
       const msgChannel = supabase
-        .channel(`public:messages:user:${currentUser.id}`)
+        .channel(`user-messages-${currentUser.id}`)
         .on(
           'postgres_changes',
           {
-            event: 'INSERT',
+            event: '*',
             schema: 'public',
             table: 'messages',
             filter: `companyId=eq.${currentUser.id}`
           },
           (payload) => {
             const newMessage = payload.new as SupportMessage;
+            if (!newMessage || !newMessage.id) return;
             
             // Atualizar localStorage
             const allMsgs = getMessages();
-            if (!allMsgs.find(m => m.id === newMessage.id)) {
+            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
+            if (existingIdx === -1) {
               allMsgs.push(newMessage);
-              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            } else {
+              allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
             }
+            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
 
-            if (newMessage.senderRole === 'master' && !newMessage.read) {
+            if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
               setShowNewMessageAlert(true);
               setTimeout(() => setShowNewMessageAlert(false), 8000);
               setUnreadCount(prev => prev + 1);
@@ -167,9 +172,20 @@ const App: React.FC = () => {
         )
         .subscribe();
 
+      // Fallback polling para dados básicos
+      const fallback = setInterval(() => {
+        const all = getStoredCompanies();
+        const updated = all.find(c => c.id === currentUser.id);
+        if (updated && JSON.stringify(currentUserRef.current) !== JSON.stringify(updated)) {
+          setCurrentUser(updated);
+          currentUserRef.current = updated;
+        }
+      }, 20000);
+
       return () => {
         supabase.removeChannel(companyChannel);
         supabase.removeChannel(msgChannel);
+        clearInterval(fallback);
       };
     }
   }, [view, currentUser?.id]);
