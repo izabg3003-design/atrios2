@@ -206,7 +206,7 @@ async function startServer() {
   });
 
   // Catch-all for API routes that don't exist
-  app.all("/api/*", (req, res) => {
+  app.all("/api/*any", (req, res) => {
     res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
   });
 
@@ -224,7 +224,7 @@ async function startServer() {
     console.log("Starting in PRODUCTION mode serving static files");
     const distPath = path.join(__dirname, "dist");
     app.use(express.static(distPath));
-    app.get("*", (req, res) => {
+    app.get("*any", (req, res) => {
       // Don't serve index.html for missing API routes
       if (req.path.startsWith('/api/')) {
         return res.status(404).json({ error: "API endpoint not found" });
