@@ -692,18 +692,19 @@ const App: React.FC = () => {
         }),
       });
 
-      const { url, error } = await response.json();
-      if (error) {
-        alert(`Erro ao iniciar pagamento: ${error}`);
+      const data = await response.json();
+      
+      if (!response.ok || data.error) {
+        alert(`Erro ao iniciar pagamento: ${data.error || 'Erro desconhecido'}`);
         return;
       }
 
-      if (url) {
-        window.location.href = url;
+      if (data.url) {
+        window.location.href = data.url;
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error('Stripe error:', err);
-      alert('Erro ao processar pagamento. Tente novamente.');
+      alert(`Erro ao processar pagamento: ${err.message || 'Erro de conexão'}`);
     }
   };
 

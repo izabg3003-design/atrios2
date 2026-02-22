@@ -80,18 +80,31 @@ async function startServer() {
   app.post("/api/create-checkout-session", async (req, res) => {
     const { companyId, planType, couponCode } = req.body;
 
+    console.log(`Creating checkout session for ${companyId}, plan: ${planType}`);
+
     let priceId = "";
     let mode: Stripe.Checkout.Session.Mode = "subscription";
 
-    if (planType === "PREMIUM_MONTHLY") {
+    // Match PlanType enum values from types.ts (lowercase)
+    if (planType === "premium_monthly") {
       priceId = process.env.STRIPE_MONTHLY_PRICE_ID || "";
       mode = "subscription";
-    } else if (planType === "PREMIUM_ANNUAL") {
+    } else if (planType === "premium_annual") {
       priceId = process.env.STRIPE_ANNUAL_PRICE_ID || "";
       mode = "subscription"; 
     }
 
+    if (!priceId) {
+      return res.status(400).json({ error: `Invalid plan type or missing Price ID for: ${planType}` });
+    }
+
+    if (!process.env.STRIPE_SECRET_KEY) {
+      return res.status(500).json({ error: "Stripe Secret Key is not configured on the server." });
+    }
+
     try {
+      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ["card"],
         line_items: [
@@ -101,8 +114,8 @@ async function startServer() {
           },
         ],
         mode: mode,
-        success_url: `${process.env.APP_URL}/?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${process.env.APP_URL}/`,
+        success_url: `${appUrl}/?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `${appUrl}/`,
         client_reference_id: companyId,
         metadata: {
           planType: planType,
