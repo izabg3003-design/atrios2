@@ -19,6 +19,12 @@ async function startServer() {
   const app = express();
   const PORT = 3000;
 
+  // Request logging
+  app.use((req, res, next) => {
+    console.log(`[${new Date().toISOString()}] ${req.method} ${req.url}`);
+    next();
+  });
+
   // Webhook needs raw body
   app.post(
     "/api/webhook",
@@ -151,8 +157,10 @@ async function startServer() {
       }
 
       const session = await stripe.checkout.sessions.create(sessionParams);
+      res.setHeader('Content-Type', 'application/json');
       res.json({ id: session.id, url: session.url });
     } catch (error: any) {
+      console.error("Stripe Session Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

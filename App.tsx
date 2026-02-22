@@ -695,8 +695,8 @@ const App: React.FC = () => {
       const contentType = response.headers.get("content-type");
       if (!contentType || !contentType.includes("application/json")) {
         const text = await response.text();
-        console.error("Non-JSON response:", text);
-        throw new Error(`O servidor retornou uma resposta inválida (não JSON). Status: ${response.status}`);
+        console.error("Non-JSON response (first 200 chars):", text.substring(0, 200));
+        throw new Error(`Resposta inválida do servidor. Status: ${response.status}. Conteúdo: ${text.substring(0, 50)}...`);
       }
 
       const data = await response.json();
