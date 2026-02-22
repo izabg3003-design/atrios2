@@ -702,7 +702,10 @@ const App: React.FC = () => {
       
       if (!contentType || !contentType.includes("application/json")) {
         console.error("Non-JSON response received:", text);
-        throw new Error(`O servidor não retornou JSON. Status: ${response.status}. Verifique se o servidor está rodando corretamente.`);
+        if (text.includes("<!DOCTYPE html>") || text.includes("<html")) {
+          throw new Error("O servidor retornou HTML em vez de JSON. Isso geralmente acontece se o Render estiver configurado como 'Static Site' em vez de 'Web Service', ou se a rota da API não estiver sendo encontrada.");
+        }
+        throw new Error(`O servidor não retornou JSON. Status: ${response.status}. Conteúdo: ${text.substring(0, 100)}`);
       }
 
       let data;

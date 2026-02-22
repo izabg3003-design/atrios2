@@ -36,7 +36,7 @@ async function startServer() {
     next();
   });
 
-  // Webhook needs raw body
+  // Webhook needs raw body - MUST be before express.json()
   app.post(
     "/api/webhook",
     express.raw({ type: "application/json" }),
@@ -92,8 +92,10 @@ async function startServer() {
     }
   );
 
+  // Parse JSON bodies for other routes
   app.use(express.json());
 
+  // API routes
   app.get("/api/health", (req, res) => {
     res.json({ 
       status: "ok", 
@@ -101,7 +103,10 @@ async function startServer() {
         hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
         hasMonthlyPrice: !!process.env.STRIPE_MONTHLY_PRICE_ID,
         hasAnnualPrice: !!process.env.STRIPE_ANNUAL_PRICE_ID,
-        appUrl: process.env.APP_URL
+        hasSupabaseUrl: !!process.env.SUPABASE_URL,
+        hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        appUrl: process.env.APP_URL,
+        nodeEnv: process.env.NODE_ENV
       }
     });
   });
