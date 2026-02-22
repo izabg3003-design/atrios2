@@ -95,6 +95,15 @@ async function startServer() {
   // Parse JSON bodies for other routes
   app.use(express.json());
 
+  // Error handler for malformed JSON
+  app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
+    if (err instanceof SyntaxError && 'body' in err) {
+      console.error("Malformed JSON:", err.message);
+      return res.status(400).json({ error: "Malformed JSON body" });
+    }
+    next();
+  });
+
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ 
@@ -137,7 +146,9 @@ async function startServer() {
     }
 
     try {
+      console.log("Request body:", JSON.stringify(req.body));
       const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      console.log("Using App URL:", appUrl);
 
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
         payment_method_types: ["card"],
