@@ -1,3 +1,15 @@
+console.log(">>> SERVER INITIALIZING...");
+
+process.on("uncaughtException", (err) => {
+  console.error("UNCAUGHT EXCEPTION:", err);
+  process.exit(1);
+});
+
+process.on("unhandledRejection", (reason, promise) => {
+  console.error("UNHANDLED REJECTION at:", promise, "reason:", reason);
+  process.exit(1);
+});
+
 import express from "express";
 import { createServer as createViteServer } from "vite";
 import Stripe from "stripe";
@@ -199,13 +211,17 @@ async function startServer() {
   });
 
   // Vite middleware for development
-  if (process.env.NODE_ENV !== "production") {
+  const isProduction = process.env.NODE_ENV === "production";
+  
+  if (!isProduction) {
+    console.log("Starting in DEVELOPMENT mode with Vite middleware");
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: "spa",
     });
     app.use(vite.middlewares);
   } else {
+    console.log("Starting in PRODUCTION mode serving static files");
     const distPath = path.join(__dirname, "dist");
     app.use(express.static(distPath));
     app.get("*", (req, res) => {
