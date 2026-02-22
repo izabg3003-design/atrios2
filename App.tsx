@@ -721,6 +721,8 @@ const App: React.FC = () => {
       }
 
       if (data.url) {
+        // Delay redirection by 8 seconds as requested
+        await new Promise(resolve => setTimeout(resolve, 8000));
         window.location.href = data.url;
       } else {
         throw new Error("URL de checkout não recebida.");
@@ -1061,23 +1063,37 @@ const App: React.FC = () => {
           {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
           
           {isProcessingPayment && (
-            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
-              <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-6 transform animate-in zoom-in-95 duration-300">
-                <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto animate-bounce">
-                  <ShieldCheck size={40} />
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-500">
+              <div className="bg-white p-16 rounded-[4rem] shadow-2xl max-w-2xl w-full text-center space-y-10 transform animate-in zoom-in-95 duration-500 border border-slate-100">
+                <div className="w-32 h-32 bg-amber-50 text-amber-500 rounded-[2.5rem] flex items-center justify-center mx-auto animate-bounce shadow-inner">
+                  <ShieldCheck size={64} />
                 </div>
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                <div className="space-y-4">
+                  <h3 className="text-4xl font-black text-slate-900 leading-tight tracking-tighter">
                     {t.stripeSecurePayment}
                   </h3>
-                  <p className="text-slate-500 font-bold">
+                  <p className="text-slate-500 text-xl font-bold">
                     {t.redirecting}
                   </p>
                 </div>
-                <div className="flex justify-center">
-                  <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                <div className="space-y-6">
+                  <div className="flex justify-center">
+                    <div className="w-16 h-16 border-8 border-amber-500/10 border-t-amber-500 rounded-full animate-spin" />
+                  </div>
+                  <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden max-w-xs mx-auto">
+                    <div className="h-full bg-amber-500 animate-[progress_8s_linear_forwards]" />
+                  </div>
                 </div>
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]">
+                  Powered by Stripe & Átrios Security
+                </p>
               </div>
+              <style>{`
+                @keyframes progress {
+                  0% { width: 0%; }
+                  100% { width: 100%; }
+                }
+              `}</style>
             </div>
           )}
         </>
