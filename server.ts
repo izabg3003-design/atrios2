@@ -139,13 +139,24 @@ async function startServer() {
     let priceId = "";
     let mode: Stripe.Checkout.Session.Mode = "subscription";
 
-    const monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "price_1T3e4x1kTCJBb2eQJBnM0adW").trim();
-    const annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "price_1T3e8d1kTCJBb2eQgqKiRoN1").trim();
+    let monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "price_1T3e4x1kTCJBb2eQJBnM0adW").trim();
+    let annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "price_1T3e8d1kTCJBb2eQgqKiRoN1").trim();
+    
+    // Hotfix: If the environment still has the old incorrect ID, override it
+    if (monthlyId === "price_1T3YhcP8uJW17aRIpkBFJHvu") {
+      console.log("Hotfix: Overriding old monthly price ID");
+      monthlyId = "price_1T3e4x1kTCJBb2eQJBnM0adW";
+    }
+    if (annualId === "price_1T3YhcP8uJW17aRIpkBFJHvu") {
+      console.log("Hotfix: Overriding old annual price ID");
+      annualId = "price_1T3e8d1kTCJBb2eQgqKiRoN1";
+    }
+
     const secretKey = (process.env.STRIPE_SECRET_KEY || "").trim();
 
     console.log("--- STRIPE ENVIRONMENT CHECK ---");
-    console.log(`STRIPE_MONTHLY_PRICE_ID: "${monthlyId}"`);
-    console.log(`STRIPE_ANNUAL_PRICE_ID: "${annualId}"`);
+    console.log(`Final Monthly Price ID: "${monthlyId}"`);
+    console.log(`Final Annual Price ID: "${annualId}"`);
     console.log(`STRIPE_SECRET_KEY starts with: ${secretKey.substring(0, 8)}...`);
     console.log("--------------------------------");
 
