@@ -29,9 +29,7 @@ console.log("- STRIPE_MONTHLY_PRICE_ID:", process.env.STRIPE_MONTHLY_PRICE_ID ? 
 console.log("- STRIPE_ANNUAL_PRICE_ID:", process.env.STRIPE_ANNUAL_PRICE_ID ? "Present" : "Missing");
 console.log("- SUPABASE_URL:", process.env.SUPABASE_URL ? "Present" : "Missing");
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
-  apiVersion: "2025-02-11-preview" as any,
-});
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder");
 
 const supabase = createClient(
   process.env.SUPABASE_URL || "https://placeholder.supabase.co",
