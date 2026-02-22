@@ -107,13 +107,23 @@ async function startServer() {
         metadata: {
           planType: planType,
         },
-        allow_promotion_codes: true, // This allows users to enter coupons in Stripe Checkout
+        allow_promotion_codes: true,
       };
 
-      // If a coupon code was already applied in the UI, we can try to find it in Stripe
-      // However, Stripe promotion codes are usually managed by Stripe.
-      // If the user wants to "respect the value if they have a coupon", 
-      // allowing promotion codes in the checkout is the most robust way.
+      if (couponCode) {
+        try {
+          const promoCodes = await stripe.promotionCodes.list({
+            code: couponCode,
+            active: true,
+            limit: 1,
+          });
+          if (promoCodes.data.length > 0) {
+            sessionParams.discounts = [{ promotion_code: promoCodes.data[0].id }];
+          }
+        } catch (promoError) {
+          console.warn("Could not find matching Stripe promotion code:", promoError);
+        }
+      }
 
       const session = await stripe.checkout.sessions.create(sessionParams);
       res.json({ id: session.id, url: session.url });
