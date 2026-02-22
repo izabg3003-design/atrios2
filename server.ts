@@ -77,6 +77,18 @@ async function startServer() {
 
   app.use(express.json());
 
+  app.get("/api/health", (req, res) => {
+    res.json({ 
+      status: "ok", 
+      env: {
+        hasStripeKey: !!process.env.STRIPE_SECRET_KEY,
+        hasMonthlyPrice: !!process.env.STRIPE_MONTHLY_PRICE_ID,
+        hasAnnualPrice: !!process.env.STRIPE_ANNUAL_PRICE_ID,
+        appUrl: process.env.APP_URL
+      }
+    });
+  });
+
   app.post("/api/create-checkout-session", async (req, res) => {
     const { companyId, planType, couponCode } = req.body;
 
