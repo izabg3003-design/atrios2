@@ -17,18 +17,19 @@ console.log("- STRIPE_MONTHLY_PRICE_ID:", process.env.STRIPE_MONTHLY_PRICE_ID ? 
 console.log("- STRIPE_ANNUAL_PRICE_ID:", process.env.STRIPE_ANNUAL_PRICE_ID ? "Present" : "Missing");
 console.log("- SUPABASE_URL:", process.env.SUPABASE_URL ? "Present" : "Missing");
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder", {
   apiVersion: "2025-02-11-preview" as any,
 });
 
 const supabase = createClient(
-  process.env.SUPABASE_URL || "https://raglyqukrlxwcmlhzebd.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
+  process.env.SUPABASE_URL || "https://placeholder.supabase.co",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder"
 );
 
 async function startServer() {
-  const app = express();
-  const PORT = 3000;
+  try {
+    const app = express();
+    const PORT = process.env.PORT || 3000;
 
   // Request logging
   app.use((req, res, next) => {
@@ -216,9 +217,13 @@ async function startServer() {
     });
   }
 
-  app.listen(PORT, "0.0.0.0", () => {
-    console.log(`Server running on http://localhost:${PORT}`);
-  });
+    app.listen(Number(PORT), "0.0.0.0", () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("FATAL ERROR DURING SERVER STARTUP:", error);
+    process.exit(1);
+  }
 }
 
 startServer();
