@@ -667,6 +667,8 @@ const App: React.FC = () => {
     checkSession();
   }, [currentUser]);
 
+  const [isProcessingPayment, setIsProcessingPayment] = useState(false);
+
   const handleUpgrade = async (plan: PlanType, finalPrice: number, coupon?: string) => {
     if (!currentUser) return;
     
@@ -679,11 +681,14 @@ const App: React.FC = () => {
       return;
     }
 
+    setIsProcessingPayment(true);
     try {
+      console.log('Initiating checkout for plan:', plan);
       const response = await fetch('/api/create-checkout-session', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          'Accept': 'application/json'
         },
         body: JSON.stringify({
           companyId: currentUser.id,
@@ -693,25 +698,35 @@ const App: React.FC = () => {
       });
 
       const contentType = response.headers.get("content-type");
+      const text = await response.text();
+      
       if (!contentType || !contentType.includes("application/json")) {
-        const text = await response.text();
-        console.error("Non-JSON response (first 200 chars):", text.substring(0, 200));
-        throw new Error(`Resposta inválida do servidor. Status: ${response.status}. Conteúdo: ${text.substring(0, 50)}...`);
+        console.error("Non-JSON response received:", text);
+        throw new Error(`O servidor não retornou JSON. Status: ${response.status}. Verifique se o servidor está rodando corretamente.`);
       }
 
-      const data = await response.json();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch (e) {
+        console.error("Failed to parse JSON:", text);
+        throw new Error("Erro ao processar resposta do servidor (JSON inválido).");
+      }
       
       if (!response.ok || data.error) {
-        alert(`Erro ao iniciar pagamento: ${data.error || 'Erro desconhecido'}`);
-        return;
+        throw new Error(data.error || `Erro do servidor (${response.status})`);
       }
 
       if (data.url) {
         window.location.href = data.url;
+      } else {
+        throw new Error("URL de checkout não recebida.");
       }
     } catch (err: any) {
       console.error('Stripe error:', err);
-      alert(`Erro ao processar pagamento: ${err.message || 'Erro de conexão'}`);
+      alert(`Erro ao processar pagamento: ${err.message}`);
+    } finally {
+      setIsProcessingPayment(false);
     }
   };
 
@@ -993,7 +1008,7 @@ const App: React.FC = () => {
                       </div>
                     </div>
                   )}
-                  {activeTab === 'plans' && <Plans currentPlan={currentUser?.plan || PlanType.FREE} onSelect={handleUpgrade} locale={locale} currencyCode={currencyCode} />}
+                  {activeTab === 'plans' && <Plans currentPlan={currentUser?.plan || PlanType.FREE} onSelect={handleUpgrade} locale={locale} currencyCode={currencyCode} isProcessing={isProcessingPayment} />}
                   {activeTab === 'settings' && (
                     <div className="bg-white rounded-[3rem] p-12 border border-slate-100 shadow-sm animate-in fade-in duration-500 max-w-5xl mx-auto relative overflow-hidden">
                       <div className="flex justify-between items-center mb-10">

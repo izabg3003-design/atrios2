@@ -3,8 +3,19 @@ import { createServer as createViteServer } from "vite";
 import Stripe from "stripe";
 import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
+import path from "path";
+import { fileURLToPath } from "url";
 
 dotenv.config();
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+console.log("Starting server with environment check:");
+console.log("- STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Present" : "Missing");
+console.log("- STRIPE_MONTHLY_PRICE_ID:", process.env.STRIPE_MONTHLY_PRICE_ID ? "Present" : "Missing");
+console.log("- STRIPE_ANNUAL_PRICE_ID:", process.env.STRIPE_ANNUAL_PRICE_ID ? "Present" : "Missing");
+console.log("- SUPABASE_URL:", process.env.SUPABASE_URL ? "Present" : "Missing");
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "", {
   apiVersion: "2025-02-11-preview" as any,
@@ -95,7 +106,7 @@ async function startServer() {
     });
   });
 
-  app.post("/api/create-checkout-session", async (req, res) => {
+  app.post(["/api/create-checkout-session", "/api/create-checkout-session/"], async (req, res) => {
     const { companyId, planType, couponCode } = req.body;
 
     console.log(`Creating checkout session for ${companyId}, plan: ${planType}`);
@@ -165,6 +176,11 @@ async function startServer() {
     }
   });
 
+  // Catch-all for API routes that don't exist
+  app.all("/api/*", (req, res) => {
+    res.status(404).json({ error: `API route ${req.method} ${req.url} not found` });
+  });
+
   // Vite middleware for development
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
@@ -173,9 +189,14 @@ async function startServer() {
     });
     app.use(vite.middlewares);
   } else {
-    app.use(express.static("dist"));
+    const distPath = path.join(__dirname, "dist");
+    app.use(express.static(distPath));
     app.get("*", (req, res) => {
-      res.sendFile("dist/index.html", { root: "." });
+      // Don't serve index.html for missing API routes
+      if (req.path.startsWith('/api/')) {
+        return res.status(404).json({ error: "API endpoint not found" });
+      }
+      res.sendFile(path.join(distPath, "index.html"));
     });
   }
 

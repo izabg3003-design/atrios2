@@ -9,9 +9,10 @@ interface PlansProps {
   onSelect: (plan: PlanType, finalPrice: number, coupon?: string) => void;
   locale: Locale;
   currencyCode: CurrencyCode;
+  isProcessing?: boolean;
 }
 
-const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCode }) => {
+const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCode, isProcessing }) => {
   const t = translations[locale];
   const currencyInfo = CURRENCIES[currencyCode];
   const [couponCode, setCouponCode] = useState('');
@@ -185,9 +186,14 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
 
               <button 
                 onClick={() => onSelect(plan.id, finalPriceEur, appliedDiscount > 0 ? couponCode : undefined)}
-                className={`w-full py-5 rounded-[2rem] font-black text-lg transition-all shadow-lg active:scale-95 ${plan.buttonColor}`}
+                disabled={isProcessing || currentPlan === plan.id}
+                className={`w-full py-5 rounded-[2rem] font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.buttonColor}`}
               >
-                {currentPlan === plan.id ? t.currentPlan : t.selectPlan}
+                {isProcessing ? (
+                  <div className="w-6 h-6 border-4 border-slate-900/20 border-t-slate-900 rounded-full animate-spin" />
+                ) : (
+                  currentPlan === plan.id ? t.currentPlan : t.selectPlan
+                )}
               </button>
             </div>
           );
