@@ -319,6 +319,8 @@ export interface Translation {
   notifyNewMessageTitle: string;
   notifyNewMessageDesc: string;
   notifyMasterUnlockRequest: string;
+  stripeSecurePayment: string;
+  redirecting: string;
   termsOfService: string;
   privacyPolicy: string;
   supportEmailLabel: string;
@@ -646,6 +648,8 @@ const enUS: Translation = {
   notifyNewMessageTitle: "New Message",
   notifyNewMessageDesc: "Support has replied to your message.",
   notifyMasterUnlockRequest: "Unlock Request",
+  stripeSecurePayment: "Make secure payments with Stripe!",
+  redirecting: "You will be redirected.",
   termsOfService: "Terms of Service",
   privacyPolicy: "Privacy Policy",
   supportEmailLabel: "Support Email",
@@ -999,6 +1003,8 @@ const ptPT: Translation = {
   notifyNewMessageTitle: "Nova Mensagem",
   notifyNewMessageDesc: "O suporte respondeu à sua mensagem.",
   notifyMasterUnlockRequest: "Pedido de Desbloqueio",
+  stripeSecurePayment: "Faça pagamentos seguros com a Stripe!",
+  redirecting: "Você será redirecionado.",
   termsOfService: "Termos de Serviço",
   privacyPolicy: "Política de Privacidade",
   supportEmailLabel: "E-mail de Suporte",
@@ -1366,6 +1372,8 @@ const frFR: Translation = {
   notifyNewMessageTitle: "Nouveau Message",
   notifyNewMessageDesc: "Le support a répondu à votre message.",
   notifyMasterUnlockRequest: "Demande de Déverrouillage",
+  stripeSecurePayment: "Effectuez des paiements sécurisés avec Stripe !",
+  redirecting: "Vous allez être redirigé.",
   termsOfService: "Conditions de Service",
   privacyPolicy: "Politique de Confidentialité",
   supportEmailLabel: "Email de Support",
@@ -1693,6 +1701,8 @@ const itIT: Translation = {
   notifyNewMessageTitle: "Nuovo Messaggio",
   notifyNewMessageDesc: "Il supporto ha risposto al tuo messaggio.",
   notifyMasterUnlockRequest: "Richiesta di Sblocco",
+  stripeSecurePayment: "Effettua pagamenti sicuri con Stripe!",
+  redirecting: "Verrai reindirizzato.",
   termsOfService: "Termini di Servizio",
   privacyPolicy: "Informativa sulla Privacy",
   supportEmailLabel: "Email di Supporto",
@@ -2020,6 +2030,8 @@ const esES: Translation = {
   notifyNewMessageTitle: "Nuevo Mensaje",
   notifyNewMessageDesc: "El soporte ha respondido a tu mensaje.",
   notifyMasterUnlockRequest: "Solicitud de Desbloqueo",
+  stripeSecurePayment: "¡Realice pagos seguros con Stripe!",
+  redirecting: "Será redireccionado.",
   termsOfService: "Términos de Servicio",
   privacyPolicy: "Política de Privacidad",
   supportEmailLabel: "Correo de Soporte",
@@ -2373,6 +2385,8 @@ const ruRU: Translation = {
   notifyNewMessageTitle: "Новое сообщение",
   notifyNewMessageDesc: "Поддержка ответила на ваше сообщение.",
   notifyMasterUnlockRequest: "Запрос на разблокировку",
+  stripeSecurePayment: "Безопасные платежи через Stripe!",
+  redirecting: "Вы будете перенаправлены.",
   termsOfService: "Условия обслуживания",
   privacyPolicy: "Политика конфиденциальности",
   supportEmailLabel: "Электронная почта поддержки",
@@ -2700,6 +2714,8 @@ const hiIN: Translation = {
   notifyNewMessageTitle: "नया संदेश",
   notifyNewMessageDesc: "सपोर्ट ने आपके संदेश का उत्तर दिया है।",
   notifyMasterUnlockRequest: "अनलॉक अनुरोध",
+  stripeSecurePayment: "Stripe के साथ सुरक्षित भुगतान करें!",
+  redirecting: "आपको रीडायरेक्ट कर दिया जाएगा।",
   termsOfService: "सेवा की शर्तें",
   privacyPolicy: "गोपनीयता नीति",
   supportEmailLabel: "सहायता ईमेल",
@@ -3027,6 +3043,8 @@ const bnBD: Translation = {
   notifyNewMessageTitle: "নতুন বার্তা",
   notifyNewMessageDesc: "সাপোর্ট আপনার বার্তার উত্তর দিয়েছে।",
   notifyMasterUnlockRequest: "আনলক অনুরোধ",
+  stripeSecurePayment: "Stripe এর মাধ্যমে নিরাপদ পেমেন্ট করুন!",
+  redirecting: "আপনাকে রিডাইরেক্ট করা হবে।",
   termsOfService: "পরিষেবার শর্তাবলী",
   privacyPolicy: "গোপনীয়তা নীতি",
   supportEmailLabel: "সহায়তা ইমেল",

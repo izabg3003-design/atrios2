@@ -348,22 +348,22 @@ const App: React.FC = () => {
     if (company.logo && company.logo.length > 50) {
       try {
         const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 15, 35, 35, undefined, 'FAST');
+        doc.addImage(company.logo, format, margin, 15, 45, 45, undefined, 'FAST');
       } catch (err) {}
     }
 
     // Company Info
     doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(15, 23, 42); // Slate-900
-    doc.text(normalizeForPdf(company.name.toUpperCase()), 60, 25);
+    doc.text(normalizeForPdf(company.name.toUpperCase()), 70, 25);
     
     doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
     let companyY = 32;
-    if (company.nif) { doc.text(`NIF: ${normalizeForPdf(company.nif)}`, 60, companyY); companyY += 5; }
-    doc.text(normalizeForPdf(company.email), 60, companyY); companyY += 5;
-    if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 60, companyY); companyY += 5; }
+    if (company.nif) { doc.text(`NIF: ${normalizeForPdf(company.nif)}`, 70, companyY); companyY += 5; }
+    doc.text(normalizeForPdf(company.email), 70, companyY); companyY += 5;
+    if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 70, companyY); companyY += 5; }
     if (company.address) {
       const splitAddress = doc.splitTextToSize(normalizeForPdf(company.address), 60);
-      doc.text(splitAddress, 60, companyY);
+      doc.text(splitAddress, 70, companyY);
     }
 
     // Budget Info Box (Right Side)
@@ -1059,6 +1059,27 @@ const App: React.FC = () => {
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
           <button onClick={() => { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser!.id, 'user'); }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
+          
+          {isProcessingPayment && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/80 backdrop-blur-md animate-in fade-in duration-300">
+              <div className="bg-white p-10 rounded-[3rem] shadow-2xl max-w-sm w-full text-center space-y-6 transform animate-in zoom-in-95 duration-300">
+                <div className="w-20 h-20 bg-amber-50 text-amber-500 rounded-3xl flex items-center justify-center mx-auto animate-bounce">
+                  <ShieldCheck size={40} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-2xl font-black text-slate-900 leading-tight">
+                    {t.stripeSecurePayment}
+                  </h3>
+                  <p className="text-slate-500 font-bold">
+                    {t.redirecting}
+                  </p>
+                </div>
+                <div className="flex justify-center">
+                  <div className="w-12 h-12 border-4 border-amber-500/20 border-t-amber-500 rounded-full animate-spin" />
+                </div>
+              </div>
+            </div>
+          )}
         </>
       )}
     </div>

@@ -150,6 +150,8 @@ async function startServer() {
       mode = "subscription"; 
     }
 
+    console.log(`[STRIPE DIAGNOSTIC] Plan: ${planType} | Using Price ID: ${priceId}`);
+
     if (!priceId) {
       console.error(`ERROR: Price ID missing for plan ${planType}. Check your environment variables.`);
       return res.status(400).json({ error: `Invalid plan type or missing Price ID for: ${planType}` });
