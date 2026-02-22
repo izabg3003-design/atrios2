@@ -29,11 +29,11 @@ console.log("- STRIPE_MONTHLY_PRICE_ID:", process.env.STRIPE_MONTHLY_PRICE_ID ? 
 console.log("- STRIPE_ANNUAL_PRICE_ID:", process.env.STRIPE_ANNUAL_PRICE_ID ? "Present" : "Missing");
 console.log("- SUPABASE_URL:", process.env.SUPABASE_URL ? "Present" : "Missing");
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "sk_test_placeholder");
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
 const supabase = createClient(
-  process.env.SUPABASE_URL || "https://placeholder.supabase.co",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || "placeholder"
+  process.env.SUPABASE_URL || "",
+  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
 
 async function startServer() {
@@ -139,18 +139,23 @@ async function startServer() {
     let priceId = "";
     let mode: Stripe.Checkout.Session.Mode = "subscription";
 
-    // Match PlanType enum values from types.ts (lowercase)
+    const monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "").trim();
+    const annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "").trim();
+
     if (planType === "premium_monthly") {
-      priceId = process.env.STRIPE_MONTHLY_PRICE_ID || "";
+      priceId = monthlyId;
       mode = "subscription";
     } else if (planType === "premium_annual") {
-      priceId = process.env.STRIPE_ANNUAL_PRICE_ID || "";
+      priceId = annualId;
       mode = "subscription"; 
     }
 
     if (!priceId) {
+      console.error(`ERROR: Price ID missing for plan ${planType}. Check your environment variables.`);
       return res.status(400).json({ error: `Invalid plan type or missing Price ID for: ${planType}` });
     }
+
+    console.log(`Using Price ID: ${priceId.substring(0, 8)}... for plan: ${planType}`);
 
     if (!process.env.STRIPE_SECRET_KEY) {
       return res.status(500).json({ error: "Stripe Secret Key is not configured on the server." });
