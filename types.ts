@@ -134,6 +134,8 @@ export interface Company {
   isBlocked?: boolean;
   isManual?: boolean;
   manualPaymentProof?: string;
+  stripe_customer_id?: string;
+  stripe_subscription_id?: string;
 }
 
 export type AudienceType = 'all' | 'free' | 'premium_monthly' | 'premium_annual' | 'all_premium';

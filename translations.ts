@@ -319,6 +319,13 @@ export interface Translation {
   notifyNewMessageTitle: string;
   notifyNewMessageDesc: string;
   notifyMasterUnlockRequest: string;
+  termsOfService: string;
+  privacyPolicy: string;
+  supportEmailLabel: string;
+  termsTitle: string;
+  privacyTitle: string;
+  termsContent: string;
+  privacyContent: string;
 }
 
 const enUS: Translation = {
@@ -639,6 +646,39 @@ const enUS: Translation = {
   notifyNewMessageTitle: "New Message",
   notifyNewMessageDesc: "Support has replied to your message.",
   notifyMasterUnlockRequest: "Unlock Request",
+  termsOfService: "Terms of Service",
+  privacyPolicy: "Privacy Policy",
+  supportEmailLabel: "Support Email",
+  termsTitle: "Terms and Conditions",
+  privacyTitle: "Privacy Policy",
+  termsContent: `1. ACCEPTANCE OF TERMS
+By accessing ATRIOS, you agree to these terms. Our service is a SaaS platform for construction estimates.
+
+2. PLANS AND SUBSCRIPTIONS
+We offer a Free plan (limited to 3 estimates) and Premium plans (Monthly/Annual). The Free plan serves as a trial version to experience the platform's features.
+
+3. NO REFUND POLICY / RIGHT OF WITHDRAWAL
+In accordance with EU Directive 2011/83/EU, by subscribing to a Premium plan, you expressly consent to the immediate commencement of the digital service and acknowledge that you lose your right of withdrawal (14-day refund period) once the service has begun, given that a free version is provided for prior testing.
+
+4. PAYMENTS AND CANCELLATIONS
+Payments are processed via Stripe. You can cancel your subscription at any time. Access remains active until the end of the current billing cycle.
+
+5. LIMITATION OF LIABILITY
+ATRIOS is not responsible for errors in estimates or financial losses arising from the use of the platform.`,
+  privacyContent: `1. DATA CONTROLLER
+ATRIOS is responsible for your personal data under the GDPR.
+
+2. DATA COLLECTED
+We collect company name, professional email, tax ID, and address for billing and service provision.
+
+3. PURPOSE
+Data is processed solely to provide the service, manage subscriptions, and comply with legal tax obligations.
+
+4. DATA SHARING
+We share data with Stripe (payment processing) and Supabase (secure data storage). We do not sell your data to third parties.
+
+5. YOUR RIGHTS
+Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atrios.pt to exercise these rights.`,
 };
 
 const ptPT: Translation = {
@@ -959,6 +999,39 @@ const ptPT: Translation = {
   notifyNewMessageTitle: "Nova Mensagem",
   notifyNewMessageDesc: "O suporte respondeu à sua mensagem.",
   notifyMasterUnlockRequest: "Pedido de Desbloqueio",
+  termsOfService: "Termos de Serviço",
+  privacyPolicy: "Política de Privacidade",
+  supportEmailLabel: "E-mail de Suporte",
+  termsTitle: "Termos e Condições de Uso",
+  privacyTitle: "Política de Privacidade e Proteção de Dados",
+  termsContent: `1. ACEITAÇÃO DOS TERMOS
+Ao aceder ao ÁTRIOS, concorda com estes termos. O nosso serviço é uma plataforma SaaS para gestão de orçamentos de construção.
+
+2. PLANOS E SUBSCRIÇÕES
+Oferecemos um plano Grátis (limitado a 3 orçamentos) e planos Premium (Mensal/Anual). O plano Grátis serve como versão de teste para experienciar as funcionalidades da plataforma.
+
+3. POLÍTICA DE NÃO REEMBOLSO / DIREITO DE LIVRE RESOLUÇÃO
+De acordo com o Decreto-Lei n.º 24/2014, ao subscrever um plano Premium, consente expressamente o início imediato do serviço digital e reconhece que perde o seu direito de livre resolução (período de 14 dias) uma vez que o serviço tenha sido iniciado, dado que é disponibilizada uma versão gratuita para teste prévio exaustivo.
+
+4. PAGAMENTOS E CANCELAMENTOS
+Os pagamentos são processados via Stripe. Pode cancelar a sua subscrição a qualquer momento. O acesso permanece ativo até ao fim do ciclo de faturação atual.
+
+5. LIMITAÇÃO DE RESPONSABILIDADE
+O ÁTRIOS não se responsabiliza por erros em orçamentos ou perdas financeiras decorrentes do uso da plataforma.`,
+  privacyContent: `1. RESPONSÁVEL PELO TRATAMENTO
+O ÁTRIOS é o responsável pelos seus dados pessoais nos termos do RGPD.
+
+2. DADOS RECOLHIDOS
+Recolhemos o nome da empresa, e-mail profissional, NIF e morada para fins de faturação e prestação do serviço.
+
+3. FINALIDADE
+Os dados são processados exclusivamente para fornecer o serviço, gerir subscrições e cumprir obrigações legais fiscais.
+
+4. PARTILHA DE DADOS
+Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazenamento seguro de dados). Não vendemos os seus dados a terceiros.
+
+5. OS SEUS DIREITOS
+Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atrios.pt para exercer estes direitos.`,
 };
 
 const ptBR: Translation = {
@@ -1293,6 +1366,13 @@ const frFR: Translation = {
   notifyNewMessageTitle: "Nouveau Message",
   notifyNewMessageDesc: "Le support a répondu à votre message.",
   notifyMasterUnlockRequest: "Demande de Déverrouillage",
+  termsOfService: "Conditions de Service",
+  privacyPolicy: "Politique de Confidentialité",
+  supportEmailLabel: "Email de Support",
+  termsTitle: "Conditions Générales d'Utilisation",
+  privacyTitle: "Politique de Confidentialité",
+  termsContent: "Terms of Service content in English...",
+  privacyContent: "Privacy Policy content in English...",
 };
 
 const itIT: Translation = {
@@ -1613,6 +1693,13 @@ const itIT: Translation = {
   notifyNewMessageTitle: "Nuovo Messaggio",
   notifyNewMessageDesc: "Il supporto ha risposto al tuo messaggio.",
   notifyMasterUnlockRequest: "Richiesta di Sblocco",
+  termsOfService: "Termini di Servizio",
+  privacyPolicy: "Informativa sulla Privacy",
+  supportEmailLabel: "Email di Supporto",
+  termsTitle: "Termini e Condizioni d'Uso",
+  privacyTitle: "Informativa sulla Privacy",
+  termsContent: "Terms of Service content in English...",
+  privacyContent: "Privacy Policy content in English...",
 };
 
 const esES: Translation = {
@@ -1933,6 +2020,39 @@ const esES: Translation = {
   notifyNewMessageTitle: "Nuevo Mensaje",
   notifyNewMessageDesc: "El soporte ha respondido a tu mensaje.",
   notifyMasterUnlockRequest: "Solicitud de Desbloqueo",
+  termsOfService: "Términos de Servicio",
+  privacyPolicy: "Política de Privacidad",
+  supportEmailLabel: "Correo de Soporte",
+  termsTitle: "Términos y Condiciones de Uso",
+  privacyTitle: "Política de Privacidad y Protección de Datos",
+  termsContent: `1. ACEPTACIÓN DE TÉRMINOS
+Al acceder a ÁTRIOS, acepta estos términos. Nuestro servicio es una plataforma SaaS para la gestión de presupuestos de construcción.
+
+2. PLANOS Y SUSCRIPCIONES
+Ofrecemos un plan Gratis (limitado a 3 presupuestos) y planes Premium (Mensual/Anual). El plan Gratis sirve como versión de prueba para experimentar las funcionalidades de la plataforma.
+
+3. POLÍTICA DE NO REEMBOLSO / DERECHO DE DESISTIMIENTO
+De acuerdo con la Directiva 2011/83/UE, al suscribirse a un plan Premium, consiente expresamente el inicio inmediato del servicio digital y reconoce que pierde su derecho de desistimiento (período de 14 días) una vez que el servicio ha comenzado, dado que se proporciona una versión gratuita para prueba previa.
+
+4. PAGOS Y CANCELACIONES
+Los pagos se procesan a través de Stripe. Puede cancelar su suscripción en cualquier momento. El acceso permanece activo hasta el final del ciclo de facturación actual.
+
+5. LIMITACIÓN DE RESPONSABILIDADE
+ÁTRIOS no se responsabiliza por errores en presupuestos o pérdidas financieras derivadas del uso de la plataforma.`,
+  privacyContent: `1. RESPONSABLE DEL TRATAMIENTO
+ÁTRIOS es el responsable de sus datos personales según el RGPD.
+
+2. DATOS RECOGIDOS
+Recogemos el nombre de la empresa, correo electrónico profesional, NIF y dirección para fines de facturación y prestación del servicio.
+
+3. FINALIDAD
+Los datos se procesan exclusivamente para proporcionar el servicio, gestionar suscripciones y cumplir con las obligaciones legales fiscales.
+
+4. INTERCAMBIO DE DATOS
+Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento seguro de datos). No vendemos sus datos a terceros.
+
+5. SUS DERECHOS
+Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atrios.pt para ejercer estos derechos.`,
 };
 
 const ruRU: Translation = {
@@ -2253,6 +2373,13 @@ const ruRU: Translation = {
   notifyNewMessageTitle: "Новое сообщение",
   notifyNewMessageDesc: "Поддержка ответила на ваше сообщение.",
   notifyMasterUnlockRequest: "Запрос на разблокировку",
+  termsOfService: "Условия обслуживания",
+  privacyPolicy: "Политика конфиденциальности",
+  supportEmailLabel: "Электронная почта поддержки",
+  termsTitle: "Условия использования",
+  privacyTitle: "Политика конфиденциальности",
+  termsContent: "Terms of Service content in English...",
+  privacyContent: "Privacy Policy content in English...",
 };
 
 const hiIN: Translation = {
@@ -2573,6 +2700,13 @@ const hiIN: Translation = {
   notifyNewMessageTitle: "नया संदेश",
   notifyNewMessageDesc: "सपोर्ट ने आपके संदेश का उत्तर दिया है।",
   notifyMasterUnlockRequest: "अनलॉक अनुरोध",
+  termsOfService: "सेवा की शर्तें",
+  privacyPolicy: "गोपनीयता नीति",
+  supportEmailLabel: "सहायता ईमेल",
+  termsTitle: "नियम और शर्तें",
+  privacyTitle: "गोपनीयता नीति",
+  termsContent: "Terms of Service content in English...",
+  privacyContent: "Privacy Policy content in English...",
 };
 
 const bnBD: Translation = {
@@ -2893,6 +3027,13 @@ const bnBD: Translation = {
   notifyNewMessageTitle: "নতুন বার্তা",
   notifyNewMessageDesc: "সাপোর্ট আপনার বার্তার উত্তর দিয়েছে।",
   notifyMasterUnlockRequest: "আনলক অনুরোধ",
+  termsOfService: "পরিষেবার শর্তাবলী",
+  privacyPolicy: "গোপনীয়তা নীতি",
+  supportEmailLabel: "সহায়তা ইমেল",
+  termsTitle: "শর্তাবলী",
+  privacyTitle: "গোপনীয়তা নীতি",
+  termsContent: "Terms of Service content in English...",
+  privacyContent: "Privacy Policy content in English...",
 };
 
 export const translations: Record<Locale, Translation> = {

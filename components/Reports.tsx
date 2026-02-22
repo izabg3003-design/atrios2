@@ -388,14 +388,14 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
             </h3>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
             {periodSales.length === 0 ? (
               <div className="py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 border-dashed">
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.reportNoSalesFound} {selectedPeriod === 'monthly' ? t[monthNames[reportMonth]] : ''}</p>
               </div>
             ) : (
               periodSales.map(budget => (
-                <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6 group hover:border-slate-300 transition-all">
+                <div key={budget.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6 group hover:border-slate-300 transition-all mb-4 last:mb-0">
                   <div className="w-12 h-12 bg-emerald-50 text-emerald-600 rounded-2xl flex items-center justify-center shrink-0"><CheckCircle2 size={24} /></div>
                   <div className="flex-1">
                     <h4 className="font-black text-slate-900">{budget.clientName}</h4>
@@ -419,14 +419,14 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
             </h3>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-4 max-h-[380px] overflow-y-auto pr-2 custom-scrollbar">
             {periodExpenses.length === 0 ? (
               <div className="py-16 text-center bg-white rounded-[2.5rem] border border-slate-100 border-dashed">
                 <p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.reportNoExpensesFound} {selectedPeriod === 'monthly' ? t[monthNames[reportMonth]] : ''}</p>
               </div>
             ) : (
               periodExpenses.map(expense => (
-                <div key={expense.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6 group hover:border-slate-300 transition-all">
+                <div key={expense.id} className="bg-white p-6 rounded-[2rem] border border-slate-100 shadow-sm flex items-center gap-6 group hover:border-slate-300 transition-all mb-4 last:mb-0">
                   <div className="w-12 h-12 bg-red-50 text-red-600 rounded-2xl flex items-center justify-center shrink-0"><Wallet size={24} /></div>
                   <div className="flex-1">
                     <h4 className="font-black text-slate-900">{expense.description}</h4>

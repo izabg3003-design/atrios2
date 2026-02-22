@@ -4,21 +4,26 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "vite",
+    "dev": "tsx server.ts",
     "build": "vite build",
     "lint": "tsc --noEmit",
     "preview": "vite preview"
   },
   "dependencies": {
-    "react": "^19.2.4",
-    "recharts": "^3.7.0",
-    "uuid": "^13.0.0",
-    "lucide-react": "^0.564.0",
+    "@google/genai": "^1.41.0",
+    "@supabase/supabase-js": "2.48.1",
+    "@types/express": "^5.0.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
     "jspdf": "^4.1.0",
     "jspdf-autotable": "^5.0.7",
+    "lucide-react": "^0.564.0",
+    "react": "^19.2.4",
     "react-dom": "^19.2.4",
-    "@google/genai": "^1.41.0",
-    "@supabase/supabase-js": "2.48.1"
+    "recharts": "^3.7.0",
+    "stripe": "^20.3.1",
+    "tsx": "^4.21.0",
+    "uuid": "^13.0.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",

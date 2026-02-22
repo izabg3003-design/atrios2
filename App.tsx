@@ -27,7 +27,8 @@ import {
   Unlock,
   Headphones,
   MessageSquare,
-  ShieldCheck
+  ShieldCheck,
+  Mail
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction } from './types';
 import { 
@@ -100,6 +101,7 @@ const App: React.FC = () => {
   const [settingsPhone, setSettingsPhone] = useState('');
   
   const [showSettingsConfirmModal, setShowSettingsConfirmModal] = useState(false);
+  const [showLegalModal, setShowLegalModal] = useState<'terms' | 'privacy' | null>(null);
 
   const currentUserRef = useRef<Company | null>(null);
 
@@ -312,6 +314,7 @@ const App: React.FC = () => {
     if (!company) return;
     const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
     const pdfT = isNonLatin ? translations['en-US'] : translations[locale];
+    
     if (company.plan === PlanType.FREE) {
       const count = getPdfDownloadCount(company.id);
       if (count >= FREE_PDF_LIMIT) {
@@ -320,123 +323,128 @@ const App: React.FC = () => {
         return;
       }
     }
+
     const doc = new jsPDF();
     const currencyInfo = CURRENCIES[currencyCode];
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
-    const usableWidth = pageWidth - (margin * 2); 
+    const usableWidth = pageWidth - (margin * 2);
+
+    // Helper for footer
+    const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
+      doc.setFontSize(8).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      const footerText = `Documento processado em nuvem via ÁTRIOS - Segurança e Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    };
+
+    // --- HEADER ---
+    // Top Accent Bar
+    doc.setFillColor(245, 158, 11); // Amber-500
+    doc.rect(0, 0, pageWidth, 5, 'F');
+
+    // Logo
     if (company.logo && company.logo.length > 50) {
       try {
         const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, 20, 10, 45, 45, undefined, 'FAST');
+        doc.addImage(company.logo, format, margin, 15, 35, 35, undefined, 'FAST');
       } catch (err) {}
     }
-    doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
-    doc.text(normalizeForPdf(company.name.toUpperCase()), 70, 20);
-    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(company.email), 70, 27);
-    if (company.phone) doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 70, 32);
+
+    // Company Info
+    doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(15, 23, 42); // Slate-900
+    doc.text(normalizeForPdf(company.name.toUpperCase()), 60, 25);
+    
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+    let companyY = 32;
+    if (company.nif) { doc.text(`NIF: ${normalizeForPdf(company.nif)}`, 60, companyY); companyY += 5; }
+    doc.text(normalizeForPdf(company.email), 60, companyY); companyY += 5;
+    if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 60, companyY); companyY += 5; }
     if (company.address) {
-      const splitAddress = doc.splitTextToSize(normalizeForPdf(company.address), 70);
-      doc.text(splitAddress, 70, 37);
+      const splitAddress = doc.splitTextToSize(normalizeForPdf(company.address), 60);
+      doc.text(splitAddress, 60, companyY);
     }
-    doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
-    doc.text(`${normalizeForPdf(pdfT.budgetRef)}: #${budget.id.toUpperCase()}`, 140, 20);
-    doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, 140, 25);
-    if (budget.validity) doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, 140, 30);
+
+    // Budget Info Box (Right Side)
+    doc.setFillColor(248, 250, 252); // Slate-50
+    doc.roundedRect(115, 15, 75, 42, 3, 3, 'F');
+    
+    // QR Code inside the box (Right side of box)
     if (company.qrCode && company.qrCode.length > 50) {
       try {
         const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.qrCode, qrFormat, 155, 35, 28, 28, undefined, 'FAST');
-        doc.setFontSize(7).setTextColor(150, 150, 150).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), 169, 66, { align: 'center' });
+        doc.addImage(company.qrCode, qrFormat, 165, 20, 20, 20, undefined, 'FAST');
+        doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), 175, 42, { align: 'center' });
       } catch (err) {}
     }
-    doc.setDrawColor(241, 245, 249).line(20, 78, 190, 78);
-    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
-    doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), 20, 88);
+
+    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(245, 158, 11);
+    doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), 120, 25);
     
-    // Services section moved to the right, below QR code area
+    doc.setFontSize(11).setFont('helvetica', 'black').setTextColor(15, 23, 42);
+    doc.text(`#${budget.id.toUpperCase()}`, 120, 32);
+    
+    doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, 120, 38);
+    if (budget.validity) doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, 120, 43);
+
+    // --- CLIENT & SERVICES SECTION ---
+    doc.setDrawColor(241, 245, 249).line(margin, 65, pageWidth - margin, 65);
+
+    // Client Identification
+    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), margin, 75);
+    
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
+    let clientY = 82;
+    doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, margin, clientY); clientY += 5;
+    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin, clientY); clientY += 5;
+    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin, clientY); clientY += 5;
+    if (budget.clientNif) { doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin, clientY); clientY += 5; }
+    doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, margin, clientY); clientY += 5;
+    doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, margin, clientY); clientY += 5;
+    doc.text(`${normalizeForPdf(pdfT.workPostalCode)}: ${normalizeForPdf(budget.workPostalCode)}`, margin, clientY);
+
+    // Services Included (Right Side)
     if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-      doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
-      doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 120, 88);
+      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 110, 75);
       
-      let serviceY = 95;
-      let iconX = 120;
+      let serviceY = 82;
+      let iconX = 110;
       budget.servicesSelected.forEach((serviceId) => {
         const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
         const textWidth = doc.getTextWidth(label);
         
-        // Tag background - slightly larger
         doc.setFillColor(248, 250, 252);
         doc.roundedRect(iconX, serviceY - 6, textWidth + 14, 9, 2, 2, 'F');
         
-        // Draw larger icons
         doc.setLineWidth(0.4);
-        if (serviceId === 'eletricista') {
-          doc.setDrawColor(245, 158, 11);
-          doc.line(iconX + 3.5, serviceY - 5, iconX + 2.5, serviceY - 2.5); 
-          doc.line(iconX + 2.5, serviceY - 2.5, iconX + 4.5, serviceY - 2.5); 
-          doc.line(iconX + 4.5, serviceY - 2.5, iconX + 3.5, serviceY);
-        } else if (serviceId === 'pintura') {
-          doc.setDrawColor(59, 130, 246);
-          doc.rect(iconX + 2.5, serviceY - 5, 4, 4);
-          doc.line(iconX + 2.5, serviceY - 5, iconX + 6.5, serviceY - 5);
-        } else if (serviceId === 'canalizador') {
-          doc.setDrawColor(71, 85, 105);
-          doc.circle(iconX + 4, serviceY - 2, 1.5);
-          doc.line(iconX + 4, serviceY - 2, iconX + 4, serviceY - 5);
-        } else if (serviceId === 'capoto') {
-          doc.setDrawColor(16, 185, 129);
-          doc.line(iconX + 2.5, serviceY, iconX + 4.5, serviceY - 5);
-          doc.line(iconX + 4.5, serviceY - 5, iconX + 6.5, serviceY);
-          doc.line(iconX + 2.5, serviceY, iconX + 6.5, serviceY);
-        } else if (serviceId === 'carpinteiro') {
-          doc.setDrawColor(120, 53, 15);
-          doc.line(iconX + 2.5, serviceY - 5, iconX + 6.5, serviceY - 1);
-          doc.line(iconX + 2.5, serviceY - 1, iconX + 6.5, serviceY - 5);
-        } else if (serviceId === 'estuque') {
-          doc.setDrawColor(148, 163, 184);
-          doc.circle(iconX + 4.5, serviceY - 3, 2, 'S');
-          doc.line(iconX + 4.5, serviceY - 3, iconX + 6.5, serviceY - 5);
-        } else if (serviceId === 'pladur') {
-          doc.setDrawColor(148, 163, 184);
-          doc.rect(iconX + 2.5, serviceY - 5, 4, 2);
-          doc.rect(iconX + 2.5, serviceY - 3, 4, 2);
-        } else if (serviceId === 'pedreiro') {
-          doc.setDrawColor(120, 113, 108);
-          doc.rect(iconX + 2.5, serviceY - 5, 2, 2);
-          doc.rect(iconX + 4.5, serviceY - 5, 2, 2);
-          doc.rect(iconX + 2.5, serviceY - 3, 4, 2);
-        } else {
-          doc.setDrawColor(148, 163, 184);
-          doc.circle(iconX + 4.5, serviceY - 3, 2);
-        }
+        // Simplified icon drawing logic for PDF
+        if (serviceId === 'eletricista') doc.setDrawColor(245, 158, 11);
+        else if (serviceId === 'pintura') doc.setDrawColor(59, 130, 246);
+        else if (serviceId === 'canalizador') doc.setDrawColor(71, 85, 105);
+        else if (serviceId === 'capoto') doc.setDrawColor(16, 185, 129);
+        else if (serviceId === 'carpinteiro') doc.setDrawColor(120, 53, 15);
+        else doc.setDrawColor(148, 163, 184);
         
-        doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
+        doc.circle(iconX + 4, serviceY - 2, 1.5, 'S');
+        
+        doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
         doc.text(label, iconX + 9, serviceY);
         
         iconX += textWidth + 20;
-        if (iconX > 175) {
-          iconX = 120;
+        if (iconX > 180) {
+          iconX = 110;
           serviceY += 12;
         }
       });
     }
 
-    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    let curY = 95;
-    doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, 20, curY); curY += 5;
-    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, 20, curY); curY += 5;
-    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, 20, curY); curY += 5;
-    if (budget.clientNif) { doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, 20, curY); curY += 5; }
-    doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, 20, curY); curY += 5;
-    doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, 20, curY); curY += 5;
-    doc.text(`${normalizeForPdf(pdfT.workPostalCode)}: ${normalizeForPdf(budget.workPostalCode)}`, 20, curY); curY += 10;
-
+    // --- ITEMS TABLE ---
     autoTable(doc, {
-      startY: curY + 5,
+      startY: 120,
       head: [[
         normalizeForPdf(pdfT.description), 
         normalizeForPdf(pdfT.quantity), 
@@ -451,42 +459,74 @@ const App: React.FC = () => {
         normalizeForPdf(i.unit), 
         `${(i.total * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`
       ]),
-      theme: 'grid',
-      headStyles: { fillColor: [33, 37, 41], fontStyle: 'bold' },
-      styles: { fontSize: 8, font: 'helvetica' },
-      margin: { left: 20, right: 20 }
+      theme: 'striped',
+      headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9, halign: 'center' },
+      bodyStyles: { fontSize: 8, textColor: [71, 85, 105] },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { halign: 'center', cellWidth: 20 },
+        2: { halign: 'right', cellWidth: 30 },
+        3: { halign: 'center', cellWidth: 20 },
+        4: { halign: 'right', cellWidth: 30 }
+      },
+      margin: { left: margin, right: margin },
+      didDrawPage: (data) => {
+        addFooter(doc, data.pageNumber, doc.getNumberOfPages());
+      }
     });
+
+    // --- TOTALS ---
     const finalY = (doc as any).lastAutoTable.finalY;
     let sumY = finalY + 15;
     if (sumY + 60 > pageHeight) { doc.addPage(); sumY = 30; }
+
     const subTotal = budget.items.reduce((s, i) => s + i.total, 0);
     const ivaVal = budget.includeIva ? (subTotal * budget.ivaPercentage) / 100 : 0;
     const grandTotal = subTotal + ivaVal;
-    if (budget.paymentMethod) {
-      doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(33, 37, 41);
-      doc.text(`${normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase())}:`, 120, sumY - 8);
-      doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 70), 120, sumY - 3);
-    }
-    doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(33, 37, 41);
+
+    // Totals Box
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(110, sumY - 10, 80, 40, 3, 3, 'F');
+
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.subtotal), 115, sumY);
+    doc.text(`${(subTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY, { align: 'right' });
+    sumY += 7;
+
     if (budget.includeIva) {
-      doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, 120, sumY);
+      doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, 115, sumY);
       doc.text(`${(ivaVal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY, { align: 'right' });
       sumY += 7;
     }
-    doc.setFontSize(13).setFont('helvetica', 'bold');
-    doc.text(`${normalizeForPdf(pdfT.total.toUpperCase())}:`, 120, sumY + 3);
-    doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY + 3, { align: 'right' });
+
+    doc.setDrawColor(226, 232, 240).line(115, sumY - 2, 185, sumY - 2);
+    doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(pdfT.total.toUpperCase()), 115, sumY + 5);
+    doc.setTextColor(245, 158, 11);
+    doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY + 5, { align: 'right' });
+
+    // Payment Method
+    if (budget.paymentMethod) {
+      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), margin, sumY - 5);
+      doc.setFont('helvetica', 'normal').setTextColor(71, 85, 105);
+      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 80);
+      doc.text(pmLines, margin, sumY);
+    }
+
+    // Observations
     if (budget.observations) {
       let obsY = sumY + 25;
-      if (obsY + 20 > pageHeight) { doc.addPage(); obsY = 25; }
-      doc.setFont('helvetica', 'bold').setFontSize(11).setTextColor(33, 37, 41);
+      if (obsY + 30 > pageHeight) { doc.addPage(); obsY = 30; }
+      doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(15, 23, 42);
       doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), margin, obsY);
-      doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(71, 85, 105);
+      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
       const lines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth);
-      doc.text(lines, margin, obsY + 8);
+      doc.text(lines, margin, obsY + 7);
     }
-    doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}.pdf`);
+
+    // Final Save
+    doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
@@ -606,35 +646,65 @@ const App: React.FC = () => {
     setSelectedBudget(undefined);
   };
 
-  const handleUpgrade = (plan: PlanType, finalPrice: number, coupon?: string) => {
+  useEffect(() => {
+    const checkSession = async () => {
+      const urlParams = new URLSearchParams(window.location.search);
+      const sessionId = urlParams.get('session_id');
+      if (sessionId && currentUser) {
+        // Refresh user data to see the new plan
+        await hydrateLocalData(currentUser.id);
+        const updatedCompanies = getStoredCompanies();
+        const updatedUser = updatedCompanies.find(c => c.id === currentUser.id);
+        if (updatedUser) {
+          setCurrentUser(updatedUser);
+          currentUserRef.current = updatedUser;
+          alert(t.upgradeSuccess);
+        }
+        // Clean up URL
+        window.history.replaceState({}, document.title, "/");
+      }
+    };
+    checkSession();
+  }, [currentUser]);
+
+  const handleUpgrade = async (plan: PlanType, finalPrice: number, coupon?: string) => {
     if (!currentUser) return;
-    const now = new Date();
-    let expirationDate = new Date();
-    if (plan === PlanType.PREMIUM_MONTHLY) expirationDate.setDate(now.getDate() + 30);
-    else if (plan === PlanType.PREMIUM_ANNUAL) expirationDate.setDate(now.getDate() + 360);
     
-    const updated = { ...currentUser, plan: plan, subscriptionExpiresAt: plan === PlanType.FREE ? undefined : expirationDate.toISOString() };
-    if (plan !== PlanType.FREE) {
-      const ivaVal = finalPrice * 0.23;
-      const tx: Transaction = {
-        id: Math.random().toString(36).substr(2, 9).toUpperCase(),
-        companyId: currentUser.id,
-        companyName: currentUser.name,
-        planType: plan,
-        amount: finalPrice - ivaVal,
-        // Fix: Corrected typo 'iivaVal' to 'ivaVal'
-        ivaAmount: ivaVal,
-        totalAmount: finalPrice,
-        couponUsed: coupon,
-        date: now.toISOString()
-      };
-      saveTransaction(tx);
+    if (plan === PlanType.FREE) {
+      const updated = { ...currentUser, plan: PlanType.FREE, subscriptionExpiresAt: undefined };
+      saveCompany(updated);
+      setCurrentUser(updated);
+      currentUserRef.current = updated;
+      setActiveTab('dashboard');
+      return;
     }
-    saveCompany(updated);
-    setCurrentUser(updated);
-    currentUserRef.current = updated;
-    setActiveTab('dashboard');
-    alert(t.upgradeSuccess);
+
+    try {
+      const response = await fetch('/api/create-checkout-session', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          companyId: currentUser.id,
+          planType: plan,
+          couponCode: coupon,
+        }),
+      });
+
+      const { url, error } = await response.json();
+      if (error) {
+        alert(`Erro ao iniciar pagamento: ${error}`);
+        return;
+      }
+
+      if (url) {
+        window.location.href = url;
+      }
+    } catch (err) {
+      console.error('Stripe error:', err);
+      alert('Erro ao processar pagamento. Tente novamente.');
+    }
   };
 
   const handleSaveSettings = () => {
@@ -742,6 +812,33 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {showLegalModal && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/90 backdrop-blur-md p-6 animate-in fade-in duration-500">
+          <div className="relative max-w-3xl w-full bg-white rounded-[3rem] overflow-hidden shadow-2xl animate-in zoom-in-95 duration-300 flex flex-col max-h-[90vh]">
+            <div className="p-8 border-b border-slate-100 flex justify-between items-center shrink-0">
+              <h3 className="text-2xl font-black text-slate-900 uppercase tracking-tight">
+                {showLegalModal === 'terms' ? t.termsTitle : t.privacyTitle}
+              </h3>
+              <button onClick={() => setShowLegalModal(null)} className="p-2 hover:bg-slate-100 rounded-full transition-all text-slate-400 hover:text-slate-900">
+                <X size={24} />
+              </button>
+            </div>
+            <div className="p-10 overflow-y-auto no-scrollbar flex-1">
+              <div className="prose prose-slate max-w-none">
+                <p className="text-slate-600 font-medium leading-relaxed whitespace-pre-wrap">
+                  {showLegalModal === 'terms' ? t.termsContent : t.privacyContent}
+                </p>
+              </div>
+            </div>
+            <div className="p-8 border-t border-slate-100 text-center shrink-0">
+              <button onClick={() => setShowLegalModal(null)} className="px-12 py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest hover:bg-slate-800 transition-all shadow-xl">
+                {t.understood}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {view === 'landing' ? (
         <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-900 overflow-hidden relative w-full">
           <div className="absolute top-8 right-8 z-50"><Selectors /></div>
@@ -749,6 +846,17 @@ const App: React.FC = () => {
             <div className="flex items-center justify-center gap-4 mb-8"><div className="bg-amber-500 p-5 rounded-[2rem] shadow-2xl rotate-12"><Construction className="text-white" size={48} /></div><h1 className="text-7xl font-black text-white tracking-tighter italic">{t.appName}</h1></div>
             <h2 className="text-3xl text-slate-300 font-medium mb-16 leading-relaxed">{t.heroTitle}</h2>
             <div className="flex flex-col sm:flex-row gap-5 justify-center"><button onClick={() => setView('signup')} className="px-12 py-6 bg-amber-500 text-slate-900 rounded-3xl font-black text-xl hover:bg-amber-400 transition-all shadow-2xl">{t.heroCta}</button><button onClick={() => setView('login')} className="px-12 py-6 bg-white/10 text-white border-2 border-white/20 rounded-3xl font-black text-xl hover:bg-white/20 transition-all">{t.loginBtn}</button></div>
+            
+            <div className="mt-20 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+                <button onClick={() => setShowLegalModal('terms')} className="hover:text-amber-500 transition-colors">{t.termsOfService}</button>
+                <button onClick={() => setShowLegalModal('privacy')} className="hover:text-amber-500 transition-colors">{t.privacyPolicy}</button>
+              </div>
+              <div className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
+                <Mail size={14} className="text-amber-500" />
+                <span>{t.supportEmailLabel}: <a href="mailto:support@atrios.pt" className="text-white hover:text-amber-500 transition-colors">support@atrios.pt</a></span>
+              </div>
+            </div>
           </div>
         </div>
       ) : (view === 'login' || view === 'signup') ? (
