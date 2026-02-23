@@ -419,7 +419,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                 </div>
               </div>
               
-              <div className="overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
+              <div className="hidden md:block overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
                 <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
@@ -468,6 +468,76 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View for Items */}
+              <div className="md:hidden space-y-4">
+                {items.map((item) => (
+                  <div key={item.id} className="bg-white border-2 border-slate-100 rounded-[1.5rem] p-5 space-y-4 relative overflow-hidden group">
+                    <button 
+                      type="button" 
+                      onClick={() => removeItem(item.id)} 
+                      className="absolute top-4 right-4 p-2 text-slate-200 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
+                      <input 
+                        type="text" 
+                        value={item.description} 
+                        onChange={e => updateItem(item.id, 'description', e.target.value)} 
+                        className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm" 
+                        placeholder={t.descriptionPlaceholder} 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.quantity}</label>
+                        <input 
+                          type="number" 
+                          value={item.quantity === 0 ? '' : item.quantity} 
+                          onChange={e => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} 
+                          placeholder="0" 
+                          className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-black text-slate-900 text-sm" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unit}</label>
+                        <input 
+                          type="text" 
+                          value={item.unit} 
+                          onChange={e => updateItem(item.id, 'unit', e.target.value)} 
+                          className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm" 
+                          placeholder={t.unitDefault} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 items-end">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unitPrice}</label>
+                        <div className="flex items-center gap-1 bg-slate-50 px-3 py-2 rounded-lg">
+                          <span className="text-[10px] font-black text-slate-400">{currencyInfo.symbol}</span>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={item.pricePerUnit === 0 ? '' : (item.pricePerUnit * currencyInfo.rate)} 
+                            onChange={e => updateItem(item.id, 'pricePerUnit', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
+                            placeholder="0.00"
+                            className="w-full bg-transparent outline-none font-black text-sm" 
+                          />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p>
+                        <p className="font-black text-slate-900 text-lg">{formatValue(item.total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {canAddItem ? (
@@ -534,7 +604,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               <div className="p-4 bg-white/50 rounded-2xl"><Wallet className="text-red-500" size={32} /></div>
             </div>
 
-            <div className="overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
+            <div className="hidden md:block overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
@@ -587,6 +657,75 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View for Expenses */}
+            <div className="md:hidden space-y-4">
+              {expenses.map((expense) => (
+                <div key={expense.id} className="bg-white border-2 border-slate-100 rounded-[1.5rem] p-5 space-y-4 relative overflow-hidden group">
+                  <button 
+                    type="button" 
+                    onClick={() => removeExpense(expense.id)} 
+                    className="absolute top-4 right-4 p-2 text-slate-200 hover:text-red-500 transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
+                    <input 
+                      type="text" 
+                      value={expense.description} 
+                      onChange={e => updateExpense(expense.id, 'description', e.target.value)} 
+                      className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm" 
+                      placeholder={t.expenseDescription} 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.date}</label>
+                      <input 
+                        type="date" 
+                        value={expense.date} 
+                        onChange={e => updateExpense(expense.id, 'date', e.target.value)} 
+                        className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.quantity}</label>
+                      <input 
+                        type="number" 
+                        value={expense.quantity === 0 ? '' : expense.quantity} 
+                        onChange={e => updateExpense(expense.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} 
+                        placeholder="0" 
+                        className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-black text-slate-900 text-sm" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unitPrice}</label>
+                      <div className="flex items-center gap-1 bg-slate-50 px-3 py-2 rounded-lg">
+                        <span className="text-[10px] font-black text-slate-400">{currencyInfo.symbol}</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={expense.pricePerUnit === 0 ? '' : (expense.pricePerUnit * currencyInfo.rate)} 
+                          onChange={e => updateExpense(expense.id, 'pricePerUnit', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
+                          placeholder="0.00"
+                          className="w-full bg-transparent outline-none font-black text-sm" 
+                        />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p>
+                      <p className="font-black text-slate-900 text-lg">{formatValue(expense.amount)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {canAddExpense ? (
