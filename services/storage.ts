@@ -8,6 +8,7 @@ const STORAGE_KEY_NOTIFICATIONS = 'atrios_notifications';
 const STORAGE_KEY_MESSAGES = 'atrios_messages';
 const STORAGE_KEY_TRANSACTIONS = 'atrios_transactions';
 const STORAGE_KEY_COUPONS = 'atrios_coupons';
+const STORAGE_KEY_SESSION = 'atrios_session';
 
 export const getStoredCompanies = (): Company[] => {
   const data = localStorage.getItem(STORAGE_KEY_COMPANIES);
@@ -200,4 +201,27 @@ export const hydrateLocalData = async (companyId: string) => {
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);
   }
+};
+
+export const saveSession = (companyId: string | null, view?: string, activeTab?: string, currencyCode?: string) => {
+  const finalView = view || (getSession()?.view) || 'landing';
+  
+  if (finalView === 'landing' || (!companyId && finalView !== 'master' && finalView !== 'login' && finalView !== 'signup' && finalView !== 'verify')) {
+    localStorage.removeItem(STORAGE_KEY_SESSION);
+    return;
+  }
+  
+  const session = getSession() || { companyId: null, view: 'landing', activeTab: 'dashboard', currencyCode: 'EUR' };
+  localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify({
+    ...session,
+    companyId: companyId || null,
+    view: finalView,
+    activeTab: activeTab || session.activeTab || 'dashboard',
+    currencyCode: currencyCode || session.currencyCode || 'EUR'
+  }));
+};
+
+export const getSession = (): { companyId: string | null; view: string; activeTab: string; currencyCode: string } | null => {
+  const data = localStorage.getItem(STORAGE_KEY_SESSION);
+  return data ? JSON.parse(data) : null;
 };

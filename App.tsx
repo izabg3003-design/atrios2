@@ -42,7 +42,9 @@ import {
   getMessages,
   markMessagesAsRead,
   saveTransaction,
-  hydrateLocalData
+  hydrateLocalData,
+  saveSession,
+  getSession
 } from './services/storage';
 import { supabase } from './services/supabase';
 import { FREE_PDF_LIMIT } from './constants';
@@ -65,13 +67,27 @@ export const generateShortId = () => {
 };
 
 const App: React.FC = () => {
-  const [locale, setLocale] = useState<Locale>('pt-PT');
-  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>('EUR');
+  const session = useMemo(() => getSession(), []);
+  const [locale, setLocale] = useState<Locale>(() => {
+    if (session?.companyId) {
+      const companies = getStoredCompanies();
+      const user = companies.find(c => c.id === session.companyId);
+      return (user?.lastLocale as Locale) || 'pt-PT';
+    }
+    return 'pt-PT';
+  });
+  const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(session?.currencyCode as any || 'EUR');
   const t = translations[locale];
 
-  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'app' | 'master'>('landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>('dashboard');
-  const [currentUser, setCurrentUser] = useState<Company | null>(null);
+  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'app' | 'master'>(session?.view as any || 'landing');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
+  const [currentUser, setCurrentUser] = useState<Company | null>(() => {
+    if (session?.companyId) {
+      const companies = getStoredCompanies();
+      return companies.find(c => c.id === session.companyId) || null;
+    }
+    return null;
+  });
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
@@ -247,6 +263,25 @@ const App: React.FC = () => {
       return () => clearTimeout(bannerTimer);
     }
   }, [view, showWelcome, currentUser?.id, currentUser?.plan]);
+
+  useEffect(() => {
+    saveSession(currentUser?.id || null, view, activeTab, currencyCode);
+  }, [currentUser?.id, view, activeTab, currencyCode]);
+
+  useEffect(() => {
+    const initData = async () => {
+      if (currentUser?.id) {
+        await hydrateLocalData(currentUser.id);
+        const all = getStoredCompanies();
+        const updated = all.find(c => c.id === currentUser.id);
+        if (updated) {
+          setCurrentUser(updated);
+          currentUserRef.current = updated;
+        }
+      }
+    };
+    initData();
+  }, []);
 
   const isSettingsLocked = useMemo(() => {
     if (!currentUser) return true;
@@ -797,7 +832,7 @@ const App: React.FC = () => {
     </div>
   );
 
-  if (view === 'master') return <MasterPanel onLogout={() => setView('landing')} locale={locale} />;
+  if (view === 'master') return <MasterPanel onLogout={() => { saveSession(null); setView('landing'); }} locale={locale} />;
 
   return (
     <div className="flex h-screen bg-slate-50 overflow-hidden relative">
@@ -946,7 +981,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <button 
-                onClick={() => { setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
+                onClick={() => { saveSession(null); setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
                 className="w-full flex items-center gap-4 px-6 py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[10px]"
               >
                 <LogOut size={18} /> {t.logout}
