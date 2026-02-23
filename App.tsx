@@ -729,6 +729,7 @@ const App: React.FC = () => {
           companyId: currentUser.id,
           planType: plan,
           couponCode: coupon,
+          origin: window.location.origin,
         }),
       });
 
@@ -756,6 +757,8 @@ const App: React.FC = () => {
       }
 
       if (data.url) {
+        // Ensure session is saved with dashboard tab before redirecting
+        setActiveTab('dashboard');
         // Delay redirection by 8 seconds as requested
         await new Promise(resolve => setTimeout(resolve, 8000));
         window.location.href = data.url;

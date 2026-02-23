@@ -181,7 +181,8 @@ async function startServer() {
 
     try {
       console.log("Request body:", JSON.stringify(req.body));
-      const appUrl = process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
+      const { origin } = req.body;
+      const appUrl = origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
       console.log("Using App URL:", appUrl);
 
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
