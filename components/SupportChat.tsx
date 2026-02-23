@@ -106,8 +106,8 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
   };
 
   return (
-    <div className="fixed inset-x-0 bottom-0 sm:inset-auto sm:bottom-32 sm:right-8 w-full sm:w-96 h-[100dvh] sm:h-[500px] bg-white sm:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 z-[9999] border-t sm:border border-slate-100">
-      <div className="p-4 lg:p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
+    <div className="fixed bottom-32 right-8 w-96 h-[500px] bg-white rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 z-[9999] border border-slate-100">
+      <div className="p-6 bg-slate-900 text-white flex justify-between items-center shrink-0">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 bg-amber-500 text-slate-900 rounded-full flex items-center justify-center">
             <Headphones size={20} />
@@ -119,7 +119,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 no-scrollbar bg-slate-50/50">
+      <div className="flex-1 overflow-y-auto p-6 space-y-4 no-scrollbar bg-slate-50/50">
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
              <div className="w-16 h-16 bg-slate-100 text-slate-300 rounded-3xl flex items-center justify-center">
@@ -132,7 +132,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
         ) : (
           messages.map(m => (
             <div key={m.id} className={`flex ${m.senderRole === 'user' ? 'justify-end' : 'justify-start'}`}>
-              <div className={`max-w-[85%] sm:max-w-[80%] p-4 rounded-[1.5rem] text-sm font-bold shadow-sm ${
+              <div className={`max-w-[80%] p-4 rounded-[1.5rem] text-sm font-bold shadow-sm ${
                 m.senderRole === 'user' 
                 ? 'bg-slate-900 text-white rounded-tr-none' 
                 : 'bg-white text-slate-700 rounded-tl-none border border-slate-100'
@@ -149,19 +149,19 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
         <div ref={chatEndRef} />
       </div>
 
-      <form onSubmit={handleSend} className="p-4 lg:p-6 bg-white border-t border-slate-100 flex gap-3 shrink-0 pb-8 sm:pb-6">
+      <form onSubmit={handleSend} className="p-6 bg-white border-t border-slate-100 flex gap-3 shrink-0">
         <input 
           disabled={isTranslating}
           type="text" 
           value={newMessage} 
           onChange={e => setNewMessage(e.target.value)} 
           placeholder={t.supportChatPlaceholder} 
-          className="flex-1 px-4 lg:px-5 py-3 lg:py-3.5 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all disabled:opacity-50"
+          className="flex-1 px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all disabled:opacity-50"
         />
         <button 
           type="submit" 
           disabled={!newMessage.trim() || isTranslating}
-          className="bg-slate-900 text-white p-3 lg:p-3.5 rounded-xl lg:rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-30 disabled:scale-100"
+          className="bg-slate-900 text-white p-3.5 rounded-2xl hover:scale-105 active:scale-95 transition-all shadow-lg disabled:opacity-30 disabled:scale-100"
         >
           {isTranslating ? <Loader2 size={20} className="animate-spin" /> : <Send size={20} />}
         </button>

@@ -108,78 +108,78 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
   ];
 
   return (
-    <div className="space-y-8 lg:space-y-12 py-4 lg:py-8 animate-in fade-in duration-700">
-      <div className="text-center space-y-2 lg:space-y-4">
-        <h2 className="text-3xl lg:text-5xl font-black text-slate-900 tracking-tight">{t.plans}</h2>
-        <p className="text-slate-500 text-base lg:text-xl max-w-2xl mx-auto font-medium px-4">
+    <div className="space-y-12 py-8 animate-in fade-in duration-700">
+      <div className="text-center space-y-4">
+        <h2 className="text-5xl font-black text-slate-900 tracking-tight">{t.plans}</h2>
+        <p className="text-slate-500 text-xl max-w-2xl mx-auto font-medium">
           {t.planDescriptionSub}
         </p>
       </div>
 
-      <div className="max-w-md mx-auto bg-white p-4 lg:p-6 rounded-[2rem] lg:rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-3 lg:gap-4 mx-4 sm:mx-auto">
-        <div className="p-2 lg:p-3 bg-amber-50 text-amber-500 rounded-xl lg:rounded-2xl shrink-0">
-          <Ticket size={20} className="lg:w-6 lg:h-6" />
+      <div className="max-w-md mx-auto bg-white p-6 rounded-[2.5rem] border border-slate-100 shadow-xl flex items-center gap-4">
+        <div className="p-3 bg-amber-50 text-amber-500 rounded-2xl">
+          <Ticket size={24} />
         </div>
-        <div className="flex-1 min-w-0 space-y-0.5 lg:space-y-1">
+        <div className="flex-1 space-y-1">
           <input 
             type="text" 
             value={couponCode} 
             onChange={e => setCouponCode(e.target.value)} 
             placeholder={t.plansCouponPlaceholder}
-            className="w-full bg-transparent outline-none font-black text-slate-900 uppercase placeholder:normal-case text-sm lg:text-base"
+            className="w-full bg-transparent outline-none font-black text-slate-900 uppercase placeholder:normal-case"
           />
-          {couponError && <p className="text-[8px] lg:text-[10px] font-bold text-red-500">{couponError}</p>}
-          {appliedDiscount > 0 && <p className="text-[8px] lg:text-[10px] font-bold text-emerald-500">{t.plansCouponApplied} (-{appliedDiscount}%)</p>}
+          {couponError && <p className="text-[10px] font-bold text-red-500">{couponError}</p>}
+          {appliedDiscount > 0 && <p className="text-[10px] font-bold text-emerald-500">{t.plansCouponApplied} (-{appliedDiscount}%)</p>}
         </div>
         <button 
           onClick={handleApplyCoupon}
-          className="px-4 lg:px-6 py-2.5 lg:py-3 bg-slate-900 text-white rounded-xl lg:rounded-2xl font-black text-[10px] lg:text-xs uppercase tracking-widest hover:bg-slate-800 transition-all shrink-0"
+          className="px-6 py-3 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-slate-800 transition-all"
         >
           {t.plansCouponApply}
         </button>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 lg:gap-8 max-w-7xl mx-auto px-4 pb-10">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto px-4">
         {plans.map((plan, index) => {
           const finalPriceEur = calculatePrice(plan.basePrice);
           return (
             <div 
               key={index} 
-              className={`relative flex flex-col p-8 lg:p-10 rounded-[2.5rem] lg:rounded-[3rem] shadow-xl transition-all transform hover:-translate-y-2 ${plan.color} ${plan.textColor} ${plan.bestValue ? 'ring-4 lg:ring-8 ring-amber-500/20 md:scale-105' : ''} ${index === 1 ? 'md:mt-0' : ''}`}
+              className={`relative flex flex-col p-10 rounded-[3rem] shadow-xl transition-all transform hover:-translate-y-2 ${plan.color} ${plan.textColor} ${plan.bestValue ? 'ring-8 ring-amber-500/20 scale-105' : ''}`}
             >
               {plan.bestValue && (
-                <div className="absolute -top-4 lg:-top-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-4 lg:px-6 py-1.5 lg:py-2 rounded-full text-[10px] lg:text-xs font-black uppercase tracking-widest flex items-center gap-1.5 lg:gap-2 whitespace-nowrap z-10">
-                  <Star size={12} className="fill-amber-400 text-amber-400 lg:w-3.5 lg:h-3.5" /> {t.bestValue}
+                <div className="absolute -top-5 left-1/2 -translate-x-1/2 bg-slate-900 text-white px-6 py-2 rounded-full text-xs font-black uppercase tracking-widest flex items-center gap-2">
+                  <Star size={14} className="fill-amber-400 text-amber-400" /> {t.bestValue}
                 </div>
               )}
 
-              <div className="space-y-1 lg:space-y-2 mb-6 lg:mb-8">
-                <h3 className="text-xl lg:text-2xl font-black uppercase tracking-tighter italic">{plan.name}</h3>
+              <div className="space-y-2 mb-8">
+                <h3 className="text-2xl font-black uppercase tracking-tighter italic">{plan.name}</h3>
                 <div className="flex flex-col">
                   <div className="flex items-baseline gap-1">
-                    <span className="text-3xl lg:text-4xl font-black">{formatPrice(finalPriceEur)}</span>
-                    <span className="text-xs lg:text-sm font-bold opacity-60">{plan.period}</span>
+                    <span className="text-4xl font-black">{formatPrice(finalPriceEur)}</span>
+                    <span className="text-sm font-bold opacity-60">{plan.period}</span>
                   </div>
                   {appliedDiscount > 0 && plan.basePrice > 0 && (
-                    <span className="text-xs lg:text-sm line-through opacity-40 font-bold">
+                    <span className="text-sm line-through opacity-40 font-bold">
                       {formatPrice(plan.basePrice)}
                     </span>
                   )}
                 </div>
                 {plan.savings && (
-                  <p className="text-[8px] lg:text-[10px] font-black text-red-500 bg-white/90 inline-block px-2 lg:px-3 py-1 rounded-lg mt-1 lg:mt-2">
+                  <p className="text-[10px] font-black text-red-500 bg-white/90 inline-block px-3 py-1 rounded-lg mt-2">
                     {plan.savings}
                   </p>
                 )}
               </div>
 
-              <div className="flex-1 space-y-3 lg:space-y-4 mb-8 lg:mb-10">
+              <div className="flex-1 space-y-4 mb-10">
                 {plan.features.map((feature, fIndex) => (
-                  <div key={fIndex} className="flex items-start gap-2 lg:gap-3">
-                    <div className={`mt-0.5 lg:mt-1 p-0.5 rounded-full shrink-0 ${plan.textColor === 'text-white' ? 'bg-white/20' : 'bg-slate-900/10'}`}>
-                      <Check size={10} className="lg:w-3 lg:h-3" />
+                  <div key={fIndex} className="flex items-start gap-3">
+                    <div className={`mt-1 p-0.5 rounded-full ${plan.textColor === 'text-white' ? 'bg-white/20' : 'bg-slate-900/10'}`}>
+                      <Check size={12} />
                     </div>
-                    <span className="text-[11px] lg:text-xs font-bold leading-tight">{feature}</span>
+                    <span className="text-xs font-bold leading-tight">{feature}</span>
                   </div>
                 ))}
               </div>
@@ -187,10 +187,10 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
               <button 
                 onClick={() => onSelect(plan.id, finalPriceEur, appliedDiscount > 0 ? couponCode : undefined)}
                 disabled={isProcessing || currentPlan === plan.id}
-                className={`w-full py-4 lg:py-5 rounded-2xl lg:rounded-[2rem] font-black text-base lg:text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.buttonColor}`}
+                className={`w-full py-5 rounded-[2rem] font-black text-lg transition-all shadow-lg active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 ${plan.buttonColor}`}
               >
                 {isProcessing ? (
-                  <div className="w-5 h-5 lg:w-6 lg:h-6 border-4 border-slate-900/20 border-t-slate-900 rounded-full animate-spin" />
+                  <div className="w-6 h-6 border-4 border-slate-900/20 border-t-slate-900 rounded-full animate-spin" />
                 ) : (
                   currentPlan === plan.id ? t.currentPlan : t.selectPlan
                 )}
