@@ -1063,7 +1063,29 @@ const App: React.FC = () => {
                 })}
               </nav>
             </div>
-            <div className="mt-auto p-4 sm:p-6 border-t border-slate-50 space-y-2">
+            <div className="mt-auto p-4 sm:p-6 border-t border-slate-50 space-y-4">
+              <div className="lg:hidden flex flex-col gap-2 animate-in slide-in-from-bottom duration-500">
+                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 shadow-sm">
+                  <Coins size={14} className="text-white/60" />
+                  <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest w-full">
+                    {Object.values(CURRENCIES).map(curr => <option key={curr.code} value={curr.code} className="text-slate-900">{curr.label}</option>)}
+                  </select>
+                </div>
+                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 shadow-sm">
+                  <Globe size={14} className="text-white/60" />
+                  <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest w-full">
+                    <option value="pt-PT" className="text-slate-900">🇵🇹 PT (Portugal)</option>
+                    <option value="pt-BR" className="text-slate-900">🇧🇷 PT (Brasil)</option>
+                    <option value="en-US" className="text-slate-900">🇺🇸 EN (English)</option>
+                    <option value="fr-FR" className="text-slate-900">🇫🇷 FR (Français)</option>
+                    <option value="it-IT" className="text-slate-900">🇮🇹 IT (Italiano)</option>
+                    <option value="es-ES" className="text-slate-900">🇪🇸 ES (Español)</option>
+                    <option value="ru-RU" className="text-slate-900">🇷🇺 RU (Pоссия)</option>
+                    <option value="hi-IN" className="text-slate-900">🇮🇳 HI (भारत)</option>
+                    <option value="bn-BD" className="text-slate-900">🇧🇩 BN (বাংলাদেশ)</option>
+                  </select>
+                </div>
+              </div>
               <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-3 relative">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-slate-900 rounded-lg sm:rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden shrink-0">
                   {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}
@@ -1092,7 +1114,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
                 <button 
                   onClick={() => setIsMobileMenuOpen(true)}
-                  className="p-2 bg-slate-50 text-slate-900 rounded-xl hover:bg-slate-100 transition-all"
+                  className="p-2 bg-amber-500 text-white rounded-xl hover:bg-amber-400 transition-all shadow-lg shadow-amber-500/40 animate-pulse"
                 >
                   <LayoutDashboard size={20} />
                 </button>

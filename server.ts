@@ -142,12 +142,17 @@ async function startServer() {
     let monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "price_1T3e4x1kTCJBb2eQJBnM0adW").trim();
     let annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "price_1T3e8d1kTCJBb2eQgqKiRoN1").trim();
     
-    // Hotfix: If the environment still has the old incorrect ID, override it
-    if (monthlyId === "price_1T3YhcP8uJW17aRIpkBFJHvu") {
+    // Hotfix: If the environment still has the old incorrect IDs, override them
+    const invalidIds = [
+      "price_1T3YhcP8uJW17aRIpkBFJHvu",
+      "price_1T3YmmP8uJW17aRIQhPP5gmK"
+    ];
+
+    if (invalidIds.includes(monthlyId)) {
       console.log("Hotfix: Overriding old monthly price ID");
       monthlyId = "price_1T3e4x1kTCJBb2eQJBnM0adW";
     }
-    if (annualId === "price_1T3YhcP8uJW17aRIpkBFJHvu") {
+    if (invalidIds.includes(annualId)) {
       console.log("Hotfix: Overriding old annual price ID");
       annualId = "price_1T3e8d1kTCJBb2eQgqKiRoN1";
     }

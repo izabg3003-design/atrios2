@@ -261,7 +261,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
 
   return (
     <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in duration-500">
-      <div className="px-4 sm:px-10 py-6 bg-slate-900 text-white flex flex-col lg:flex-row justify-between items-center gap-6">
+      <div className="relative px-4 sm:px-10 py-6 bg-slate-900 text-white flex flex-col lg:flex-row justify-between items-center gap-6">
         <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4">
           <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('items')}>
             <FileText size={20} className="sm:w-6 sm:h-6" /> {initialData ? t.saveBudget : t.newBudget} 
@@ -327,7 +327,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
           </div>
         </div>
         <button type="button" onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full transition-colors hidden lg:block"><X size={24} /></button>
-        <button type="button" onClick={onCancel} className="fixed top-4 right-4 z-[100] p-2 bg-slate-900 text-white rounded-full lg:hidden shadow-xl border border-white/10"><X size={20} /></button>
+        <button type="button" onClick={onCancel} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors lg:hidden"><X size={24} /></button>
       </div>
 
       <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-12">
