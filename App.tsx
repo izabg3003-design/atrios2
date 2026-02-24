@@ -939,9 +939,9 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : view === 'login' ? (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+        <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
-          <div className="w-full max-w-md space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
+          <div className="w-full sm:max-w-xl space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
             <div className="text-center space-y-3 lg:space-y-4">
               <div className="inline-flex p-3 sm:p-4 bg-amber-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-amber-500/20 mb-2 lg:mb-4"><Construction size={24} className="sm:w-8 sm:h-8" /></div>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.welcomeBack}</h2>
@@ -965,7 +965,7 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : view === 'signup' ? (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+        <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
           <div className="w-full max-w-2xl space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
             <div className="text-center space-y-3 lg:space-y-4">
@@ -1000,9 +1000,9 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : view === 'verify' ? (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+        <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
           <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
-          <div className="w-full max-w-md space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 text-center relative z-10">
+          <div className="w-full sm:max-w-xl space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 text-center relative z-10">
             <div className="space-y-3 lg:space-y-4">
               <div className="inline-flex p-3 sm:p-4 bg-blue-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-blue-500/20 mb-2 lg:mb-4"><Mail size={24} className="sm:w-8 sm:h-8" /></div>
               <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.verifyEmailTitle}</h2>
