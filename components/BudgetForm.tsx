@@ -260,106 +260,109 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   };
 
   return (
-    <div className="bg-white rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in duration-500">
-      <div className="px-10 py-6 bg-slate-900 text-white flex flex-col md:flex-row justify-between items-center gap-6">
-        <div className="flex flex-wrap items-center gap-4">
-          <h2 className="text-2xl font-black flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('items')}>
-            <FileText size={24} /> {initialData ? t.saveBudget : t.newBudget} 
-            {initialData && <span className="text-xs bg-white/20 px-3 py-1 rounded-full uppercase ml-2">#{initialData.id}</span>}
+    <div className="bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl overflow-hidden animate-in fade-in duration-500">
+      <div className="px-4 sm:px-10 py-6 bg-slate-900 text-white flex flex-col lg:flex-row justify-between items-center gap-6">
+        <div className="flex flex-col sm:flex-row flex-wrap items-center justify-center lg:justify-start gap-4">
+          <h2 className="text-xl sm:text-2xl font-black flex items-center gap-3 cursor-pointer" onClick={() => setActiveTab('items')}>
+            <FileText size={20} className="sm:w-6 sm:h-6" /> {initialData ? t.saveBudget : t.newBudget} 
+            {initialData && <span className="text-[10px] bg-white/20 px-2 sm:px-3 py-1 rounded-full uppercase ml-2">#{initialData.id}</span>}
           </h2>
-          <div className="h-8 w-[1px] bg-white/20 hidden lg:block" />
+          <div className="h-8 w-[1px] bg-white/20 hidden xl:block" />
           
-          <div className="flex items-center gap-3 bg-white/10 px-4 py-1.5 rounded-full">
-            <Calendar size={14} className="text-blue-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest">{t.date}:</span>
-            <input 
-              type="date" 
-              value={budgetDate} 
-              onChange={e => setBudgetDate(e.target.value)}
-              className="bg-transparent text-[10px] font-black uppercase outline-none cursor-pointer text-white [color-scheme:dark]"
-            />
+          <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-3">
+            <div className="flex items-center gap-2 sm:gap-3 bg-white/10 px-3 sm:px-4 py-1.5 rounded-full">
+              <Calendar size={12} className="text-blue-400 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">{t.date}:</span>
+              <input 
+                type="date" 
+                value={budgetDate} 
+                onChange={e => setBudgetDate(e.target.value)}
+                className="bg-transparent text-[8px] sm:text-[10px] font-black uppercase outline-none cursor-pointer text-white [color-scheme:dark]"
+              />
+            </div>
+
+            <div className="flex items-center gap-2 sm:gap-3 bg-white/10 px-3 sm:px-4 py-1.5 rounded-full">
+              <Tag size={12} className="text-amber-400 sm:w-3.5 sm:h-3.5" />
+              <span className="text-[8px] sm:text-[10px] font-black uppercase tracking-widest">{t.budgetStatusLabel}:</span>
+              <select 
+                value={status} 
+                onChange={e => setStatus(e.target.value as BudgetStatus)}
+                className="bg-transparent text-[8px] sm:text-[10px] font-black uppercase outline-none cursor-pointer text-white"
+              >
+                <option value={BudgetStatus.PENDING} className="text-slate-900">{t.statusPending}</option>
+                <option value={BudgetStatus.APPROVED} className="text-slate-900">{t.statusApproved}</option>
+                <option value={BudgetStatus.REJECTED} className="text-slate-900">{t.statusRejected}</option>
+              </select>
+            </div>
           </div>
 
-          <div className="flex items-center gap-3 bg-white/10 px-4 py-1.5 rounded-full">
-            <Tag size={14} className="text-amber-400" />
-            <span className="text-[10px] font-black uppercase tracking-widest">{t.budgetStatusLabel}:</span>
-            <select 
-              value={status} 
-              onChange={e => setStatus(e.target.value as BudgetStatus)}
-              className="bg-transparent text-[10px] font-black uppercase outline-none cursor-pointer text-white"
-            >
-              <option value={BudgetStatus.PENDING} className="text-slate-900">{t.statusPending}</option>
-              <option value={BudgetStatus.APPROVED} className="text-slate-900">{t.statusApproved}</option>
-              <option value={BudgetStatus.REJECTED} className="text-slate-900">{t.statusRejected}</option>
-            </select>
-          </div>
-
-          <div className="flex gap-2">
+          <div className="flex flex-wrap justify-center gap-2">
             <button 
               type="button"
               onClick={() => setActiveTab('items')}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
                 activeTab === 'items' ? 'bg-white text-slate-900 scale-105' : 'bg-white/10 text-white/70 hover:bg-white/20'
               }`}
             >
-              <Briefcase size={16} /> {t.serviceItems}
+              <Briefcase size={14} className="sm:w-4 sm:h-4" /> {t.serviceItems}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('expenses')}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
                 activeTab === 'expenses' ? 'bg-red-50 text-white scale-105' : 'bg-white/10 text-white/70 hover:bg-white/20'
               }`}
             >
-              <Wallet size={16} /> {t.recordExpenses}
+              <Wallet size={14} className="sm:w-4 sm:h-4" /> {t.recordExpenses}
             </button>
             <button 
               type="button"
               onClick={() => setActiveTab('payments')}
-              className={`px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
                 activeTab === 'payments' ? 'bg-emerald-50 text-white scale-105' : 'bg-white/10 text-white/70 hover:bg-white/20'
               }`}
             >
-              <CreditCard size={16} /> {t.recordPayments}
+              <CreditCard size={14} className="sm:w-4 sm:h-4" /> {t.recordPayments}
             </button>
           </div>
         </div>
-        <button type="button" onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full transition-colors"><X size={24} /></button>
+        <button type="button" onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full transition-colors hidden lg:block"><X size={24} /></button>
+        <button type="button" onClick={onCancel} className="fixed top-4 right-4 z-[100] p-2 bg-slate-900 text-white rounded-full lg:hidden shadow-xl border border-white/10"><X size={20} /></button>
       </div>
 
-      <form onSubmit={handleSubmit} className="p-10 space-y-12">
-        <section className="space-y-6">
-          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1"><User size={16} /> {t.clientIdentification}</h4>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1">{t.clientName}</label>
-              <input required type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder={t.clientPlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+      <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-12">
+        <section className="space-y-4 sm:space-y-6">
+          <h4 className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1"><User size={14} className="sm:w-4 sm:h-4" /> {t.clientIdentification}</h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.clientName}</label>
+              <input required type="text" value={clientName} onChange={e => setClientName(e.target.value)} placeholder={t.clientPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1">{t.contactName}</label>
-              <input required type="text" value={contactName} onChange={e => setContactName(e.target.value)} placeholder={t.contactPlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.contactName}</label>
+              <input required type="text" value={contactName} onChange={e => setContactName(e.target.value)} placeholder={t.contactPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1">{t.phone}</label>
-              <input required type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder={t.phonePlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.phone}</label>
+              <input required type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} placeholder={t.phonePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1">{t.clientNif}</label>
-              <input type="text" value={clientNif} onChange={e => setClientNif(e.target.value)} placeholder={t.nifPlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.clientNif}</label>
+              <input type="text" value={clientNif} onChange={e => setClientNif(e.target.value)} placeholder={t.nifPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 pt-2">
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><MapPin size={12} /> {t.workLocation}</label>
-              <input type="text" value={workLocation} onChange={e => setWorkLocation(e.target.value)} placeholder={t.locationPlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-2">
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><MapPin size={12} /> {t.workLocation}</label>
+              <input type="text" value={workLocation} onChange={e => setWorkLocation(e.target.value)} placeholder={t.locationPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Hash size={12} /> {t.workNumber}</label>
-              <input type="text" value={workNumber} onChange={e => setWorkNumber(e.target.value)} placeholder={t.numberPlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+            <div className="space-y-1 sm:space-y-2">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Hash size={12} /> {t.workNumber}</label>
+              <input type="text" value={workNumber} onChange={e => setWorkNumber(e.target.value)} placeholder={t.numberPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Mail size={12} /> {t.workPostalCode}</label>
-              <input type="text" value={workPostalCode} onChange={e => setWorkPostalCode(e.target.value)} placeholder={t.postalCodePlaceholder} className="w-full px-5 py-3.5 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold" />
+            <div className="space-y-1 sm:space-y-2 sm:col-span-2 lg:col-span-1">
+              <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Mail size={12} /> {t.workPostalCode}</label>
+              <input type="text" value={workPostalCode} onChange={e => setWorkPostalCode(e.target.value)} placeholder={t.postalCodePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm" />
             </div>
           </div>
         </section>
@@ -419,7 +422,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                 </div>
               </div>
               
-              <div className="overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
+              <div className="hidden md:block overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
                 <table className="w-full border-collapse min-w-[900px]">
                   <thead>
                     <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
@@ -468,6 +471,76 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     ))}
                   </tbody>
                 </table>
+              </div>
+
+              {/* Mobile Card View for Items */}
+              <div className="md:hidden space-y-4">
+                {items.map((item) => (
+                  <div key={item.id} className="bg-white border-2 border-slate-100 rounded-[1.5rem] p-5 space-y-4 relative overflow-hidden group">
+                    <button 
+                      type="button" 
+                      onClick={() => removeItem(item.id)} 
+                      className="absolute top-4 right-4 p-2 text-slate-200 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                    
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
+                      <input 
+                        type="text" 
+                        value={item.description} 
+                        onChange={e => updateItem(item.id, 'description', e.target.value)} 
+                        className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm" 
+                        placeholder={t.descriptionPlaceholder} 
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.quantity}</label>
+                        <input 
+                          type="number" 
+                          value={item.quantity === 0 ? '' : item.quantity} 
+                          onChange={e => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} 
+                          placeholder="0" 
+                          className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-black text-slate-900 text-sm" 
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unit}</label>
+                        <input 
+                          type="text" 
+                          value={item.unit} 
+                          onChange={e => updateItem(item.id, 'unit', e.target.value)} 
+                          className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm" 
+                          placeholder={t.unitDefault} 
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4 items-end">
+                      <div className="space-y-1">
+                        <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unitPrice}</label>
+                        <div className="flex items-center gap-1 bg-slate-50 px-3 py-2 rounded-lg">
+                          <span className="text-[10px] font-black text-slate-400">{currencyInfo.symbol}</span>
+                          <input 
+                            type="number" 
+                            step="0.01" 
+                            value={item.pricePerUnit === 0 ? '' : (item.pricePerUnit * currencyInfo.rate)} 
+                            onChange={e => updateItem(item.id, 'pricePerUnit', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
+                            placeholder="0.00"
+                            className="w-full bg-transparent outline-none font-black text-sm" 
+                          />
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p>
+                        <p className="font-black text-slate-900 text-lg">{formatValue(item.total)}</p>
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
 
               {canAddItem ? (
@@ -534,7 +607,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               <div className="p-4 bg-white/50 rounded-2xl"><Wallet className="text-red-500" size={32} /></div>
             </div>
 
-            <div className="overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
+            <div className="hidden md:block overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
               <table className="w-full border-collapse min-w-[900px]">
                 <thead>
                   <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
@@ -587,6 +660,75 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                   ))}
                 </tbody>
               </table>
+            </div>
+
+            {/* Mobile Card View for Expenses */}
+            <div className="md:hidden space-y-4">
+              {expenses.map((expense) => (
+                <div key={expense.id} className="bg-white border-2 border-slate-100 rounded-[1.5rem] p-5 space-y-4 relative overflow-hidden group">
+                  <button 
+                    type="button" 
+                    onClick={() => removeExpense(expense.id)} 
+                    className="absolute top-4 right-4 p-2 text-slate-200 hover:text-red-500 transition-all"
+                  >
+                    <Trash2 size={18} />
+                  </button>
+                  
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
+                    <input 
+                      type="text" 
+                      value={expense.description} 
+                      onChange={e => updateExpense(expense.id, 'description', e.target.value)} 
+                      className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm" 
+                      placeholder={t.expenseDescription} 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.date}</label>
+                      <input 
+                        type="date" 
+                        value={expense.date} 
+                        onChange={e => updateExpense(expense.id, 'date', e.target.value)} 
+                        className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm" 
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.quantity}</label>
+                      <input 
+                        type="number" 
+                        value={expense.quantity === 0 ? '' : expense.quantity} 
+                        onChange={e => updateExpense(expense.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} 
+                        placeholder="0" 
+                        className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-black text-slate-900 text-sm" 
+                      />
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4 items-end">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unitPrice}</label>
+                      <div className="flex items-center gap-1 bg-slate-50 px-3 py-2 rounded-lg">
+                        <span className="text-[10px] font-black text-slate-400">{currencyInfo.symbol}</span>
+                        <input 
+                          type="number" 
+                          step="0.01" 
+                          value={expense.pricePerUnit === 0 ? '' : (expense.pricePerUnit * currencyInfo.rate)} 
+                          onChange={e => updateExpense(expense.id, 'pricePerUnit', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
+                          placeholder="0.00"
+                          className="w-full bg-transparent outline-none font-black text-sm" 
+                        />
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p>
+                      <p className="font-black text-slate-900 text-lg">{formatValue(expense.amount)}</p>
+                    </div>
+                  </div>
+                </div>
+              ))}
             </div>
 
             {canAddExpense ? (

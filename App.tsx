@@ -104,6 +104,7 @@ const App: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNewMessageAlert, setShowNewMessageAlert] = useState(false);
   const [showUnlockAlert, setShowUnlockAlert] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -906,45 +907,135 @@ const App: React.FC = () => {
       )}
 
       {view === 'landing' ? (
-        <div className="min-h-screen flex flex-col items-center justify-center p-6 bg-slate-900 overflow-hidden relative w-full">
-          <div className="absolute top-8 right-8 z-50"><Selectors /></div>
-          <div className="z-10 text-center max-w-2xl px-4">
-            <div className="flex items-center justify-center gap-4 mb-8"><div className="bg-amber-500 p-5 rounded-[2rem] shadow-2xl rotate-12"><Construction className="text-white" size={48} /></div><h1 className="text-7xl font-black text-white tracking-tighter italic">{t.appName}</h1></div>
-            <h2 className="text-3xl text-slate-300 font-medium mb-16 leading-relaxed">{t.heroTitle}</h2>
-            <div className="flex flex-col sm:flex-row gap-5 justify-center"><button onClick={() => setView('signup')} className="px-12 py-6 bg-amber-500 text-slate-900 rounded-3xl font-black text-xl hover:bg-amber-400 transition-all shadow-2xl">{t.heroCta}</button><button onClick={() => setView('login')} className="px-12 py-6 bg-white/10 text-white border-2 border-white/20 rounded-3xl font-black text-xl hover:bg-white/20 transition-all">{t.loginBtn}</button></div>
+        <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-900 overflow-hidden relative w-full">
+          <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50 scale-90 sm:scale-100 origin-top-right"><Selectors /></div>
+          <div className="z-10 text-center max-w-2xl px-4 py-12 sm:py-0">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 sm:mb-10">
+              <div className="bg-amber-500 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl rotate-12">
+                <Construction className="text-white w-8 h-8 sm:w-12 sm:h-12" />
+              </div>
+              <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter italic">{t.appName}</h1>
+            </div>
+            <h2 className="text-xl sm:text-3xl text-slate-300 font-medium mb-10 sm:mb-16 leading-relaxed">{t.heroTitle}</h2>
+            <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center">
+              <button onClick={() => setView('signup')} className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-amber-500 text-slate-900 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl hover:bg-amber-400 transition-all shadow-2xl">
+                {t.heroCta}
+              </button>
+              <button onClick={() => setView('login')} className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-white/10 text-white border-2 border-white/20 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl hover:bg-white/20 transition-all">
+                {t.loginBtn}
+              </button>
+            </div>
             
-            <div className="mt-20 flex flex-col items-center gap-6">
-              <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-[0.3em] text-white/40">
+            <div className="mt-12 sm:mt-20 flex flex-col items-center gap-6">
+              <div className="flex items-center gap-6 sm:gap-8 text-[9px] sm:text-[10px] font-black uppercase tracking-widest sm:tracking-[0.3em] text-white/40">
                 <button onClick={() => setShowLegalModal('terms')} className="hover:text-amber-500 transition-colors">{t.termsOfService}</button>
                 <button onClick={() => setShowLegalModal('privacy')} className="hover:text-amber-500 transition-colors">{t.privacyPolicy}</button>
               </div>
-              <div className="flex items-center gap-3 px-6 py-3 bg-white/5 border border-white/10 rounded-2xl text-[10px] font-black uppercase tracking-widest text-white/60">
-                <Mail size={14} className="text-amber-500" />
+              <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/60">
+                <Mail size={12} className="text-amber-500 sm:w-3.5 sm:h-3.5" />
                 <span>{t.supportEmailLabel}: <a href="mailto:support@atrios.pt" className="text-white hover:text-amber-500 transition-colors">support@atrios.pt</a></span>
               </div>
             </div>
           </div>
         </div>
-      ) : (view === 'login' || view === 'signup') ? (
-        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-6 relative w-full">
-          <div className="bg-white w-full max-w-md p-12 rounded-[3rem] shadow-2xl border border-slate-100">
-            <div className="flex items-center gap-3 mb-10 justify-center"><Construction className="text-amber-500" size={40} /><span className="text-4xl font-black tracking-tighter">{t.appName}</span></div>
-            <h2 className="text-3xl font-black text-slate-900 mb-8">{view === 'login' ? t.welcomeBack : t.createAccount}</h2>
-            <form onSubmit={view === 'login' ? handleLogin : handleSignup} className="space-y-5">
-              {view === 'signup' && <input required type="text" value={companyName} onChange={e => setCompanyName(e.target.value)} placeholder={t.companyLabel} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold" />}
-              <input required type="email" value={email} onChange={e => setEmail(e.target.value)} placeholder={t.emailLabel} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold" />
-              <input required type="password" value={password} onChange={e => setPassword(e.target.value)} placeholder={t.passwordLabel} className="w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold" />
-              <button className="w-full py-5 bg-slate-900 text-white rounded-3xl font-black text-xl hover:bg-slate-800 transition-all shadow-2xl">{view === 'login' ? t.loginBtn : t.registerBtn}</button>
+      ) : view === 'login' ? (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
+          <div className="w-full max-w-md space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
+            <div className="text-center space-y-3 lg:space-y-4">
+              <div className="inline-flex p-3 sm:p-4 bg-amber-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-amber-500/20 mb-2 lg:mb-4"><Construction size={24} className="sm:w-8 sm:h-8" /></div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.welcomeBack}</h2>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.2em] lg:tracking-[0.3em] text-[10px] lg:text-xs">{t.enterData}</p>
+            </div>
+            <form onSubmit={handleLogin} className="space-y-5 sm:space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.emailLabel}</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="exemplo@empresa.pt" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.passwordLabel}</label>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="••••••••" />
+              </div>
+              <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.loginBtn}</button>
             </form>
-            <div className="mt-8 text-center"><button onClick={() => setView(view === 'login' ? 'signup' : 'login')} className="text-slate-400 font-bold hover:text-slate-900 underline">{view === 'login' ? t.noAccount : t.haveAccount}</button></div>
+            <div className="text-center space-y-4">
+              <p className="text-slate-400 font-bold text-xs sm:text-sm">{t.noAccount} <button onClick={() => setView('signup')} className="text-amber-600 hover:text-amber-700 underline decoration-2 underline-offset-4">{t.registerHere}</button></p>
+              <button onClick={() => setView('landing')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+            </div>
+          </div>
+        </div>
+      ) : view === 'signup' ? (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
+          <div className="w-full max-w-2xl space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
+            <div className="text-center space-y-3 lg:space-y-4">
+              <div className="inline-flex p-3 sm:p-4 bg-amber-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-amber-500/20 mb-2 lg:mb-4"><Construction size={24} className="sm:w-8 sm:h-8" /></div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.createAccount}</h2>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.2em] lg:tracking-[0.3em] text-[10px] lg:text-xs">{t.enterData}</p>
+            </div>
+            <form onSubmit={handleSignup} className="grid grid-cols-1 sm:grid-cols-2 gap-5 sm:gap-6">
+              <div className="sm:col-span-2 space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.companyLabel}</label>
+                <input type="text" required value={companyName} onChange={e => setCompanyName(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="Nome da sua Empresa" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.emailLabel}</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="exemplo@empresa.pt" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.passwordLabel}</label>
+                <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="••••••••" />
+              </div>
+              <div className="sm:col-span-2 pt-2">
+                <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.registerBtn}</button>
+              </div>
+            </form>
+            <div className="text-center space-y-4">
+              <p className="text-slate-400 font-bold text-xs sm:text-sm">{t.haveAccount} <button onClick={() => setView('login')} className="text-amber-600 hover:text-amber-700 underline decoration-2 underline-offset-4">{t.loginBtn}</button></p>
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-300">
+                <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
+                <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : view === 'verify' ? (
+        <div className="min-h-screen bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
+          <div className="w-full max-w-md space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 text-center relative z-10">
+            <div className="space-y-3 lg:space-y-4">
+              <div className="inline-flex p-3 sm:p-4 bg-blue-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-blue-500/20 mb-2 lg:mb-4"><Mail size={24} className="sm:w-8 sm:h-8" /></div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.verifyEmailTitle}</h2>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.2em] lg:tracking-[0.3em] text-[10px] lg:text-xs">{t.verifyEmailDesc} {email}</p>
+            </div>
+            <div className="space-y-4">
+              <button onClick={handleVerify} className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.simulateVerify}</button>
+              <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+            </div>
           </div>
         </div>
       ) : (
-        <>
-          <aside className="w-80 bg-white border-r border-slate-100 flex flex-col shrink-0 shadow-sm">
-            <div className="p-10">
-              <div className="flex items-center gap-3 mb-16"><div className="bg-amber-500 p-2 rounded-xl"><Construction className="text-white" size={24} /></div><span className="text-3xl font-black tracking-tighter">{t.appName}</span></div>
-              <nav className="space-y-3">
+        <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full">
+          {/* Mobile Sidebar Overlay */}
+          {isMobileMenuOpen && (
+            <div 
+              className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm z-[60] lg:hidden"
+              onClick={() => setIsMobileMenuOpen(false)}
+            />
+          )}
+
+          <aside className={`fixed inset-y-0 left-0 w-72 sm:w-80 bg-white border-r border-slate-100 flex flex-col shrink-0 shadow-2xl lg:shadow-sm z-[70] transition-transform duration-300 lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
+            <div className="p-6 sm:p-8 lg:p-10">
+              <div className="flex items-center justify-between mb-8 sm:mb-12 lg:mb-16">
+                <div className="flex items-center gap-3">
+                  <div className="bg-amber-500 p-2 rounded-xl"><Construction className="text-white" size={20} /></div>
+                  <span className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter">{t.appName}</span>
+                </div>
+                <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-900">
+                  <X size={24} />
+                </button>
+              </div>
+              <nav className="space-y-1 sm:space-y-2 lg:space-y-3">
                 {[
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
@@ -956,26 +1047,30 @@ const App: React.FC = () => {
                   const hasPendingUnlock = item.id === 'settings' && currentUser?.unlockRequested;
                   
                   return (
-                    <button key={item.id} onClick={() => setActiveTab(item.id as any)} className={`w-full flex items-center gap-5 px-6 py-4 rounded-[1.5rem] font-black transition-all ${activeTab === item.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-400 hover:bg-slate-50'}`}>
+                    <button 
+                      key={item.id} 
+                      onClick={() => { setActiveTab(item.id as any); setIsMobileMenuOpen(false); }} 
+                      className={`w-full flex items-center gap-3 sm:gap-4 lg:gap-5 px-4 sm:px-5 lg:px-6 py-3 sm:py-3.5 lg:py-4 rounded-xl sm:rounded-[1.25rem] lg:rounded-[1.5rem] font-black transition-all ${activeTab === item.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-400 hover:bg-slate-50'}`}
+                    >
                       <div className="relative">
-                        <item.icon size={20} />
+                        <item.icon size={18} className="sm:w-[18px] sm:h-[18px] lg:w-5 lg:h-5" />
                         {isReportsLocked && <Lock size={10} className="absolute -top-1 -right-1 text-amber-500" />}
                         {hasPendingUnlock && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white animate-pulse" />}
                       </div>
-                      {item.label}
+                      <span className="text-xs sm:text-sm lg:text-base">{item.label}</span>
                     </button>
                   );
                 })}
               </nav>
             </div>
-            <div className="mt-auto p-6 border-t border-slate-50 space-y-2">
-              <div className="bg-slate-50 p-4 rounded-3xl flex items-center gap-3 relative">
-                <div className="w-12 h-12 bg-slate-900 rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden">
+            <div className="mt-auto p-4 sm:p-6 border-t border-slate-50 space-y-2">
+              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-3 relative">
+                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-slate-900 rounded-lg sm:rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden shrink-0">
                   {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-slate-900 truncate text-sm">{currentUser?.name}</p>
-                  <p className="text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p>
+                  <p className="font-black text-slate-900 truncate text-[10px] sm:text-xs lg:text-sm">{currentUser?.name}</p>
+                  <p className="text-[8px] sm:text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p>
                 </div>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
@@ -985,64 +1080,114 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={() => { saveSession(null); setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
-                className="w-full flex items-center gap-4 px-6 py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[10px]"
+                className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2 sm:py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
               >
-                <LogOut size={18} /> {t.logout}
+                <LogOut size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" /> {t.logout}
               </button>
             </div>
           </aside>
-          <main className="flex-1 flex flex-col overflow-hidden">
-            <header className="h-24 bg-white border-b border-slate-100 flex items-center justify-between px-12 shrink-0">
-              <div className="flex items-center bg-slate-50 rounded-2xl px-6 py-3 w-[28rem] border border-slate-100 focus-within:border-slate-300 transition-all"><Search className="text-slate-400" size={20} /><input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t.searchPlaceholder} className="bg-transparent border-none outline-none px-4 w-full text-sm font-bold text-slate-700" /></div>
-              <div className="flex items-center gap-8"><div className="bg-slate-900 rounded-xl p-0.5"><Selectors /></div><button onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }} className="px-8 py-4 bg-slate-900 text-white rounded-[1.5rem] font-black flex items-center gap-3 hover:bg-slate-800 transition-all shadow-2xl"><PlusCircle size={22} /> {t.newBudget}</button></div>
+
+          <main className="flex-1 flex flex-col overflow-hidden w-full">
+            <header className="h-20 lg:h-24 bg-white border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 lg:px-12 shrink-0 gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
+                <button 
+                  onClick={() => setIsMobileMenuOpen(true)}
+                  className="p-2 bg-slate-50 text-slate-900 rounded-xl hover:bg-slate-100 transition-all"
+                >
+                  <LayoutDashboard size={20} />
+                </button>
+                <span className="text-lg sm:text-xl font-black tracking-tighter">{t.appName}</span>
+              </div>
+
+              <div className="hidden md:flex items-center bg-slate-50 rounded-xl lg:rounded-2xl px-4 lg:px-6 py-2.5 lg:py-3 w-full max-w-[12rem] sm:max-w-[16rem] lg:max-w-[28rem] border border-slate-100 focus-within:border-slate-300 transition-all">
+                <Search className="text-slate-400 lg:w-5 lg:h-5" size={18} />
+                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t.searchPlaceholder} className="bg-transparent border-none outline-none px-3 lg:px-4 w-full text-xs lg:text-sm font-bold text-slate-700" />
+              </div>
+
+              <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
+                <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors /></div>
+                <button 
+                  onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }} 
+                  className="px-3 sm:px-4 lg:px-8 py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-2xl text-[10px] sm:text-xs lg:text-base"
+                >
+                  <PlusCircle size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> 
+                  <span className="hidden xs:inline">{t.newBudget}</span>
+                  <span className="xs:hidden">{t.newBudget.split(' ')[1] || t.newBudget}</span>
+                </button>
+              </div>
             </header>
-            <div className="flex-1 overflow-y-auto p-12 no-scrollbar">
+
+            <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 no-scrollbar">
               {isEditingBudget ? (
                 <BudgetForm locale={locale} currencyCode={currencyCode} company={currentUser!} onSave={handleSaveBudget} onCancel={() => setIsEditingBudget(false)} onUpgrade={() => { setIsEditingBudget(false); setActiveTab('plans'); }} initialData={selectedBudget} />
               ) : (
-                <div className="max-w-6xl mx-auto space-y-12">
+                <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12">
                   {currentUser?.plan === PlanType.FREE && activeTab === 'dashboard' && <PremiumBanner locale={locale} onUpgrade={() => setActiveTab('plans')} />}
                   {activeTab === 'dashboard' && <Dashboard locale={locale} currencyCode={currencyCode} budgets={budgets} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => setActiveTab('plans')} />}
                   
                   {activeTab === 'reports' && (
                     currentUser?.plan === PlanType.FREE ? (
-                      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center animate-in fade-in duration-500 bg-white rounded-[3rem] border border-slate-100 shadow-sm p-12">
-                         <div className="w-24 h-24 bg-amber-50 text-amber-600 rounded-[2.5rem] flex items-center justify-center mb-8 shadow-xl shadow-amber-500/10 border border-amber-100"><Lock size={48} /></div>
-                         <h2 className="text-4xl font-black text-slate-900 mb-4">{t.premiumAnalysisTitle}</h2>
-                         <p className="text-slate-500 max-w-md mx-auto mb-10 font-medium leading-relaxed">{t.premiumAnalysisDesc}</p>
-                         <button onClick={() => setActiveTab('plans')} className="px-12 py-5 bg-slate-900 text-white rounded-[1.5rem] font-black hover:bg-slate-800 transition-all shadow-2xl flex items-center gap-4"><Crown size={24} className="text-amber-400" /> {t.viewPremiumPlans}</button>
+                      <div className="flex flex-col items-center justify-center min-h-[50vh] lg:min-h-[60vh] text-center animate-in fade-in duration-500 bg-white rounded-[2rem] lg:rounded-[3rem] border border-slate-100 shadow-sm p-8 lg:p-12">
+                         <div className="w-16 h-16 lg:w-24 lg:h-24 bg-amber-50 text-amber-600 rounded-[1.5rem] lg:rounded-[2.5rem] flex items-center justify-center mb-6 lg:mb-8 shadow-xl shadow-amber-500/10 border border-amber-100"><Lock size={32} className="lg:w-12 lg:h-12" /></div>
+                         <h2 className="text-2xl lg:text-4xl font-black text-slate-900 mb-3 lg:mb-4">{t.premiumAnalysisTitle}</h2>
+                         <p className="text-sm lg:text-base text-slate-500 max-w-md mx-auto mb-8 lg:mb-10 font-medium leading-relaxed">{t.premiumAnalysisDesc}</p>
+                         <button onClick={() => setActiveTab('plans')} className="px-8 lg:px-12 py-4 lg:py-5 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black hover:bg-slate-800 transition-all shadow-2xl flex items-center gap-3 lg:gap-4 text-sm lg:text-base"><Crown size={20} className="text-amber-400 lg:w-6 lg:h-6" /> {t.viewPremiumPlans}</button>
                       </div>
                     ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
                   )}
 
                   {activeTab === 'budgets' && (
-                    <div className="space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
-                      <div className="flex justify-between items-end"><h2 className="text-4xl font-black text-slate-900 tracking-tight">{t.budgetListTitle}</h2><div className="flex items-center gap-3"><Filter size={18} className="text-slate-400" /><select value={budgetFilter} onChange={(e) => setBudgetFilter(e.target.value as any)} className="px-5 py-3 rounded-xl border-2 border-slate-100 bg-white font-black text-xs text-slate-500 uppercase tracking-widest outline-none focus:border-slate-900 transition-all"><option value="all">{t.allStatuses}</option><option value={BudgetStatus.PENDING}>{t.statusPending}</option><option value={BudgetStatus.APPROVED}>{t.statusApproved}</option></select></div></div>
-                      <div className="grid grid-cols-1 gap-5">
+                    <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
+                        <h2 className="text-3xl lg:text-4xl font-black text-slate-900 tracking-tight">{t.budgetListTitle}</h2>
+                        <div className="flex items-center gap-3 w-full sm:w-auto">
+                          <Filter size={18} className="text-slate-400 shrink-0" />
+                          <select value={budgetFilter} onChange={(e) => setBudgetFilter(e.target.value as any)} className="w-full sm:w-auto px-4 lg:px-5 py-2.5 lg:py-3 rounded-xl border-2 border-slate-100 bg-white font-black text-[10px] lg:text-xs text-slate-500 uppercase tracking-widest outline-none focus:border-slate-900 transition-all">
+                            <option value="all">{t.allStatuses}</option>
+                            <option value={BudgetStatus.PENDING}>{t.statusPending}</option>
+                            <option value={BudgetStatus.APPROVED}>{t.statusApproved}</option>
+                          </select>
+                        </div>
+                      </div>
+                      <div className="grid grid-cols-1 gap-4 lg:gap-5">
                         {filteredBudgets.length === 0 ? (
-                          <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100">
+                          <div className="flex flex-col items-center justify-center py-12 lg:py-20 bg-white rounded-[2rem] lg:rounded-[3rem] border-2 border-dashed border-slate-100 p-6 text-center">
                             <button 
                               onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }}
-                              className="px-12 py-6 bg-slate-900 text-white rounded-[2rem] font-black text-2xl hover:scale-105 transition-all shadow-2xl active:scale-95 uppercase tracking-tighter italic"
+                              className="px-8 lg:px-12 py-4 lg:py-6 bg-slate-900 text-white rounded-[1.5rem] lg:rounded-[2rem] font-black text-lg lg:text-2xl hover:scale-105 transition-all shadow-2xl active:scale-95 uppercase tracking-tighter italic"
                             >
                               grave agora um novo orçamento
                             </button>
                           </div>
                         ) : (
                           filteredBudgets.map(budget => (
-                            <div key={budget.id} className="bg-white p-8 rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-6 group hover:border-slate-300 transition-all">
-                              <div className="flex items-center gap-10">
-                                <div className={`w-16 h-16 rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-50 text-emerald-600' : budget.status === BudgetStatus.REJECTED ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>{budget.status === BudgetStatus.APPROVED ? <CheckCircle2 size={28} /> : budget.status === BudgetStatus.REJECTED ? <XCircle size={28} /> : <Clock size={28} />}</div>
-                                <div className="flex-1">
-                                  <div className="flex items-center gap-3 mb-2"><h4 className="font-black text-slate-900 text-xl">{budget.clientName}</h4><span className="text-[10px] font-black bg-slate-100 text-slate-500 px-3 py-1 rounded-full border border-slate-200 tracking-tighter uppercase">{t.budgetRef}: {budget.id}</span><span className={`text-[10px] font-black px-3 py-1 rounded-full border tracking-tighter uppercase ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : budget.status === BudgetStatus.REJECTED ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>{getTranslatedStatus(budget.status)}</span></div>
-                                  <div className="flex flex-wrap items-center gap-6 text-[10px] font-black text-slate-400 uppercase tracking-[0.2em]"><span className="flex items-center gap-2"><User size={14} /> {budget.contactName}</span><span className="flex items-center gap-2"><Clock size={14} /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span></div>
+                            <div key={budget.id} className="bg-white p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 lg:gap-6 group hover:border-slate-300 transition-all relative">
+                              <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-10">
+                                <div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-xl lg:rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-50 text-emerald-600' : budget.status === BudgetStatus.REJECTED ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
+                                  {budget.status === BudgetStatus.APPROVED ? <CheckCircle2 size={24} className="lg:w-7 lg:h-7" /> : budget.status === BudgetStatus.REJECTED ? <XCircle size={24} className="lg:w-7 lg:h-7" /> : <Clock size={24} className="lg:w-7 lg:h-7" />}
                                 </div>
-                                <div className="text-right"><p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">{t.total}</p><p className="text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p></div>
-                                <div className="flex gap-3 opacity-0 group-hover:opacity-100 transition-all transform translate-x-2 group-hover:translate-x-0">
-                                  <button onClick={() => { setSelectedBudget(budget); setShowPaymentManager(true); }} className="p-4 bg-emerald-50 text-emerald-600 rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm"><PaymentIcon size={22} /></button>
-                                  <button onClick={() => { setSelectedBudget(budget); setShowExpenseManager(true); }} className="p-4 bg-red-50 text-red-600 rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm"><Wallet size={22} /></button>
-                                  <button onClick={() => exportToPDF(budget)} className="p-4 bg-blue-50 text-blue-600 rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm"><Download size={22} /></button>
-                                  <button onClick={() => { setSelectedBudget(budget); setIsEditingBudget(true); }} className="p-4 bg-slate-50 text-slate-900 rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm"><ChevronRight size={22} /></button>
+                                <div className="flex-1 min-w-0 w-full sm:w-auto">
+                                  <div className="flex flex-wrap items-center gap-2 lg:gap-3 mb-1 lg:mb-2">
+                                    <h4 className="font-black text-slate-900 text-base sm:text-lg lg:text-xl truncate">{budget.clientName}</h4>
+                                    <div className="flex flex-wrap gap-2">
+                                      <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black bg-slate-100 text-slate-500 px-2 lg:px-3 py-0.5 lg:py-1 rounded-full border border-slate-200 tracking-tighter uppercase">{t.budgetRef}: {budget.id}</span>
+                                      <span className={`text-[7px] sm:text-[8px] lg:text-[10px] font-black px-2 lg:px-3 py-0.5 lg:py-1 rounded-full border tracking-tighter uppercase ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-100 text-emerald-700 border-emerald-200' : budget.status === BudgetStatus.REJECTED ? 'bg-red-100 text-red-700 border-red-200' : 'bg-amber-100 text-amber-700 border-amber-200'}`}>{getTranslatedStatus(budget.status)}</span>
+                                    </div>
+                                  </div>
+                                  <div className="flex flex-wrap items-center gap-3 sm:gap-4 lg:gap-6 text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest lg:tracking-[0.2em]">
+                                    <span className="flex items-center gap-1.5 lg:gap-2"><User size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {budget.contactName}</span>
+                                    <span className="flex items-center gap-1.5 lg:gap-2"><Clock size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span>
+                                  </div>
+                                </div>
+                                <div className="sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0 flex sm:flex-col justify-between items-center sm:items-end">
+                                  <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">{t.total}</p>
+                                  <p className="text-lg sm:text-xl lg:text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+                                </div>
+                                <div className="flex gap-2 lg:gap-3 sm:opacity-0 sm:group-hover:opacity-100 transition-all transform sm:translate-x-2 sm:group-hover:translate-x-0 w-full sm:w-auto justify-center sm:justify-end mt-2 sm:mt-0">
+                                  <button onClick={() => { setSelectedBudget(budget); setShowPaymentManager(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-emerald-50 text-emerald-600 rounded-xl lg:rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><PaymentIcon size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                  <button onClick={() => { setSelectedBudget(budget); setShowExpenseManager(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-xl lg:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                  <button onClick={() => exportToPDF(budget)} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                  <button onClick={() => { setSelectedBudget(budget); setIsEditingBudget(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-slate-50 text-slate-900 rounded-xl lg:rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm flex items-center justify-center"><ChevronRight size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
                                 </div>
                               </div>
                             </div>
@@ -1053,40 +1198,40 @@ const App: React.FC = () => {
                   )}
                   {activeTab === 'plans' && <Plans currentPlan={currentUser?.plan || PlanType.FREE} onSelect={handleUpgrade} locale={locale} currencyCode={currencyCode} isProcessing={isProcessingPayment} />}
                   {activeTab === 'settings' && (
-                    <div className="bg-white rounded-[3rem] p-12 border border-slate-100 shadow-sm animate-in fade-in duration-500 max-w-5xl mx-auto relative overflow-hidden">
-                      <div className="flex justify-between items-center mb-10">
-                        <h2 className="text-3xl font-black text-slate-900 tracking-tight">{t.companySettings}</h2>
+                    <div className="bg-white rounded-[2rem] lg:rounded-[3rem] p-6 sm:p-8 lg:p-12 border border-slate-100 shadow-sm animate-in fade-in duration-500 max-w-5xl mx-auto relative overflow-hidden">
+                      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-8 lg:mb-10">
+                        <h2 className="text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">{t.companySettings}</h2>
                         {isSettingsLocked && (
-                          <div className="flex items-center gap-4">
-                            <span className="flex items-center gap-2 px-6 py-2.5 bg-amber-50 text-amber-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-amber-100"><Lock size={14} /> {t.dashboard}</span>
-                            <button onClick={handleRequestUnlock} disabled={currentUser?.unlockRequested} className={`flex items-center gap-2 px-6 py-2.5 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all ${currentUser?.unlockRequested ? 'bg-amber-100 text-amber-600 opacity-80' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><Headphones size={14} /> {currentUser?.unlockRequested ? t.unlockRequestedNotify : t.settingsRequestUnlock}</button>
+                          <div className="flex flex-wrap items-center gap-3 lg:gap-4">
+                            <span className="flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 bg-amber-50 text-amber-600 rounded-lg lg:rounded-xl font-black text-[8px] lg:text-[10px] uppercase tracking-widest border border-amber-100"><Lock size={12} className="lg:w-3.5 lg:h-3.5" /> {t.dashboard}</span>
+                            <button onClick={handleRequestUnlock} disabled={currentUser?.unlockRequested} className={`flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 rounded-lg lg:rounded-xl font-black text-[8px] lg:text-[10px] uppercase tracking-widest transition-all ${currentUser?.unlockRequested ? 'bg-amber-100 text-amber-600 opacity-80' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}><Headphones size={12} className="lg:w-3.5 lg:h-3.5" /> {currentUser?.unlockRequested ? t.unlockRequestedNotify : t.settingsRequestUnlock}</button>
                           </div>
                         )}
-                        {!isSettingsLocked && (currentUser?.logo || currentUser?.nif) && (<span className="flex items-center gap-2 px-6 py-2.5 bg-emerald-50 text-emerald-600 rounded-xl font-black text-[10px] uppercase tracking-widest border border-emerald-100 animate-pulse"><Unlock size={14} /> {t.masterUnlockAction}</span>)}
+                        {!isSettingsLocked && (currentUser?.logo || currentUser?.nif) && (<span className="flex items-center gap-2 px-4 lg:px-6 py-2 lg:py-2.5 bg-emerald-50 text-emerald-600 rounded-lg lg:rounded-xl font-black text-[8px] lg:text-[10px] uppercase tracking-widest border border-emerald-100 animate-pulse"><Unlock size={12} className="lg:w-3.5 lg:h-3.5" /> {t.masterUnlockAction}</span>)}
                       </div>
-                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
-                         <div className="space-y-8">
-                            <div className="space-y-4">
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">{t.companyLogo} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label>
-                              <label className={`border-4 border-dashed border-slate-100 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 transition-all overflow-hidden h-48 relative ${isSettingsLocked ? 'bg-slate-50 cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50'}`}>
-                                {settingsLogo ? <img src={settingsLogo} className={`absolute inset-0 w-full h-full object-contain p-4 ${isSettingsLocked ? 'opacity-40 grayscale' : ''}`} alt="Logo" /> : <><div className="w-12 h-12 bg-slate-100 text-slate-300 rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><Download size={24} /></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadImage}</span></>}
+                      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+                         <div className="space-y-6 lg:space-y-8">
+                            <div className="space-y-3 lg:space-y-4">
+                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2">{t.companyLogo} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label>
+                              <label className={`border-4 border-dashed border-slate-100 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex flex-col items-center justify-center gap-3 lg:gap-4 transition-all overflow-hidden h-40 lg:h-48 relative ${isSettingsLocked ? 'bg-slate-50 cursor-not-allowed opacity-60' : 'cursor-pointer hover:bg-slate-50'}`}>
+                                {settingsLogo ? <img src={settingsLogo} className={`absolute inset-0 w-full h-full object-contain p-4 ${isSettingsLocked ? 'opacity-40 grayscale' : ''}`} alt="Logo" /> : <><div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 text-slate-300 rounded-lg lg:rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><Download size={20} className="lg:w-6 lg:h-6" /></div><span className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadImage}</span></>}
                                 <input disabled={isSettingsLocked} type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsLogo)} />
                               </label>
                             </div>
-                            <div className="space-y-4">
-                              <label className="block text-xs font-black text-slate-400 uppercase tracking-widest">{t.companyQrCode}</label>
-                              <label className="border-4 border-dashed border-white/10 rounded-[2.5rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-48 relative">
-                                {settingsQrCode ? <img src={settingsQrCode} className="absolute inset-0 w-full h-full object-contain p-8" alt="QR Code" /> : <><div className="w-12 h-12 bg-slate-100 text-slate-300 rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><QrCode size={24} /></div><span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadQrCode}</span></>}
+                            <div className="space-y-3 lg:space-y-4">
+                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest">{t.companyQrCode}</label>
+                              <label className="border-4 border-dashed border-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex flex-col items-center justify-center gap-3 lg:gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-40 lg:h-48 relative">
+                                {settingsQrCode ? <img src={settingsQrCode} className="absolute inset-0 w-full h-full object-contain p-6 lg:p-8" alt="QR Code" /> : <><div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 text-slate-300 rounded-lg lg:rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><QrCode size={20} className="lg:w-6 lg:h-6" /></div><span className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadQrCode}</span></>}
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsQrCode)} />
                               </label>
                             </div>
                          </div>
-                         <div className="space-y-8">
-                            <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">{t.companyLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsCompanyName} onChange={e => setSettingsCompanyName(e.target.value)} className={`w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
-                            <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">{t.fiscalAddress} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsAddress} onChange={e => setSettingsAddress(e.target.value)} className={`w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
-                            <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">{t.nifLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsNif} onChange={e => setSettingsNif(e.target.value)} className={`w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
-                            <div><label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">{t.phone} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} className={`w-full px-6 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
-                            <div className="pt-6"><button onClick={handleSaveSettings} className="w-full py-6 bg-slate-900 text-white rounded-[2rem] font-black text-xl hover:bg-slate-800 shadow-2xl disabled:opacity-30">{t.saveChanges}</button></div>
+                         <div className="space-y-6 lg:space-y-8">
+                            <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.companyLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsCompanyName} onChange={e => setSettingsCompanyName(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                            <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.fiscalAddress} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsAddress} onChange={e => setSettingsAddress(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                            <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.nifLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsNif} onChange={e => setSettingsNif(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                            <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.phone} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                            <div className="pt-4 lg:pt-6"><button onClick={handleSaveSettings} className="w-full py-5 lg:py-6 bg-slate-900 text-white rounded-2xl lg:rounded-[2rem] font-black text-lg lg:text-xl hover:bg-slate-800 shadow-2xl disabled:opacity-30">{t.saveChanges}</button></div>
                          </div>
                       </div>
                     </div>
@@ -1134,7 +1279,7 @@ const App: React.FC = () => {
               `}</style>
             </div>
           )}
-        </>
+        </div>
       )}
     </div>
   );
