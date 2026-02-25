@@ -44,7 +44,8 @@ import {
   saveTransaction,
   hydrateLocalData,
   saveSession,
-  getSession
+  getSession,
+  generateShortId
 } from './services/storage';
 import { supabase } from './services/supabase';
 import { FREE_PDF_LIMIT } from './constants';
@@ -61,10 +62,6 @@ import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-export const generateShortId = () => {
-  return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-};
 
 const App: React.FC = () => {
   const session = useMemo(() => getSession(), []);
@@ -105,6 +102,14 @@ const App: React.FC = () => {
   const [showNewMessageAlert, setShowNewMessageAlert] = useState(false);
   const [showUnlockAlert, setShowUnlockAlert] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (isEditingBudget) {
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+      const mainContent = document.querySelector('main > div');
+      if (mainContent) mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }, [isEditingBudget]);
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -619,9 +624,16 @@ const App: React.FC = () => {
     e.preventDefault();
     
     // Verificar se e-mail já existe no Supabase
-    const { data: existing } = await supabase.from('companies').select('id').eq('email', email).single();
-    if (existing) {
+    const { data: existingEmail } = await supabase.from('companies').select('id').eq('email', email).single();
+    if (existingEmail) {
        alert("Este e-mail já está em uso.");
+       return;
+    }
+
+    // Verificar se nome da empresa já existe no Supabase
+    const { data: existingName } = await supabase.from('companies').select('id').eq('name', companyName).single();
+    if (existingName) {
+       alert("Este nome de empresa já está em uso.");
        return;
     }
 
@@ -676,10 +688,17 @@ const App: React.FC = () => {
 
   const handleSaveBudget = (budget: Budget) => {
     if (!currentUser) return;
-    saveBudget(budget);
-    setBudgets(getStoredBudgets(currentUser.id));
-    setIsEditingBudget(false);
-    setSelectedBudget(undefined);
+    console.log("handleSaveBudget called with:", budget);
+    try {
+      saveBudget(budget);
+      setBudgets(getStoredBudgets(currentUser.id));
+      setIsEditingBudget(false);
+      setSelectedBudget(undefined);
+      console.log("Budget saved and state updated");
+    } catch (error: any) {
+      console.error("Erro ao guardar orçamento:", error);
+      alert("Erro ao guardar orçamento: " + error.message);
+    }
   };
 
   useEffect(() => {
@@ -780,8 +799,54 @@ const App: React.FC = () => {
     setShowSettingsConfirmModal(true);
   };
 
-  const confirmSensitiveSave = () => {
+  const confirmSensitiveSave = async () => {
     if (!currentUser) return;
+
+    // Verificar se NIF já existe em outra empresa
+    if (settingsNif) {
+      const { data: existingNif } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('nif', settingsNif)
+        .neq('id', currentUser.id)
+        .single();
+      
+      if (existingNif) {
+        alert("Este NIF já está em uso por outra conta.");
+        return;
+      }
+    }
+
+    // Verificar se Telefone já existe em outra empresa
+    if (settingsPhone) {
+      const { data: existingPhone } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('phone', settingsPhone)
+        .neq('id', currentUser.id)
+        .single();
+      
+      if (existingPhone) {
+        alert("Este telefone já está em uso por outra conta.");
+        return;
+      }
+    }
+
+    // Verificar se Nome da Empresa já existe em outra empresa
+    if (settingsCompanyName && settingsCompanyName !== currentUser.name) {
+      const { data: existingName } = await supabase
+        .from('companies')
+        .select('id')
+        .eq('name', settingsCompanyName)
+        .neq('id', currentUser.id)
+        .single();
+      
+      if (existingName) {
+        alert("Este nome de empresa já está em uso por outra conta.");
+        return;
+      }
+    }
+
     const updated: Company = {
       ...currentUser,
       name: settingsCompanyName,
@@ -1183,7 +1248,14 @@ const App: React.FC = () => {
                           </div>
                         ) : (
                           filteredBudgets.map(budget => (
-                            <div key={budget.id} className="bg-white p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 lg:gap-6 group hover:border-slate-300 transition-all relative">
+                            <div 
+                              key={budget.id} 
+                              onClick={() => {
+                                setSelectedBudget(budget); 
+                                setIsEditingBudget(true); 
+                              }}
+                              className="bg-white p-5 lg:p-8 rounded-[1.5rem] lg:rounded-[2rem] border border-slate-100 shadow-sm flex flex-col gap-4 lg:gap-6 group hover:border-slate-300 transition-all relative cursor-pointer"
+                            >
                               <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 lg:gap-10">
                                 <div className={`w-12 h-12 lg:w-16 lg:h-16 rounded-xl lg:rounded-[1.5rem] flex items-center justify-center shrink-0 shadow-inner ${budget.status === BudgetStatus.APPROVED ? 'bg-emerald-50 text-emerald-600' : budget.status === BudgetStatus.REJECTED ? 'bg-red-50 text-red-600' : 'bg-amber-50 text-amber-600'}`}>
                                   {budget.status === BudgetStatus.APPROVED ? <CheckCircle2 size={24} className="lg:w-7 lg:h-7" /> : budget.status === BudgetStatus.REJECTED ? <XCircle size={24} className="lg:w-7 lg:h-7" /> : <Clock size={24} className="lg:w-7 lg:h-7" />}
@@ -1206,10 +1278,37 @@ const App: React.FC = () => {
                                   <p className="text-lg sm:text-xl lg:text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
                                 </div>
                                 <div className="flex gap-2 lg:gap-3 sm:opacity-0 sm:group-hover:opacity-100 transition-all transform sm:translate-x-2 sm:group-hover:translate-x-0 w-full sm:w-auto justify-center sm:justify-end mt-2 sm:mt-0">
-                                  <button onClick={() => { setSelectedBudget(budget); setShowPaymentManager(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-emerald-50 text-emerald-600 rounded-xl lg:rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><PaymentIcon size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
-                                  <button onClick={() => { setSelectedBudget(budget); setShowExpenseManager(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-xl lg:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
-                                  <button onClick={() => exportToPDF(budget)} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
-                                  <button onClick={() => { setSelectedBudget(budget); setIsEditingBudget(true); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-slate-50 text-slate-900 rounded-xl lg:rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm flex items-center justify-center"><ChevronRight size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                   <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation();
+                                      setSelectedBudget(budget); 
+                                      setShowPaymentManager(true); 
+                                    }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-emerald-50 text-emerald-600 rounded-xl lg:rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                  >
+                                    <PaymentIcon size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                  </button>
+                                   <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation();
+                                      setSelectedBudget(budget); 
+                                      setShowExpenseManager(true); 
+                                    }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-xl lg:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                  >
+                                    <Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                  </button>
+                                  <button onClick={(e) => { e.stopPropagation(); exportToPDF(budget); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                   <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation();
+                                      setSelectedBudget(budget); 
+                                      setIsEditingBudget(true); 
+                                    }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-slate-50 text-slate-900 rounded-xl lg:rounded-2xl hover:bg-slate-900 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                  >
+                                    <ChevronRight size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                  </button>
                                 </div>
                               </div>
                             </div>

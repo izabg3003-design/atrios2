@@ -31,6 +31,7 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ budget, plan, onSave, o
   const t = translations[locale];
   const currencyInfo = CURRENCIES[currencyCode];
   const isPremium = plan !== PlanType.FREE;
+  const isReadOnly = !isPremium;
   const canAddExpense = isPremium || (budget.expenses || []).length < FREE_EXPENSE_LIMIT;
   
   const [description, setDescription] = useState('');
@@ -127,7 +128,7 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ budget, plan, onSave, o
               <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm sm:text-base">
                 <Plus size={18} className="text-red-500" /> {t.addExpense}
               </h3>
-              {!showForm && canAddExpense && (
+              {!showForm && canAddExpense && !isReadOnly && (
                 <button onClick={() => setShowForm(true)} className="px-3 sm:px-4 py-2 bg-slate-900 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2">
                   <Plus size={16} /> {t.addExpense}
                 </button>
@@ -216,7 +217,7 @@ const ExpenseManager: React.FC<ExpenseManagerProps> = ({ budget, plan, onSave, o
                   </div>
                   <div className="flex items-center gap-2 sm:gap-4 shrink-0">
                     <p className="font-black text-red-600 text-sm sm:text-base">-{formatValue(expense.amount)}</p>
-                    <button onClick={() => removeExpense(expense.id)} className="p-1.5 sm:p-2 text-slate-200 hover:text-red-500 transition-all"><Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
+                    <button onClick={() => !isReadOnly && removeExpense(expense.id)} className={`p-1.5 sm:p-2 transition-all ${isReadOnly ? 'text-slate-100 cursor-not-allowed' : 'text-slate-200 hover:text-red-500'}`}><Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
                   </div>
                 </div>
               ))}

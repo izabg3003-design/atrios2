@@ -154,7 +154,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload.new as SupportMessage;
+          const newMessage = payload['new'] as SupportMessage;
           if (!newMessage || !newMessage.id) return;
           
           // Atualizar localStorage
@@ -194,7 +194,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'companies' },
         (payload) => {
-          const updatedCompany = payload.new as Company;
+          const updatedCompany = payload['new'] as Company;
           if (!updatedCompany || updatedCompany.email === 'jeferson.goes36@gmail.com') return;
           
           // Atualizar localStorage

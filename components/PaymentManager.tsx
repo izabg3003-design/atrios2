@@ -32,6 +32,7 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
   const t = translations[locale];
   const currencyInfo = CURRENCIES[currencyCode];
   const isPremium = plan !== PlanType.FREE;
+  const isReadOnly = !isPremium;
   const canAddPayment = isPremium || (budget.payments || []).length < FREE_PAYMENT_LIMIT;
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -174,7 +175,7 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
               <h3 className="font-bold text-slate-900 flex items-center gap-2 text-sm sm:text-base">
                 <FileCheck size={18} className="text-blue-500" /> {t.historyPayments}
               </h3>
-              {!showForm && canAddPayment && (
+              {!showForm && canAddPayment && !isReadOnly && (
                 <button onClick={() => setShowForm(true)} className="px-3 sm:px-4 py-2 bg-slate-900 text-white rounded-xl text-xs sm:text-sm font-bold flex items-center gap-2">
                   <Plus size={16} /> {t.registerPayment}
                 </button>
@@ -268,7 +269,7 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
                         </button>
                       </>
                     )}
-                    <button onClick={() => removePayment(payment.id)} className="p-1.5 sm:p-2 text-slate-200 hover:text-red-500 transition-all"><Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
+                    <button onClick={() => !isReadOnly && removePayment(payment.id)} className={`p-1.5 sm:p-2 transition-all ${isReadOnly ? 'text-slate-100 cursor-not-allowed' : 'text-slate-200 hover:text-red-500'}`}><Trash2 size={16} className="sm:w-[18px] sm:h-[18px]" /></button>
                   </div>
                 </div>
               ))}

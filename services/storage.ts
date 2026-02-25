@@ -10,6 +10,10 @@ const STORAGE_KEY_TRANSACTIONS = 'atrios_transactions';
 const STORAGE_KEY_COUPONS = 'atrios_coupons';
 const STORAGE_KEY_SESSION = 'atrios_session';
 
+export const generateShortId = () => {
+  return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+};
+
 export const getStoredCompanies = (): Company[] => {
   const data = localStorage.getItem(STORAGE_KEY_COMPANIES);
   return data ? JSON.parse(data) : [];

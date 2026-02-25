@@ -38,7 +38,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) =
           filter: `companyId=eq.${company.id}`
         },
         (payload) => {
-          const newMessage = payload.new as SupportMessage;
+          const newMessage = payload['new'] as SupportMessage;
           if (!newMessage || !newMessage.id) return;
 
           setMessages(prev => {

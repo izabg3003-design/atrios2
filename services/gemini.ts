@@ -15,13 +15,14 @@ const LANGUAGE_NAME_MAP: Record<string, string> = {
 export const translateMessage = async (text: string, targetLocale: string): Promise<string> => {
   const targetLanguage = LANGUAGE_NAME_MAP[targetLocale] || 'Português de Portugal';
   
-  if (!process.env.API_KEY) {
+  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
+  if (!apiKey) {
     console.warn("Gemini API Key não configurada.");
     return text;
   }
 
   try {
-    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    const ai = new GoogleGenAI({ apiKey });
     const response = await ai.models.generateContent({
       model: 'gemini-3-flash-preview',
       contents: `Traduza o seguinte texto para ${targetLanguage}. Retorne APENAS o texto traduzido, sem explicações, sem aspas e sem comentários extras: "${text}"`,
