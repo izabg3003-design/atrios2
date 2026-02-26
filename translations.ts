@@ -151,7 +151,6 @@ export interface Translation {
   upgradeSuccess: string;
   saveSuccess: string;
   pdfLimitReached: string;
-  budgetLimitReached: string;
   featItemsLimit: string;
   featExpenseLimit: string;
   featPdfLimit: string;
@@ -329,6 +328,7 @@ export interface Translation {
   privacyTitle: string;
   termsContent: string;
   privacyContent: string;
+  budgetLimitReached: string;
 }
 
 const enUS: Translation = {
@@ -482,7 +482,6 @@ const enUS: Translation = {
   upgradeSuccess: "Upgrade successful!",
   saveSuccess: "Settings saved successfully!",
   pdfLimitReached: "Download limit reached.",
-  budgetLimitReached: "Budget limit reached on free plan!",
   featItemsLimit: "3 Items per Estimate",
   featExpenseLimit: "3 Expense Records",
   featPdfLimit: "3 PDF Downloads",
@@ -685,6 +684,7 @@ We share data with Stripe (payment processing) and Supabase (secure data storage
 
 5. YOUR RIGHTS
 Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atrios.pt to exercise these rights.`,
+  budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
 };
 
 const ptPT: Translation = {
@@ -838,7 +838,6 @@ const ptPT: Translation = {
   upgradeSuccess: "Upgrade realizado com sucesso!",
   saveSuccess: "Definições guardadas com sucesso!",
   pdfLimitReached: "Limite de downloads atingido.",
-  budgetLimitReached: "Limite de orçamentos atingido no plano grátis!",
   featItemsLimit: "3 Itens por Orçamento",
   featExpenseLimit: "3 Registos de Despesas",
   featPdfLimit: "3 Downloads de PDF",
@@ -1208,7 +1207,6 @@ const frFR: Translation = {
   upgradeSuccess: "Mise à jour réussie !",
   saveSuccess: "Paramètres enregistrés !",
   pdfLimitReached: "Limite atteinte.",
-  budgetLimitReached: "Limite de devis atteinte.",
   featItemsLimit: "3 Éléments par Devis",
   featExpenseLimit: "3 Dépenses",
   featPdfLimit: "3 PDF",
@@ -1538,7 +1536,6 @@ const itIT: Translation = {
   upgradeSuccess: "Aggiornamento riuscito !",
   saveSuccess: "Impostazioni salvate !",
   pdfLimitReached: "Limite raggiunto.",
-  budgetLimitReached: "Limite preventivi raggiunto.",
   featItemsLimit: "3 Voci per Preventivo",
   featExpenseLimit: "3 Spese",
   featPdfLimit: "3 PDF",
@@ -1868,7 +1865,6 @@ const esES: Translation = {
   upgradeSuccess: "¡Éxito!",
   saveSuccess: "¡Guardado!",
   pdfLimitReached: "Límite.",
-  budgetLimitReached: "Límite de presupuestos.",
   featItemsLimit: "3 Partidas",
   featExpenseLimit: "3 Gastos",
   featPdfLimit: "3 PDF",
@@ -2224,7 +2220,6 @@ const ruRU: Translation = {
   upgradeSuccess: "Готово!",
   saveSuccess: "Сохранено!",
   pdfLimitReached: "Лимит!",
-  budgetLimitReached: "Лимит бюджетов!",
   featItemsLimit: "3 позиции",
   featExpenseLimit: "3 расхода",
   featPdfLimit: "3 PDF",
@@ -2554,7 +2549,6 @@ const hiIN: Translation = {
   upgradeSuccess: "सफल!",
   saveSuccess: "सहेजा गया!",
   pdfLimitReached: "सीमा!",
-  budgetLimitReached: "बजट सीमा!",
   featItemsLimit: "3 आइटम",
   featExpenseLimit: "3 खर्च",
   featPdfLimit: "3 PDF",
@@ -2884,7 +2878,6 @@ const bnBD: Translation = {
   upgradeSuccess: "সফল!",
   saveSuccess: "সংরক্ষিত!",
   pdfLimitReached: "সীমা!",
-  budgetLimitReached: "বাজেট সীমা!",
   featItemsLimit: "৩ আইটেম",
   featExpenseLimit: "৩ খরচ",
   featPdfLimit: "৩ PDF",
