@@ -28,3 +28,4 @@ export const FREE_SERVICE_LIMIT = 3;
 export const FREE_EXPENSE_LIMIT = 3;
 export const FREE_PAYMENT_LIMIT = 3;
 export const FREE_PDF_LIMIT = 3;
+export const FREE_BUDGET_LIMIT = 3;

@@ -832,7 +832,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                              step="0.01" 
                              value={payment.amount === 0 ? '' : (payment.amount * currencyInfo.rate)} 
                              onChange={e => updatePayment(payment.id, 'amount', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
-                             disabled={isLocked}
+                             disabled={isPaymentLocked(payment.id)}
                              placeholder="0.00"
                              className="bg-transparent outline-none font-black w-full text-lg disabled:opacity-50" 
                            />
@@ -851,7 +851,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                              <button 
                                type="button" 
                                onClick={() => fileInputRefs.current[payment.id]?.click()}
-                               disabled={isLocked}
+                               disabled={isPaymentLocked(payment.id)}
                                className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                              >
                                <Upload size={14} /> {t.uploadProofBtn}

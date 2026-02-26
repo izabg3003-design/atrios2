@@ -48,7 +48,7 @@ import {
   generateShortId
 } from './services/storage';
 import { supabase } from './services/supabase';
-import { FREE_PDF_LIMIT } from './constants';
+import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
 import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
@@ -98,6 +98,12 @@ const App: React.FC = () => {
   const [showNotificationModal, setShowNotificationModal] = useState(false);
   
   const [showSupportChat, setShowSupportChat] = useState(false);
+  
+  const canCreateBudget = useMemo(() => {
+    if (!currentUser) return true;
+    if (currentUser.plan !== PlanType.FREE) return true;
+    return budgets.length < FREE_BUDGET_LIMIT;
+  }, [currentUser, budgets]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNewMessageAlert, setShowNewMessageAlert] = useState(false);
   const [showUnlockAlert, setShowUnlockAlert] = useState(false);
@@ -1194,7 +1200,15 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors /></div>
                 <button 
-                  onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }} 
+                  onClick={() => { 
+                    if (!canCreateBudget) {
+                      alert(t.budgetLimitReached || "Limite de orçamentos atingido no plano gratuito.");
+                      setActiveTab('plans');
+                      return;
+                    }
+                    setSelectedBudget(undefined); 
+                    setIsEditingBudget(true); 
+                  }} 
                   className="px-3 sm:px-4 lg:px-8 py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-2xl text-[10px] sm:text-xs lg:text-base"
                 >
                   <PlusCircle size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> 
@@ -1240,7 +1254,15 @@ const App: React.FC = () => {
                         {filteredBudgets.length === 0 ? (
                           <div className="flex flex-col items-center justify-center py-12 lg:py-20 bg-white rounded-[2rem] lg:rounded-[3rem] border-2 border-dashed border-slate-100 p-6 text-center">
                             <button 
-                              onClick={() => { setSelectedBudget(undefined); setIsEditingBudget(true); }}
+                              onClick={() => { 
+                                if (!canCreateBudget) {
+                                  alert(t.budgetLimitReached || "Limite de orçamentos atingido no plano gratuito.");
+                                  setActiveTab('plans');
+                                  return;
+                                }
+                                setSelectedBudget(undefined); 
+                                setIsEditingBudget(true); 
+                              }}
                               className="px-8 lg:px-12 py-4 lg:py-6 bg-slate-900 text-white rounded-[1.5rem] lg:rounded-[2rem] font-black text-lg lg:text-2xl hover:scale-105 transition-all shadow-2xl active:scale-95 uppercase tracking-tighter italic"
                             >
                               grave agora um novo orçamento
