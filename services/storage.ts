@@ -58,17 +58,22 @@ export const getStoredBudgets = (companyId: string): Budget[] => {
  * Inclui as tabelas aninhadas de itens, despesas e pagamentos com comprovativos (Base64).
  */
 export const saveBudget = (budget: Budget) => {
-  const data = localStorage.getItem(STORAGE_KEY_BUDGETS);
-  const budgets: Budget[] = data ? JSON.parse(data) : [];
-  const index = budgets.findIndex(b => b.id === budget.id);
-  
-  if (index > -1) {
-    budgets[index] = budget;
-  } else {
-    budgets.push(budget);
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_BUDGETS);
+    const budgets: Budget[] = data ? JSON.parse(data) : [];
+    const index = budgets.findIndex(b => b.id === budget.id);
+    
+    if (index > -1) {
+      budgets[index] = budget;
+    } else {
+      budgets.push(budget);
+    }
+    
+    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+  } catch (err) {
+    console.error("Error saving budget to localStorage:", err);
+    throw err;
   }
-  
-  localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
 
   // O Supabase recebe o objeto completo via UPSERT (Insert ou Update automático pelo ID)
   syncToCloud('budgets', budget);
