@@ -330,6 +330,12 @@ export interface Translation {
   termsContent: string;
   privacyContent: string;
   budgetLimitReached: string;
+  forgotPassword: string;
+  resetPasswordTitle: string;
+  resetPasswordDesc: string;
+  sendResetLink: string;
+  resetLinkSent: string;
+  errorResetPassword: string;
 }
 
 const enUS: Translation = {
@@ -687,6 +693,12 @@ We share data with Stripe (payment processing) and Supabase (secure data storage
 5. YOUR RIGHTS
 Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atrios.pt to exercise these rights.`,
   budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
+  forgotPassword: "Forgot Password?",
+  resetPasswordTitle: "Reset Password",
+  resetPasswordDesc: "Enter your email to receive a reset link.",
+  sendResetLink: "Send Reset Link",
+  resetLinkSent: "Reset link sent! Check your email.",
+  errorResetPassword: "Error sending reset link.",
 };
 
 const ptPT: Translation = {
@@ -1044,6 +1056,12 @@ Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazen
 5. OS SEUS DIREITOS
 Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atrios.pt para exercer estes direitos.`,
   budgetLimitReached: "Limite de orçamentos atingido no plano grátis!",
+  forgotPassword: "Esqueceu-se da palavra-passe?",
+  resetPasswordTitle: "Recuperar Palavra-passe",
+  resetPasswordDesc: "Insira o seu e-mail para receber um link de recuperação.",
+  sendResetLink: "Enviar Link de Recuperação",
+  resetLinkSent: "Link enviado! Verifique o seu e-mail.",
+  errorResetPassword: "Erro ao enviar link de recuperação.",
 };
 
 const ptBR: Translation = {
@@ -1389,6 +1407,12 @@ const frFR: Translation = {
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
   budgetLimitReached: "Limite de devis atteinte.",
+  forgotPassword: "Mot de passe oublié ?",
+  resetPasswordTitle: "Récupérer le mot de passe",
+  resetPasswordDesc: "Entrez votre email pour recevoir um link de recuperação.",
+  sendResetLink: "Envoyer le lien",
+  resetLinkSent: "Lien envoyé ! Vérifiez votre email.",
+  errorResetPassword: "Erreur lors de l'envoi du lien.",
 };
 
 const itIT: Translation = {
@@ -1720,6 +1744,12 @@ const itIT: Translation = {
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
   budgetLimitReached: "Limite preventivi raggiunto.",
+  forgotPassword: "Password dimenticata?",
+  resetPasswordTitle: "Recupera Password",
+  resetPasswordDesc: "Inserisci la tua email per ricevere un link di recupero.",
+  sendResetLink: "Invia Link di Recupero",
+  resetLinkSent: "Link inviato! Controlla la tua email.",
+  errorResetPassword: "Errore nell'invio del link.",
 };
 
 const esES: Translation = {
@@ -2077,6 +2107,12 @@ Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento
 5. SUS DERECHOS
 Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atrios.pt para ejercer estos derechos.`,
   budgetLimitReached: "Límite de presupuestos.",
+  forgotPassword: "¿Olvidó su contraseña?",
+  resetPasswordTitle: "Recuperar Contraseña",
+  resetPasswordDesc: "Ingrese su correo para recibir un enlace de recuperación.",
+  sendResetLink: "Enviar Enlace",
+  resetLinkSent: "¡Enlace enviado! Revise seu e-mail.",
+  errorResetPassword: "Error al enviar el enlace.",
 };
 
 const ruRU: Translation = {
@@ -2408,6 +2444,12 @@ const ruRU: Translation = {
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
   budgetLimitReached: "Лимит бюджетов!",
+  forgotPassword: "Забыли пароль?",
+  resetPasswordTitle: "Восстановление пароля",
+  resetPasswordDesc: "Введите email для получения ссылки.",
+  sendResetLink: "Отправить ссылку",
+  resetLinkSent: "Ссылка отправлена! Проверьте почту.",
+  errorResetPassword: "Ошибка при отправке.",
 };
 
 const hiIN: Translation = {
@@ -2739,6 +2781,12 @@ const hiIN: Translation = {
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
   budgetLimitReached: "बजट सीमा!",
+  forgotPassword: "पासवर्ड भूल गए?",
+  resetPasswordTitle: "पासवर्ड रीसेट करें",
+  resetPasswordDesc: "लिंक प्राप्त करने के लिए अपना ईमेल दर्ज करें।",
+  sendResetLink: "लिंक भेजें",
+  resetLinkSent: "लिंक भेज दिया गया! अपना ईमेल जांचें।",
+  errorResetPassword: "लिंक भेजने में त्रुटि।",
 };
 
 const bnBD: Translation = {
@@ -3070,6 +3118,12 @@ const bnBD: Translation = {
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
   budgetLimitReached: "বাজেট সীমা!",
+  forgotPassword: "পাসওয়ার্ড ভুলে গেছেন?",
+  resetPasswordTitle: "পাসওয়ার্ড রিসেট করুন",
+  resetPasswordDesc: "লিঙ্ক পেতে আপনার ইমেল লিখুন।",
+  sendResetLink: "লিঙ্ক পাঠান",
+  resetLinkSent: "লিঙ্ক পাঠানো হয়েছে! আপনার ইমেল চেক করুন।",
+  errorResetPassword: "লিঙ্ক পাঠাতে ত্রুটি।",
 };
 
 export const translations: Record<Locale, Translation> = {

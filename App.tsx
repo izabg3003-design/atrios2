@@ -76,7 +76,7 @@ const App: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(session?.currencyCode as any || 'EUR');
   const t = translations[locale];
 
-  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'app' | 'master'>(session?.view as any || 'landing');
+  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -640,6 +640,13 @@ const App: React.FC = () => {
     }
   };
 
+  const handleResetPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!email) return;
+    alert(t.resetLinkSent);
+    setView('login');
+  };
+
   const handleSignup = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -1048,7 +1055,10 @@ const App: React.FC = () => {
                 <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="exemplo@empresa.pt" />
               </div>
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.passwordLabel}</label>
+                <div className="flex justify-between items-center ml-1">
+                  <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.passwordLabel}</label>
+                  <button type="button" onClick={() => setView('forgot-password')} className="text-[9px] font-black text-amber-600 uppercase tracking-widest hover:text-amber-700 transition-colors">{t.forgotPassword}</button>
+                </div>
                 <input type="password" required value={password} onChange={e => setPassword(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="••••••••" />
               </div>
               <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.loginBtn}</button>
@@ -1091,6 +1101,27 @@ const App: React.FC = () => {
                 <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                 <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
               </div>
+            </div>
+          </div>
+        </div>
+      ) : view === 'forgot-password' ? (
+        <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
+          <div className="absolute inset-0 bg-[radial-gradient(circle_at_50%_50%,rgba(255,255,255,1)_0%,rgba(241,245,249,1)_100%)]" />
+          <div className="w-full sm:max-w-xl space-y-8 lg:space-y-12 p-6 sm:p-8 lg:p-12 bg-white rounded-[1.5rem] sm:rounded-[2.5rem] shadow-2xl border border-slate-100 animate-in fade-in slide-in-from-bottom-8 duration-700 relative z-10">
+            <div className="text-center space-y-3 lg:space-y-4">
+              <div className="inline-flex p-3 sm:p-4 bg-amber-500 rounded-2xl sm:rounded-3xl text-white shadow-xl shadow-amber-500/20 mb-2 lg:mb-4"><Construction size={24} className="sm:w-8 sm:h-8" /></div>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black text-slate-900 tracking-tighter">{t.resetPasswordTitle}</h2>
+              <p className="text-slate-400 font-bold uppercase tracking-[0.2em] lg:tracking-[0.3em] text-[10px] lg:text-xs">{t.resetPasswordDesc}</p>
+            </div>
+            <form onSubmit={handleResetPassword} className="space-y-5 sm:space-y-6">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.emailLabel}</label>
+                <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="w-full px-5 sm:px-6 py-3.5 sm:py-4 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm sm:text-base" placeholder="exemplo@empresa.pt" />
+              </div>
+              <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.sendResetLink}</button>
+            </form>
+            <div className="text-center">
+              <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
             </div>
           </div>
         </div>
