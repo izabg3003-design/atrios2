@@ -309,7 +309,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               <select 
                 value={status} 
                 onChange={e => setStatus(e.target.value as BudgetStatus)}
-                disabled={isLocked}
                 className="bg-transparent text-[8px] sm:text-[10px] font-black uppercase outline-none cursor-pointer text-white disabled:opacity-50"
               >
                 <option value={BudgetStatus.PENDING} className="text-slate-900">{t.statusPending}</option>
@@ -819,7 +818,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                    {payments.map((payment) => (
                      <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
                        <td className="p-5">
-                         <input type="date" value={payment.date} onChange={e => updatePayment(payment.id, 'date', e.target.value)} disabled={isPaymentLocked(payment.id)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
+                         <input type="date" value={payment.date} onChange={e => updatePayment(payment.id, 'date', e.target.value)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
                        </td>
                        <td className="p-5">
                          <div className="flex items-center gap-1">
@@ -829,7 +828,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                              step="0.01" 
                              value={payment.amount === 0 ? '' : (payment.amount * currencyInfo.rate)} 
                              onChange={e => updatePayment(payment.id, 'amount', e.target.value === '' ? 0 : Number(e.target.value) / currencyInfo.rate)} 
-                             disabled={isLocked}
                              placeholder="0.00"
                              className="bg-transparent outline-none font-black w-full text-lg disabled:opacity-50" 
                            />
@@ -848,7 +846,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                              <button 
                                type="button" 
                                onClick={() => fileInputRefs.current[payment.id]?.click()}
-                               disabled={isLocked}
                                className="text-[10px] font-black uppercase text-slate-400 hover:text-slate-900 transition-colors flex items-center gap-2 disabled:opacity-30 disabled:cursor-not-allowed"
                              >
                                <Upload size={14} /> {t.uploadProofBtn}
@@ -874,7 +871,6 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                                <button 
                                  type="button" 
                                  onClick={() => fileInputRefs.current[payment.id]?.click()}
-                                 disabled={isPaymentLocked(payment.id)}
                                  className="text-slate-400 hover:text-slate-900 p-1.5 bg-slate-50 rounded-lg transition-all disabled:opacity-30 disabled:cursor-not-allowed"
                                  title={t.uploadProofBtn}
                                >

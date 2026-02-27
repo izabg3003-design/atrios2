@@ -307,6 +307,7 @@ export interface Translation {
   masterViewPaymentProof: string;
   masterUserBlockedLabel: string;
   masterDeleteUser: string;
+  masterUpgradeUser: string;
   greetingMorning: string;
   greetingAfternoon: string;
   greetingEvening: string;
@@ -638,6 +639,7 @@ const enUS: Translation = {
   masterViewPaymentProof: "View Proof",
   masterUserBlockedLabel: "Blocked",
   masterDeleteUser: "Delete User",
+  masterUpgradeUser: "Remove Restrictions",
   greetingMorning: "Good Morning",
   greetingAfternoon: "Good Afternoon",
   greetingEvening: "Good Evening",
@@ -994,6 +996,7 @@ const ptPT: Translation = {
   masterViewPaymentProof: "Ver Comprovativo",
   masterUserBlockedLabel: "Bloqueado",
   masterDeleteUser: "Excluir Utilizador",
+  masterUpgradeUser: "Retirar Restrições",
   greetingMorning: "Bom Dia",
   greetingAfternoon: "Boa Tarde",
   greetingEvening: "Boa Noite",
@@ -1040,6 +1043,7 @@ Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazen
 
 5. OS SEUS DIREITOS
 Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atrios.pt para exercer estes direitos.`,
+  budgetLimitReached: "Limite de orçamentos atingido no plano grátis!",
 };
 
 const ptBR: Translation = {
@@ -1363,6 +1367,7 @@ const frFR: Translation = {
   masterViewPaymentProof: "Voir preuve",
   masterUserBlockedLabel: "Bloqué",
   masterDeleteUser: "Supprimer",
+  masterUpgradeUser: "Retirer Restrictions",
   greetingMorning: "Bonjour",
   greetingAfternoon: "Bon après-midi",
   greetingEvening: "Bonsoir",
@@ -1383,6 +1388,7 @@ const frFR: Translation = {
   privacyTitle: "Politique de Confidentialité",
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
+  budgetLimitReached: "Limite de devis atteinte.",
 };
 
 const itIT: Translation = {
@@ -1692,6 +1698,7 @@ const itIT: Translation = {
   masterViewPaymentProof: "Vedi prova",
   masterUserBlockedLabel: "Bloccato",
   masterDeleteUser: "Elimina",
+  masterUpgradeUser: "Rimuovi Restrizioni",
   greetingMorning: "Buongiorno",
   greetingAfternoon: "Buon pomeriggio",
   greetingEvening: "Buonasera",
@@ -1712,6 +1719,7 @@ const itIT: Translation = {
   privacyTitle: "Informativa sulla Privacy",
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
+  budgetLimitReached: "Limite preventivi raggiunto.",
 };
 
 const esES: Translation = {
@@ -2021,6 +2029,7 @@ const esES: Translation = {
   masterViewPaymentProof: "Ver prueba",
   masterUserBlockedLabel: "Bloqueado",
   masterDeleteUser: "Borrar",
+  masterUpgradeUser: "Quitar Restricciones",
   greetingMorning: "Buenos días",
   greetingAfternoon: "Buenas tardes",
   greetingEvening: "Buenas noches",
@@ -2067,6 +2076,7 @@ Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento
 
 5. SUS DERECHOS
 Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atrios.pt para ejercer estos derechos.`,
+  budgetLimitReached: "Límite de presupuestos.",
 };
 
 const ruRU: Translation = {
@@ -2376,6 +2386,7 @@ const ruRU: Translation = {
   masterViewPaymentProof: "Просмотр",
   masterUserBlockedLabel: "Блок",
   masterDeleteUser: "Удалить",
+  masterUpgradeUser: "Снять ограничения",
   greetingMorning: "Доброе утро",
   greetingAfternoon: "Добрый день",
   greetingEvening: "Добрый вечер",
@@ -2396,6 +2407,7 @@ const ruRU: Translation = {
   privacyTitle: "Политика конфиденциальности",
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
+  budgetLimitReached: "Лимит бюджетов!",
 };
 
 const hiIN: Translation = {
@@ -2705,6 +2717,7 @@ const hiIN: Translation = {
   masterViewPaymentProof: "देखें",
   masterUserBlockedLabel: "ब्लॉक",
   masterDeleteUser: "हटाएं",
+  masterUpgradeUser: "प्रतिबंध हटाएं",
   greetingMorning: "सुप्रभात",
   greetingAfternoon: "नमस्कार",
   greetingEvening: "शुभ संध्या",
@@ -2725,6 +2738,7 @@ const hiIN: Translation = {
   privacyTitle: "गोपनीयता नीति",
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
+  budgetLimitReached: "बजट सीमा!",
 };
 
 const bnBD: Translation = {
@@ -3034,6 +3048,7 @@ const bnBD: Translation = {
   masterViewPaymentProof: "দেখুন",
   masterUserBlockedLabel: "বন্ধ",
   masterDeleteUser: "মুছুন",
+  masterUpgradeUser: "সীমাবদ্ধতা সরান",
   greetingMorning: "সুপ্রভাত",
   greetingAfternoon: "শুভ অপরাহ্ন",
   greetingEvening: "শুভ সন্ধ্যা",
@@ -3054,6 +3069,7 @@ const bnBD: Translation = {
   privacyTitle: "গোপনীয়তা নীতি",
   termsContent: "Terms of Service content in English...",
   privacyContent: "Privacy Policy content in English...",
+  budgetLimitReached: "বাজেট সীমা!",
 };
 
 export const translations: Record<Locale, Translation> = {
