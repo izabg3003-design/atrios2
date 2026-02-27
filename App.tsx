@@ -302,10 +302,24 @@ const App: React.FC = () => {
   }, [currentUser, budgets]);
 
   const filteredBudgets = useMemo(() => {
+    const term = searchTerm.toLowerCase();
     return budgets.filter(budget => {
       const matchesFilter = budgetFilter === 'all' || budget.status === budgetFilter;
-      const matchesSearch = budget.clientName.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          budget.id.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchesSearch = 
+        budget.clientName.toLowerCase().includes(term) || 
+        budget.id.toLowerCase().includes(term) ||
+        budget.contactName.toLowerCase().includes(term) ||
+        budget.contactPhone.toLowerCase().includes(term) ||
+        budget.clientNif.toLowerCase().includes(term) ||
+        budget.workLocation.toLowerCase().includes(term) ||
+        budget.workNumber.toLowerCase().includes(term) ||
+        budget.workPostalCode.toLowerCase().includes(term) ||
+        (budget.observations || '').toLowerCase().includes(term) ||
+        (budget.paymentMethod || '').toLowerCase().includes(term) ||
+        budget.totalAmount.toString().includes(term) ||
+        budget.items.some(item => item.description.toLowerCase().includes(term) || item.total.toString().includes(term)) ||
+        budget.expenses.some(exp => exp.description.toLowerCase().includes(term) || exp.amount.toString().includes(term)) ||
+        (budget.payments || []).some(pay => pay.amount.toString().includes(term) || pay.notes?.toLowerCase().includes(term));
       return matchesFilter && matchesSearch;
     });
   }, [budgets, budgetFilter, searchTerm]);
