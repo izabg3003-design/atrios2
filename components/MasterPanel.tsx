@@ -91,6 +91,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [manualUserPlan, setManualUserPlan] = useState<PlanType>(PlanType.PREMIUM_MONTHLY);
   const [manualProofPreview, setManualProofPreview] = useState<string | null>(null);
   const [showProofModal, setShowProofModal] = useState<string | null>(null);
+  const [showDurationModal, setShowDurationModal] = useState<Company | null>(null);
 
   const [newCouponCode, setNewCouponCode] = useState('');
   const [newCouponDiscount, setNewCouponDiscount] = useState(10);
@@ -351,19 +352,18 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   const toggleBlock = (company: Company) => { saveCompany({ ...company, isBlocked: !company.isBlocked }); loadData(); };
 
-  const handleRemoveRestrictions = (company: Company) => {
-    if (window.confirm(`${t.masterUpgradeUser} "${company.name}"?`)) {
-      const updated = { 
-        ...company, 
-        plan: PlanType.PREMIUM_ANNUAL, 
-        subscriptionExpiresAt: new Date(Date.now() + 365 * 10 * 24 * 60 * 60 * 1000).toISOString(), // 10 years
-        isManual: true,
-        canEditSensitiveData: true,
-        unlockRequested: false
-      };
-      saveCompany(updated);
-      loadData();
-    }
+  const handleRemoveRestrictions = (company: Company, days: number) => {
+    const updated = { 
+      ...company, 
+      plan: PlanType.PREMIUM_ANNUAL, 
+      subscriptionExpiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
+      isManual: true,
+      canEditSensitiveData: true,
+      unlockRequested: false
+    };
+    saveCompany(updated);
+    loadData();
+    setShowDurationModal(null);
   };
 
   const handleDeleteUser = (id: string, name: string) => {
@@ -418,6 +418,39 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/95 p-12 backdrop-blur-md animate-in fade-in">
            <button onClick={() => setShowProofModal(null)} className="absolute top-8 right-8 p-4 bg-white/10 rounded-full hover:bg-red-500"><X size={32} /></button>
            <div className="max-w-4xl w-full h-full flex flex-col items-center justify-center gap-6"><h3 className="text-3xl font-black italic">{t.masterViewPaymentProof}</h3><div className="flex-1 w-full bg-white/5 rounded-[3rem] overflow-hidden border border-white/10 shadow-2xl"><img src={showProofModal} className="w-full h-full object-contain p-4" alt="Comprovativo" /></div></div>
+        </div>
+      )}
+
+      {showDurationModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm animate-in fade-in">
+           <div className="bg-slate-900 w-full max-w-md rounded-[3rem] border border-white/10 shadow-2xl overflow-hidden">
+              <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5">
+                <h2 className="text-xl font-black italic flex items-center gap-3 text-emerald-500 uppercase"><Zap size={24} /> {t.masterUpgradeUser}</h2>
+                <button onClick={() => setShowDurationModal(null)} className="p-2 hover:bg-white/10 rounded-full"><X size={24} /></button>
+              </div>
+              <div className="p-10 space-y-4">
+                <p className="text-slate-400 text-xs font-bold uppercase tracking-widest text-center mb-6">{t.masterTableIdCompany}: {showDurationModal.name}</p>
+                <div className="grid grid-cols-1 gap-3">
+                  {[
+                    { label: '7 Dias', days: 7 },
+                    { label: '14 Dias', days: 14 },
+                    { label: '30 Dias', days: 30 },
+                    { label: '1 Ano', days: 365 }
+                  ].map(opt => (
+                    <button 
+                      key={opt.days}
+                      onClick={() => handleRemoveRestrictions(showDurationModal, opt.days)}
+                      className="w-full py-4 bg-white/5 hover:bg-emerald-500 hover:text-slate-950 rounded-2xl font-black text-sm uppercase transition-all border border-white/5 hover:border-emerald-400"
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+                <button onClick={() => setShowDurationModal(null)} className="w-full py-4 mt-4 text-slate-500 font-black text-xs uppercase hover:text-white transition-all">
+                  {t.cancel}
+                </button>
+              </div>
+           </div>
         </div>
       )}
 
@@ -480,7 +513,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         {activeTab === 'users' && (
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
             <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase"><Users size={24} /> {t.masterUserManagement}</h2><button onClick={() => setShowAddUserModal(true)} className="px-6 py-3 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 flex items-center gap-2"><UserPlus size={18} /> {t.masterAddUser}</button></div>
-            <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5"><th className="px-8 py-6">{t.masterTableIdCompany}</th><th className="px-8 py-6">{t.masterTableEmail}</th><th className="px-8 py-6">{t.masterTablePlan}</th><th className="px-8 py-6">{t.masterTableStatus}</th><th className="px-8 py-6 text-right">{t.masterTableActions}</th></tr></thead><tbody className="divide-y divide-white/5">{companies.map(user => (<tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''}`}><td className="px-8 py-6"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'}`}>{user.name.charAt(0)}</div><div><p className="font-black text-sm">{user.name}</p><p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {user.id}</p></div></div></td><td className="px-8 py-6 font-bold text-slate-400 text-sm">{user.email}</td><td className="px-8 py-6"><span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-amber-500/50 text-amber-500">{getTranslatedPlan(user.plan)}</span></td><td className="px-8 py-6"><p className="text-xs font-black text-emerald-400 flex items-center gap-2"><Calendar size={12} /> {getDaysInfo(user)}</p></td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-3">{getUnreadCount(user.id) > 0 && <button onClick={() => selectChat(user.id)} className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase animate-pulse"><MessageSquare size={12} /> {getUnreadCount(user.id)}</button>}{user.unlockRequested && <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">{t.unlockRequestedNotify}</span>}{user.plan === PlanType.FREE && <button onClick={() => handleRemoveRestrictions(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}><Zap size={18} /></button>}<button onClick={() => toggleUnlock(user)} className={`p-2 rounded-xl transition-all ${user.canEditSensitiveData ? 'bg-emerald-500 text-slate-900' : 'bg-white/5 text-slate-400 hover:text-white'}`} title={t.masterUnlockAction}>{user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}</button><button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}><Ban size={18} /></button><button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" title={t.masterDeleteUser}><Trash2 size={18} /></button></div></td>
+            <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5"><th className="px-8 py-6">{t.masterTableIdCompany}</th><th className="px-8 py-6">{t.masterTableEmail}</th><th className="px-8 py-6">{t.masterTablePlan}</th><th className="px-8 py-6">{t.masterTableStatus}</th><th className="px-8 py-6 text-right">{t.masterTableActions}</th></tr></thead><tbody className="divide-y divide-white/5">{companies.map(user => (<tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''}`}><td className="px-8 py-6"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'}`}>{user.name.charAt(0)}</div><div><p className="font-black text-sm">{user.name}</p><p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {user.id}</p></div></div></td><td className="px-8 py-6 font-bold text-slate-400 text-sm">{user.email}</td><td className="px-8 py-6"><span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-amber-500/50 text-amber-500">{getTranslatedPlan(user.plan)}</span></td><td className="px-8 py-6"><p className="text-xs font-black text-emerald-400 flex items-center gap-2"><Calendar size={12} /> {getDaysInfo(user)}</p></td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-3">{getUnreadCount(user.id) > 0 && <button onClick={() => selectChat(user.id)} className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase animate-pulse"><MessageSquare size={12} /> {getUnreadCount(user.id)}</button>}{user.unlockRequested && <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">{t.unlockRequestedNotify}</span>}{user.plan === PlanType.FREE && <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}><Zap size={18} /></button>}<button onClick={() => toggleUnlock(user)} className={`p-2 rounded-xl transition-all ${user.canEditSensitiveData ? 'bg-emerald-500 text-slate-900' : 'bg-white/5 text-slate-400 hover:text-white'}`} title={t.masterUnlockAction}>{user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}</button><button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}><Ban size={18} /></button><button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" title={t.masterDeleteUser}><Trash2 size={18} /></button></div></td>
 </tr>))}</tbody></table></div>
           </div>
         )}
