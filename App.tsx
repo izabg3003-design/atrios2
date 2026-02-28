@@ -48,7 +48,7 @@ import {
   generateShortId
 } from './services/storage';
 import { supabase } from './services/supabase';
-import { FREE_PDF_LIMIT } from './constants';
+import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
 import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
@@ -300,7 +300,7 @@ const App: React.FC = () => {
   const canCreateBudget = useMemo(() => {
     if (!currentUser) return false;
     if (currentUser.plan !== PlanType.FREE) return true;
-    return budgets.length < 3;
+    return budgets.length < FREE_BUDGET_LIMIT;
   }, [currentUser, budgets]);
 
   const filteredBudgets = useMemo(() => {
@@ -591,6 +591,167 @@ const App: React.FC = () => {
     // Final Save
     doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
+  };
+
+  const exportServiceOrderToPDF = (budget: Budget) => {
+    const company = currentUser;
+    if (!company) return;
+    const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
+    const pdfT = isNonLatin ? translations['en-US'] : translations[locale];
+
+    if (company.plan === PlanType.FREE) {
+      const count = getPdfDownloadCount(company.id);
+      if (count >= FREE_PDF_LIMIT) {
+        alert(pdfT.pdfLimitReached);
+        setActiveTab('plans');
+        return;
+      }
+    }
+
+    const doc = new jsPDF();
+    const pageHeight = doc.internal.pageSize.getHeight();
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 20;
+    const usableWidth = pageWidth - (margin * 2);
+
+    const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
+      doc.setFontSize(8).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      const footerText = `Ordem de Serviço - ÁTRIOS | Gerado em ${new Date().toLocaleString(locale)}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+    };
+
+    // --- HEADER ---
+    doc.setFillColor(15, 23, 42); 
+    doc.rect(0, 0, pageWidth, 5, 'F');
+
+    // Logo
+    if (company.logo && company.logo.length > 50) {
+      try {
+        const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(company.logo, format, margin, 15, 35, 35, undefined, 'FAST');
+      } catch (err) {}
+    }
+
+    // Company Info
+    doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(company.name.toUpperCase()), 65, 25);
+    
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+    let companyY = 32;
+    if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 65, companyY); companyY += 5; }
+    doc.text(normalizeForPdf(company.email), 65, companyY);
+
+    // OS Info Box
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(125, 15, 65, 35, 3, 3, 'F');
+    
+    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(pdfT.serviceOrderTitle), 130, 25);
+    
+    doc.setFontSize(11).setFont('helvetica', 'black').setTextColor(15, 23, 42);
+    doc.text(`#OS-${budget.id.toUpperCase()}`, 130, 32);
+    
+    doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date().toLocaleDateString(locale)}`, 130, 38);
+
+    // --- CLIENT CONTACT INFO ---
+    doc.setDrawColor(241, 245, 249).line(margin, 60, pageWidth - margin, 60);
+    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(pdfT.contactInfoLabel.toUpperCase()), margin, 70);
+    
+    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
+    let clientY = 78;
+    doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, margin, clientY); clientY += 6;
+    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin, clientY); clientY += 6;
+    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin, clientY); clientY += 6;
+    doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, margin, clientY); clientY += 6;
+    doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, margin, clientY);
+
+    // --- SERVICES SELECTED ---
+    if (budget.servicesSelected && budget.servicesSelected.length > 0) {
+      let serviceY = 78;
+      let iconX = 110;
+      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 110, 70);
+      
+      budget.servicesSelected.forEach((serviceId) => {
+        const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
+        const textWidth = doc.getTextWidth(label);
+        
+        doc.setFillColor(248, 250, 252);
+        doc.roundedRect(iconX, serviceY - 6, textWidth + 14, 9, 2, 2, 'F');
+        
+        doc.setLineWidth(0.4);
+        if (serviceId === 'eletricista') doc.setDrawColor(245, 158, 11);
+        else if (serviceId === 'pintura') doc.setDrawColor(59, 130, 246);
+        else if (serviceId === 'canalizador') doc.setDrawColor(71, 85, 105);
+        else if (serviceId === 'capoto') doc.setDrawColor(16, 185, 129);
+        else if (serviceId === 'carpinteiro') doc.setDrawColor(120, 53, 15);
+        else doc.setDrawColor(148, 163, 184);
+        
+        doc.circle(iconX + 4, serviceY - 2, 1.5, 'S');
+        
+        doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
+        doc.text(label, iconX + 9, serviceY);
+        
+        iconX += textWidth + 20;
+        if (iconX > 180) {
+          iconX = 110;
+          serviceY += 12;
+        }
+      });
+    }
+
+    // --- SERVICE DETAILS ---
+    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(pdfT.serviceDetailsLabel.toUpperCase()), margin, 115);
+
+    autoTable(doc, {
+      startY: 122,
+      head: [[normalizeForPdf(pdfT.description), normalizeForPdf(pdfT.quantity), normalizeForPdf(pdfT.unit)]],
+      body: budget.items.map(i => [normalizeForPdf(i.description), i.quantity, normalizeForPdf(i.unit)]),
+      theme: 'grid',
+      headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
+      bodyStyles: { fontSize: 9, textColor: [15, 23, 42] },
+      columnStyles: {
+        0: { cellWidth: 'auto' },
+        1: { halign: 'center', cellWidth: 30 },
+        2: { halign: 'center', cellWidth: 30 }
+      },
+      margin: { left: margin, right: margin },
+      didDrawPage: (data) => {
+        addFooter(doc, data.pageNumber, doc.getNumberOfPages());
+      }
+    });
+
+    // --- OBSERVATIONS ---
+    if (budget.observations) {
+      const finalY = (doc as any).lastAutoTable.finalY;
+      let obsY = finalY + 15;
+      if (obsY + 40 > pageHeight) { doc.addPage(); obsY = 30; }
+      
+      doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), margin, obsY);
+      doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(71, 85, 105);
+      const lines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth);
+      doc.text(lines, margin, obsY + 7);
+    }
+
+    // --- SIGNATURE FIELD ---
+    const lastY = (doc as any).lastAutoTable.finalY + 40;
+    let sigY = lastY;
+    if (sigY + 30 > pageHeight) { doc.addPage(); sigY = 40; }
+    
+    doc.setDrawColor(203, 213, 225).setLineWidth(0.5);
+    doc.line(margin, sigY, margin + 70, sigY);
+    doc.line(pageWidth - margin - 70, sigY, pageWidth - margin, sigY);
+    
+    doc.setFontSize(8).setTextColor(148, 163, 184);
+    doc.text("Assinatura do Técnico", margin + 35, sigY + 5, { align: 'center' });
+    doc.text("Assinatura do Cliente", pageWidth - margin - 35, sigY + 5, { align: 'center' });
+
+    doc.save(`OS_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -1437,6 +1598,16 @@ const App: React.FC = () => {
                                     <Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
                                   <button onClick={(e) => { e.stopPropagation(); exportToPDF(budget); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                   <button 
+                                     onClick={(e) => { 
+                                       e.stopPropagation();
+                                       exportServiceOrderToPDF(budget);
+                                     }} 
+                                     className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-amber-50 text-amber-600 rounded-xl lg:rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                     title={t.serviceOrderLabel}
+                                   >
+                                     <FileText size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                   </button>
                                    <button 
                                     onClick={(e) => { 
                                       e.stopPropagation();

@@ -579,9 +579,12 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                   <Plus size={18} /> {t.addItem}
                 </button>
               ) : (
-                <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 text-xs font-bold text-amber-700 flex items-center gap-3">
-                  <Crown size={16} className="text-amber-500" />
-                  {t.itemsLimitReached}
+                <div className="p-6 bg-amber-50 rounded-2xl border border-amber-100 text-xs font-bold text-amber-700 flex flex-col sm:flex-row items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <Crown size={16} className="text-amber-500" />
+                    {t.itemsLimitReached}
+                  </div>
+                  <button type="button" onClick={onUpgrade} className="text-[10px] font-black uppercase text-amber-600 hover:underline">{t.updatePlanBtn}</button>
                 </div>
               )}
 
