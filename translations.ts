@@ -38,6 +38,7 @@ export interface Translation {
   verifyEmailDesc: string;
   simulateVerify: string;
   backToLogin: string;
+  orContactSupport: string;
   invalidCredentials: string;
   totalApproved: string;
   totalPending: string;
@@ -336,6 +337,9 @@ export interface Translation {
   sendResetLink: string;
   resetLinkSent: string;
   errorResetPassword: string;
+  newPasswordLabel: string;
+  confirmPasswordLabel: string;
+  passwordsDontMatch: string;
 }
 
 const enUS: Translation = {
@@ -376,6 +380,7 @@ const enUS: Translation = {
   verifyEmailDesc: "We sent a confirmation link to",
   simulateVerify: "Simulate Verification",
   backToLogin: "Back to Login",
+  orContactSupport: "Or contact support directly",
   invalidCredentials: "Invalid credentials.",
   totalApproved: "Total Approved",
   totalPending: "Total Pending",
@@ -699,6 +704,9 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   sendResetLink: "Send Reset Link",
   resetLinkSent: "Reset link sent! Check your email.",
   errorResetPassword: "Error sending reset link.",
+  newPasswordLabel: "New Password",
+  confirmPasswordLabel: "Confirm New Password",
+  passwordsDontMatch: "Passwords do not match.",
 };
 
 const ptPT: Translation = {
@@ -739,6 +747,7 @@ const ptPT: Translation = {
   verifyEmailDesc: "Enviámos um link de confirmação para",
   simulateVerify: "Simular Verificação",
   backToLogin: "Voltar ao Login",
+  orContactSupport: "Ou contacte o suporte direto",
   invalidCredentials: "Credenciais inválidas.",
   totalApproved: "Total Aprovado",
   totalPending: "Total Pendente",
@@ -1062,6 +1071,9 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   sendResetLink: "Enviar Link de Recuperação",
   resetLinkSent: "Link enviado! Verifique o seu e-mail.",
   errorResetPassword: "Erro ao enviar link de recuperação.",
+  newPasswordLabel: "Nova Palavra-passe",
+  confirmPasswordLabel: "Confirmar Nova Palavra-passe",
+  passwordsDontMatch: "As palavras-passe não coincidem.",
 };
 
 const ptBR: Translation = {
@@ -1116,6 +1128,7 @@ const frFR: Translation = {
   verifyEmailDesc: "Nous avons envoyé un lien à",
   simulateVerify: "Simuler Vérification",
   backToLogin: "Retour au Login",
+  orContactSupport: "Ou contactez le support direct",
   invalidCredentials: "Identifiants invalides.",
   totalApproved: "Total Approuvé",
   totalPending: "Total En Attente",
@@ -1413,6 +1426,9 @@ const frFR: Translation = {
   sendResetLink: "Envoyer le lien",
   resetLinkSent: "Lien envoyé ! Vérifiez votre email.",
   errorResetPassword: "Erreur lors de l'envoi du lien.",
+  newPasswordLabel: "Nouveau Mot de Passe",
+  confirmPasswordLabel: "Confirmer le Nouveau Mot de Passe",
+  passwordsDontMatch: "Les mots de passe ne correspondent pas.",
 };
 
 const itIT: Translation = {
@@ -1453,6 +1469,7 @@ const itIT: Translation = {
   verifyEmailDesc: "Abbiamo inviato un link a",
   simulateVerify: "Simula Verifica",
   backToLogin: "Torna al Login",
+  orContactSupport: "O contatta il supporto",
   invalidCredentials: "Credenziali non valide.",
   totalApproved: "Totale Approvato",
   totalPending: "In Attesa",
@@ -1750,6 +1767,9 @@ const itIT: Translation = {
   sendResetLink: "Invia Link di Recupero",
   resetLinkSent: "Link inviato! Controlla la tua email.",
   errorResetPassword: "Errore nell'invio del link.",
+  newPasswordLabel: "Nuova Password",
+  confirmPasswordLabel: "Conferma Nuova Password",
+  passwordsDontMatch: "Le password non corrispondono.",
 };
 
 const esES: Translation = {
@@ -1790,6 +1810,7 @@ const esES: Translation = {
   verifyEmailDesc: "Enviamos un link a",
   simulateVerify: "Simular Verifica",
   backToLogin: "Volver al Login",
+  orContactSupport: "O contacte al soporte",
   invalidCredentials: "Credenciales inválidas.",
   totalApproved: "Total Aprobado",
   totalPending: "Pendiente",
@@ -2113,6 +2134,9 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   sendResetLink: "Enviar Enlace",
   resetLinkSent: "¡Enlace enviado! Revise seu e-mail.",
   errorResetPassword: "Error al enviar el enlace.",
+  newPasswordLabel: "Nueva Contraseña",
+  confirmPasswordLabel: "Confirmar Nueva Contraseña",
+  passwordsDontMatch: "Las contraseñas no coinciden.",
 };
 
 const ruRU: Translation = {
@@ -2153,6 +2177,7 @@ const ruRU: Translation = {
   verifyEmailDesc: "Ссылка отправлена на",
   simulateVerify: "Подтвердить",
   backToLogin: "Назад",
+  orContactSupport: "Или свяжитесь с поддержкой",
   invalidCredentials: "Ошибка входа.",
   totalApproved: "Одобрено",
   totalPending: "Ожидает",
@@ -2450,6 +2475,9 @@ const ruRU: Translation = {
   sendResetLink: "Отправить ссылку",
   resetLinkSent: "Ссылка отправлена! Проверьте почту.",
   errorResetPassword: "Ошибка при отправке.",
+  newPasswordLabel: "Новый пароль",
+  confirmPasswordLabel: "Подтвердите новый пароль",
+  passwordsDontMatch: "Пароли не совпадают.",
 };
 
 const hiIN: Translation = {
@@ -2490,6 +2518,7 @@ const hiIN: Translation = {
   verifyEmailDesc: "लिंक भेजा गया है",
   simulateVerify: "सत्यापित करें",
   backToLogin: "वापस",
+  orContactSupport: "या सीधे सहायता से संपर्क करें",
   invalidCredentials: "गलत विवरण।",
   totalApproved: "स्वीकृत",
   totalPending: "लंबित",
@@ -2787,6 +2816,9 @@ const hiIN: Translation = {
   sendResetLink: "लिंक भेजें",
   resetLinkSent: "लिंक भेज दिया गया! अपना ईमेल जांचें।",
   errorResetPassword: "लिंक भेजने में त्रुटि।",
+  newPasswordLabel: "नया पासवर्ड",
+  confirmPasswordLabel: "नए पासवर्ड की पुष्टि करें",
+  passwordsDontMatch: "पासवर्ड मेल नहीं खाते।",
 };
 
 const bnBD: Translation = {
@@ -2827,6 +2859,7 @@ const bnBD: Translation = {
   verifyEmailDesc: "লিঙ্ক পাঠানো হয়েছে",
   simulateVerify: "ভেরিফাই",
   backToLogin: "পিছনে",
+  orContactSupport: "অথবা সরাসরি সহায়তায় যোগাযোগ করুন",
   invalidCredentials: "ভুল তথ্য।",
   totalApproved: "অনুমোদিত",
   totalPending: "অপেক্ষমান",
@@ -3124,6 +3157,9 @@ const bnBD: Translation = {
   sendResetLink: "লিঙ্ক পাঠান",
   resetLinkSent: "লিঙ্ক পাঠানো হয়েছে! আপনার ইমেল চেক করুন।",
   errorResetPassword: "লিঙ্ক পাঠাতে ত্রুটি।",
+  newPasswordLabel: "নতুন পাসওয়ার্ড",
+  confirmPasswordLabel: "নতুন পাসওয়ার্ড নিশ্চিত করুন",
+  passwordsDontMatch: "পাসওয়ার্ড মিলছে না।",
 };
 
 export const translations: Record<Locale, Translation> = {

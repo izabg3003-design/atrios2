@@ -121,6 +121,8 @@ const App: React.FC = () => {
   const [settingsAddress, setSettingsAddress] = useState('');
   const [settingsNif, setSettingsNif] = useState('');
   const [settingsPhone, setSettingsPhone] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   
   const [showSettingsConfirmModal, setShowSettingsConfirmModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<'terms' | 'privacy' | null>(null);
@@ -643,8 +645,40 @@ const App: React.FC = () => {
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email) return;
-    alert(t.resetLinkSent);
-    setView('login');
+    
+    try {
+      // 1. Verificar se o e-mail existe na base de dados
+      const { data: company, error } = await supabase
+        .from('companies')
+        .select('*')
+        .eq('email', email)
+        .single();
+        
+      if (error || !company) {
+        alert("E-mail não encontrado em nossa base de dados.");
+        return;
+      }
+
+      // 2. Criar uma mensagem de suporte automática para o Master Panel
+      const resetRequestMsg = {
+        id: Math.random().toString(36).substr(2, 9),
+        companyId: company.id,
+        content: `🚨 SOLICITAÇÃO DE RECUPERAÇÃO DE SENHA\n\nO utilizador solicitou a recuperação de acesso para o e-mail: ${email}.\n\nPor favor, entre em contacto ou redefina a senha manualmente no painel.`,
+        senderRole: 'user',
+        read: false,
+        createdAt: new Date().toISOString()
+      };
+
+      const { error: msgError } = await supabase.from('messages').insert(resetRequestMsg);
+      
+      if (msgError) throw msgError;
+
+      alert(t.resetLinkSent);
+      setView('login');
+    } catch (err) {
+      console.error("Erro ao solicitar recuperação:", err);
+      alert(t.errorResetPassword);
+    }
   };
 
   const handleSignup = async (e: React.FormEvent) => {
@@ -834,6 +868,26 @@ const App: React.FC = () => {
     if (!currentUser) return;
     if (isSettingsLocked) { alert(t.settingsPassError); return; }
     setShowSettingsConfirmModal(true);
+  };
+
+  const handleChangePassword = () => {
+    if (!currentUser) return;
+    if (!newPassword || !confirmPassword) {
+      alert(t.enterData);
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      alert(t.passwordsDontMatch);
+      return;
+    }
+    
+    const updated = { ...currentUser, password: newPassword };
+    saveCompany(updated);
+    setCurrentUser(updated);
+    currentUserRef.current = updated;
+    setNewPassword('');
+    setConfirmPassword('');
+    alert(t.saveSuccess);
   };
 
   const confirmSensitiveSave = async () => {
@@ -1120,8 +1174,15 @@ const App: React.FC = () => {
               </div>
               <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.sendResetLink}</button>
             </form>
-            <div className="text-center">
+            <div className="text-center space-y-6">
               <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+              <div className="pt-6 border-t border-slate-100">
+                <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t.orContactSupport}</p>
+                <a href="mailto:support@atrios.pt" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
+                   <Mail size={12} className="text-amber-500" />
+                   support@atrios.pt
+                </a>
+              </div>
             </div>
           </div>
         </div>
@@ -1430,6 +1491,21 @@ const App: React.FC = () => {
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.nifLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsNif} onChange={e => setSettingsNif(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.phone} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             <div className="pt-4 lg:pt-6"><button onClick={handleSaveSettings} className="w-full py-5 lg:py-6 bg-slate-900 text-white rounded-2xl lg:rounded-[2rem] font-black text-lg lg:text-xl hover:bg-slate-800 shadow-2xl disabled:opacity-30">{t.saveChanges}</button></div>
+                             
+                             <div className="pt-8 lg:pt-12 border-t border-slate-100 mt-8 lg:mt-12">
+                               <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-6 uppercase tracking-tighter italic">{t.resetPasswordTitle}</h3>
+                               <div className="space-y-4 lg:space-y-6">
+                                 <div>
+                                   <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3">{t.newPasswordLabel}</label>
+                                   <input type="password" value={newPassword} onChange={e => setNewPassword(e.target.value)} className="w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base focus:border-slate-900" />
+                                 </div>
+                                 <div>
+                                   <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3">{t.confirmPasswordLabel}</label>
+                                   <input type="password" value={confirmPassword} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base focus:border-slate-900" />
+                                 </div>
+                                 <button onClick={handleChangePassword} className="w-full py-4 lg:py-5 bg-slate-100 text-slate-900 rounded-xl lg:rounded-2xl font-black text-base lg:text-lg hover:bg-slate-200 transition-all">{t.saveChanges}</button>
+                               </div>
+                             </div>
                          </div>
                       </div>
                     </div>
