@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import ReactGA from 'react-ga4';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -78,6 +79,7 @@ const App: React.FC = () => {
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
+
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
       const companies = getStoredCompanies();
@@ -85,6 +87,23 @@ const App: React.FC = () => {
     }
     return null;
   });
+
+  useEffect(() => {
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+      const measurementId = import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y';
+      
+      // Set user ID for cross-device tracking if logged in
+      if (currentUser) {
+        ReactGA.set({ user_id: currentUser.id });
+      }
+
+      ReactGA.send({ 
+        hitType: "pageview", 
+        page: `/${view}/${activeTab}`,
+        title: `${view.toUpperCase()} - ${activeTab.toUpperCase()}`
+      });
+    }
+  }, [view, activeTab, currentUser]);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
@@ -590,6 +609,16 @@ const App: React.FC = () => {
 
     // Final Save
     doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
+    
+    // Track PDF export event
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+      ReactGA.event({
+        category: 'Export',
+        action: 'Download Budget PDF',
+        label: budget.clientName
+      });
+    }
+
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
@@ -752,6 +781,17 @@ const App: React.FC = () => {
     doc.text("Assinatura do Cliente", pageWidth - margin - 35, sigY + 5, { align: 'center' });
 
     doc.save(`OS_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
+    
+    // Track OS export event
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+      ReactGA.event({
+        category: 'Export',
+        action: 'Download OS PDF',
+        label: budget.clientName
+      });
+    }
+
+    if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -793,6 +833,16 @@ const App: React.FC = () => {
       }
       setCurrentUser(company);
       currentUserRef.current = company;
+      
+      // Track login event
+      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+        ReactGA.event({
+          category: 'User',
+          action: 'Login',
+          label: company.email
+        });
+      }
+
       setShowWelcome(true);
       setTimeout(() => {
         setShowWelcome(false);
@@ -872,6 +922,15 @@ const App: React.FC = () => {
     };
     saveCompany(newCompany);
     
+    // Track signup event
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+      ReactGA.event({
+        category: 'User',
+        action: 'Signup',
+        label: newCompany.email
+      });
+    }
+
     setCurrentUser(newCompany);
     currentUserRef.current = newCompany;
     setShowWelcome(true);
@@ -924,6 +983,17 @@ const App: React.FC = () => {
 
     try {
       saveBudget(budget);
+      
+      // Track budget save event
+      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+        ReactGA.event({
+          category: 'Budget',
+          action: isNew ? 'Create' : 'Update',
+          label: budget.clientName,
+          value: Math.round(budget.totalAmount)
+        });
+      }
+
       setBudgets(getStoredBudgets(currentUser.id));
       setIsEditingBudget(false);
       setSelectedBudget(undefined);
