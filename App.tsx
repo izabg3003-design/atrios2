@@ -1203,30 +1203,53 @@ const App: React.FC = () => {
     }
   };
 
-  const Selectors = () => (
-    <div className="flex items-center gap-3">
-      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-1.5 shadow-sm">
-        <Coins size={14} className="text-white/60" />
-        <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest">
-          {Object.values(CURRENCIES).map(curr => <option key={curr.code} value={curr.code} className="text-slate-900">{curr.code} - {curr.label}</option>)}
-        </select>
+  const [windowWidth, setWindowWidth] = useState(typeof window !== 'undefined' ? window.innerWidth : 1200);
+
+  useEffect(() => {
+    const handleResize = () => setWindowWidth(window.innerWidth);
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const Selectors = ({ dark = true }: { dark?: boolean }) => {
+    const isMobile = windowWidth < 640;
+    return (
+      <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
+        <div className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20' : 'bg-slate-100 border-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm w-full sm:w-auto`}>
+          <Coins size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px]`} />
+          <select 
+            value={currencyCode} 
+            onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} 
+            className={`bg-transparent text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-tight w-full sm:w-auto`}
+          >
+            {Object.values(CURRENCIES).map(curr => (
+              <option key={curr.code} value={curr.code} className="text-slate-900">
+                {curr.code} {isMobile ? '' : `- ${curr.label}`}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20' : 'bg-slate-100 border-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm w-full sm:w-auto`}>
+          <Globe size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px]`} />
+          <select 
+            value={locale} 
+            onChange={(e) => setLocale(e.target.value as Locale)} 
+            className={`bg-transparent text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-tight w-full sm:w-auto`}
+          >
+            <option value="pt-PT" className="text-slate-900">🇵🇹 {isMobile ? 'PT' : 'PT - Português (Portugal)'}</option>
+            <option value="pt-BR" className="text-slate-900">🇧🇷 {isMobile ? 'PT' : 'PT - Português (Brasil)'}</option>
+            <option value="en-US" className="text-slate-900">🇺🇸 {isMobile ? 'EN' : 'EN - English (USA)'}</option>
+            <option value="fr-FR" className="text-slate-900">🇫🇷 {isMobile ? 'FR' : 'FR - Français (France)'}</option>
+            <option value="it-IT" className="text-slate-900">🇮🇹 {isMobile ? 'IT' : 'IT - Italiano (Italia)'}</option>
+            <option value="es-ES" className="text-slate-900">🇪🇸 {isMobile ? 'ES' : 'ES - Español (España)'}</option>
+            <option value="ru-RU" className="text-slate-900">🇷🇺 {isMobile ? 'RU' : 'RU - Pоссия (Russian)'}</option>
+            <option value="hi-IN" className="text-slate-900">🇮🇳 {isMobile ? 'HI' : 'HI - भारत (Hindi)'}</option>
+            <option value="bn-BD" className="text-slate-900">🇧🇩 {isMobile ? 'BN' : 'BN - বাংলাদেশ (Bengali)'}</option>
+          </select>
+        </div>
       </div>
-      <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-1.5 shadow-sm">
-        <Globe size={14} className="text-white/60" />
-        <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest">
-          <option value="pt-PT" className="text-slate-900">🇵🇹 PT (Portugal)</option>
-          <option value="pt-BR" className="text-slate-900">🇧🇷 PT (Brasil)</option>
-          <option value="en-US" className="text-slate-900">🇺🇸 EN (English)</option>
-          <option value="fr-FR" className="text-slate-900">🇫🇷 FR (Français)</option>
-          <option value="it-IT" className="text-slate-900">🇮🇹 IT (Italiano)</option>
-          <option value="es-ES" className="text-slate-900">🇪🇸 ES (Español)</option>
-          <option value="ru-RU" className="text-slate-900">🇷🇺 RU (Pоссия)</option>
-          <option value="hi-IN" className="text-slate-900">🇮🇳 HI (भारत)</option>
-          <option value="bn-BD" className="text-slate-900">🇧🇩 BN (বাংলাদেশ)</option>
-        </select>
-      </div>
-    </div>
-  );
+    );
+  };
 
   if (view === 'master') return <MasterPanel onLogout={() => { saveSession(null); setView('landing'); }} locale={locale} />;
 
@@ -1302,27 +1325,29 @@ const App: React.FC = () => {
         <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900">
           {/* Navigation */}
           <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20">
-                  <Construction className="text-white w-6 h-6" />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
+              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                <div className="bg-amber-500 p-1.5 sm:p-2 rounded-xl shadow-lg shadow-amber-500/20">
+                  <Construction className="text-white w-5 h-5 sm:w-6 sm:h-6" />
                 </div>
-                <span className="text-2xl font-black tracking-tighter italic text-slate-900">{t.appName}</span>
+                <span className="text-xl sm:text-2xl font-black tracking-tighter italic text-slate-900">{t.appName}</span>
               </div>
-              <div className="flex items-center gap-4 sm:gap-8">
-                <div className="hidden sm:block scale-90 sm:scale-100"><Selectors /></div>
-                <button 
-                  onClick={() => setView('login')} 
-                  className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-widest"
-                >
-                  {t.loginBtn}
-                </button>
-                <button 
-                  onClick={() => setView('signup')} 
-                  className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest"
-                >
-                  {t.heroCta}
-                </button>
+              <div className="flex items-center gap-2 sm:gap-8">
+                <div className="scale-90 sm:scale-100"><Selectors dark={false} /></div>
+                <div className="flex items-center gap-2 sm:gap-4">
+                  <button 
+                    onClick={() => setView('login')} 
+                    className="hidden sm:block text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-widest"
+                  >
+                    {t.loginBtn}
+                  </button>
+                  <button 
+                    onClick={() => setView('signup')} 
+                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900 text-white rounded-xl font-bold text-[9px] sm:text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest shrink-0"
+                  >
+                    {t.heroCta}
+                  </button>
+                </div>
               </div>
             </div>
           </nav>
@@ -1340,9 +1365,6 @@ const App: React.FC = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
               >
-                <span className="inline-block px-4 py-1.5 mb-6 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
-                  {t.saasFeature} — {t.saasDesc}
-                </span>
                 <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 mb-8 leading-[0.9]">
                   {t.heroTitle.split('.').map((part, i) => (
                     <span key={i} className="block">{part}{i === 0 && t.heroTitle.includes('.') ? '.' : ''}</span>
@@ -1487,14 +1509,80 @@ const App: React.FC = () => {
                   </button>
                 </div>
                 <div className="flex-1 relative">
-                  <div className="relative z-10 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-4 rotate-3">
-                    <img 
-                      src="https://picsum.photos/seed/construction/800/1000" 
-                      alt="Construction" 
-                      className="rounded-[2rem] w-full aspect-[4/5] object-cover"
-                      referrerPolicy="no-referrer"
-                    />
-                  </div>
+                  <motion.div 
+                    initial={{ opacity: 0, scale: 0.9, rotate: 0 }}
+                    whileInView={{ opacity: 1, scale: 1, rotate: 3 }}
+                    viewport={{ once: true }}
+                    className="relative z-10 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-8 sm:p-12 overflow-hidden"
+                  >
+                    {/* Mock Budget Header */}
+                    <div className="flex justify-between items-start mb-12">
+                      <div className="flex items-center gap-3">
+                        <div className="bg-amber-500 p-2 rounded-xl">
+                          <Construction className="text-white w-6 h-6" />
+                        </div>
+                        <span className="text-xl font-black tracking-tighter italic text-slate-900">INNOVA CONSTY</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">{t.serviceOrderLabel}</span>
+                        <span className="block text-lg font-black text-slate-900 tracking-tighter">#ATR-GJV6YT</span>
+                      </div>
+                    </div>
+
+                    {/* Mock Client Info */}
+                    <div className="grid grid-cols-2 gap-8 mb-12">
+                      <div>
+                        <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.contactInfoLabel}</span>
+                        <span className="block text-xs font-bold text-slate-900">Restaurante MOVID</span>
+                        <span className="block text-[10px] text-slate-500">Rua dos Açores, 54423</span>
+                      </div>
+                      <div className="text-right">
+                        <span className="block text-[8px] font-black text-slate-400 uppercase tracking-widest mb-2">DATA</span>
+                        <span className="block text-xs font-bold text-slate-900">01/03/2026</span>
+                      </div>
+                    </div>
+
+                    {/* Mock Items Table */}
+                    <div className="space-y-4 mb-12">
+                      <div className="flex justify-between text-[8px] font-black text-slate-400 uppercase tracking-widest border-b border-slate-100 pb-2">
+                        <span>{t.descriptionLabel || 'Descrição'}</span>
+                        <span>TOTAL</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-[10px] font-bold text-slate-700">Alvenaria tijolo de 15</span>
+                        <span className="text-[10px] font-black text-slate-900">3.750,00 €</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-[10px] font-bold text-slate-700">Aplicação de pladur</span>
+                        <span className="text-[10px] font-black text-slate-900">2.400,00 €</span>
+                      </div>
+                      <div className="flex justify-between items-center py-1">
+                        <span className="text-[10px] font-bold text-slate-700">Canalização total</span>
+                        <span className="text-[10px] font-black text-slate-900">1.050,00 €</span>
+                      </div>
+                    </div>
+
+                    {/* Mock Totals */}
+                    <div className="bg-slate-50 rounded-2xl p-6 space-y-2">
+                      <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                        <span>Subtotal</span>
+                        <span>7.200,00 €</span>
+                      </div>
+                      <div className="flex justify-between text-[10px] font-bold text-slate-500">
+                        <span>IVA (23%)</span>
+                        <span>1.656,00 €</span>
+                      </div>
+                      <div className="flex justify-between text-lg font-black text-amber-600 pt-2 border-t border-slate-200">
+                        <span>TOTAL</span>
+                        <span>8.856,00 €</span>
+                      </div>
+                    </div>
+
+                    {/* QR Code Mock */}
+                    <div className="absolute bottom-8 right-8 w-16 h-16 bg-slate-100 rounded-xl flex items-center justify-center border border-slate-200 opacity-50">
+                      <QrCode size={32} className="text-slate-400" />
+                    </div>
+                  </motion.div>
                   <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-amber-100/50 blur-[100px] rounded-full" />
                 </div>
               </div>
@@ -1769,7 +1857,7 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
-                <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors /></div>
+                <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
                 <button 
                   onClick={() => { 
                     if (!canCreateBudget) {
