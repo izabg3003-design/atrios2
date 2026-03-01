@@ -344,6 +344,32 @@ export interface Translation {
   serviceOrderTitle: string;
   contactInfoLabel: string;
   serviceDetailsLabel: string;
+  landingFeature1Title: string;
+  landingFeature1Desc: string;
+  landingFeature2Title: string;
+  landingFeature2Desc: string;
+  landingFeature3Title: string;
+  landingFeature3Desc: string;
+  landingFeature4Title: string;
+  landingFeature4Desc: string;
+  landingHeroDesc: string;
+  landingFeaturesTitle: string;
+  landingFeaturesSub: string;
+  landingProfessionalismLabel: string;
+  landingProfessionalismTitle: string;
+  landingProfessionalismDesc: string;
+  landingProfessionalismItem1: string;
+  landingProfessionalismItem2: string;
+  landingProfessionalismItem3: string;
+  landingProfessionalismItem4: string;
+  landingCtaTitle: string;
+  landingCtaDesc: string;
+  landingCtaTrust: string;
+  landingFooterSupport: string;
+  landingFooterRights: string;
+  landingPreviewApproved: string;
+  landingPreviewProfit: string;
+  landingPreviewProfitGrowth: string;
 }
 
 const enUS: Translation = {
@@ -715,6 +741,32 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   serviceOrderTitle: "SERVICE ORDER",
   contactInfoLabel: "Contact Information",
   serviceDetailsLabel: "Service Details",
+  landingFeature1Title: "Estimate Management",
+  landingFeature1Desc: "Create professional estimates in seconds with our intuitive interface.",
+  landingFeature2Title: "Service Orders",
+  landingFeature2Desc: "Generate detailed service orders for your team and clients.",
+  landingFeature3Title: "Financial Reports",
+  landingFeature3Desc: "Track your business's financial health with advanced charts.",
+  landingFeature4Title: "Payment Control",
+  landingFeature4Desc: "Record payments and track the balance of each project.",
+  landingHeroDesc: "The complete tool for construction professionals seeking excellence in estimate management, service orders, and financial control.",
+  landingFeaturesTitle: "Everything you need to grow.",
+  landingFeaturesSub: "A complete suite of tools designed specifically for the construction and services sector.",
+  landingProfessionalismLabel: "Professionalism",
+  landingProfessionalismTitle: "Impress your clients with PDF estimates.",
+  landingProfessionalismDesc: "Don't waste any more time with confusing spreadsheets. ATRIOS generates professional documents with your logo, QR Code, and fiscal details automatically.",
+  landingProfessionalismItem1: "Custom Logo",
+  landingProfessionalismItem2: "Payment QR Code",
+  landingProfessionalismItem3: "Automatic Validity",
+  landingProfessionalismItem4: "Professional Layout",
+  landingCtaTitle: "Ready to take your business to the next level?",
+  landingCtaDesc: "Join hundreds of professionals who already trust ATRIOS to manage their projects.",
+  landingCtaTrust: "Free Trial — No Credit Card Required",
+  landingFooterSupport: "Support",
+  landingFooterRights: "All rights reserved.",
+  landingPreviewApproved: "Estimate Approved",
+  landingPreviewProfit: "Estimated Profit",
+  landingPreviewProfitGrowth: "+32% this month",
 };
 
 const ptPT: Translation = {
@@ -1086,6 +1138,32 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   serviceOrderTitle: "ORDEM DE SERVIÇO",
   contactInfoLabel: "Informações de Contacto",
   serviceDetailsLabel: "Detalhes do Serviço",
+  landingFeature1Title: "Gestão de Orçamentos",
+  landingFeature1Desc: "Crie orçamentos profissionais em segundos com a nossa interface intuitiva.",
+  landingFeature2Title: "Ordens de Serviço",
+  landingFeature2Desc: "Gere ordens de serviço detalhadas para a sua equipa e clientes.",
+  landingFeature3Title: "Relatórios Financeiros",
+  landingFeature3Desc: "Acompanhe a saúde financeira do seu negócio com gráficos avançados.",
+  landingFeature4Title: "Controlo de Pagamentos",
+  landingFeature4Desc: "Registe pagamentos e acompanhe o saldo de cada projeto.",
+  landingHeroDesc: "A ferramenta completa para profissionais da construção que procuram excelência na gestão de orçamentos, ordens de serviço e controlo financeiro.",
+  landingFeaturesTitle: "Tudo o que precisa para crescer.",
+  landingFeaturesSub: "Uma suite completa de ferramentas desenhadas especificamente para o setor da construção e serviços.",
+  landingProfessionalismLabel: "Profissionalismo",
+  landingProfessionalismTitle: "Impressione os seus clientes com orçamentos em PDF.",
+  landingProfessionalismDesc: "Não perca mais tempo com folhas de cálculo confusas. O ÁTRIOS gera documentos profissionais com o seu logótipo, QR Code e detalhes fiscais automaticamente.",
+  landingProfessionalismItem1: "Logótipo Personalizado",
+  landingProfessionalismItem2: "QR Code de Pagamento",
+  landingProfessionalismItem3: "Validade Automática",
+  landingProfessionalismItem4: "Layout Profissional",
+  landingCtaTitle: "Pronto para levar o seu negócio ao próximo nível?",
+  landingCtaDesc: "Junte-se a centenas de profissionais que já confiam no ÁTRIOS para gerir as suas obras.",
+  landingCtaTrust: "Teste Grátis — Sem Cartão de Crédito",
+  landingFooterSupport: "Suporte",
+  landingFooterRights: "Todos os direitos reservados.",
+  landingPreviewApproved: "Orçamento Aprovado",
+  landingPreviewProfit: "Lucro Estimado",
+  landingPreviewProfitGrowth: "+32% este mês",
 };
 
 const ptBR: Translation = {
@@ -1445,6 +1523,32 @@ const frFR: Translation = {
   serviceOrderTitle: "BON DE COMMANDE",
   contactInfoLabel: "Informations de Contact",
   serviceDetailsLabel: "Détails du Service",
+  landingFeature1Title: "Gestion des Devis",
+  landingFeature1Desc: "Créez des devis professionnels en quelques secondes avec notre interface intuitive.",
+  landingFeature2Title: "Bons de Commande",
+  landingFeature2Desc: "Générez des bons de commande détaillés pour votre équipe et vos clients.",
+  landingFeature3Title: "Rapports Financiers",
+  landingFeature3Desc: "Suivez la santé financière de votre entreprise avec des graphiques avancés.",
+  landingFeature4Title: "Contrôle des Paiements",
+  landingFeature4Desc: "Enregistrez les paiements et suivez le solde de chaque projet.",
+  landingHeroDesc: "L'outil complet pour les professionnels de la construction recherchant l'excellence dans la gestion des devis, des bons de commande et le contrôle financier.",
+  landingFeaturesTitle: "Tout ce dont vous avez besoin pour grandir.",
+  landingFeaturesSub: "Une suite complète d'outils conçus spécifiquement pour le secteur de la construction et des services.",
+  landingProfessionalismLabel: "Professionnalisme",
+  landingProfessionalismTitle: "Impressionnez vos clients avec des devis PDF.",
+  landingProfessionalismDesc: "Ne perdez plus de temps avec des feuilles de calcul confuses. ATRIOS génère automatiquement des documents professionnels avec votre logo, QR Code et détails fiscaux.",
+  landingProfessionalismItem1: "Logo Personnalisé",
+  landingProfessionalismItem2: "QR Code de Paiement",
+  landingProfessionalismItem3: "Validité Automatique",
+  landingProfessionalismItem4: "Mise en Page Professionnelle",
+  landingCtaTitle: "Prêt à faire passer votre entreprise au niveau supérieur ?",
+  landingCtaDesc: "Rejoignez des centaines de professionnels qui font déjà confiance à ATRIOS pour gérer leurs projets.",
+  landingCtaTrust: "Essai Gratuit — Aucune Carte de Crédit Requise",
+  landingFooterSupport: "Support",
+  landingFooterRights: "Tous droits réservés.",
+  landingPreviewApproved: "Devis Approuvé",
+  landingPreviewProfit: "Bénéfice Estimé",
+  landingPreviewProfitGrowth: "+32% ce mois-ci",
 };
 
 const itIT: Translation = {
@@ -1790,6 +1894,32 @@ const itIT: Translation = {
   serviceOrderTitle: "ORDINE DI SERVIZIO",
   contactInfoLabel: "Informazioni di Contatto",
   serviceDetailsLabel: "Dettagli del Servizio",
+  landingFeature1Title: "Gestione Preventivi",
+  landingFeature1Desc: "Crea preventivi professionali in pochi secondi con la nostra interfaccia intuitiva.",
+  landingFeature2Title: "Ordini di Servizio",
+  landingFeature2Desc: "Genera ordini di servizio dettagliati per il tuo team e i tuoi clienti.",
+  landingFeature3Title: "Rapporti Finanziari",
+  landingFeature3Desc: "Monitora la salute finanziaria della tua attività con grafici avanzati.",
+  landingFeature4Title: "Controllo Pagamenti",
+  landingFeature4Desc: "Registra i pagamenti e monitora il saldo di ogni progetto.",
+  landingHeroDesc: "Lo strumento completo per i professionisti dell'edilizia che cercano l'eccellenza nella gestione dei preventivi, degli ordini di servizio e nel controllo finanziario.",
+  landingFeaturesTitle: "Tutto ciò di cui hai bisogno per crescere.",
+  landingFeaturesSub: "Una suite completa di strumenti progettati specificamente per il settore dell'edilizia e dei servizi.",
+  landingProfessionalismLabel: "Professionalità",
+  landingProfessionalismTitle: "Impressiona i tuoi clienti con preventivi PDF.",
+  landingProfessionalismDesc: "Non perdere più tempo con fogli di calcolo confusi. ATRIOS genera automaticamente documenti professionali con il tuo logo, QR Code e dettagli fiscali.",
+  landingProfessionalismItem1: "Logo Personalizzato",
+  landingProfessionalismItem2: "QR Code di Pagamento",
+  landingProfessionalismItem3: "Validità Automatica",
+  landingProfessionalismItem4: "Layout Professionale",
+  landingCtaTitle: "Pronto a portare la tua attività al livello successivo?",
+  landingCtaDesc: "Unisciti a centinaia di professionisti che già si fidano di ATRIOS per gestire i loro progetti.",
+  landingCtaTrust: "Prova Gratuita — Nessuna Carta di Credito Richiesta",
+  landingFooterSupport: "Supporto",
+  landingFooterRights: "Tutti i diritti riservati.",
+  landingPreviewApproved: "Preventivo Approvato",
+  landingPreviewProfit: "Utile Stimato",
+  landingPreviewProfitGrowth: "+32% questo mese",
 };
 
 const esES: Translation = {
@@ -2161,6 +2291,32 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   serviceOrderTitle: "ORDEN DE SERVICIO",
   contactInfoLabel: "Información de Contacto",
   serviceDetailsLabel: "Detalles del Servicio",
+  landingFeature1Title: "Gestión de Presupuestos",
+  landingFeature1Desc: "Cree presupuestos profesionales en segundos con nuestra interfaz intuitiva.",
+  landingFeature2Title: "Órdenes de Servicio",
+  landingFeature2Desc: "Genere órdenes de servicio detalladas para su equipo y clientes.",
+  landingFeature3Title: "Informes Financieros",
+  landingFeature3Desc: "Siga la salud financiera de su negocio con gráficos avanzados.",
+  landingFeature4Title: "Control de Pagos",
+  landingFeature4Desc: "Registre pagos y siga el saldo de cada proyecto.",
+  landingHeroDesc: "La herramienta completa para profesionales de la construcción que buscan la excelencia en la gestión de presupuestos, órdenes de servicio y control financiero.",
+  landingFeaturesTitle: "Todo lo que necesita para crecer.",
+  landingFeaturesSub: "Una suite completa de herramientas diseñadas específicamente para el sector de la construcción y servicios.",
+  landingProfessionalismLabel: "Profesionalismo",
+  landingProfessionalismTitle: "Impresione a sus clientes con presupuestos en PDF.",
+  landingProfessionalismDesc: "No pierda más tiempo con hojas de cálculo confusas. ÁTRIOS genera documentos profesionales con su logotipo, código QR y detalles fiscales automáticamente.",
+  landingProfessionalismItem1: "Logotipo Personalizado",
+  landingProfessionalismItem2: "Código QR de Pago",
+  landingProfessionalismItem3: "Validez Automática",
+  landingProfessionalismItem4: "Diseño Profesional",
+  landingCtaTitle: "¿Listo para llevar su negocio al siguiente nivel?",
+  landingCtaDesc: "Únase a cientos de profesionales que ya confían en ÁTRIOS para gestionar sus obras.",
+  landingCtaTrust: "Prueba Gratuita — Sin Tarjeta de Crédito",
+  landingFooterSupport: "Soporte",
+  landingFooterRights: "Todos los derechos reservados.",
+  landingPreviewApproved: "Presupuesto Aprobado",
+  landingPreviewProfit: "Beneficio Estimado",
+  landingPreviewProfitGrowth: "+32% este mes",
 };
 
 const ruRU: Translation = {
@@ -2506,6 +2662,32 @@ const ruRU: Translation = {
   serviceOrderTitle: "ЗАКАЗ-НАРЯД",
   contactInfoLabel: "Контактная информация",
   serviceDetailsLabel: "Детали услуги",
+  landingFeature1Title: "Управление сметами",
+  landingFeature1Desc: "Создавайте профессиональные сметы за считанные секунды с помощью нашего интуитивно понятного интерфейса.",
+  landingFeature2Title: "Заказ-наряды",
+  landingFeature2Desc: "Генерируйте подробные заказ-наряды для своей команды и клиентов.",
+  landingFeature3Title: "Финансовые отчеты",
+  landingFeature3Desc: "Отслеживайте финансовое состояние вашего бизнеса с помощью расширенных графиков.",
+  landingFeature4Title: "Контроль платежей",
+  landingFeature4Desc: "Регистрируйте платежи и отслеживайте баланс каждого проекта.",
+  landingHeroDesc: "Полный инструмент для строителей, стремящихся к совершенству в управлении сметами, заказами и финансовым контролем.",
+  landingFeaturesTitle: "Все, что вам нужно для роста.",
+  landingFeaturesSub: "Полный набор инструментов, разработанных специально для строительного сектора и сферы услуг.",
+  landingProfessionalismLabel: "Профессионализм",
+  landingProfessionalismTitle: "Впечатляйте своих клиентов сметами в формате PDF.",
+  landingProfessionalismDesc: "Больше не тратьте время на запутанные таблицы. ATRIOS автоматически генерирует профессиональные документы с вашим логотипом, QR-кодом и налоговыми реквизитами.",
+  landingProfessionalismItem1: "Ваш логотип",
+  landingProfessionalismItem2: "QR-код для оплаты",
+  landingProfessionalismItem3: "Автоматический срок действия",
+  landingProfessionalismItem4: "Профессиональный макет",
+  landingCtaTitle: "Готовы вывести свой бизнес на новый уровень?",
+  landingCtaDesc: "Присоединяйтесь к сотням профессионалов, которые уже доверяют ATRIOS управление своими проектами.",
+  landingCtaTrust: "Бесплатная пробная версия — кредитная карта не требуется",
+  landingFooterSupport: "Поддержка",
+  landingFooterRights: "Все права защищены.",
+  landingPreviewApproved: "Смета одобрена",
+  landingPreviewProfit: "Ожидаемая прибыль",
+  landingPreviewProfitGrowth: "+32% в этом месяце",
 };
 
 const hiIN: Translation = {
@@ -2851,6 +3033,32 @@ const hiIN: Translation = {
   serviceOrderTitle: "सेवा आदेश",
   contactInfoLabel: "संपर्क जानकारी",
   serviceDetailsLabel: "सेवा विवरण",
+  landingFeature1Title: "अनुमान प्रबंधन",
+  landingFeature1Desc: "हमारे सहज इंटरफ़ेस के साथ सेकंडों में पेशेवर अनुमान बनाएं।",
+  landingFeature2Title: "सेवा आदेश",
+  landingFeature2Desc: "अपनी टीम और ग्राहकों के लिए विस्तृत सेवा आदेश तैयार करें।",
+  landingFeature3Title: "वित्तीय रिपोर्ट",
+  landingFeature3Desc: "उन्नत चार्ट के साथ अपने व्यवसाय के वित्तीय स्वास्थ्य को ट्रैक करें।",
+  landingFeature4Title: "भुगतान नियंत्रण",
+  landingFeature4Desc: "भुगतान रिकॉर्ड करें और प्रत्येक प्रोजेक्ट के बैलेंस को ट्रैक करें।",
+  landingHeroDesc: "निर्माण पेशेवरों के लिए अनुमान प्रबंधन, सेवा आदेश और वित्तीय नियंत्रण में उत्कृष्टता चाहने वाला संपूर्ण उपकरण।",
+  landingFeaturesTitle: "वह सब कुछ जो आपको बढ़ने के लिए चाहिए।",
+  landingFeaturesSub: "निर्माण और सेवा क्षेत्र के लिए विशेष रूप से डिज़ाइन किए गए उपकरणों का एक पूरा सुइट।",
+  landingProfessionalismLabel: "व्यावसायिकता",
+  landingProfessionalismTitle: "पीडीएफ अनुमानों के साथ अपने ग्राहकों को प्रभावित करें।",
+  landingProfessionalismDesc: "भ्रमित करने वाली स्प्रेडशीट के साथ अब और समय बर्बाद न करें। ATRIOS आपके लोगो, QR कोड और वित्तीय विवरणों के साथ स्वचालित रूप से पेशेवर दस्तावेज़ तैयार करता है।",
+  landingProfessionalismItem1: "कस्टम लोगो",
+  landingProfessionalismItem2: "भुगतान QR कोड",
+  landingProfessionalismItem3: "स्वचालित वैधता",
+  landingProfessionalismItem4: "प्रोफेशनल लेआउट",
+  landingCtaTitle: "क्या आप अपने व्यवसाय को अगले स्तर पर ले जाने के लिए तैयार हैं?",
+  landingCtaDesc: "उन सैकड़ों पेशेवरों में शामिल हों जो पहले से ही अपने प्रोजेक्ट्स को मैनेज करने के लिए ATRIOS पर भरोसा करते हैं।",
+  landingCtaTrust: "नि: शुल्क परीक्षण — किसी क्रेडिट कार्ड की आवश्यकता नहीं",
+  landingFooterSupport: "सहायता",
+  landingFooterRights: "सर्वाधिकार सुरक्षित।",
+  landingPreviewApproved: "अनुमान स्वीकृत",
+  landingPreviewProfit: "अनुमानित लाभ",
+  landingPreviewProfitGrowth: "इस महीने +32%",
 };
 
 const bnBD: Translation = {
@@ -3196,6 +3404,32 @@ const bnBD: Translation = {
   serviceOrderTitle: "সার্ভিস অর্ডার",
   contactInfoLabel: "যোগাযোগের তথ্য",
   serviceDetailsLabel: "পরিষেবার বিবরণ",
+  landingFeature1Title: "এস্টিমেট ম্যানেজমেন্ট",
+  landingFeature1Desc: "আমাদের সহজ ইন্টারফেসের মাধ্যমে কয়েক সেকেন্ডের মধ্যে পেশাদার এস্টিমেট তৈরি করুন।",
+  landingFeature2Title: "সার্ভিস অর্ডার",
+  landingFeature2Desc: "আপনার দল এবং গ্রাহকদের জন্য বিস্তারিত সার্ভিস অর্ডার তৈরি করুন।",
+  landingFeature3Title: "আর্থিক রিপোর্ট",
+  landingFeature3Desc: "উন্নত চার্টের মাধ্যমে আপনার ব্যবসার আর্থিক অবস্থা ট্র্যাক করুন।",
+  landingFeature4Title: "পেমেন্ট কন্ট্রোল",
+  landingFeature4Desc: "পেমেন্ট রেকর্ড করুন এবং প্রতিটি প্রকল্পের ব্যালেন্স ট্র্যাক করুন।",
+  landingHeroDesc: "নির্মাণ পেশাদারদের জন্য এস্টিমেট ম্যানেজমেন্ট, সার্ভিস অর্ডার এবং আর্থিক নিয়ন্ত্রণে শ্রেষ্ঠত্ব অর্জনের সম্পূর্ণ সরঞ্জাম।",
+  landingFeaturesTitle: "আপনার বৃদ্ধির জন্য প্রয়োজনীয় সবকিছু।",
+  landingFeaturesSub: "নির্মাণ এবং পরিষেবা খাতের জন্য বিশেষভাবে ডিজাইন করা সরঞ্জামগুলির একটি সম্পূর্ণ সেট।",
+  landingProfessionalismLabel: "পেশাদারিত্ব",
+  landingProfessionalismTitle: "পিডিএফ এস্টিমেটের মাধ্যমে আপনার গ্রাহকদের মুগ্ধ করুন।",
+  landingProfessionalismDesc: "বিভ্রান্তিকর স্প্রেডশীটের সাথে আর সময় নষ্ট করবেন না। ATRIOS আপনার লোগো, কিউআর কোড এবং আর্থিক বিবরণ সহ স্বয়ংক্রিয়ভাবে পেশাদার নথি তৈরি করে।",
+  landingProfessionalismItem1: "কাস্টম লোগো",
+  landingProfessionalismItem2: "পেমেন্ট কিউআর কোড",
+  landingProfessionalismItem3: "স্বয়ংক্রিয় বৈধতা",
+  landingProfessionalismItem4: "পেশাদার লেআউট",
+  landingCtaTitle: "আপনার ব্যবসাকে পরবর্তী স্তরে নিয়ে যেতে প্রস্তুত?",
+  landingCtaDesc: "সেই শত শত পেশাদারদের সাথে যোগ দিন যারা ইতিমধ্যে তাদের প্রকল্পগুলি পরিচালনা করতে ATRIOS-এর উপর আস্থা রাখেন।",
+  landingCtaTrust: "ফ্রি ট্রায়াল — কোনো ক্রেডিট কার্ডের প্রয়োজন নেই",
+  landingFooterSupport: "সহায়তা",
+  landingFooterRights: "সর্বস্বত্ব সংরক্ষিত।",
+  landingPreviewApproved: "এস্টিমেট অনুমোদিত",
+  landingPreviewProfit: "আনুমানিক লাভ",
+  landingPreviewProfitGrowth: "এই মাসে +৩২%",
 };
 
 export const translations: Record<Locale, Translation> = {

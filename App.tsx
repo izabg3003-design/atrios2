@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
+import { motion } from 'framer-motion';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -18,7 +19,11 @@ import {
   Construction,
   Globe,
   Wallet,
-  CreditCard as PaymentIcon,
+  CreditCard,
+  TrendingUp,
+  ClipboardList,
+  Check,
+  ArrowRight,
   Filter,
   Coins,
   X,
@@ -1203,7 +1208,7 @@ const App: React.FC = () => {
       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-1.5 shadow-sm">
         <Coins size={14} className="text-white/60" />
         <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest">
-          {Object.values(CURRENCIES).map(curr => <option key={curr.code} value={curr.code} className="text-slate-900">{curr.label}</option>)}
+          {Object.values(CURRENCIES).map(curr => <option key={curr.code} value={curr.code} className="text-slate-900">{curr.code} - {curr.label}</option>)}
         </select>
       </div>
       <div className="flex items-center gap-2 bg-white/10 backdrop-blur-md border border-white/20 rounded-xl px-3 py-1.5 shadow-sm">
@@ -1294,36 +1299,255 @@ const App: React.FC = () => {
       )}
 
       {view === 'landing' ? (
-        <div className="min-h-screen flex flex-col items-center justify-center p-4 sm:p-6 bg-slate-900 overflow-hidden relative w-full">
-          <div className="absolute top-4 right-4 sm:top-8 sm:right-8 z-50 scale-90 sm:scale-100 origin-top-right"><Selectors /></div>
-          <div className="z-10 text-center max-w-2xl px-4 py-12 sm:py-0">
-            <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-8 sm:mb-10">
-              <div className="bg-amber-500 p-4 sm:p-5 rounded-[1.5rem] sm:rounded-[2rem] shadow-2xl rotate-12">
-                <Construction className="text-white w-8 h-8 sm:w-12 sm:h-12" />
+        <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900">
+          {/* Navigation */}
+          <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20">
+                  <Construction className="text-white w-6 h-6" />
+                </div>
+                <span className="text-2xl font-black tracking-tighter italic text-slate-900">{t.appName}</span>
               </div>
-              <h1 className="text-5xl sm:text-7xl font-black text-white tracking-tighter italic">{t.appName}</h1>
-            </div>
-            <h2 className="text-xl sm:text-3xl text-slate-300 font-medium mb-10 sm:mb-16 leading-relaxed">{t.heroTitle}</h2>
-            <div className="flex flex-col sm:flex-row gap-4 sm:gap-5 justify-center">
-              <button onClick={() => setView('signup')} className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-amber-500 text-slate-900 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl hover:bg-amber-400 transition-all shadow-2xl">
-                {t.heroCta}
-              </button>
-              <button onClick={() => setView('login')} className="w-full sm:w-auto px-8 sm:px-12 py-4 sm:py-6 bg-white/10 text-white border-2 border-white/20 rounded-2xl sm:rounded-3xl font-black text-lg sm:text-xl hover:bg-white/20 transition-all">
-                {t.loginBtn}
-              </button>
-            </div>
-            
-            <div className="mt-12 sm:mt-20 flex flex-col items-center gap-6">
-              <div className="flex items-center gap-6 sm:gap-8 text-[9px] sm:text-[10px] font-black uppercase tracking-widest sm:tracking-[0.3em] text-white/40">
-                <button onClick={() => setShowLegalModal('terms')} className="hover:text-amber-500 transition-colors">{t.termsOfService}</button>
-                <button onClick={() => setShowLegalModal('privacy')} className="hover:text-amber-500 transition-colors">{t.privacyPolicy}</button>
-              </div>
-              <div className="flex items-center gap-3 px-4 sm:px-6 py-2.5 sm:py-3 bg-white/5 border border-white/10 rounded-xl sm:rounded-2xl text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-white/60">
-                <Mail size={12} className="text-amber-500 sm:w-3.5 sm:h-3.5" />
-                <span>{t.supportEmailLabel}: <a href="mailto:support@atrios.pt" className="text-white hover:text-amber-500 transition-colors">support@atrios.pt</a></span>
+              <div className="flex items-center gap-4 sm:gap-8">
+                <div className="hidden sm:block scale-90 sm:scale-100"><Selectors /></div>
+                <button 
+                  onClick={() => setView('login')} 
+                  className="text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-widest"
+                >
+                  {t.loginBtn}
+                </button>
+                <button 
+                  onClick={() => setView('signup')} 
+                  className="px-6 py-3 bg-slate-900 text-white rounded-xl font-bold text-sm hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest"
+                >
+                  {t.heroCta}
+                </button>
               </div>
             </div>
-          </div>
+          </nav>
+
+          {/* Hero Section */}
+          <section className="relative pt-32 pb-20 sm:pt-48 sm:pb-32 overflow-hidden">
+            <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-30 pointer-events-none">
+              <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-200 blur-[120px] rounded-full animate-pulse" />
+              <div className="absolute bottom-[10%] right-[-10%] w-[30%] h-[30%] bg-blue-100 blur-[100px] rounded-full" />
+            </div>
+
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+              >
+                <span className="inline-block px-4 py-1.5 mb-6 bg-amber-50 border border-amber-100 text-amber-700 text-[10px] font-black uppercase tracking-[0.2em] rounded-full">
+                  {t.saasFeature} — {t.saasDesc}
+                </span>
+                <h1 className="text-5xl sm:text-7xl lg:text-8xl font-black tracking-tighter text-slate-900 mb-8 leading-[0.9]">
+                  {t.heroTitle.split('.').map((part, i) => (
+                    <span key={i} className="block">{part}{i === 0 && t.heroTitle.includes('.') ? '.' : ''}</span>
+                  ))}
+                </h1>
+                <p className="max-w-2xl mx-auto text-lg sm:text-xl text-slate-500 font-medium mb-12 leading-relaxed">
+                  {t.landingHeroDesc}
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
+                  <button 
+                    onClick={() => setView('signup')} 
+                    className="w-full sm:w-auto px-10 py-5 bg-amber-500 text-white rounded-2xl font-black text-lg hover:bg-amber-400 transition-all shadow-2xl shadow-amber-500/20 active:scale-95"
+                  >
+                    {t.heroCta}
+                  </button>
+                  <button 
+                    onClick={() => setView('login')} 
+                    className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 border-2 border-slate-100 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all active:scale-95"
+                  >
+                    {t.heroSecondary}
+                  </button>
+                </div>
+              </motion.div>
+
+              {/* App Preview Mockup */}
+              <motion.div 
+                initial={{ opacity: 0, y: 40 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.8, delay: 0.2 }}
+                className="mt-20 sm:mt-32 relative max-w-5xl mx-auto"
+              >
+                <div className="relative bg-slate-900 rounded-[2rem] p-2 sm:p-4 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.3)] border border-slate-800">
+                  <div className="bg-slate-50 rounded-[1.5rem] overflow-hidden aspect-[16/10] relative">
+                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
+                      <div className="w-full h-full p-6 sm:p-10 flex flex-col gap-6">
+                        <div className="flex items-center justify-between">
+                          <div className="flex gap-3">
+                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm" />
+                            <div className="space-y-2">
+                              <div className="w-32 h-4 bg-slate-200 rounded" />
+                              <div className="w-20 h-3 bg-slate-100 rounded" />
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="w-24 h-8 bg-amber-500 rounded-lg" />
+                            <div className="w-8 h-8 bg-slate-200 rounded-lg" />
+                          </div>
+                        </div>
+                        <div className="grid grid-cols-3 gap-4">
+                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
+                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
+                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
+                        </div>
+                        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
+                          <div className="space-y-4">
+                            <div className="w-full h-4 bg-slate-50 rounded" />
+                            <div className="w-full h-4 bg-slate-50 rounded" />
+                            <div className="w-3/4 h-4 bg-slate-50 rounded" />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent" />
+                  </div>
+                </div>
+                {/* Floating Elements */}
+                <div className="absolute -top-10 -right-10 hidden lg:block animate-bounce duration-[3000ms]">
+                  <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="bg-green-100 p-2 rounded-lg"><FileText className="text-green-600 w-5 h-5" /></div>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewApproved}</p>
+                      <p className="text-sm font-bold text-slate-900">€2.450,00</p>
+                    </div>
+                  </div>
+                </div>
+                <div className="absolute -bottom-10 -left-10 hidden lg:block animate-bounce duration-[4000ms]">
+                  <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 flex items-center gap-3">
+                    <div className="bg-blue-100 p-2 rounded-lg"><TrendingUp className="text-blue-600 w-5 h-5" /></div>
+                    <div className="text-left">
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewProfit}</p>
+                      <p className="text-sm font-bold text-slate-900">{t.landingPreviewProfitGrowth}</p>
+                    </div>
+                  </div>
+                </div>
+              </motion.div>
+            </div>
+          </section>
+
+          {/* Features Grid */}
+          <section className="py-24 sm:py-32 bg-slate-50">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="text-center mb-20">
+                <h2 className="text-3xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-6">{t.landingFeaturesTitle}</h2>
+                <p className="text-slate-500 font-medium max-w-2xl mx-auto">{t.landingFeaturesSub}</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                {[
+                  { icon: <FileText className="w-6 h-6" />, title: t.landingFeature1Title, desc: t.landingFeature1Desc, color: 'bg-amber-500' },
+                  { icon: <ClipboardList className="w-6 h-6" />, title: t.landingFeature2Title, desc: t.landingFeature2Desc, color: 'bg-blue-500' },
+                  { icon: <BarChart3 className="w-6 h-6" />, title: t.landingFeature3Title, desc: t.landingFeature3Desc, color: 'bg-indigo-500' },
+                  { icon: <CreditCard className="w-6 h-6" />, title: t.landingFeature4Title, desc: t.landingFeature4Desc, color: 'bg-emerald-500' }
+                ].map((feature, i) => (
+                  <motion.div 
+                    key={i}
+                    whileHover={{ y: -10 }}
+                    className="bg-white p-8 rounded-[2rem] shadow-xl shadow-slate-200/50 border border-white flex flex-col items-start text-left"
+                  >
+                    <div className={`${feature.color} p-4 rounded-2xl text-white mb-6 shadow-lg shadow-current/20`}>
+                      {feature.icon}
+                    </div>
+                    <h3 className="text-xl font-black tracking-tight text-slate-900 mb-3">{feature.title}</h3>
+                    <p className="text-slate-500 text-sm leading-relaxed font-medium">{feature.desc}</p>
+                  </motion.div>
+                ))}
+              </div>
+            </div>
+          </section>
+
+          {/* Detailed Info Section */}
+          <section className="py-24 sm:py-32 overflow-hidden">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col lg:flex-row items-center gap-16 lg:gap-24">
+                <div className="flex-1 text-left">
+                  <span className="text-amber-600 font-black text-[10px] uppercase tracking-[0.3em] mb-4 block">{t.landingProfessionalismLabel}</span>
+                  <h2 className="text-4xl sm:text-6xl font-black tracking-tighter text-slate-900 mb-8 leading-[1.1]">
+                    {t.landingProfessionalismTitle}
+                  </h2>
+                  <p className="text-lg text-slate-500 font-medium mb-10 leading-relaxed">
+                    {t.landingProfessionalismDesc}
+                  </p>
+                  <ul className="space-y-4 mb-12">
+                    {[t.landingProfessionalismItem1, t.landingProfessionalismItem2, t.landingProfessionalismItem3, t.landingProfessionalismItem4].map((item, i) => (
+                      <li key={i} className="flex items-center gap-3 text-slate-700 font-bold">
+                        <div className="bg-amber-100 p-1 rounded-full"><Check size={14} className="text-amber-600" /></div>
+                        {item}
+                      </li>
+                    ))}
+                  </ul>
+                  <button onClick={() => setView('signup')} className="group flex items-center gap-3 text-slate-900 font-black uppercase tracking-widest text-xs hover:gap-5 transition-all">
+                    {t.heroCta} <ArrowRight size={16} className="text-amber-500" />
+                  </button>
+                </div>
+                <div className="flex-1 relative">
+                  <div className="relative z-10 bg-white rounded-[2.5rem] shadow-2xl border border-slate-100 p-4 rotate-3">
+                    <img 
+                      src="https://picsum.photos/seed/construction/800/1000" 
+                      alt="Construction" 
+                      className="rounded-[2rem] w-full aspect-[4/5] object-cover"
+                      referrerPolicy="no-referrer"
+                    />
+                  </div>
+                  <div className="absolute -z-10 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[120%] h-[120%] bg-amber-100/50 blur-[100px] rounded-full" />
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* CTA Section */}
+          <section className="py-20 sm:py-32">
+            <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="bg-slate-900 rounded-[3rem] p-8 sm:p-20 text-center relative overflow-hidden shadow-[0_50px_100px_-20px_rgba(15,23,42,0.4)]">
+                <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
+                  <div className="absolute top-[-20%] left-[-20%] w-full h-full bg-amber-500 blur-[150px] rounded-full" />
+                </div>
+                <h2 className="text-4xl sm:text-6xl font-black tracking-tighter text-white mb-8 relative z-10">
+                  {t.landingCtaTitle}
+                </h2>
+                <p className="text-slate-400 text-lg sm:text-xl font-medium mb-12 max-w-2xl mx-auto relative z-10">
+                  {t.landingCtaDesc}
+                </p>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-4 relative z-10">
+                  <button 
+                    onClick={() => setView('signup')} 
+                    className="w-full sm:w-auto px-12 py-6 bg-amber-500 text-slate-900 rounded-2xl font-black text-xl hover:bg-amber-400 transition-all active:scale-95"
+                  >
+                    {t.heroCta}
+                  </button>
+                  <p className="text-slate-500 font-bold text-sm sm:ml-4">
+                    {t.landingCtaTrust}
+                  </p>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          {/* Footer */}
+          <footer className="py-12 border-t border-slate-100">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-8">
+              <div className="flex items-center gap-3">
+                <div className="bg-slate-100 p-2 rounded-lg">
+                  <Construction className="text-slate-400 w-5 h-5" />
+                </div>
+                <span className="text-lg font-black tracking-tighter italic text-slate-400">{t.appName}</span>
+              </div>
+              <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
+                <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
+                <a href="mailto:support@atrios.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+              </div>
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                © {new Date().getFullYear()} {t.appName}. {t.landingFooterRights}
+              </p>
+            </div>
+          </footer>
         </div>
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 lg:p-12 relative overflow-hidden">
@@ -1655,7 +1879,7 @@ const App: React.FC = () => {
                                     }} 
                                     className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-emerald-50 text-emerald-600 rounded-xl lg:rounded-2xl hover:bg-emerald-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
                                   >
-                                    <PaymentIcon size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                    <CreditCard size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
                                    <button 
                                     onClick={(e) => { 
