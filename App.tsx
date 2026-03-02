@@ -886,7 +886,7 @@ const App: React.FC = () => {
         content: `🚨 SOLICITAÇÃO DE RECUPERAÇÃO DE SENHA\n\nO utilizador solicitou a recuperação de acesso para o e-mail: ${email}.\n\nPor favor, entre em contacto ou redefina a senha manualmente no painel.`,
         senderRole: 'user',
         read: false,
-        createdAt: new Date().toISOString()
+        timestamp: new Date().toISOString()
       };
 
       const { error: msgError } = await supabase.from('messages').insert(resetRequestMsg);
