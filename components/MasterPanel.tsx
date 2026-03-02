@@ -22,6 +22,8 @@ import {
   ArrowUpRight,
   UserPlus,
   Ban,
+  BarChart3,
+  Crown,
   CreditCard,
   Zap
 } from 'lucide-react';
@@ -266,8 +268,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   ];
 
   const chartDataSales = [
-    { name: t.planMonthly, value: financialStats.monthlySales },
-    { name: t.planAnnual, value: financialStats.annualSales },
+    { name: t.planFree, value: 0, color: '#94a3b8' },
+    { name: t.planMonthly, value: financialStats.monthlySales, color: '#3b82f6' },
+    { name: t.planAnnual, value: financialStats.annualSales, color: '#f59e0b' },
   ];
 
   const getAudienceLabel = (audience: AudienceType) => {
@@ -542,14 +545,85 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         {activeTab === 'home' && (
           <div className="space-y-10 animate-in fade-in">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem]"><TrendingUp className="text-emerald-400 mb-4" /><p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.salesInPeriod}</p><p className="text-3xl font-black">{financialStats.totalRevenue.toLocaleString(locale, { style: 'currency', currency: 'EUR' })}</p></div>
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem]"><ArrowUpRight className="text-blue-400 mb-4" /><p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterTotalIva}</p><p className="text-3xl font-black">{financialStats.totalIva.toLocaleString(locale, { style: 'currency', currency: 'EUR' })}</p></div>
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem]"><Users className="text-amber-400 mb-4" /><p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterTotalUsers}</p><p className="text-3xl font-black">{userStats.total}</p></div>
-              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem]"><CreditCard className="text-purple-400 mb-4" /><p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterPremiumUsers}</p><p className="text-3xl font-black">{userStats.monthly + userStats.annual}</p></div>
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
+                <TrendingUp className="text-emerald-400 mb-4" />
+                <p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.salesInPeriod}</p>
+                <p className="text-3xl font-black">{financialStats.totalRevenue.toLocaleString(locale, { style: 'currency', currency: 'EUR' })}</p>
+              </div>
+              
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
+                <Zap className="text-blue-400 mb-4" />
+                <p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterMonthlyUsers}</p>
+                <div className="flex items-end justify-between">
+                  <p className="text-3xl font-black">{userStats.monthly}</p>
+                  <p className="text-xs font-bold text-blue-400 mb-1">{financialStats.monthlySales.toLocaleString(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
+                <Crown className="text-amber-400 mb-4" />
+                <p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterAnnualUsers}</p>
+                <div className="flex items-end justify-between">
+                  <p className="text-3xl font-black">{userStats.annual}</p>
+                  <p className="text-xs font-bold text-amber-400 mb-1">{financialStats.annualSales.toLocaleString(locale, { style: 'currency', currency: 'EUR', maximumFractionDigits: 0 })}</p>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
+                <Users className="text-slate-400 mb-4" />
+                <p className="text-[10px] text-slate-500 uppercase font-black mb-1">{t.masterFreeUsers}</p>
+                <p className="text-3xl font-black">{userStats.free}</p>
+              </div>
             </div>
+
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-               <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] h-[400px]"><h3 className="text-sm font-black uppercase mb-8 italic">{t.salesInPeriod}</h3><ResponsiveContainer width="100%" height="80%"><BarChart data={chartDataSales}><CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" /><XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 11}} /><YAxis tick={{fill: '#94a3b8', fontSize: 11}} /><Tooltip contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}} /><Bar dataKey="value" fill="#3b82f6" radius={[8, 8, 0, 0]} /></BarChart></ResponsiveContainer></div>
-               <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] h-[400px]"><h3 className="text-sm font-black uppercase mb-8 italic">{t.masterPlanDistribution}</h3><ResponsiveContainer width="100%" height="80%"><PieChart><Pie data={chartDataPlans} cx="50%" cy="50%" innerRadius={60} outerRadius={80} paddingAngle={5} dataKey="value">{chartDataPlans.map((entry, index) => <Cell key={`cell-${index}`} fill={entry.color} />)}</Pie><Tooltip /></PieChart></ResponsiveContainer></div>
+               <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] h-[400px] shadow-2xl">
+                 <h3 className="text-sm font-black uppercase mb-8 italic flex items-center gap-2">
+                   <BarChart3 size={18} className="text-blue-400" /> {t.salesInPeriod}
+                 </h3>
+                 <ResponsiveContainer width="100%" height="80%">
+                   <BarChart data={chartDataSales}>
+                     <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#ffffff10" />
+                     <XAxis dataKey="name" tick={{fill: '#94a3b8', fontSize: 11}} />
+                     <YAxis tick={{fill: '#94a3b8', fontSize: 11}} />
+                     <Tooltip 
+                       contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}}
+                       itemStyle={{fontWeight: 'bold'}}
+                     />
+                     <Bar dataKey="value" radius={[8, 8, 0, 0]}>
+                       {chartDataSales.map((entry, index) => (
+                         <Cell key={`cell-${index}`} fill={entry.color} />
+                       ))}
+                     </Bar>
+                   </BarChart>
+                 </ResponsiveContainer>
+               </div>
+               <div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] h-[400px] shadow-2xl">
+                 <h3 className="text-sm font-black uppercase mb-8 italic flex items-center gap-2">
+                   <PieChart size={18} className="text-amber-400" /> {t.masterPlanDistribution}
+                 </h3>
+                 <ResponsiveContainer width="100%" height="80%">
+                   <PieChart>
+                     <Pie 
+                       data={chartDataPlans} 
+                       cx="50%" 
+                       cy="50%" 
+                       innerRadius={60} 
+                       outerRadius={80} 
+                       paddingAngle={5} 
+                       dataKey="value"
+                     >
+                       {chartDataPlans.map((entry, index) => (
+                         <Cell key={`cell-${index}`} fill={entry.color} />
+                       ))}
+                     </Pie>
+                     <Tooltip 
+                       contentStyle={{backgroundColor: '#0f172a', border: 'none', borderRadius: '12px'}}
+                       itemStyle={{fontWeight: 'bold'}}
+                     />
+                   </PieChart>
+                 </ResponsiveContainer>
+               </div>
             </div>
           </div>
         )}

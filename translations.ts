@@ -184,6 +184,8 @@ export interface Translation {
   masterPanelSub: string;
   masterTotalUsers: string;
   masterFreeUsers: string;
+  masterMonthlyUsers: string;
+  masterAnnualUsers: string;
   masterPremiumUsers: string;
   masterEstimatedRevenue: string;
   masterUserManagement: string;
@@ -557,6 +559,8 @@ const enUS: Translation = {
   masterPanelSub: "ATRIOS Admin",
   masterTotalUsers: "Total Users",
   masterFreeUsers: "Free Users",
+  masterMonthlyUsers: "Monthly Users",
+  masterAnnualUsers: "Annual Users",
   masterPremiumUsers: "Premium Users",
   masterEstimatedRevenue: "Est. Revenue (Monthly)",
   masterUserManagement: "User Management",
@@ -955,6 +959,8 @@ const ptPT: Translation = {
   masterPanelSub: "Admin ÁTRIOS",
   masterTotalUsers: "Total de Utilizadores",
   masterFreeUsers: "Utilizadores Grátis",
+  masterMonthlyUsers: "Utilizadores Mensais",
+  masterAnnualUsers: "Utilizadores Anuais",
   masterPremiumUsers: "Utilizadores Premium",
   masterEstimatedRevenue: "Receita Est. (Mensal)",
   masterUserManagement: "Gestão de Utilizadores",
@@ -1366,8 +1372,10 @@ const frFR: Translation = {
   masterPanelTitle: "PANNEAU MASTER",
   masterPanelSub: "Admin ÁTRIOS",
   masterTotalUsers: "Total Utilisateurs",
-  masterFreeUsers: "Gratuits",
-  masterPremiumUsers: "Premium",
+  masterFreeUsers: "Utilisateurs Gratuits",
+  masterMonthlyUsers: "Utilisateurs Mensuels",
+  masterAnnualUsers: "Utilisateurs Annuels",
+  masterPremiumUsers: "Utilisateurs Premium",
   masterEstimatedRevenue: "Revenu Est.",
   masterUserManagement: "Gestion Utilisateurs",
   masterSearchPlaceholder: "Chercher...",
@@ -1739,6 +1747,8 @@ const itIT: Translation = {
   masterPanelSub: "Admin ÁTRIOS",
   masterTotalUsers: "Totale Utenti",
   masterFreeUsers: "Gratis",
+  masterMonthlyUsers: "Utenti Mensili",
+  masterAnnualUsers: "Utenti Annuali",
   masterPremiumUsers: "Premium",
   masterEstimatedRevenue: "Entrate Est.",
   masterUserManagement: "Gestione Utenti",
@@ -2111,6 +2121,8 @@ const esES: Translation = {
   masterPanelSub: "Admin ÁTRIOS",
   masterTotalUsers: "Usuarios",
   masterFreeUsers: "Gratis",
+  masterMonthlyUsers: "Usuarios Mensuales",
+  masterAnnualUsers: "Usuarios Anuales",
   masterPremiumUsers: "Premium",
   masterEstimatedRevenue: "Ingresos",
   masterUserManagement: "Gestión",
@@ -2509,6 +2521,8 @@ const ruRU: Translation = {
   masterPanelSub: "Админ",
   masterTotalUsers: "Юзеры",
   masterFreeUsers: "Бесплатные",
+  masterMonthlyUsers: "Ежемесячные пользователи",
+  masterAnnualUsers: "Ежегодные пользователи",
   masterPremiumUsers: "Премиум",
   masterEstimatedRevenue: "Доход",
   masterUserManagement: "Управление",
@@ -2881,6 +2895,8 @@ const hiIN: Translation = {
   masterPanelSub: "एडमिन",
   masterTotalUsers: "उपयोगकर्ता",
   masterFreeUsers: "मुफ्त",
+  masterMonthlyUsers: "मासिक उपयोगकर्ता",
+  masterAnnualUsers: "वार्षिक उपयोगकर्ता",
   masterPremiumUsers: "प्रीमियम",
   masterEstimatedRevenue: "आय",
   masterUserManagement: "प्रबंधन",
@@ -3252,8 +3268,10 @@ const bnBD: Translation = {
   masterPanelTitle: "মাস্টার প্যানেল",
   masterPanelSub: "এডমিন",
   masterTotalUsers: "ইউজার",
-  masterFreeUsers: "ফ্রি",
-  masterPremiumUsers: "প্রিমিয়াম",
+  masterFreeUsers: "ফ্রি ইউজার",
+  masterMonthlyUsers: "মাসিক ইউজার",
+  masterAnnualUsers: "বার্ষিক ইউজার",
+  masterPremiumUsers: "প্রিমিয়াম ইউজার",
   masterEstimatedRevenue: "আয়",
   masterUserManagement: "ম্যানেজমেন্ট",
   masterSearchPlaceholder: "খুঁজুন...",
