@@ -146,6 +146,7 @@ export interface Translation {
   planAnnualSavings: string;
   planWebsiteBonus: string;
   planDomainBonus: string;
+  planMugsBonus: string;
   selectPlan: string;
   currentPlan: string;
   bestValue: string;
@@ -516,8 +517,9 @@ const enUS: Translation = {
   planPriceMonthly: "$9.90",
   planPriceAnnual: "$89.90",
   planAnnualSavings: "Save on annual plan!",
-  planWebsiteBonus: "Free Professional Website",
+  planWebsiteBonus: "Professional Website (4 pages / 15 days)",
   planDomainBonus: "Free Domain for 1 Year",
+  planMugsBonus: "Get 2 Custom Mugs of your choice",
   selectPlan: "Choose Plan",
   currentPlan: "Current Plan",
   bestValue: "Best Value",
@@ -726,7 +728,7 @@ Data is processed solely to provide the service, manage subscriptions, and compl
 We share data with Stripe (payment processing) and Supabase (secure data storage). We do not sell your data to third parties.
 
 5. YOUR RIGHTS
-Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atrios.pt to exercise these rights.`,
+Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atriosbuild.pt to exercise these rights.`,
   budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
   forgotPassword: "Forgot Password?",
   resetPasswordTitle: "Reset Password",
@@ -913,8 +915,9 @@ const ptPT: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "Poupe no plano anual!",
-  planWebsiteBonus: "Website Profissional Grátis",
+  planWebsiteBonus: "Website Profissional (4 páginas / 15 dias úteis)",
   planDomainBonus: "Domínio Grátis por 1 Ano",
+  planMugsBonus: "Ganhe 2 canecas personalizadas ao seu gosto",
   selectPlan: "Escolher Plano",
   currentPlan: "Plano Atual",
   bestValue: "Melhor Valor",
@@ -1123,7 +1126,7 @@ Os dados são processados exclusivamente para fornecer o serviço, gerir subscri
 Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazenamento seguro de dados). Não vendemos os seus dados a terceiros.
 
 5. OS SEUS DIREITOS
-Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atrios.pt para exercer estes direitos.`,
+Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atriosbuild.pt para exercer estes direitos.`,
   budgetLimitReached: "Limite de orçamentos atingido no plano gratuito! Atualize para um plano pago para continuar a criar orçamentos profissionais.",
   forgotPassword: "Esqueceu-se da palavra-passe?",
   resetPasswordTitle: "Recuperar Palavra-passe",
@@ -1324,8 +1327,9 @@ const frFR: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "Économisez à l'année !",
-  planWebsiteBonus: "Site Pro Gratuit",
+  planWebsiteBonus: "Site Web Professionnel (4 pages / 15 jours)",
   planDomainBonus: "Domaine Offert 1 An",
+  planMugsBonus: "Obtenez 2 mugs personnalisés à votre goût",
   selectPlan: "Choisir Plan",
   currentPlan: "Plan Actuel",
   bestValue: "Meilleur Choix",
@@ -1695,8 +1699,9 @@ const itIT: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "Risparmia con l'annuale !",
-  planWebsiteBonus: "Sito Pro Gratis",
+  planWebsiteBonus: "Sito Web Professionale (4 pagine / 15 giorni)",
   planDomainBonus: "Dominio 1 Anno",
+  planMugsBonus: "Ricevi 2 tazze personalizzate a tuo piacimento",
   selectPlan: "Scegli Piano",
   currentPlan: "Piano Attuale",
   bestValue: "Miglior Valore",
@@ -2066,8 +2071,9 @@ const esES: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "¡Ahorra con el anual!",
-  planWebsiteBonus: "Web Pro Gratis",
+  planWebsiteBonus: "Sitio Web Profesional (4 páginas / 15 días)",
   planDomainBonus: "Dominio 1 Año",
+  planMugsBonus: "Consigue 2 tazas personalizadas a tu gusto",
   selectPlan: "Elegir Plan",
   currentPlan: "Plan Actual",
   bestValue: "Mejor Valor",
@@ -2276,7 +2282,7 @@ Los datos se procesan exclusivamente para proporcionar el servicio, gestionar su
 Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento seguro de datos). No vendemos sus datos a terceros.
 
 5. SUS DERECHOS
-Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atrios.pt para ejercer estos derechos.`,
+Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atriosbuild.pt para ejercer estos derechos.`,
   budgetLimitReached: "Límite de presupuestos alcanzado en el plan gratuito! Actualiza a Premium para continuar.",
   forgotPassword: "¿Olvidó su contraseña?",
   resetPasswordTitle: "Recuperar Contraseña",
@@ -2463,8 +2469,9 @@ const ruRU: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "Экономия!",
-  planWebsiteBonus: "Сайт в подарок",
+  planWebsiteBonus: "Профессиональный сайт (4 страницы / 15 дней)",
   planDomainBonus: "Домен на год",
+  planMugsBonus: "Получите 2 персонализированные кружки на ваш вкус",
   selectPlan: "Выбрать",
   currentPlan: "Текущий",
   bestValue: "Лучший выбор",
@@ -2834,8 +2841,9 @@ const hiIN: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "बचत करें!",
-  planWebsiteBonus: "वेबसाइट",
+  planWebsiteBonus: "प्रोफेशनल वेबसाइट (4 पेज / 15 दिन)",
   planDomainBonus: "डोमेन",
+  planMugsBonus: "अपनी पसंद के 2 कस्टम मग प्राप्त करें",
   selectPlan: "चुनें",
   currentPlan: "मौजूदा",
   bestValue: "सबसे अच्छा",
@@ -3205,8 +3213,9 @@ const bnBD: Translation = {
   planPriceMonthly: "9,90€",
   planPriceAnnual: "89,90€",
   planAnnualSavings: "সাশ্রয়!",
-  planWebsiteBonus: "ওয়েবসাইট",
+  planWebsiteBonus: "পেশাদার ওয়েবসাইট (৪ পৃষ্ঠা / ১৫ দিন)",
   planDomainBonus: "ডোমেইন",
+  planMugsBonus: "আপনার পছন্দের ২ টি কাস্টম মগ পান",
   selectPlan: "বেছে নিন",
   currentPlan: "বর্তমান",
   bestValue: "সেরা",

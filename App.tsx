@@ -441,10 +441,12 @@ const App: React.FC = () => {
 
     // Company Info
     doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(15, 23, 42); // Slate-900
-    doc.text(normalizeForPdf(company.name.toUpperCase()), 70, 25);
+    const companyName = normalizeForPdf(company.name.toUpperCase());
+    const splitCompanyName = doc.splitTextToSize(companyName, 43); // Max width before box at 115
+    doc.text(splitCompanyName, 70, 25);
     
     doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    let companyY = 32;
+    let companyY = 25 + (splitCompanyName.length > 1 ? (splitCompanyName.length * 7) : 7); 
     if (company.nif) { doc.text(`NIF: ${normalizeForPdf(company.nif)}`, 70, companyY); companyY += 5; }
     doc.text(normalizeForPdf(company.email), 70, companyY); companyY += 5;
     if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 70, companyY); companyY += 5; }
@@ -669,10 +671,12 @@ const App: React.FC = () => {
 
     // Company Info
     doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(company.name.toUpperCase()), 65, 25);
+    const companyName = normalizeForPdf(company.name.toUpperCase());
+    const splitCompanyName = doc.splitTextToSize(companyName, 58); // Max width before box at 125
+    doc.text(splitCompanyName, 65, 25);
     
     doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    let companyY = 32;
+    let companyY = 25 + (splitCompanyName.length > 1 ? (splitCompanyName.length * 7) : 7);
     if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 65, companyY); companyY += 5; }
     doc.text(normalizeForPdf(company.email), 65, companyY);
 
@@ -1394,58 +1398,52 @@ const App: React.FC = () => {
                 initial={{ opacity: 0, y: 40 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.8, delay: 0.2 }}
-                className="mt-20 sm:mt-32 relative max-w-5xl mx-auto"
+                className="mt-20 sm:mt-32 relative max-w-6xl mx-auto"
               >
-                <div className="relative bg-slate-900 rounded-[2rem] p-2 sm:p-4 shadow-[0_40px_100px_-20px_rgba(15,23,42,0.3)] border border-slate-800">
-                  <div className="bg-slate-50 rounded-[1.5rem] overflow-hidden aspect-[16/10] relative">
-                    <div className="absolute inset-0 flex items-center justify-center bg-slate-100">
-                      <div className="w-full h-full p-6 sm:p-10 flex flex-col gap-6">
-                        <div className="flex items-center justify-between">
-                          <div className="flex gap-3">
-                            <div className="w-12 h-12 bg-white rounded-xl shadow-sm" />
-                            <div className="space-y-2">
-                              <div className="w-32 h-4 bg-slate-200 rounded" />
-                              <div className="w-20 h-3 bg-slate-100 rounded" />
-                            </div>
+                <div className="relative rounded-[2.5rem] overflow-hidden shadow-[0_50px_100px_-20px_rgba(15,23,42,0.25)] border border-slate-200 group bg-white">
+                  <div className="aspect-[16/10] relative">
+                    <img 
+                      src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&q=80&w=2426" 
+                      alt="Dashboard Atrios" 
+                      className="w-full h-full object-cover transition-transform duration-1000 group-hover:scale-105"
+                      referrerPolicy="no-referrer"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 via-transparent to-transparent" />
+                    
+                    {/* Overlay Content to make it feel like the app */}
+                    <div className="absolute inset-0 p-8 flex flex-col justify-between pointer-events-none">
+                      <div className="flex justify-between items-start">
+                        <div className="bg-white/95 backdrop-blur-md p-4 rounded-2xl shadow-2xl border border-white/20 flex items-center gap-4 animate-in fade-in slide-in-from-top-4 duration-1000">
+                          <div className="w-12 h-12 bg-amber-500 rounded-xl flex items-center justify-center text-white shadow-lg shadow-amber-500/30">
+                            <Construction size={24} />
                           </div>
-                          <div className="flex gap-2">
-                            <div className="w-24 h-8 bg-amber-500 rounded-lg" />
-                            <div className="w-8 h-8 bg-slate-200 rounded-lg" />
-                          </div>
-                        </div>
-                        <div className="grid grid-cols-3 gap-4">
-                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
-                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
-                          <div className="h-32 bg-white rounded-2xl shadow-sm border border-slate-100" />
-                        </div>
-                        <div className="flex-1 bg-white rounded-2xl shadow-sm border border-slate-100 p-6">
-                          <div className="space-y-4">
-                            <div className="w-full h-4 bg-slate-50 rounded" />
-                            <div className="w-full h-4 bg-slate-50 rounded" />
-                            <div className="w-3/4 h-4 bg-slate-50 rounded" />
+                          <div className="text-left">
+                            <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Atividade Recente</p>
+                            <p className="text-sm font-bold text-slate-900">Dashboard Atualizado</p>
                           </div>
                         </div>
                       </div>
                     </div>
-                    <div className="absolute inset-0 bg-gradient-to-t from-slate-900/20 to-transparent" />
                   </div>
                 </div>
+
                 {/* Floating Elements */}
-                <div className="absolute -top-10 -right-10 hidden lg:block animate-bounce duration-[3000ms]">
-                  <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 flex items-center gap-3">
-                    <div className="bg-green-100 p-2 rounded-lg"><FileText className="text-green-600 w-5 h-5" /></div>
+                <div className="absolute -top-12 -right-12 hidden lg:block animate-bounce duration-[3000ms] z-20">
+                  <div className="bg-white p-6 rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100 flex items-center gap-5">
+                    <div className="bg-green-100 p-3 rounded-2xl"><FileText className="text-green-600 w-7 h-7" /></div>
                     <div className="text-left">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewApproved}</p>
-                      <p className="text-sm font-bold text-slate-900">€2.450,00</p>
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewApproved}</p>
+                      <p className="text-xl font-black text-slate-900">€12.450,00</p>
                     </div>
                   </div>
                 </div>
-                <div className="absolute -bottom-10 -left-10 hidden lg:block animate-bounce duration-[4000ms]">
-                  <div className="bg-white p-4 rounded-2xl shadow-2xl border border-slate-100 flex items-center gap-3">
-                    <div className="bg-blue-100 p-2 rounded-lg"><TrendingUp className="text-blue-600 w-5 h-5" /></div>
+                
+                <div className="absolute -bottom-12 -left-12 hidden lg:block animate-bounce duration-[4000ms] z-20">
+                  <div className="bg-white p-6 rounded-[2rem] shadow-[0_30px_60px_-15px_rgba(0,0,0,0.1)] border border-slate-100 flex items-center gap-5">
+                    <div className="bg-blue-100 p-3 rounded-2xl"><TrendingUp className="text-blue-600 w-7 h-7" /></div>
                     <div className="text-left">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewProfit}</p>
-                      <p className="text-sm font-bold text-slate-900">{t.landingPreviewProfitGrowth}</p>
+                      <p className="text-[11px] font-black text-slate-400 uppercase tracking-widest">{t.landingPreviewProfit}</p>
+                      <p className="text-xl font-black text-emerald-600">+32%</p>
                     </div>
                   </div>
                 </div>
@@ -1629,7 +1627,7 @@ const App: React.FC = () => {
               <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
                 <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                 <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
-                <a href="mailto:support@atrios.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                <a href="mailto:support@atriosbuild.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
               </div>
               <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
                 © {new Date().getFullYear()} {t.appName}. {t.landingFooterRights}
@@ -1692,9 +1690,10 @@ const App: React.FC = () => {
                 <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.registerBtn}</button>
               </div>
             </form>
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-6">
               <p className="text-slate-400 font-bold text-xs sm:text-sm">{t.haveAccount} <button onClick={() => setView('login')} className="text-amber-600 hover:text-amber-700 underline decoration-2 underline-offset-4">{t.loginBtn}</button></p>
-              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-300">
+              <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+              <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-300 pt-2 border-t border-slate-50">
                 <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                 <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
               </div>
@@ -1721,9 +1720,9 @@ const App: React.FC = () => {
               <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
               <div className="pt-6 border-t border-slate-100">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t.orContactSupport}</p>
-                <a href="mailto:support@atrios.pt" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
+                <a href="mailto:support@atriosbuild.pt" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
                    <Mail size={12} className="text-amber-500" />
-                   support@atrios.pt
+                   support@atriosbuild.pt
                 </a>
               </div>
             </div>
