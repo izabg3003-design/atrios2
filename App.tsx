@@ -36,7 +36,7 @@ import {
   ShieldCheck,
   Mail
 } from 'lucide-react';
-import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction } from './types';
+import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -68,6 +68,21 @@ import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+
+const getPdfColors = (template: string = 'default') => {
+  switch (template) {
+    case 'blue_modern':
+      return { primary: [37, 99, 235], secondary: [248, 250, 252], accent: [37, 99, 235] };
+    case 'green_professional':
+      return { primary: [22, 163, 74], secondary: [240, 253, 244], accent: [22, 163, 74] };
+    case 'light_blue_clean':
+      return { primary: [14, 165, 233], secondary: [240, 249, 255], accent: [14, 165, 233] };
+    case 'dark_elegant':
+      return { primary: [15, 23, 42], secondary: [248, 250, 252], accent: [71, 85, 105] };
+    default:
+      return { primary: [245, 158, 11], secondary: [248, 250, 252], accent: [245, 158, 11] };
+  }
+};
 
 const App: React.FC = () => {
   const session = useMemo(() => getSession(), []);
@@ -145,6 +160,7 @@ const App: React.FC = () => {
   const [settingsAddress, setSettingsAddress] = useState('');
   const [settingsNif, setSettingsNif] = useState('');
   const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsPdfTemplate, setSettingsPdfTemplate] = useState<PdfTemplate>('default' as PdfTemplate);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   
@@ -241,6 +257,13 @@ const App: React.FC = () => {
   }, [view, currentUser?.id]);
 
   useEffect(() => {
+    if (view === 'app' && !currentUser) {
+      setView('landing');
+      saveSession(null);
+    }
+  }, [view, currentUser]);
+
+  useEffect(() => {
     if (currentUser) {
       currentUserRef.current = currentUser;
       setBudgets(getStoredBudgets(currentUser.id));
@@ -250,6 +273,7 @@ const App: React.FC = () => {
       setSettingsAddress(currentUser.address || '');
       setSettingsNif(currentUser.nif || '');
       setSettingsPhone(currentUser.phone || '');
+      setSettingsPdfTemplate(currentUser.pdfTemplate || 'default' as PdfTemplate);
       
       const checkMessages = () => {
         const msgs = getMessages(currentUser.id);
@@ -412,6 +436,7 @@ const App: React.FC = () => {
     }
 
     const doc = new jsPDF();
+    const colors = getPdfColors(company.pdfTemplate);
     const currencyInfo = CURRENCIES[currencyCode];
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
@@ -428,7 +453,7 @@ const App: React.FC = () => {
 
     // --- HEADER ---
     // Top Accent Bar
-    doc.setFillColor(245, 158, 11); // Amber-500
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
     doc.rect(0, 0, pageWidth, 5, 'F');
 
     // Logo
@@ -468,7 +493,7 @@ const App: React.FC = () => {
       } catch (err) {}
     }
 
-    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(245, 158, 11);
+    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
     doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), 120, 25);
     
     doc.setFontSize(11).setFont('helvetica', 'black').setTextColor(15, 23, 42);
@@ -549,7 +574,7 @@ const App: React.FC = () => {
         `${(i.total * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`
       ]),
       theme: 'striped',
-      headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9, halign: 'center' },
+      headStyles: { fillColor: colors.primary as any, fontStyle: 'bold', fontSize: 9, halign: 'center' },
       bodyStyles: { fontSize: 8, textColor: [71, 85, 105] },
       columnStyles: {
         0: { cellWidth: 'auto' },
@@ -591,7 +616,7 @@ const App: React.FC = () => {
     doc.setDrawColor(226, 232, 240).line(115, sumY - 2, 185, sumY - 2);
     doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
     doc.text(normalizeForPdf(pdfT.total.toUpperCase()), 115, sumY + 5);
-    doc.setTextColor(245, 158, 11);
+    doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
     doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY + 5, { align: 'right' });
 
     // Payment Method
@@ -645,6 +670,7 @@ const App: React.FC = () => {
     }
 
     const doc = new jsPDF();
+    const colors = getPdfColors(company.pdfTemplate);
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
     const margin = 20;
@@ -658,7 +684,7 @@ const App: React.FC = () => {
     };
 
     // --- HEADER ---
-    doc.setFillColor(15, 23, 42); 
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]); 
     doc.rect(0, 0, pageWidth, 5, 'F');
 
     // Logo
@@ -749,9 +775,9 @@ const App: React.FC = () => {
       startY: 122,
       head: [[normalizeForPdf(pdfT.description), normalizeForPdf(pdfT.quantity), normalizeForPdf(pdfT.unit)]],
       body: budget.items.map(i => [normalizeForPdf(i.description), i.quantity, normalizeForPdf(i.unit)]),
-      theme: 'grid',
-      headStyles: { fillColor: [15, 23, 42], fontStyle: 'bold', fontSize: 9 },
-      bodyStyles: { fontSize: 9, textColor: [15, 23, 42] },
+      theme: 'striped',
+      headStyles: { fillColor: colors.primary as any, fontStyle: 'bold', fontSize: 9, halign: 'center' },
+      bodyStyles: { fontSize: 8, textColor: [71, 85, 105] },
       columnStyles: {
         0: { cellWidth: 'auto' },
         1: { halign: 'center', cellWidth: 30 },
@@ -1186,6 +1212,7 @@ const App: React.FC = () => {
       address: settingsAddress,
       nif: settingsNif,
       phone: settingsPhone,
+      pdfTemplate: settingsPdfTemplate,
       canEditSensitiveData: false,
       unlockRequested: false
     };
@@ -1817,7 +1844,7 @@ const App: React.FC = () => {
               </div>
               <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-3 relative">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-slate-900 rounded-lg sm:rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden shrink-0">
-                  {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : currentUser?.name.charAt(0)}
+                  {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : (currentUser?.name?.charAt(0) || '')}
                 </div>
                 <div className="flex-1 min-w-0">
                   <p className="font-black text-slate-900 truncate text-[10px] sm:text-xs lg:text-sm">{currentUser?.name}</p>
@@ -1878,7 +1905,7 @@ const App: React.FC = () => {
 
             <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 no-scrollbar">
               {isEditingBudget ? (
-                <BudgetForm locale={locale} currencyCode={currencyCode} company={currentUser!} onSave={handleSaveBudget} onCancel={() => setIsEditingBudget(false)} onUpgrade={() => { setIsEditingBudget(false); setActiveTab('plans'); }} initialData={selectedBudget} />
+                <BudgetForm locale={locale} currencyCode={currencyCode} company={currentUser || ({} as Company)} onSave={handleSaveBudget} onCancel={() => setIsEditingBudget(false)} onUpgrade={() => { setIsEditingBudget(false); setActiveTab('plans'); }} initialData={selectedBudget} />
               ) : (
                 <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12">
                   {currentUser?.plan === PlanType.FREE && activeTab === 'dashboard' && <PremiumBanner locale={locale} onUpgrade={() => setActiveTab('plans')} />}
@@ -2042,6 +2069,25 @@ const App: React.FC = () => {
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.fiscalAddress} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsAddress} onChange={e => setSettingsAddress(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.nifLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsNif} onChange={e => setSettingsNif(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.phone} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsPhone} onChange={e => setSettingsPhone(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                            
+                            <div>
+                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">
+                                {t.pdfTemplateLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}
+                              </label>
+                              <select 
+                                disabled={isSettingsLocked}
+                                value={settingsPdfTemplate}
+                                onChange={e => setSettingsPdfTemplate(e.target.value as PdfTemplate)}
+                                className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base appearance-none cursor-pointer ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`}
+                              >
+                                <option value="default">{t.pdfTemplateDefault}</option>
+                                <option value="blue_modern">{t.pdfTemplateBlue}</option>
+                                <option value="green_professional">{t.pdfTemplateGreen}</option>
+                                <option value="light_blue_clean">{t.pdfTemplateLightBlue}</option>
+                                <option value="dark_elegant">{t.pdfTemplateDark}</option>
+                              </select>
+                            </div>
+
                             <div className="pt-4 lg:pt-6"><button onClick={handleSaveSettings} className="w-full py-5 lg:py-6 bg-slate-900 text-white rounded-2xl lg:rounded-[2rem] font-black text-lg lg:text-xl hover:bg-slate-800 shadow-2xl disabled:opacity-30">{t.saveChanges}</button></div>
                              
                              <div className="pt-8 lg:pt-12 border-t border-slate-100 mt-8 lg:mt-12">
@@ -2068,7 +2114,7 @@ const App: React.FC = () => {
           </main>
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowPaymentManager(false); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
-          <button onClick={() => { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser!.id, 'user'); }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
+          <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
           
           {isProcessingPayment && (

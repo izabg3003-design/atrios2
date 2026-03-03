@@ -1,3 +1,12 @@
+
+export enum PdfTemplate {
+  DEFAULT = 'default',
+  BLUE_MODERN = 'blue_modern',
+  GREEN_PROFESSIONAL = 'green_professional',
+  LIGHT_BLUE_CLEAN = 'light_blue_clean',
+  DARK_ELEGANT = 'dark_elegant'
+}
+
 export enum PlanType {
   FREE = 'free',
   PREMIUM_MONTHLY = 'premium_monthly',
@@ -130,6 +139,7 @@ export interface Company {
   canEditSensitiveData?: boolean;
   unlockRequested?: boolean;
   lastLocale?: string;
+  pdfTemplate?: PdfTemplate;
   // Novos campos para gestão administrativa
   isBlocked?: boolean;
   isManual?: boolean;
