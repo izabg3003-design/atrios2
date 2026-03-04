@@ -1,6 +1,6 @@
 {
-  "name": "Copy of APP TESTADO E RODANDO O SUPABASE 19-02 19:29",
-  "description": "ESSA CÓPIA JA RODA O SUPABASE COM SUCESSO! USAR PARA TESTE ESSA CÓPIA!",
+  "name": "ÁTRIOS - Gestão de Construção",
+  "description": "Plataforma completa para gestão de orçamentos, obras e controlo financeiro para profissionais da construção civil.",
   "requestFramePermissions": [
     "camera"
   ]
