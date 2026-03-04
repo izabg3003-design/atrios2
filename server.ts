@@ -131,6 +131,31 @@ async function startServer() {
     });
   });
 
+  // Keep-alive function to prevent Render from sleeping
+  const startKeepAlive = () => {
+    const appUrl = process.env.APP_URL;
+    if (!appUrl) {
+      console.warn("[Keep-Alive] APP_URL not set. Skipping keep-alive.");
+      return;
+    }
+
+    console.log(`[Keep-Alive] Starting keep-alive for ${appUrl} every 5 minutes`);
+    
+    setInterval(async () => {
+      try {
+        const response = await fetch(`${appUrl}/api/health`);
+        console.log(`[Keep-Alive] Pinged ${appUrl}/api/health: ${response.status} ${response.statusText}`);
+      } catch (error: any) {
+        console.error(`[Keep-Alive] Error pinging ${appUrl}:`, error.message);
+      }
+    }, 5 * 60 * 1000); // 5 minutes
+  };
+
+  // Start keep-alive if in production
+  if (process.env.NODE_ENV === "production") {
+    startKeepAlive();
+  }
+
   app.post(["/api/create-checkout-session", "/api/create-checkout-session/"], async (req, res) => {
     const { companyId, planType, couponCode } = req.body;
 
