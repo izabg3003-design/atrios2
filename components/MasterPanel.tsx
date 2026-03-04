@@ -349,26 +349,29 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setActiveNotifications(updated);
   };
 
-  const toggleUnlock = (company: Company) => {
+  const toggleUnlock = async (company: Company) => {
     const updated = { ...company, canEditSensitiveData: !company.canEditSensitiveData, unlockRequested: false };
-    saveCompany(updated);
+    await saveCompany(updated);
     loadData();
   };
 
-  const toggleBlock = (company: Company) => { saveCompany({ ...company, isBlocked: !company.isBlocked }); loadData(); };
+  const toggleBlock = async (company: Company) => { 
+    await saveCompany({ ...company, isBlocked: !company.isBlocked }); 
+    loadData(); 
+  };
 
-  const handleResetPasswordSubmit = (e: React.FormEvent) => {
+  const handleResetPasswordSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!showResetPassModal || !newPassValue) return;
     const updated = { ...showResetPassModal, password: newPassValue };
-    saveCompany(updated);
+    await saveCompany(updated);
     loadData();
     setShowResetPassModal(null);
     setNewPassValue('');
     alert("Senha alterada com sucesso!");
   };
 
-  const handleRemoveRestrictions = (company: Company, days: number) => {
+  const handleRemoveRestrictions = async (company: Company, days: number) => {
     const updated = { 
       ...company, 
       plan: PlanType.PREMIUM_ANNUAL, 
@@ -377,7 +380,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       canEditSensitiveData: true,
       unlockRequested: false
     };
-    saveCompany(updated);
+    await saveCompany(updated);
     loadData();
     setShowDurationModal(null);
   };
@@ -386,10 +389,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (window.confirm(`${t.masterDeleteUser} "${name}"?`)) { removeCompany(id); setCompanies(prev => prev.filter(c => c.id !== id)); if (selectedCompanyId === id) setSelectedCompanyId(null); }
   };
 
-  const handleManualUserSubmit = (e: React.FormEvent) => {
+  const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
-    saveCompany({ id: Math.random().toString(36).substr(2, 9).toUpperCase(), name: manualUserName, email: manualUserEmail, password: manualUserPass, plan: manualUserPlan, verified: true, createdAt: new Date().toISOString(), isManual: true, manualPaymentProof: manualProofPreview, subscriptionExpiresAt: manualUserPlan === PlanType.FREE ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
+    await saveCompany({ id: Math.random().toString(36).substr(2, 9).toUpperCase(), name: manualUserName, email: manualUserEmail, password: manualUserPass, plan: manualUserPlan, verified: true, createdAt: new Date().toISOString(), isManual: true, manualPaymentProof: manualProofPreview, subscriptionExpiresAt: manualUserPlan === PlanType.FREE ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
     loadData();
     setShowAddUserModal(false);
     setManualUserName(''); setManualUserEmail(''); setManualUserPass(''); setManualProofPreview(null);

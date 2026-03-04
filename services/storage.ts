@@ -19,7 +19,7 @@ export const getStoredCompanies = (): Company[] => {
   return data ? JSON.parse(data) : [];
 };
 
-export const saveCompany = (company: Company) => {
+export const saveCompany = async (company: Company) => {
   const companies = getStoredCompanies();
   const index = companies.findIndex(c => c.id === company.id);
   if (index > -1) {
@@ -30,7 +30,7 @@ export const saveCompany = (company: Company) => {
   localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
   // Sincroniza plano e dados sensíveis com Supabase
-  syncToCloud('companies', company);
+  return await syncToCloud('companies', company);
 };
 
 export const removeCompany = async (id: string) => {

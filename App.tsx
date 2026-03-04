@@ -1136,7 +1136,7 @@ const App: React.FC = () => {
     setShowSettingsConfirmModal(true);
   };
 
-  const handleChangePassword = () => {
+  const handleChangePassword = async () => {
     if (!currentUser) return;
     if (!newPassword || !confirmPassword) {
       alert(t.enterData);
@@ -1148,7 +1148,7 @@ const App: React.FC = () => {
     }
     
     const updated = { ...currentUser, password: newPassword };
-    saveCompany(updated);
+    await saveCompany(updated);
     setCurrentUser(updated);
     currentUserRef.current = updated;
     setNewPassword('');
@@ -1216,7 +1216,7 @@ const App: React.FC = () => {
       canEditSensitiveData: false,
       unlockRequested: false
     };
-    saveCompany(updated);
+    await saveCompany(updated);
     setCurrentUser({...updated});
     currentUserRef.current = updated;
     setShowSettingsConfirmModal(false);
