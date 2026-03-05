@@ -142,7 +142,23 @@ const App: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNewMessageAlert, setShowNewMessageAlert] = useState(false);
   const [showUnlockAlert, setShowUnlockAlert] = useState(false);
+  const [showSupportGreeting, setShowSupportGreeting] = useState(false);
+  const [greetingShown, setGreetingShown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && view === 'app' && !greetingShown) {
+      const timer = setTimeout(() => {
+        setShowSupportGreeting(true);
+        setGreetingShown(true);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+    if (!currentUser) {
+      setGreetingShown(false);
+      setShowSupportGreeting(false);
+    }
+  }, [currentUser?.id, view, greetingShown]);
 
   useEffect(() => {
     if (isEditingBudget) {
@@ -2278,6 +2294,26 @@ const App: React.FC = () => {
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
           <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
+          
+          {showSupportGreeting && !showSupportChat && (
+            <div className="fixed bottom-28 right-8 z-[40] animate-in slide-in-from-bottom-4 fade-in duration-500">
+              <div className="bg-white text-slate-900 p-6 rounded-[2rem] shadow-2xl border border-slate-100 max-w-xs relative">
+                <button 
+                  onClick={() => setShowSupportGreeting(false)} 
+                  className="absolute -top-2 -right-2 w-8 h-8 bg-slate-900 text-white rounded-full flex items-center justify-center shadow-lg hover:bg-slate-800 transition-all"
+                >
+                  <X size={14} />
+                </button>
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 bg-amber-500 text-slate-900 rounded-full flex items-center justify-center shrink-0">
+                    <MessageSquare size={20} />
+                  </div>
+                  <p className="text-sm font-bold leading-relaxed">{t.supportGreeting}</p>
+                </div>
+                <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-slate-100 rotate-45"></div>
+              </div>
+            </div>
+          )}
           
           {isProcessingPayment && (
             <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/90 backdrop-blur-xl animate-in fade-in duration-500">

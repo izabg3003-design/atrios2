@@ -380,6 +380,7 @@ export interface Translation {
   landingPreviewApproved: string;
   landingPreviewProfit: string;
   landingPreviewProfitGrowth: string;
+  supportGreeting: string;
 }
 
 const enUS: Translation = {
@@ -787,6 +788,7 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   landingPreviewApproved: "Estimate Approved",
   landingPreviewProfit: "Estimated Profit",
   landingPreviewProfitGrowth: "+32% this month",
+  supportGreeting: "Any questions? We're here to help!",
 };
 
 const ptPT: Translation = {
@@ -1194,6 +1196,7 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   landingPreviewApproved: "Orçamento Aprovado",
   landingPreviewProfit: "Lucro Estimado",
   landingPreviewProfitGrowth: "+32% este mês",
+  supportGreeting: "Tens alguma dúvida? Estamos aqui para ajudar!",
 };
 
 const ptBR: Translation = {
@@ -1589,6 +1592,7 @@ const frFR: Translation = {
   landingPreviewApproved: "Devis Approuvé",
   landingPreviewProfit: "Bénéfice Estimé",
   landingPreviewProfitGrowth: "+32% ce mois-ci",
+  supportGreeting: "Bonjour ! Avez-vous des questions ? Nous sommes prêts à vous ajudar.",
 };
 
 const itIT: Translation = {
@@ -1970,6 +1974,7 @@ const itIT: Translation = {
   landingPreviewApproved: "Preventivo Approvato",
   landingPreviewProfit: "Utile Stimato",
   landingPreviewProfitGrowth: "+32% questo mese",
+  supportGreeting: "Ciao! Hai domande? Siamo pronti ad aiutarti.",
 };
 
 const esES: Translation = {
@@ -2377,6 +2382,7 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   landingPreviewApproved: "Presupuesto Aprobado",
   landingPreviewProfit: "Beneficio Estimado",
   landingPreviewProfitGrowth: "+32% este mes",
+  supportGreeting: "¡Hola! ¿Tiene alguna pregunta? Estamos listos para ayudar.",
 };
 
 const ruRU: Translation = {
@@ -2758,6 +2764,7 @@ const ruRU: Translation = {
   landingPreviewApproved: "Смета одобрена",
   landingPreviewProfit: "Ожидаемая прибыль",
   landingPreviewProfitGrowth: "+32% в этом месяце",
+  supportGreeting: "Здравствуйте! У вас есть вопросы? Мы готовы помочь.",
 };
 
 const hiIN: Translation = {
@@ -3139,6 +3146,7 @@ const hiIN: Translation = {
   landingPreviewApproved: "अनुमान स्वीकृत",
   landingPreviewProfit: "अनुमानित लाभ",
   landingPreviewProfitGrowth: "इस महीने +32%",
+  supportGreeting: "नमस्ते! क्या आपके पास कोई प्रश्न हैं? हम मदद के लिए तैयार हैं।",
 };
 
 const bnBD: Translation = {
@@ -3520,6 +3528,7 @@ const bnBD: Translation = {
   landingPreviewApproved: "এস্টিমেট অনুমোদিত",
   landingPreviewProfit: "আনুমানিক লাভ",
   landingPreviewProfitGrowth: "এই মাসে +৩২%",
+  supportGreeting: "হ্যালো! আপনার কি কোন প্রশ্ন আছে? আমরা সাহায্য করতে প্রস্তুত।",
 };
 
 export const translations: Record<Locale, Translation> = {
