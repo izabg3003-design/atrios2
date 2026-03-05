@@ -104,6 +104,7 @@ export interface Translation {
   pdfTemplateGreen: string;
   pdfTemplateLightBlue: string;
   pdfTemplateDark: string;
+  pdfTemplateModernV2: string;
   manageExpenses: string;
   expenseLimitReached: string;
   budgetListTitle: string;
@@ -485,6 +486,7 @@ const enUS: Translation = {
   pdfTemplateGreen: "Professional Green",
   pdfTemplateLightBlue: "Clean Light Blue",
   pdfTemplateDark: "Elegant Dark",
+  pdfTemplateModernV2: "Innovative Model 2",
   manageExpenses: "Manage Expenses",
   expenseLimitReached: "Expense limit reached on free plan! Upgrade to Premium to record more.",
   budgetListTitle: "Estimate List",
@@ -891,6 +893,7 @@ const ptPT: Translation = {
   pdfTemplateGreen: "Profissional Verde",
   pdfTemplateLightBlue: "Limpo Azul Claro",
   pdfTemplateDark: "Elegante Escuro",
+  pdfTemplateModernV2: "Inovador Modelo 2",
   manageExpenses: "Gerir Despesas",
   expenseLimitReached: "Limite de despesas atingido no plano gratuito! Atualize para um plano pago para registar mais.",
   budgetListTitle: "Lista de Orçamentos",
@@ -1311,6 +1314,7 @@ const frFR: Translation = {
   pdfTemplateGreen: "Professionnel Vert",
   pdfTemplateLightBlue: "Propre Bleu Clair",
   pdfTemplateDark: "Élégant Sombre",
+  pdfTemplateModernV2: "Modèle Innovant 2",
   manageExpenses: "Gérer Dépenses",
   expenseLimitReached: "Limite de dépenses atteinte pour le plan gratuit ! Passez au Premium pour en enregistrer plus.",
   budgetListTitle: "Liste des Devis",
@@ -1691,6 +1695,7 @@ const itIT: Translation = {
   pdfTemplateGreen: "Professionale Verde",
   pdfTemplateLightBlue: "Pulito Blu Chiaro",
   pdfTemplateDark: "Elegante Scuro",
+  pdfTemplateModernV2: "Modello Innovativo 2",
   manageExpenses: "Gestisci Spese",
   expenseLimitReached: "Limite spese raggiunto per il piano gratuito! Passa a Premium per registrarne altre.",
   budgetListTitle: "Lista Preventivi",
@@ -2071,6 +2076,7 @@ const esES: Translation = {
   pdfTemplateGreen: "Profesional Verde",
   pdfTemplateLightBlue: "Limpio Azul Claro",
   pdfTemplateDark: "Elegante Oscuro",
+  pdfTemplateModernV2: "Modelo Innovador 2",
   manageExpenses: "Gestionar Gastos",
   expenseLimitReached: "¡Límite de gastos alcanzado en el plan gratuito! Actualiza a Premium para registrar más.",
   budgetListTitle: "Lista",
@@ -2477,6 +2483,7 @@ const ruRU: Translation = {
   pdfTemplateGreen: "Профессиональный Зеленый",
   pdfTemplateLightBlue: "Чистый Светло-голубой",
   pdfTemplateDark: "Элегантный Темный",
+  pdfTemplateModernV2: "Инновационная модель 2",
   manageExpenses: "Управление",
   expenseLimitReached: "Лимит расходов достигнут в бесплатном плане! Перейдите на Premium, чтобы записать больше.",
   budgetListTitle: "Список смет",
@@ -2857,6 +2864,7 @@ const hiIN: Translation = {
   pdfTemplateGreen: "पेशेवर हरा",
   pdfTemplateLightBlue: "साफ हल्का नीला",
   pdfTemplateDark: "शानदार गहरा",
+  pdfTemplateModernV2: "अभिनव मॉडल 2",
   manageExpenses: "प्रबंधन",
   expenseLimitReached: "मुफ़्त योजना में व्यय सीमा समाप्त! अधिक रिकॉर्ड करने के लिए प्रीमियम में अपग्रेड करें।",
   budgetListTitle: "सूची",
@@ -3237,6 +3245,7 @@ const bnBD: Translation = {
   pdfTemplateGreen: "পেশাদার সবুজ",
   pdfTemplateLightBlue: "পরিষ্কার হালকা নীল",
   pdfTemplateDark: "মার্জিত অন্ধকার",
+  pdfTemplateModernV2: "উদ্ভাবনী মডেল ২",
   manageExpenses: "ম্যানেজ",
   expenseLimitReached: "ফ্রি প্ল্যানে ব্যয়ের সীমা শেষ! আরও রেকর্ড করতে প্রিমিয়ামে আপগ্রেড করুন।",
   budgetListTitle: "তালিকা",

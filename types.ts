@@ -4,7 +4,8 @@ export enum PdfTemplate {
   BLUE_MODERN = 'blue_modern',
   GREEN_PROFESSIONAL = 'green_professional',
   LIGHT_BLUE_CLEAN = 'light_blue_clean',
-  DARK_ELEGANT = 'dark_elegant'
+  DARK_ELEGANT = 'dark_elegant',
+  MODERN_V2 = 'modern_v2'
 }
 
 export enum PlanType {
