@@ -97,6 +97,16 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
   const chartData = useMemo(() => {
     const data: any[] = [];
 
+    const calculateIva = (budgetList: Budget[]) => {
+      return budgetList.reduce((sum, b) => {
+        if (b.includeIva && b.ivaPercentage > 0) {
+          const subtotal = b.totalAmount / (1 + b.ivaPercentage / 100);
+          return sum + (b.totalAmount - subtotal);
+        }
+        return sum;
+      }, 0);
+    };
+
     if (selectedPeriod === 'weekly') {
       const now = new Date();
       for (let i = 6; i >= 0; i--) {
@@ -104,14 +114,17 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
         d.setDate(now.getDate() - i);
         const dayStr = d.toISOString().split('T')[0];
         
-        const daySales = periodSales.filter(s => s.createdAt.startsWith(dayStr)).reduce((sum, s) => sum + s.totalAmount, 0);
+        const dayBudgets = periodSales.filter(s => s.createdAt.startsWith(dayStr));
+        const daySales = dayBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const dayExpenses = periodExpenses.filter(e => e.date.startsWith(dayStr)).reduce((sum, e) => sum + e.amount, 0);
+        const dayIva = calculateIva(dayBudgets);
         
         data.push({
           name: d.toLocaleDateString(locale, { weekday: 'short' }),
           vendas: daySales * currencyInfo.rate,
           gastos: dayExpenses * currencyInfo.rate,
-          lucro: (daySales - dayExpenses) * currencyInfo.rate
+          iva: dayIva * currencyInfo.rate,
+          lucro: (daySales - dayExpenses - dayIva) * currencyInfo.rate
         });
       }
     } else if (selectedPeriod === 'monthly') {
@@ -120,26 +133,32 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
         const d = new Date(reportYear, reportMonth, i);
         const dayStr = d.toISOString().split('T')[0];
         
-        const daySales = periodSales.filter(s => s.createdAt.startsWith(dayStr)).reduce((sum, s) => sum + s.totalAmount, 0);
+        const dayBudgets = periodSales.filter(s => s.createdAt.startsWith(dayStr));
+        const daySales = dayBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const dayExpenses = periodExpenses.filter(e => e.date.startsWith(dayStr)).reduce((sum, e) => sum + e.amount, 0);
+        const dayIva = calculateIva(dayBudgets);
         
         data.push({
           name: i.toString(),
           vendas: daySales * currencyInfo.rate,
           gastos: dayExpenses * currencyInfo.rate,
-          lucro: (daySales - dayExpenses) * currencyInfo.rate
+          iva: dayIva * currencyInfo.rate,
+          lucro: (daySales - dayExpenses - dayIva) * currencyInfo.rate
         });
       }
     } else if (selectedPeriod === 'annual') {
       for (let i = 0; i < 12; i++) {
-        const monthSales = periodSales.filter(s => new Date(s.createdAt).getMonth() === i).reduce((sum, s) => sum + s.totalAmount, 0);
+        const monthBudgets = periodSales.filter(s => new Date(s.createdAt).getMonth() === i);
+        const monthSales = monthBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const monthExpenses = periodExpenses.filter(e => new Date(e.date).getMonth() === i).reduce((sum, e) => sum + e.amount, 0);
+        const monthIva = calculateIva(monthBudgets);
         
         data.push({
           name: t[monthNames[i]],
           vendas: monthSales * currencyInfo.rate,
           gastos: monthExpenses * currencyInfo.rate,
-          lucro: (monthSales - monthExpenses) * currencyInfo.rate
+          iva: monthIva * currencyInfo.rate,
+          lucro: (monthSales - monthExpenses - monthIva) * currencyInfo.rate
         });
       }
     }
@@ -149,13 +168,23 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
   const stats = useMemo(() => {
     const revenue = periodSales.reduce((sum, b) => sum + b.totalAmount, 0);
     const expenses = periodExpenses.reduce((sum, e) => sum + e.amount, 0);
-    const profit = revenue - expenses;
+    
+    const totalIva = periodSales.reduce((sum, b) => {
+      if (b.includeIva && b.ivaPercentage > 0) {
+        const subtotal = b.totalAmount / (1 + b.ivaPercentage / 100);
+        return sum + (b.totalAmount - subtotal);
+      }
+      return sum;
+    }, 0);
+
+    const profit = revenue - expenses - totalIva;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
     const avgTicket = periodSales.length > 0 ? revenue / periodSales.length : 0;
 
     return {
       revenue: revenue * currencyInfo.rate,
       expenses: expenses * currencyInfo.rate,
+      totalIva: totalIva * currencyInfo.rate,
       profit: profit * currencyInfo.rate,
       margin,
       avgTicket: avgTicket * currencyInfo.rate,
@@ -166,7 +195,8 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
 
   const pieData = [
     { name: t.reportLucroLabel, value: Math.max(0, stats.profit), color: '#10b981' },
-    { name: t.reportGastosLabel, value: stats.expenses, color: '#ef4444' }
+    { name: t.reportGastosLabel, value: stats.expenses, color: '#ef4444' },
+    { name: t.masterTotalIva, value: stats.totalIva, color: '#f59e0b' }
   ];
 
   const periods = [
@@ -270,6 +300,10 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
                  <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-red-500"></div>
                  <span className="text-[7px] sm:text-[8px] lg:text-[9px] font-black text-slate-400 uppercase">{t.reportGastosLabel}</span>
                </div>
+               <div className="flex items-center gap-2">
+                 <div className="w-2 h-2 sm:w-2.5 sm:h-2.5 rounded-full bg-amber-500"></div>
+                 <span className="text-[7px] sm:text-[8px] lg:text-[9px] font-black text-slate-400 uppercase">{t.masterTotalIva}</span>
+               </div>
             </div>
           </div>
           <div className="h-[200px] sm:h-[300px] lg:h-[350px] w-full">
@@ -285,6 +319,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
                 />
                 <Bar dataKey="vendas" fill="#10b981" radius={[4, 4, 0, 0]} barSize={selectedPeriod === 'monthly' ? 4 : 12} sm:barSize={selectedPeriod === 'monthly' ? 6 : 20} lg:barSize={selectedPeriod === 'monthly' ? 10 : 30} />
                 <Bar dataKey="gastos" fill="#ef4444" radius={[4, 4, 0, 0]} barSize={selectedPeriod === 'monthly' ? 4 : 12} sm:barSize={selectedPeriod === 'monthly' ? 6 : 20} lg:barSize={selectedPeriod === 'monthly' ? 10 : 30} />
+                <Bar dataKey="iva" fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={selectedPeriod === 'monthly' ? 4 : 12} sm:barSize={selectedPeriod === 'monthly' ? 6 : 20} lg:barSize={selectedPeriod === 'monthly' ? 10 : 30} />
               </BarChart>
             </ResponsiveContainer>
           </div>
@@ -330,30 +365,45 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
                 <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase">{t.reportExpensesTotal}</span>
                 <span className="text-[10px] sm:text-xs lg:text-sm font-black text-red-500">-{stats.expenses.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</span>
               </div>
+              <div className="flex justify-between items-center">
+                <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase">{t.masterTotalIva}</span>
+                <span className="text-[10px] sm:text-xs lg:text-sm font-black text-amber-500">{stats.totalIva.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</span>
+              </div>
            </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
-        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 lg:gap-6">
+        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all overflow-hidden">
           <div className="flex justify-between items-start">
             <div className="p-2.5 sm:p-3 lg:p-4 bg-emerald-50 text-emerald-600 rounded-lg sm:rounded-xl lg:rounded-2xl shrink-0"><ArrowUpRight size={18} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6" /></div>
             <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-emerald-500 bg-emerald-50 px-2 lg:px-3 py-1 rounded-full uppercase">{t.reportRevenue}</span>
           </div>
-          <div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900">{stats.revenue.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+          <div className="min-w-0">
+            <p className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 truncate">{stats.revenue.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
             <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stats.salesCount} {t.salesInPeriod}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all">
+        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all overflow-hidden">
           <div className="flex justify-between items-start">
             <div className="p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-lg sm:rounded-xl lg:rounded-2xl shrink-0"><ArrowDownRight size={18} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6" /></div>
             <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-red-500 bg-red-50 px-2 lg:px-3 py-1 rounded-full uppercase">{t.reportCosts}</span>
           </div>
-          <div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900">{stats.expenses.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+          <div className="min-w-0">
+            <p className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 truncate">{stats.expenses.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
             <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{stats.expensesCount} {t.recordExpenses}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div className="p-2.5 sm:p-3 lg:p-4 bg-amber-50 text-amber-600 rounded-lg sm:rounded-xl lg:rounded-2xl shrink-0"><Receipt size={18} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6" /></div>
+            <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-amber-500 bg-amber-50 px-2 lg:px-3 py-1 rounded-full uppercase">{t.masterTotalIva}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 truncate">{stats.totalIva.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+            <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t.ivaValue}</p>
           </div>
         </div>
 
@@ -363,19 +413,19 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
             <div className="p-2.5 sm:p-3 lg:p-4 bg-white/10 text-emerald-400 rounded-lg sm:rounded-xl lg:rounded-2xl shrink-0"><Target size={18} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6" /></div>
             <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-emerald-400 bg-white/5 px-2 lg:px-3 py-1 rounded-full uppercase">{t.reportResult}</span>
           </div>
-          <div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-black text-white">{stats.profit.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+          <div className="min-w-0">
+            <p className="text-lg sm:text-xl lg:text-2xl font-black text-white truncate">{stats.profit.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
             <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-emerald-400/60 uppercase tracking-widest mt-1">{t.reportRealProfit}</p>
           </div>
         </div>
 
-        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all">
+        <div className="bg-white p-5 sm:p-6 lg:p-8 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2.5rem] border border-slate-100 shadow-sm space-y-3 lg:space-y-4 group hover:shadow-xl transition-all overflow-hidden">
           <div className="flex justify-between items-start">
             <div className="p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-lg sm:rounded-xl lg:rounded-2xl shrink-0"><BarChart3 size={18} className="sm:w-5 sm:h-5 lg:w-6 lg:h-6" /></div>
             <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-blue-500 bg-blue-50 px-2 lg:px-3 py-1 rounded-full uppercase">{t.reportAvgTicket}</span>
           </div>
-          <div>
-            <p className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900">{stats.avgTicket.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
+          <div className="min-w-0">
+            <p className="text-lg sm:text-xl lg:text-2xl font-black text-slate-900 truncate">{stats.avgTicket.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
             <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mt-1">{t.reportAvgPerClient}</p>
           </div>
         </div>
