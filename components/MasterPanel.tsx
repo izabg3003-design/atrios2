@@ -25,11 +25,7 @@ import {
   BarChart3,
   Crown,
   CreditCard,
-  Zap,
-  Gift,
-  Download,
-  Globe,
-  Coffee
+  Zap
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -43,7 +39,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, GiftRequest } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon } from '../types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -56,9 +52,7 @@ import {
   getTransactions,
   getCoupons,
   saveCoupon,
-  removeCoupon,
-  getGiftRequests,
-  removeGiftRequest
+  removeCoupon
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -71,8 +65,7 @@ interface MasterPanelProps {
 
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'gifts'>('home');
-  const [giftRequests, setGiftRequests] = useState<GiftRequest[]>([]);
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -103,21 +96,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [showDurationModal, setShowDurationModal] = useState<Company | null>(null);
   const [showResetPassModal, setShowResetPassModal] = useState<Company | null>(null);
   const [newPassValue, setNewPassValue] = useState('');
+
   const [newCouponCode, setNewCouponCode] = useState('');
   const [newCouponDiscount, setNewCouponDiscount] = useState(10);
-
-  useEffect(() => {
-    setGiftRequests(getGiftRequests());
-  }, [activeTab]);
-
-  const handleDownloadImage = (base64: string, fileName: string) => {
-    const link = document.createElement('a');
-    link.href = base64;
-    link.download = fileName;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
 
   const loadData = async () => {
     setActiveNotifications(getGlobalNotifications());
@@ -553,7 +534,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
-              { id: 'gifts', label: t.masterGiftsTab, icon: Gift },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
             ].map(tab => (
@@ -671,88 +651,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
         {activeTab === 'coupons' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in"><div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Ticket size={28} /> {t.masterCouponCreate}</h2><form onSubmit={handleCreateCoupon} className="space-y-6"><div><label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.masterCouponCode}</label><input required type="text" value={newCouponCode} onChange={e => setNewCouponCode(e.target.value)} placeholder="EX: ATRIOS20" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase" /></div><div><label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.masterCouponDiscount}</label><div className="flex items-center gap-4"><input required type="range" min="5" max="90" step="5" value={newCouponDiscount} onChange={e => setNewCouponDiscount(Number(e.target.value))} className="flex-1 accent-amber-500" /><span className="w-20 text-center bg-white/10 py-3 rounded-xl font-black text-amber-500">{newCouponDiscount}%</span></div></div><button type="submit" className="w-full py-5 bg-amber-500 text-slate-950 rounded-[1.5rem] font-black text-lg hover:bg-amber-400 uppercase">{t.masterSaveActivate}</button></form></div><div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Percent size={28} /> {t.masterCouponActive}</h2><div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">{coupons.length === 0 ? <div className="py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.masterCouponEmpty}</div> : coupons.map(cp => (<div key={cp.id} className="bg-white/5 border border-white/10 p-6 rounded-[2rem] flex justify-between items-center group"><div className="flex items-center gap-6"><div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center"><Ticket /></div><div><p className="text-xl font-black italic uppercase tracking-tighter">{cp.code}</p><p className="text-[10px] font-black text-emerald-400 uppercase">{cp.discountPercentage}% {t.masterDiscountOff}</p></div></div><button onClick={() => handleDeleteCoupon(cp.id)} className="p-4 text-red-500 rounded-xl hover:bg-red-500 transition-all"><Trash2 size={18} /></button></div>))}</div></div></div>
-        )}
-
-        {activeTab === 'gifts' && (
-          <div className="space-y-8 animate-in fade-in">
-            <div className="flex justify-between items-center">
-              <h2 className="text-3xl font-black italic uppercase tracking-tight flex items-center gap-4">
-                <Gift className="text-amber-500" size={32} /> {t.masterGiftRequests}
-              </h2>
-            </div>
-
-            <div className="grid grid-cols-1 gap-6">
-              {giftRequests.length === 0 ? (
-                <div className="bg-white/5 border border-white/10 rounded-[2.5rem] p-20 text-center">
-                  <Gift size={48} className="text-slate-700 mx-auto mb-4" />
-                  <p className="text-slate-500 font-bold uppercase tracking-widest">{t.masterNoGifts}</p>
-                </div>
-              ) : (
-                giftRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()).map(request => (
-                  <div key={request.id} className="bg-white/5 border border-white/10 rounded-[2.5rem] p-8 sm:p-10 shadow-xl space-y-8">
-                    <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 border-b border-white/5 pb-6">
-                      <div>
-                        <h3 className="text-xl font-black text-white uppercase tracking-tight">{request.companyName}</h3>
-                        <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">
-                          {new Date(request.createdAt).toLocaleDateString(locale, { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' })}
-                        </p>
-                      </div>
-                      <button 
-                        onClick={() => {
-                          if (window.confirm('Remover este pedido?')) {
-                            removeGiftRequest(request.id);
-                            setGiftRequests(prev => prev.filter(g => g.id !== request.id));
-                          }
-                        }}
-                        className="p-3 hover:bg-red-500/20 text-red-400 rounded-xl transition-all"
-                      >
-                        <Trash2 size={20} />
-                      </button>
-                    </div>
-
-                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Globe size={16} className="text-blue-400" />
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.masterGiftWebsite}</h4>
-                        </div>
-                        <p className="text-sm font-medium text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-6 rounded-2xl border border-white/5">
-                          {request.websiteIdea}
-                        </p>
-                      </div>
-
-                      <div className="space-y-4">
-                        <div className="flex items-center gap-2">
-                          <Coffee size={16} className="text-amber-400" />
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.masterGiftMug}</h4>
-                        </div>
-                        <p className="text-sm font-medium text-slate-300 leading-relaxed whitespace-pre-wrap bg-white/5 p-6 rounded-2xl border border-white/5">
-                          {request.mugIdea}
-                        </p>
-                      </div>
-                    </div>
-
-                    {request.referenceImage && (
-                      <div className="pt-6 border-t border-white/5 flex flex-col sm:flex-row items-center gap-8">
-                        <div className="w-32 h-32 rounded-2xl overflow-hidden border border-white/10 shadow-2xl shrink-0">
-                          <img src={request.referenceImage} alt="Reference" className="w-full h-full object-cover" />
-                        </div>
-                        <div className="space-y-4 text-center sm:text-left">
-                          <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.masterGiftImage}</h4>
-                          <button 
-                            onClick={() => handleDownloadImage(request.referenceImage!, `gift-ref-${request.companyName.replace(/\s+/g, '-').toLowerCase()}.png`)}
-                            className="px-8 py-4 bg-white/10 hover:bg-white/20 text-white rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-3"
-                          >
-                            <Download size={16} /> {t.masterGiftDownload}
-                          </button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
         )}
 
         {activeTab === 'notifications' && (

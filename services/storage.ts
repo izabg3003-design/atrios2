@@ -1,4 +1,4 @@
-import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, GiftRequest } from '../types';
+import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon } from '../types';
 import { syncToCloud, supabase } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -8,7 +8,6 @@ const STORAGE_KEY_NOTIFICATIONS = 'atrios_notifications';
 const STORAGE_KEY_MESSAGES = 'atrios_messages';
 const STORAGE_KEY_TRANSACTIONS = 'atrios_transactions';
 const STORAGE_KEY_COUPONS = 'atrios_coupons';
-const STORAGE_KEY_GIFTS = 'atrios_gifts';
 const STORAGE_KEY_SESSION = 'atrios_session';
 
 export const generateShortId = () => {
@@ -170,33 +169,6 @@ export const removeCoupon = async (id: string) => {
   await supabase.from('coupons').delete().eq('id', id);
 };
 
-export const getGiftRequests = (companyId?: string): GiftRequest[] => {
-  const data = localStorage.getItem(STORAGE_KEY_GIFTS);
-  const gifts: GiftRequest[] = data ? JSON.parse(data) : [];
-  if (companyId) {
-    return gifts.filter(g => g.companyId === companyId);
-  }
-  return gifts;
-};
-
-export const saveGiftRequest = (gift: GiftRequest) => {
-  const gifts = getGiftRequests();
-  const index = gifts.findIndex(g => g.id === gift.id);
-  if (index > -1) {
-    gifts[index] = gift;
-  } else {
-    gifts.push(gift);
-  }
-  localStorage.setItem(STORAGE_KEY_GIFTS, JSON.stringify(gifts));
-  syncToCloud('gifts', gift);
-};
-
-export const removeGiftRequest = async (id: string) => {
-  const gifts = getGiftRequests().filter(g => g.id !== id);
-  localStorage.setItem(STORAGE_KEY_GIFTS, JSON.stringify(gifts));
-  await supabase.from('gifts').delete().eq('id', id);
-};
-
 /**
  * Recupera todos os dados do Supabase e atualiza o armazenamento local.
  * Garante que orçamentos antigos, despesas e status de plano apareçam na página do usuário.
@@ -234,15 +206,6 @@ export const hydrateLocalData = async (companyId: string) => {
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
       const otherMessages = allMessages.filter(m => m.companyId !== companyId);
       localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...messages]));
-    }
-
-    // 4. Hidratar Pedidos de Brindes
-    const { data: gifts } = await supabase.from('gifts').select('*').eq('companyId', companyId);
-    if (gifts) {
-      const localGiftsStr = localStorage.getItem(STORAGE_KEY_GIFTS);
-      let allGifts: GiftRequest[] = localGiftsStr ? JSON.parse(localGiftsStr) : [];
-      const otherGifts = allGifts.filter(g => g.companyId !== companyId);
-      localStorage.setItem(STORAGE_KEY_GIFTS, JSON.stringify([...otherGifts, ...gifts]));
     }
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);

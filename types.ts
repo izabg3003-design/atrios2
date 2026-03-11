@@ -159,16 +159,6 @@ export interface GlobalNotification {
   createdAt: string;
 }
 
-export interface GiftRequest {
-  id: string;
-  companyId: string;
-  companyName: string;
-  websiteIdea: string;
-  mugIdea: string;
-  referenceImage?: string;
-  createdAt: string;
-}
-
 export interface AuthState {
   user: Company | null;
   isAuthenticated: boolean;

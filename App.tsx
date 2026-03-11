@@ -34,8 +34,7 @@ import {
   Headphones,
   MessageSquare,
   ShieldCheck,
-  Mail,
-  Gift
+  Mail
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
 import { 
@@ -60,7 +59,6 @@ import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
 import PremiumBanner from './components/PremiumBanner';
-import { GiftRequestForm } from './components/GiftRequestForm';
 import PaymentManager from './components/PaymentManager';
 import ExpenseManager from './components/ExpenseManager';
 import Plans from './components/Plans';
@@ -102,7 +100,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'gifts'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -1988,7 +1986,6 @@ const App: React.FC = () => {
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
                   { id: 'plans', label: t.plans, icon: Crown },
-                  ...(currentUser?.plan === PlanType.PREMIUM_ANNUAL ? [{ id: 'gifts', label: t.giftTitle.split(':')[0], icon: Gift }] : []),
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
@@ -2102,10 +2099,6 @@ const App: React.FC = () => {
                 <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12">
                   {currentUser?.plan === PlanType.FREE && activeTab === 'dashboard' && <PremiumBanner locale={locale} onUpgrade={() => setActiveTab('plans')} />}
                   {activeTab === 'dashboard' && <Dashboard locale={locale} currencyCode={currencyCode} budgets={budgets} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => setActiveTab('plans')} />}
-                  
-                  {activeTab === 'gifts' && currentUser?.plan === PlanType.PREMIUM_ANNUAL && (
-                    <GiftRequestForm company={currentUser} locale={locale} />
-                  )}
                   
                   {activeTab === 'reports' && (
                     currentUser?.plan === PlanType.FREE ? (
