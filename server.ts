@@ -87,6 +87,30 @@ async function startServer() {
           }
           break;
         }
+        case "invoice.paid": {
+          const invoice = event.data.object as any;
+          const subscriptionId = invoice.subscription as string;
+          
+          if (subscriptionId) {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const companyId = subscription.metadata.companyId;
+            const planType = subscription.metadata.planType;
+
+            if (companyId && planType) {
+              const { error } = await supabase
+                .from("companies")
+                .update({ 
+                  plan: planType,
+                  stripe_customer_id: invoice.customer as string,
+                  stripe_subscription_id: subscriptionId
+                })
+                .eq("id", companyId);
+              
+              if (error) console.error("Error updating company plan (invoice.paid):", error);
+            }
+          }
+          break;
+        }
         case "customer.subscription.deleted": {
           const subscription = event.data.object as Stripe.Subscription;
           const { error } = await supabase
@@ -253,6 +277,68 @@ async function startServer() {
       res.json({ id: session.id, url: session.url });
     } catch (error: any) {
       console.error("Stripe Session Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/create-subscription", async (req, res) => {
+    const { companyId, planType, email } = req.body;
+
+    let priceId = "";
+    const monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "price_1T3e4x1kTCJBb2eQJBnM0adW").trim();
+    const annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "price_1T3e8d1kTCJBb2eQgqKiRoN1").trim();
+
+    if (planType === "premium_monthly") {
+      priceId = monthlyId;
+    } else if (planType === "premium_annual") {
+      priceId = annualId;
+    }
+
+    if (!priceId) {
+      return res.status(400).json({ error: "Invalid plan type" });
+    }
+
+    try {
+      // Create or get customer
+      let customer;
+      const { data: company } = await supabase
+        .from("companies")
+        .select("stripe_customer_id, email")
+        .eq("id", companyId)
+        .single();
+
+      if (company?.stripe_customer_id) {
+        customer = await stripe.customers.retrieve(company.stripe_customer_id);
+      } else {
+        customer = await stripe.customers.create({
+          email: email || company?.email,
+          metadata: { companyId },
+        });
+        await supabase
+          .from("companies")
+          .update({ stripe_customer_id: customer.id })
+          .eq("id", companyId);
+      }
+
+      // Create subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: (customer as Stripe.Customer).id,
+        items: [{ price: priceId }],
+        payment_behavior: "default_incomplete",
+        payment_settings: { save_default_payment_method: "on_subscription" },
+        expand: ["latest_invoice.payment_intent"],
+        metadata: { companyId, planType },
+      });
+
+      const invoice = subscription.latest_invoice as any;
+      const paymentIntent = invoice.payment_intent as any;
+
+      res.json({
+        subscriptionId: subscription.id,
+        clientSecret: paymentIntent.client_secret,
+      });
+    } catch (error: any) {
+      console.error("Subscription Creation Error:", error);
       res.status(500).json({ error: error.message });
     }
   });

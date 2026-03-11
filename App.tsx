@@ -66,6 +66,7 @@ import MasterPanel from './components/MasterPanel';
 import Reports from './components/Reports';
 import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
+import Checkout from './components/Checkout';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -145,6 +146,11 @@ const App: React.FC = () => {
   const [showSupportGreeting, setShowSupportGreeting] = useState(false);
   const [greetingShown, setGreetingShown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [checkoutData, setCheckoutData] = useState<{
+    clientSecret: string;
+    planType: PlanType;
+    price: number;
+  } | null>(null);
 
   useEffect(() => {
     if (currentUser && view === 'app' && !greetingShown) {
@@ -1252,8 +1258,8 @@ const App: React.FC = () => {
 
     setIsProcessingPayment(true);
     try {
-      console.log('Initiating checkout for plan:', plan);
-      const response = await fetch('/api/create-checkout-session', {
+      console.log('Initiating subscription for plan:', plan);
+      const response = await fetch('/api/create-subscription', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -1263,7 +1269,7 @@ const App: React.FC = () => {
           companyId: currentUser.id,
           planType: plan,
           couponCode: coupon,
-          origin: window.location.origin,
+          email: currentUser.email,
         }),
       });
 
@@ -1272,32 +1278,24 @@ const App: React.FC = () => {
       
       if (!contentType || !contentType.includes("application/json")) {
         console.error("Non-JSON response received:", text);
-        if (text.includes("<!DOCTYPE html>") || text.includes("<html")) {
-          throw new Error("O servidor retornou HTML em vez de JSON. Isso geralmente acontece se o Render estiver configurado como 'Static Site' em vez de 'Web Service', ou se a rota da API não estiver sendo encontrada.");
-        }
-        throw new Error(`O servidor não retornou JSON. Status: ${response.status}. Conteúdo: ${text.substring(0, 100)}`);
+        throw new Error(`O servidor não retornou JSON. Status: ${response.status}`);
       }
 
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch (e) {
-        console.error("Failed to parse JSON:", text);
-        throw new Error("Erro ao processar resposta do servidor (JSON inválido).");
-      }
+      const data = JSON.parse(text);
       
       if (!response.ok || data.error) {
         throw new Error(data.error || `Erro do servidor (${response.status})`);
       }
 
-      if (data.url) {
-        // Ensure session is saved with dashboard tab before redirecting
-        setActiveTab('dashboard');
-        // Delay redirection by 8 seconds as requested
-        await new Promise(resolve => setTimeout(resolve, 8000));
-        window.location.href = data.url;
+      if (data.clientSecret) {
+        setCheckoutData({
+          clientSecret: data.clientSecret,
+          planType: plan,
+          price: finalPrice
+        });
+        setIsProcessingPayment(false);
       } else {
-        throw new Error("URL de checkout não recebida.");
+        throw new Error("Não foi possível iniciar o checkout.");
       }
     } catch (err: any) {
       console.error('Stripe error:', err);
@@ -2313,6 +2311,23 @@ const App: React.FC = () => {
                 <div className="absolute -bottom-2 right-6 w-4 h-4 bg-white border-r border-b border-slate-100 rotate-45"></div>
               </div>
             </div>
+          )}
+          
+          {checkoutData && (
+            <Checkout
+              clientSecret={checkoutData.clientSecret}
+              locale={locale}
+              planType={checkoutData.planType}
+              price={checkoutData.price}
+              currencyCode={currencyCode}
+              onCancel={() => setCheckoutData(null)}
+              onSuccess={() => {
+                setCheckoutData(null);
+                // The webhook will handle the plan update, but we can show a success message
+                alert('Pagamento processado com sucesso! A sua conta será atualizada em instantes.');
+                setActiveTab('dashboard');
+              }}
+            />
           )}
           
           {isProcessingPayment && (

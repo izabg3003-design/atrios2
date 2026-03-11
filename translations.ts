@@ -381,6 +381,10 @@ export interface Translation {
   landingPreviewProfit: string;
   landingPreviewProfitGrowth: string;
   supportGreeting: string;
+  checkoutTitle: string;
+  checkoutSubtitle: string;
+  confirmPayment: string;
+  plan: string;
 }
 
 const enUS: Translation = {
@@ -714,7 +718,7 @@ const enUS: Translation = {
   notifyNewMessageDesc: "Support has replied to your message.",
   notifyMasterUnlockRequest: "Unlock Request",
   stripeSecurePayment: "Make secure payments with Stripe!",
-  redirecting: "You will be redirected.",
+  redirecting: "Preparing secure payment...",
   termsOfService: "Terms of Service",
   privacyPolicy: "Privacy Policy",
   supportEmailLabel: "Support Email",
@@ -789,6 +793,10 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   landingPreviewProfit: "Estimated Profit",
   landingPreviewProfitGrowth: "+32% this month",
   supportGreeting: "Any questions? We're here to help!",
+  checkoutTitle: "Secure Checkout",
+  checkoutSubtitle: "Finalize your subscription to unlock all features.",
+  confirmPayment: "Confirm Payment",
+  plan: "Plan",
 };
 
 const ptPT: Translation = {
@@ -1122,7 +1130,7 @@ const ptPT: Translation = {
   notifyNewMessageDesc: "O suporte respondeu à sua mensagem.",
   notifyMasterUnlockRequest: "Pedido de Desbloqueio",
   stripeSecurePayment: "Faça pagamentos seguros com a Stripe!",
-  redirecting: "Você será redirecionado.",
+  redirecting: "A preparar o pagamento seguro...",
   termsOfService: "Termos de Serviço",
   privacyPolicy: "Política de Privacidade",
   supportEmailLabel: "E-mail de Suporte",
@@ -1197,6 +1205,10 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   landingPreviewProfit: "Lucro Estimado",
   landingPreviewProfitGrowth: "+32% este mês",
   supportGreeting: "Tens alguma dúvida? Estamos aqui para ajudar!",
+  checkoutTitle: "Checkout Seguro",
+  checkoutSubtitle: "Finalize a sua subscrição para desbloquear todos os recursos.",
+  confirmPayment: "Confirmar Pagamento",
+  plan: "Plano",
 };
 
 const ptBR: Translation = {
@@ -1544,7 +1556,7 @@ const frFR: Translation = {
   notifyNewMessageDesc: "Le support a répondu à votre message.",
   notifyMasterUnlockRequest: "Demande de Déverrouillage",
   stripeSecurePayment: "Effectuez des paiements sécurisés avec Stripe !",
-  redirecting: "Vous allez être redirigé.",
+  redirecting: "Préparation du paiement sécurisé...",
   termsOfService: "Conditions de Service",
   privacyPolicy: "Politique de Confidentialité",
   supportEmailLabel: "Email de Support",
@@ -1593,6 +1605,10 @@ const frFR: Translation = {
   landingPreviewProfit: "Bénéfice Estimé",
   landingPreviewProfitGrowth: "+32% ce mois-ci",
   supportGreeting: "Bonjour ! Avez-vous des questions ? Nous sommes prêts à vous ajudar.",
+  checkoutTitle: "Paiement sécurisé",
+  checkoutSubtitle: "Finalisez votre abonnement pour débloquer toutes les fonctionnalités.",
+  confirmPayment: "Confirmer le paiement",
+  plan: "Plan",
 };
 
 const itIT: Translation = {
@@ -1926,7 +1942,7 @@ const itIT: Translation = {
   notifyNewMessageDesc: "Il supporto ha risposto al tuo messaggio.",
   notifyMasterUnlockRequest: "Richiesta di Sblocco",
   stripeSecurePayment: "Effettua pagamenti sicuri con Stripe!",
-  redirecting: "Verrai reindirizzato.",
+  redirecting: "Preparazione del pagamento sicuro...",
   termsOfService: "Termini di Servizio",
   privacyPolicy: "Informativa sulla Privacy",
   supportEmailLabel: "Email di Supporto",
@@ -1975,6 +1991,10 @@ const itIT: Translation = {
   landingPreviewProfit: "Utile Stimato",
   landingPreviewProfitGrowth: "+32% questo mese",
   supportGreeting: "Ciao! Hai domande? Siamo pronti ad aiutarti.",
+  checkoutTitle: "Pagamento Sicuro",
+  checkoutSubtitle: "Finalizza il tuo abbonamento per sbloccare tutte le funzionalità.",
+  confirmPayment: "Conferma Pagamento",
+  plan: "Piano",
 };
 
 const esES: Translation = {
@@ -2308,7 +2328,7 @@ const esES: Translation = {
   notifyNewMessageDesc: "El soporte ha respondido a tu mensaje.",
   notifyMasterUnlockRequest: "Solicitud de Desbloqueo",
   stripeSecurePayment: "¡Realice pagos seguros con Stripe!",
-  redirecting: "Será redireccionado.",
+  redirecting: "Preparando el pago seguro...",
   termsOfService: "Términos de Servicio",
   privacyPolicy: "Política de Privacidad",
   supportEmailLabel: "Correo de Soporte",
@@ -2383,6 +2403,10 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   landingPreviewProfit: "Beneficio Estimado",
   landingPreviewProfitGrowth: "+32% este mes",
   supportGreeting: "¡Hola! ¿Tiene alguna pregunta? Estamos listos para ayudar.",
+  checkoutTitle: "Pago Seguro",
+  checkoutSubtitle: "Finaliza tu suscripción para desbloquear todas las funciones.",
+  confirmPayment: "Confirmar Pago",
+  plan: "Plan",
 };
 
 const ruRU: Translation = {
@@ -2716,7 +2740,7 @@ const ruRU: Translation = {
   notifyNewMessageDesc: "Поддержка ответила на ваше сообщение.",
   notifyMasterUnlockRequest: "Запрос на разблокировку",
   stripeSecurePayment: "Безопасные платежи через Stripe!",
-  redirecting: "Вы будете перенаправлены.",
+  redirecting: "Подготовка безопасного платежа...",
   termsOfService: "Условия обслуживания",
   privacyPolicy: "Политика конфиденциальности",
   supportEmailLabel: "Электронная почта поддержки",
@@ -2765,6 +2789,10 @@ const ruRU: Translation = {
   landingPreviewProfit: "Ожидаемая прибыль",
   landingPreviewProfitGrowth: "+32% в этом месяце",
   supportGreeting: "Здравствуйте! У вас есть вопросы? Мы готовы помочь.",
+  checkoutTitle: "Безопасная оплата",
+  checkoutSubtitle: "Завершите подписку, чтобы разблокировать все функции.",
+  confirmPayment: "Подтвердить оплату",
+  plan: "Тариф",
 };
 
 const hiIN: Translation = {
@@ -3098,7 +3126,7 @@ const hiIN: Translation = {
   notifyNewMessageDesc: "सपोर्ट ने आपके संदेश का उत्तर दिया है।",
   notifyMasterUnlockRequest: "अनलॉक अनुरोध",
   stripeSecurePayment: "Stripe के साथ सुरक्षित भुगतान करें!",
-  redirecting: "आपको रीडायरेक्ट कर दिया जाएगा।",
+  redirecting: "सुरक्षित भुगतान की तैयारी...",
   termsOfService: "सेवा की शर्तें",
   privacyPolicy: "गोपनीयता नीति",
   supportEmailLabel: "सहायता ईमेल",
@@ -3147,6 +3175,10 @@ const hiIN: Translation = {
   landingPreviewProfit: "अनुमानित लाभ",
   landingPreviewProfitGrowth: "इस महीने +32%",
   supportGreeting: "नमस्ते! क्या आपके पास कोई प्रश्न हैं? हम मदद के लिए तैयार हैं।",
+  checkoutTitle: "सुरक्षित चेकआउट",
+  checkoutSubtitle: "सभी सुविधाओं को अनलॉक करने के लिए अपनी सदस्यता पूरी करें।",
+  confirmPayment: "भुगतान की पुष्टि करें",
+  plan: "योजना",
 };
 
 const bnBD: Translation = {
@@ -3480,7 +3512,7 @@ const bnBD: Translation = {
   notifyNewMessageDesc: "সাপোর্ট আপনার বার্তার উত্তর দিয়েছে।",
   notifyMasterUnlockRequest: "আনলক অনুরোধ",
   stripeSecurePayment: "Stripe এর মাধ্যমে নিরাপদ পেমেন্ট করুন!",
-  redirecting: "আপনাকে রিডাইরেক্ট করা হবে।",
+  redirecting: "নিরাপদ পেমেন্ট প্রস্তুত করা হচ্ছে...",
   termsOfService: "পরিষেবার শর্তাবলী",
   privacyPolicy: "গোপনীয়তা নীতি",
   supportEmailLabel: "সহায়তা ইমেল",
@@ -3529,6 +3561,10 @@ const bnBD: Translation = {
   landingPreviewProfit: "আনুমানিক লাভ",
   landingPreviewProfitGrowth: "এই মাসে +৩২%",
   supportGreeting: "হ্যালো! আপনার কি কোন প্রশ্ন আছে? আমরা সাহায্য করতে প্রস্তুত।",
+  checkoutTitle: "নিরাপদ চেকআউট",
+  checkoutSubtitle: "সব ফিচার আনলক করতে আপনার সাবস্ক্রিপশন শেষ করুন।",
+  confirmPayment: "পেমেন্ট নিশ্চিত করুন",
+  plan: "প্ল্যান",
 };
 
 export const translations: Record<Locale, Translation> = {
