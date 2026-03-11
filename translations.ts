@@ -332,8 +332,6 @@ export interface Translation {
   notifyUnlockDesc: string;
   notifyNewMessageTitle: string;
   notifyNewMessageDesc: string;
-  notifySubscriptionExpiringTitle: string;
-  notifySubscriptionExpiringDesc: string;
   notifyMasterUnlockRequest: string;
   stripeSecurePayment: string;
   redirecting: string;
@@ -385,6 +383,22 @@ export interface Translation {
   landingPreviewProfit: string;
   landingPreviewProfitGrowth: string;
   supportGreeting: string;
+  giftTitle: string;
+  giftDesc: string;
+  giftWebsiteIdea: string;
+  giftWebsitePlaceholder: string;
+  giftMugIdea: string;
+  giftMugPlaceholder: string;
+  giftUploadRef: string;
+  giftSubmit: string;
+  giftSuccess: string;
+  masterGiftsTab: string;
+  masterGiftRequests: string;
+  masterGiftWebsite: string;
+  masterGiftMug: string;
+  masterGiftImage: string;
+  masterGiftDownload: string;
+  masterNoGifts: string;
 }
 
 const enUS: Translation = {
@@ -718,8 +732,6 @@ const enUS: Translation = {
   notifyUnlockDesc: "You can now edit your company sensitive data.",
   notifyNewMessageTitle: "New Message",
   notifyNewMessageDesc: "Support has replied to your message.",
-  notifySubscriptionExpiringTitle: "Subscription Expiring",
-  notifySubscriptionExpiringDesc: "Your subscription will expire soon. Renew now to maintain access!",
   notifyMasterUnlockRequest: "Unlock Request",
   stripeSecurePayment: "Make secure payments with Stripe!",
   redirecting: "You will be redirected.",
@@ -797,6 +809,22 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   landingPreviewProfit: "Estimated Profit",
   landingPreviewProfitGrowth: "+32% this month",
   supportGreeting: "Any questions? We're here to help!",
+  giftTitle: "Annual Bonus: Website & Mugs",
+  giftDesc: "As an annual subscriber, you are entitled to a professional website and 2 custom mugs! Please describe your idea in detail below. The more details, the better the result.",
+  giftWebsiteIdea: "Website Idea",
+  giftWebsitePlaceholder: "Describe how you want your website (colors, sections, style, etc.)",
+  giftMugIdea: "Custom Mug Idea",
+  giftMugPlaceholder: "Describe what you want printed on the mugs (logo, phrase, colors, etc.)",
+  giftUploadRef: "Upload Reference Image (Optional)",
+  giftSubmit: "Send Idea",
+  giftSuccess: "Idea sent successfully! Our team will review it.",
+  masterGiftsTab: "Gifts",
+  masterGiftRequests: "Gift Requests (Annual)",
+  masterGiftWebsite: "Website Idea",
+  masterGiftMug: "Mug Idea",
+  masterGiftImage: "Reference",
+  masterGiftDownload: "Download Image",
+  masterNoGifts: "No gift requests yet.",
 };
 
 const ptPT: Translation = {
@@ -1130,8 +1158,6 @@ const ptPT: Translation = {
   notifyUnlockDesc: "Já pode editar os dados sensíveis da sua empresa.",
   notifyNewMessageTitle: "Nova Mensagem",
   notifyNewMessageDesc: "O suporte respondeu à sua mensagem.",
-  notifySubscriptionExpiringTitle: "Assinatura a Expirar",
-  notifySubscriptionExpiringDesc: "A sua assinatura irá expirar em breve. Renove agora para manter o acesso!",
   notifyMasterUnlockRequest: "Pedido de Desbloqueio",
   stripeSecurePayment: "Faça pagamentos seguros com a Stripe!",
   redirecting: "Você será redirecionado.",
@@ -1209,6 +1235,22 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   landingPreviewProfit: "Lucro Estimado",
   landingPreviewProfitGrowth: "+32% este mês",
   supportGreeting: "Tens alguma dúvida? Estamos aqui para ajudar!",
+  giftTitle: "Bónus Anual: Website & Canecas",
+  giftDesc: "Como assinante anual, tem direito a um website profissional e 2 canecas personalizadas! Por favor, descreva a sua ideia com o máximo de detalhe abaixo. Quanto mais detalhes, melhor será o resultado.",
+  giftWebsiteIdea: "Ideia para o Website",
+  giftWebsitePlaceholder: "Descreva como imagina o seu website (cores, secções, estilo, etc.)",
+  giftMugIdea: "Ideia para as Canecas",
+  giftMugPlaceholder: "Descreva o que pretende impresso nas canecas (logótipo, frase, cores, etc.)",
+  giftUploadRef: "Carregar Imagem de Referência (Opcional)",
+  giftSubmit: "Enviar Ideia",
+  giftSuccess: "Ideia enviada com sucesso! A nossa equipa irá analisar.",
+  masterGiftsTab: "Brindes",
+  masterGiftRequests: "Pedidos de Brindes (Anual)",
+  masterGiftWebsite: "Ideia Website",
+  masterGiftMug: "Ideia Caneca",
+  masterGiftImage: "Referência",
+  masterGiftDownload: "Descarregar Imagem",
+  masterNoGifts: "Nenhum pedido de brinde ainda.",
 };
 
 const ptBR: Translation = {
@@ -1556,8 +1598,6 @@ const frFR: Translation = {
   notifyUnlockDesc: "Vous pouvez maintenant modifier les données sensibles de votre entreprise.",
   notifyNewMessageTitle: "Nouveau Message",
   notifyNewMessageDesc: "Le support a répondu à votre message.",
-  notifySubscriptionExpiringTitle: "Abonnement Expirant",
-  notifySubscriptionExpiringDesc: "Votre abonnement va bientôt expirer. Renouvelez maintenant pour garder l'accès !",
   notifyMasterUnlockRequest: "Demande de Déverrouillage",
   stripeSecurePayment: "Effectuez des paiements sécurisés avec Stripe !",
   redirecting: "Vous allez être redirigé.",
@@ -1609,6 +1649,22 @@ const frFR: Translation = {
   landingPreviewProfit: "Bénéfice Estimé",
   landingPreviewProfitGrowth: "+32% ce mois-ci",
   supportGreeting: "Bonjour ! Avez-vous des questions ? Nous sommes prêts à vous ajudar.",
+  giftTitle: "Bonus Annuel : Site Web & Mugs",
+  giftDesc: "En tant qu'abonné annuel, vous avez droit à un site web professionnel et 2 mugs personnalisés ! Veuillez décrire votre idée en détail ci-dessous. Plus il y a de détails, meilleur sera le résultat.",
+  giftWebsiteIdea: "Idée de Site Web",
+  giftWebsitePlaceholder: "Décrivez comment vous voulez votre site web (couleurs, sections, style, etc.)",
+  giftMugIdea: "Idée de Mug Personnalisé",
+  giftMugPlaceholder: "Décrivez ce que vous voulez imprimer sur les mugs (logo, phrase, couleurs, etc.)",
+  giftUploadRef: "Télécharger une Image de Référence (Optionnel)",
+  giftSubmit: "Envoyer l'Idée",
+  giftSuccess: "Idée envoyée avec succès ! Notre équipe l'examinera.",
+  masterGiftsTab: "Cadeaux",
+  masterGiftRequests: "Demandes de Cadeaux (Annuel)",
+  masterGiftWebsite: "Idée Site Web",
+  masterGiftMug: "Idée Mug",
+  masterGiftImage: "Référence",
+  masterGiftDownload: "Télécharger l'Image",
+  masterNoGifts: "Aucune demande de cadeau pour le moment.",
 };
 
 const itIT: Translation = {
@@ -1942,8 +1998,6 @@ const itIT: Translation = {
   notifyUnlockDesc: "Ora puoi modificare i dati sensibili della tua azienda.",
   notifyNewMessageTitle: "Nuovo Messaggio",
   notifyNewMessageDesc: "Il supporto ha risposto al tuo messaggio.",
-  notifySubscriptionExpiringTitle: "Abbonamento in Scadenza",
-  notifySubscriptionExpiringDesc: "Il tuo abbonamento scadrà presto. Rinnova ora per mantenere l'accesso!",
   notifyMasterUnlockRequest: "Richiesta di Sblocco",
   stripeSecurePayment: "Effettua pagamenti sicuri con Stripe!",
   redirecting: "Verrai reindirizzato.",
@@ -1995,6 +2049,22 @@ const itIT: Translation = {
   landingPreviewProfit: "Utile Stimato",
   landingPreviewProfitGrowth: "+32% questo mese",
   supportGreeting: "Ciao! Hai domande? Siamo pronti ad aiutarti.",
+  giftTitle: "Bonus Annuale: Sito Web e Tazze",
+  giftDesc: "Come abbonato annuale, hai diritto a un sito web professionale e 2 tazze personalizzate! Descrivi la tua idea in dettaglio qui sotto. Più dettagli fornisci, migliore sarà il risultato.",
+  giftWebsiteIdea: "Idea per il Sito Web",
+  giftWebsitePlaceholder: "Descrivi come desideri il tuo sito web (colori, sezioni, stile, ecc.)",
+  giftMugIdea: "Idea per la Tazza Personalizzata",
+  giftMugPlaceholder: "Descrivi cosa desideri stampato sulle tazze (logo, frase, colori, ecc.)",
+  giftUploadRef: "Carica Immagine di Riferimento (Opzionale)",
+  giftSubmit: "Invia Idea",
+  giftSuccess: "Idea inviata con successo! Il nostro team la esaminerà.",
+  masterGiftsTab: "Regali",
+  masterGiftRequests: "Richieste di Regali (Annuale)",
+  masterGiftWebsite: "Idea Sito Web",
+  masterGiftMug: "Idea Tazza",
+  masterGiftImage: "Riferimento",
+  masterGiftDownload: "Scarica Immagine",
+  masterNoGifts: "Nessuna richiesta di regalo ancora.",
 };
 
 const esES: Translation = {
@@ -2328,8 +2398,6 @@ const esES: Translation = {
   notifyUnlockDesc: "Ya puedes editar los datos sensibles de tu empresa.",
   notifyNewMessageTitle: "Nuevo Mensaje",
   notifyNewMessageDesc: "El soporte ha respondido a tu mensaje.",
-  notifySubscriptionExpiringTitle: "Suscripción por Expirar",
-  notifySubscriptionExpiringDesc: "Tu suscripción expirará pronto. ¡Renueva ahora para mantener el acceso!",
   notifyMasterUnlockRequest: "Solicitud de Desbloqueo",
   stripeSecurePayment: "¡Realice pagos seguros con Stripe!",
   redirecting: "Será redireccionado.",
@@ -2407,6 +2475,22 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   landingPreviewProfit: "Beneficio Estimado",
   landingPreviewProfitGrowth: "+32% este mes",
   supportGreeting: "¡Hola! ¿Tiene alguna pregunta? Estamos listos para ayudar.",
+  giftTitle: "Bono Anual: Sitio Web y Tazas",
+  giftDesc: "Como suscriptor anual, tiene derecho a un sitio web profesional y 2 tazas personalizadas. Describa sua idea en detalle a continuación. Cuantos más detalles, mejor será el resultado.",
+  giftWebsiteIdea: "Idea para el Sitio Web",
+  giftWebsitePlaceholder: "Describa cómo desea su sitio web (colores, secciones, estilo, etc.)",
+  giftMugIdea: "Idea para la Taza Personalizada",
+  giftMugPlaceholder: "Describa lo que desea impreso en las tazas (logotipo, frase, colores, etc.)",
+  giftUploadRef: "Cargar Imagen de Referencia (Opcional)",
+  giftSubmit: "Enviar Idea",
+  giftSuccess: "¡Idea enviada con éxito! Nuestro equipo la revisará.",
+  masterGiftsTab: "Regalos",
+  masterGiftRequests: "Solicitudes de Regalos (Anual)",
+  masterGiftWebsite: "Idea Sitio Web",
+  masterGiftMug: "Idea Taza",
+  masterGiftImage: "Referencia",
+  masterGiftDownload: "Descargar Imagen",
+  masterNoGifts: "Aún no hay solicitudes de regalos.",
 };
 
 const ruRU: Translation = {
@@ -2740,8 +2824,6 @@ const ruRU: Translation = {
   notifyUnlockDesc: "Теперь вы можете редактировать конфиденциальные данные компании.",
   notifyNewMessageTitle: "Новое сообщение",
   notifyNewMessageDesc: "Поддержка ответила на ваше сообщение.",
-  notifySubscriptionExpiringTitle: "Подписка истекает",
-  notifySubscriptionExpiringDesc: "Ваша подписка скоро истечет. Обновите сейчас, чтобы сохранить доступ!",
   notifyMasterUnlockRequest: "Запрос на разблокировку",
   stripeSecurePayment: "Безопасные платежи через Stripe!",
   redirecting: "Вы будете перенаправлены.",
@@ -2793,6 +2875,22 @@ const ruRU: Translation = {
   landingPreviewProfit: "Ожидаемая прибыль",
   landingPreviewProfitGrowth: "+32% в этом месяце",
   supportGreeting: "Здравствуйте! У вас есть вопросы? Мы готовы помочь.",
+  giftTitle: "Годовой бонус: Веб-сайт и кружки",
+  giftDesc: "Как годовой подписчик, вы имеете право на профессиональный веб-сайт и 2 персонализированные кружки! Пожалуйста, подробно опишите свою идею ниже. Чем больше деталей, тем лучше результат.",
+  giftWebsiteIdea: "Идея веб-сайта",
+  giftWebsitePlaceholder: "Опишите, каким вы хотите видеть свой веб-сайт (цвета, разделы, стиль и т. д.)",
+  giftMugIdea: "Идея персонализированной кружки",
+  giftMugPlaceholder: "Опишите, что вы хотите напечатать на кружках (логотип, фраза, цвета и т. д.)",
+  giftUploadRef: "Загрузить эталонное изображение (необязательно)",
+  giftSubmit: "Отправить идею",
+  giftSuccess: "Идея успешно отправлена! Наша команда рассмотрит ее.",
+  masterGiftsTab: "Подарки",
+  masterGiftRequests: "Запросы на подарки (годовые)",
+  masterGiftWebsite: "Идея сайта",
+  masterGiftMug: "Идея кружки",
+  masterGiftImage: "Ссылка",
+  masterGiftDownload: "Скачать изображение",
+  masterNoGifts: "Запросов на подарки пока нет.",
 };
 
 const hiIN: Translation = {
@@ -3126,8 +3224,6 @@ const hiIN: Translation = {
   notifyUnlockDesc: "अब आप अपनी कंपनी का संवेदनशील डेटा संपादित कर सकते हैं।",
   notifyNewMessageTitle: "नया संदेश",
   notifyNewMessageDesc: "सपोर्ट ने आपके संदेश का उत्तर दिया है।",
-  notifySubscriptionExpiringTitle: "सदस्यता समाप्त हो रही है",
-  notifySubscriptionExpiringDesc: "आपकी सदस्यता जल्द ही समाप्त हो जाएगी। पहुंच बनाए रखने के लिए अभी नवीनीकरण करें!",
   notifyMasterUnlockRequest: "अनलॉक अनुरोध",
   stripeSecurePayment: "Stripe के साथ सुरक्षित भुगतान करें!",
   redirecting: "आपको रीडायरेक्ट कर दिया जाएगा।",
@@ -3179,6 +3275,22 @@ const hiIN: Translation = {
   landingPreviewProfit: "अनुमानित लाभ",
   landingPreviewProfitGrowth: "इस महीने +32%",
   supportGreeting: "नमस्ते! क्या आपके पास कोई प्रश्न हैं? हम मदद के लिए तैयार हैं।",
+  giftTitle: "वार्षिक बोनस: वेबसाइट और मग",
+  giftDesc: "एक वार्षिक ग्राहक के रूप में, आप एक पेशेवर वेबसाइट और 2 कस्टम मग के हकदार हैं! कृपया नीचे अपनी योजना का विस्तार से वर्णन करें। जितने अधिक विवरण होंगे, परिणाम उतना ही बेहतर होगा।",
+  giftWebsiteIdea: "वेबसाइट का विचार",
+  giftWebsitePlaceholder: "बताएं कि आप अपनी वेबसाइट कैसी चाहते हैं (रंग, अनुभाग, शैली, आदि)",
+  giftMugIdea: "कस्टम मग का विचार",
+  giftMugPlaceholder: "बताएं कि आप मग पर क्या प्रिंट करना चाहते हैं (लोगो, वाक्यांश, रंग, आदि)",
+  giftUploadRef: "संदर्भ छवि अपलोड करें (वैकल्पिक)",
+  giftSubmit: "विचार भेजें",
+  giftSuccess: "विचार सफलतापूर्वक भेजा गया! हमारी टीम इसकी समीक्षा करेगी।",
+  masterGiftsTab: "उपहार",
+  masterGiftRequests: "उपहार अनुरोध (वार्षिक)",
+  masterGiftWebsite: "वेबसाइट विचार",
+  masterGiftMug: "मग विचार",
+  masterGiftImage: "संदर्भ",
+  masterGiftDownload: "छवि डाउनलोड करें",
+  masterNoGifts: "अभी तक कोई उपहार अनुरोध नहीं है।",
 };
 
 const bnBD: Translation = {
@@ -3512,8 +3624,6 @@ const bnBD: Translation = {
   notifyUnlockDesc: "আপনি এখন আপনার কোম্পানির সংবেদনশীল তথ্য সম্পাদনা করতে পারেন।",
   notifyNewMessageTitle: "নতুন বার্তা",
   notifyNewMessageDesc: "সাপোর্ট আপনার বার্তার উত্তর দিয়েছে।",
-  notifySubscriptionExpiringTitle: "সাবস্ক্রিপশন শেষ হচ্ছে",
-  notifySubscriptionExpiringDesc: "আপনার সাবস্ক্রিপশন শীঘ্রই শেষ হবে। অ্যাক্সেস বজায় রাখতে এখনই রিনিউ করুন!",
   notifyMasterUnlockRequest: "আনলক অনুরোধ",
   stripeSecurePayment: "Stripe এর মাধ্যমে নিরাপদ পেমেন্ট করুন!",
   redirecting: "আপনাকে রিডাইরেক্ট করা হবে।",
@@ -3565,6 +3675,22 @@ const bnBD: Translation = {
   landingPreviewProfit: "আনুমানিক লাভ",
   landingPreviewProfitGrowth: "এই মাসে +৩২%",
   supportGreeting: "হ্যালো! আপনার কি কোন প্রশ্ন আছে? আমরা সাহায্য করতে প্রস্তুত।",
+  giftTitle: "বার্ষিক বোনাস: ওয়েবসাইট এবং মগ",
+  giftDesc: "একজন বার্ষিক গ্রাহক হিসেবে, আপনি একটি পেশাদার ওয়েবসাইট এবং ২টি কাস্টম মগ পাওয়ার অধিকারী! অনুগ্রহ করে নিচে আপনার ধারণা বিস্তারিতভাবে বর্ণনা করুন। যত বেশি বিস্তারিত হবে, ফলাফল তত ভালো হবে।",
+  giftWebsiteIdea: "ওয়েবসাইট ধারণা",
+  giftWebsitePlaceholder: "আপনার ওয়েবসাইট কেমন চান তা বর্ণনা করুন (রঙ, বিভাগ, স্টাইল ইত্যাদি)",
+  giftMugIdea: "কাস্টম মগ ধারণা",
+  giftMugPlaceholder: "মগে আপনি কী প্রিন্ট করতে চান তা বর্ণনা করুন (লোগো, বাক্যাংশ, রঙ ইত্যাদি)",
+  giftUploadRef: "রেফারেন্স ইমেজ আপলোড করুন (ঐচ্ছিক)",
+  giftSubmit: "ধারণা পাঠান",
+  giftSuccess: "ধারণা সফলভাবে পাঠানো হয়েছে! আমাদের দল এটি পর্যালোচনা করবে।",
+  masterGiftsTab: "উপহার",
+  masterGiftRequests: "উপহারের অনুরোধ (বার্ষিক)",
+  masterGiftWebsite: "ওয়েবসাইট ধারণা",
+  masterGiftMug: "মগ ধারণা",
+  masterGiftImage: "রেফারেন্স",
+  masterGiftDownload: "ছবি ডাউনলোড করুন",
+  masterNoGifts: "এখনও কোন উপহারের অনুরোধ নেই।",
 };
 
 export const translations: Record<Locale, Translation> = {
