@@ -314,6 +314,8 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && view === 'app' && !showWelcome) {
+      const justPurchased = sessionStorage.getItem('just_purchased');
+      
       const bannerTimer = setTimeout(() => {
         const allNotifications = getGlobalNotifications();
         const activeBanners = allNotifications.filter(n => n.active);
@@ -321,19 +323,27 @@ const App: React.FC = () => {
         const isPremium = userPlan === PlanType.PREMIUM_MONTHLY || userPlan === PlanType.PREMIUM_ANNUAL || userPlan === PlanType.PREMIUM;
         
         const matchingBanner = [...activeBanners].reverse().find(n => {
-          if (n.targetAudience === 'all') return true;
-          if (n.targetAudience === 'free' && userPlan === PlanType.FREE) return true;
-          if (n.targetAudience === 'premium_monthly' && (userPlan === PlanType.PREMIUM_MONTHLY || userPlan === PlanType.PREMIUM)) return true;
-          if (n.targetAudience === 'premium_annual' && userPlan === PlanType.PREMIUM_ANNUAL) return true;
-          if (n.targetAudience === 'all_premium' && isPremium) return true;
+          // Priority for purchase success banners
+          if (justPurchased === PlanType.PREMIUM_MONTHLY && n.targetAudience === 'monthly_purchase') return true;
+          if (justPurchased === PlanType.PREMIUM_ANNUAL && n.targetAudience === 'annual_purchase') return true;
+          
+          // Regular banners (only if not just purchased or if no purchase banner found)
+          if (!justPurchased) {
+            if (n.targetAudience === 'all') return true;
+            if (n.targetAudience === 'free' && userPlan === PlanType.FREE) return true;
+            if (n.targetAudience === 'premium_monthly' && (userPlan === PlanType.PREMIUM_MONTHLY || userPlan === PlanType.PREMIUM)) return true;
+            if (n.targetAudience === 'premium_annual' && userPlan === PlanType.PREMIUM_ANNUAL) return true;
+            if (n.targetAudience === 'all_premium' && isPremium) return true;
+          }
           return false;
         });
 
         if (matchingBanner) {
           setActiveNotification(matchingBanner);
           setShowNotificationModal(true);
+          if (justPurchased) sessionStorage.removeItem('just_purchased');
         }
-      }, 25000);
+      }, justPurchased ? 1000 : 25000);
       return () => clearTimeout(bannerTimer);
     }
   }, [view, showWelcome, currentUser?.id, currentUser?.plan]);
@@ -1227,6 +1237,8 @@ const App: React.FC = () => {
         if (updatedUser) {
           setCurrentUser(updatedUser);
           currentUserRef.current = updatedUser;
+          // Flag for purchase success banner
+          sessionStorage.setItem('just_purchased', updatedUser.plan);
           alert(t.upgradeSuccess);
         }
         // Clean up URL

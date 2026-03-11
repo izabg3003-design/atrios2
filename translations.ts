@@ -218,6 +218,8 @@ export interface Translation {
   masterAudienceAnnual: string;
   masterAudienceFree: string;
   masterAudiencePremiumAll: string;
+  masterAudienceMonthlyPurchase: string;
+  masterAudienceAnnualPurchase: string;
   masterSaveActivate: string;
   masterRemove: string;
   masterHowItWorksTitle: string;
@@ -601,6 +603,8 @@ const enUS: Translation = {
   masterAudienceAnnual: "Annual",
   masterAudienceFree: "Free",
   masterAudiencePremiumAll: "Premium",
+  masterAudienceMonthlyPurchase: "Monthly Purchase (Success)",
+  masterAudienceAnnualPurchase: "Annual Purchase (Success)",
   masterSaveActivate: "Save and Activate",
   masterRemove: "Remove",
   masterHowItWorksTitle: "How it works?",
@@ -1009,6 +1013,8 @@ const ptPT: Translation = {
   masterAudienceAnnual: "Anual",
   masterAudienceFree: "Grátis",
   masterAudiencePremiumAll: "Premium",
+  masterAudienceMonthlyPurchase: "Compra Mensal (Sucesso)",
+  masterAudienceAnnualPurchase: "Compra Anual (Sucesso)",
   masterSaveActivate: "Guardar e Ativar",
   masterRemove: "Remover",
   masterHowItWorksTitle: "Como funciona?",
@@ -1431,6 +1437,8 @@ const frFR: Translation = {
   masterAudienceAnnual: "Annuel",
   masterAudienceFree: "Gratuit",
   masterAudiencePremiumAll: "Premium",
+  masterAudienceMonthlyPurchase: "Achat Mensuel (Succès)",
+  masterAudienceAnnualPurchase: "Achat Annuel (Succès)",
   masterSaveActivate: "Activer",
   masterRemove: "Supprimer",
   masterHowItWorksTitle: "Fonctionnement",
@@ -1813,6 +1821,8 @@ const itIT: Translation = {
   masterAudienceAnnual: "Annuale",
   masterAudienceFree: "Gratis",
   masterAudiencePremiumAll: "Premium",
+  masterAudienceMonthlyPurchase: "Acquisto Mensile (Successo)",
+  masterAudienceAnnualPurchase: "Acquisto Annuale (Successo)",
   masterSaveActivate: "Attiva",
   masterRemove: "Rimuovi",
   masterHowItWorksTitle: "Funzionamento",
@@ -2195,6 +2205,8 @@ const esES: Translation = {
   masterAudienceAnnual: "Anual",
   masterAudienceFree: "Gratis",
   masterAudiencePremiumAll: "Premium",
+  masterAudienceMonthlyPurchase: "Compra Mensual (Éxito)",
+  masterAudienceAnnualPurchase: "Compra Anual (Éxito)",
   masterSaveActivate: "Activar",
   masterRemove: "Quitar",
   masterHowItWorksTitle: "Función",
@@ -2603,6 +2615,8 @@ const ruRU: Translation = {
   masterAudienceAnnual: "Год",
   masterAudienceFree: "Бесплатно",
   masterAudiencePremiumAll: "Премиум",
+  masterAudienceMonthlyPurchase: "Ежемесячная покупка (Успех)",
+  masterAudienceAnnualPurchase: "Годовая покупка (Успех)",
   masterSaveActivate: "OK",
   masterRemove: "Удалить",
   masterHowItWorksTitle: "Как это работает",
@@ -2985,6 +2999,8 @@ const hiIN: Translation = {
   masterAudienceAnnual: "वार्षिक",
   masterAudienceFree: "मुफ्त",
   masterAudiencePremiumAll: "प्रीमियम",
+  masterAudienceMonthlyPurchase: "मासिक खरीद (सफलता)",
+  masterAudienceAnnualPurchase: "वार्षिक खरीद (सफलता)",
   masterSaveActivate: "सक्रिय",
   masterRemove: "हटाएं",
   masterHowItWorksTitle: "कैसे काम करता है",
@@ -3367,6 +3383,8 @@ const bnBD: Translation = {
   masterAudienceAnnual: "বার্ষিক",
   masterAudienceFree: "ফ্রি",
   masterAudiencePremiumAll: "প্রিমিয়াম",
+  masterAudienceMonthlyPurchase: "মাসিক ক্রয় (সফল)",
+  masterAudienceAnnualPurchase: "বার্ষিক ক্রয় (সফল)",
   masterSaveActivate: "অন",
   masterRemove: "মুছুন",
   masterHowItWorksTitle: "কিভাবে কাজ করে",

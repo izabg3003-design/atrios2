@@ -149,7 +149,7 @@ export interface Company {
   stripe_subscription_id?: string;
 }
 
-export type AudienceType = 'all' | 'free' | 'premium_monthly' | 'premium_annual' | 'all_premium';
+export type AudienceType = 'all' | 'free' | 'premium_monthly' | 'premium_annual' | 'all_premium' | 'monthly_purchase' | 'annual_purchase';
 
 export interface GlobalNotification {
   id: string;

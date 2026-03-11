@@ -87,6 +87,30 @@ async function startServer() {
           }
           break;
         }
+        case "invoice.paid": {
+          const invoice = event.data.object as any;
+          const subscriptionId = invoice.subscription as string;
+          
+          if (subscriptionId) {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            const companyId = subscription.metadata.companyId;
+            const planType = subscription.metadata.planType;
+
+            if (companyId && planType) {
+              const { error } = await supabase
+                .from("companies")
+                .update({ 
+                  plan: planType,
+                  stripe_customer_id: invoice.customer as string,
+                  stripe_subscription_id: subscriptionId
+                })
+                .eq("id", companyId);
+              
+              if (error) console.error("Error updating company plan (invoice.paid):", error);
+            }
+          }
+          break;
+        }
         case "customer.subscription.deleted": {
           const subscription = event.data.object as Stripe.Subscription;
           const { error } = await supabase
@@ -253,6 +277,172 @@ async function startServer() {
       res.json({ id: session.id, url: session.url });
     } catch (error: any) {
       console.error("Stripe Session Error:", error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  app.post("/api/create-subscription", async (req, res) => {
+    const { companyId, planType, email } = req.body;
+
+    let priceId = "";
+    let monthlyId = (process.env.STRIPE_MONTHLY_PRICE_ID || "price_1T3e4x1kTCJBb2eQJBnM0adW").trim();
+    let annualId = (process.env.STRIPE_ANNUAL_PRICE_ID || "price_1T3e8d1kTCJBb2eQgqKiRoN1").trim();
+
+    // Hotfix: If the environment still has the old incorrect IDs, override them
+    const invalidIds = [
+      "price_1T3YhcP8uJW17aRIpkBFJHvu",
+      "price_1T3YmmP8uJW17aRIQhPP5gmK"
+    ];
+
+    if (invalidIds.includes(monthlyId)) {
+      monthlyId = "price_1T3e4x1kTCJBb2eQJBnM0adW";
+    }
+    if (invalidIds.includes(annualId)) {
+      annualId = "price_1T3e8d1kTCJBb2eQgqKiRoN1";
+    }
+
+    if (planType === "premium_monthly") {
+      priceId = monthlyId;
+    } else if (planType === "premium_annual") {
+      priceId = annualId;
+    }
+
+    if (!priceId) {
+      return res.status(400).json({ error: "Invalid plan type" });
+    }
+
+    try {
+      // Create or get customer
+      let customer;
+      const { data: company } = await supabase
+        .from("companies")
+        .select("stripe_customer_id, email")
+        .eq("id", companyId)
+        .single();
+
+      if (company?.stripe_customer_id) {
+        customer = await stripe.customers.retrieve(company.stripe_customer_id);
+      } else {
+        customer = await stripe.customers.create({
+          email: email || company?.email,
+          metadata: { companyId },
+        });
+        await supabase
+          .from("companies")
+          .update({ stripe_customer_id: customer.id })
+          .eq("id", companyId);
+      }
+
+      // Create subscription
+      const subscription = await stripe.subscriptions.create({
+        customer: (customer as Stripe.Customer).id,
+        items: [{ price: priceId }],
+        payment_behavior: "default_incomplete",
+        payment_settings: { save_default_payment_method: "on_subscription" },
+        expand: ["latest_invoice.payment_intent", "pending_setup_intent"],
+        metadata: { companyId, planType },
+      });
+
+      // Improved retrieval logic with retries to handle eventual consistency
+      let currentSubscription = subscription;
+      let attempts = 0;
+      const maxAttempts = 7; // Increased attempts further
+      let paymentIntent: any = null;
+      let setupIntent: any = null;
+      
+      while (attempts < maxAttempts) {
+        console.log(`[Stripe] Attempt ${attempts + 1} for sub ${currentSubscription.id}. Status: ${currentSubscription.status}`);
+        
+        // 1. Try to get invoice from subscription
+        let invoice = currentSubscription.latest_invoice as any;
+        
+        // 2. If invoice is null, try to list invoices
+        if (!invoice) {
+          console.log(`[Stripe] latest_invoice is null, fetching invoices list...`);
+          const invoices = await stripe.invoices.list({
+            subscription: currentSubscription.id,
+            limit: 1,
+            expand: ['data.payment_intent']
+          });
+          if (invoices.data.length > 0) {
+            invoice = invoices.data[0];
+            console.log(`[Stripe] Found invoice via list: ${invoice.id}`);
+          }
+        }
+        
+        // 3. Resolve invoice if it's a string
+        if (typeof invoice === 'string') {
+          invoice = await stripe.invoices.retrieve(invoice, {
+            expand: ['payment_intent']
+          });
+        }
+
+        // 3.5 If invoice is still in draft, finalize it to generate a payment intent
+        if (invoice && invoice.status === 'draft') {
+          console.log(`[Stripe] Invoice ${invoice.id} is in draft status, finalizing...`);
+          try {
+            invoice = await stripe.invoices.finalizeInvoice(invoice.id, {
+              expand: ['payment_intent']
+            });
+            console.log(`[Stripe] Invoice ${invoice.id} finalized.`);
+          } catch (finalError) {
+            console.error(`[Stripe] Error finalizing invoice:`, finalError);
+          }
+        }
+
+        // 4. Extract intents
+        paymentIntent = invoice?.payment_intent as any;
+        setupIntent = currentSubscription.pending_setup_intent as any;
+
+        // 5. If intents are still strings, retrieve them
+        if (typeof paymentIntent === 'string') {
+          paymentIntent = await stripe.paymentIntents.retrieve(paymentIntent);
+        }
+        if (typeof setupIntent === 'string') {
+          setupIntent = await stripe.setupIntents.retrieve(setupIntent);
+        }
+
+        // 6. If we still don't have a payment intent, check if the invoice has one we missed
+        if (invoice && !paymentIntent && invoice.payment_intent) {
+           const piId = typeof invoice.payment_intent === 'string' ? invoice.payment_intent : invoice.payment_intent.id;
+           if (piId) {
+             paymentIntent = await stripe.paymentIntents.retrieve(piId);
+           }
+        }
+
+        console.log(`[Stripe] Intent status - PaymentIntent: ${paymentIntent?.id || 'Missing'}, SetupIntent: ${setupIntent?.id || 'Missing'}`);
+
+        // 7. Check if we have a client secret or if the subscription is already active
+        if (paymentIntent?.client_secret || setupIntent?.client_secret || ['active', 'trialing'].includes(currentSubscription.status)) {
+          console.log(`[Stripe] Success! Status: ${currentSubscription.status}, ClientSecret: ${!!(paymentIntent?.client_secret || setupIntent?.client_secret)}`);
+          return res.json({
+            subscriptionId: currentSubscription.id,
+            clientSecret: paymentIntent?.client_secret || setupIntent?.client_secret || null,
+            status: currentSubscription.status
+          });
+        }
+
+        // 8. If we don't have an intent yet, wait and retry
+        attempts++;
+        if (attempts < maxAttempts) {
+          const delay = 2500; // Increased delay to 2.5s
+          console.log(`[Stripe] Attempt ${attempts} failed to find intent. Retrying in ${delay}ms...`);
+          await new Promise(resolve => setTimeout(resolve, delay));
+          currentSubscription = await stripe.subscriptions.retrieve(currentSubscription.id, {
+            expand: ['latest_invoice.payment_intent', 'pending_setup_intent']
+          });
+        }
+      }
+
+      // If we reach here, we've exhausted retries and still have no intent
+      console.error("CRITICAL: Exhausted retries. Missing payment/setup intent for subscription:", currentSubscription.id, "Status:", currentSubscription.status);
+      
+      // One last check: if status is incomplete but we have an invoice, maybe we can return the invoice URL?
+      // But for the embedded flow we need the client secret.
+      
+      throw new Error(`Não foi possível gerar o formulário de pagamento após ${maxAttempts} tentativas. Status: ${currentSubscription.status}. Por favor, verifique se o seu método de pagamento é válido ou tente novamente mais tarde.`);
+    } catch (error: any) {
+      console.error("Subscription Creation Error:", error);
       res.status(500).json({ error: error.message });
     }
   });
