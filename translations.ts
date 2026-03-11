@@ -332,6 +332,8 @@ export interface Translation {
   notifyUnlockDesc: string;
   notifyNewMessageTitle: string;
   notifyNewMessageDesc: string;
+  notifySubscriptionExpiringTitle: string;
+  notifySubscriptionExpiringDesc: string;
   notifyMasterUnlockRequest: string;
   stripeSecurePayment: string;
   redirecting: string;
@@ -716,6 +718,8 @@ const enUS: Translation = {
   notifyUnlockDesc: "You can now edit your company sensitive data.",
   notifyNewMessageTitle: "New Message",
   notifyNewMessageDesc: "Support has replied to your message.",
+  notifySubscriptionExpiringTitle: "Subscription Expiring",
+  notifySubscriptionExpiringDesc: "Your subscription will expire soon. Renew now to maintain access!",
   notifyMasterUnlockRequest: "Unlock Request",
   stripeSecurePayment: "Make secure payments with Stripe!",
   redirecting: "You will be redirected.",
@@ -1126,6 +1130,8 @@ const ptPT: Translation = {
   notifyUnlockDesc: "Já pode editar os dados sensíveis da sua empresa.",
   notifyNewMessageTitle: "Nova Mensagem",
   notifyNewMessageDesc: "O suporte respondeu à sua mensagem.",
+  notifySubscriptionExpiringTitle: "Assinatura a Expirar",
+  notifySubscriptionExpiringDesc: "A sua assinatura irá expirar em breve. Renove agora para manter o acesso!",
   notifyMasterUnlockRequest: "Pedido de Desbloqueio",
   stripeSecurePayment: "Faça pagamentos seguros com a Stripe!",
   redirecting: "Você será redirecionado.",
@@ -1550,6 +1556,8 @@ const frFR: Translation = {
   notifyUnlockDesc: "Vous pouvez maintenant modifier les données sensibles de votre entreprise.",
   notifyNewMessageTitle: "Nouveau Message",
   notifyNewMessageDesc: "Le support a répondu à votre message.",
+  notifySubscriptionExpiringTitle: "Abonnement Expirant",
+  notifySubscriptionExpiringDesc: "Votre abonnement va bientôt expirer. Renouvelez maintenant pour garder l'accès !",
   notifyMasterUnlockRequest: "Demande de Déverrouillage",
   stripeSecurePayment: "Effectuez des paiements sécurisés avec Stripe !",
   redirecting: "Vous allez être redirigé.",
@@ -1934,6 +1942,8 @@ const itIT: Translation = {
   notifyUnlockDesc: "Ora puoi modificare i dati sensibili della tua azienda.",
   notifyNewMessageTitle: "Nuovo Messaggio",
   notifyNewMessageDesc: "Il supporto ha risposto al tuo messaggio.",
+  notifySubscriptionExpiringTitle: "Abbonamento in Scadenza",
+  notifySubscriptionExpiringDesc: "Il tuo abbonamento scadrà presto. Rinnova ora per mantenere l'accesso!",
   notifyMasterUnlockRequest: "Richiesta di Sblocco",
   stripeSecurePayment: "Effettua pagamenti sicuri con Stripe!",
   redirecting: "Verrai reindirizzato.",
@@ -2318,6 +2328,8 @@ const esES: Translation = {
   notifyUnlockDesc: "Ya puedes editar los datos sensibles de tu empresa.",
   notifyNewMessageTitle: "Nuevo Mensaje",
   notifyNewMessageDesc: "El soporte ha respondido a tu mensaje.",
+  notifySubscriptionExpiringTitle: "Suscripción por Expirar",
+  notifySubscriptionExpiringDesc: "Tu suscripción expirará pronto. ¡Renueva ahora para mantener el acceso!",
   notifyMasterUnlockRequest: "Solicitud de Desbloqueo",
   stripeSecurePayment: "¡Realice pagos seguros con Stripe!",
   redirecting: "Será redireccionado.",
@@ -2728,6 +2740,8 @@ const ruRU: Translation = {
   notifyUnlockDesc: "Теперь вы можете редактировать конфиденциальные данные компании.",
   notifyNewMessageTitle: "Новое сообщение",
   notifyNewMessageDesc: "Поддержка ответила на ваше сообщение.",
+  notifySubscriptionExpiringTitle: "Подписка истекает",
+  notifySubscriptionExpiringDesc: "Ваша подписка скоро истечет. Обновите сейчас, чтобы сохранить доступ!",
   notifyMasterUnlockRequest: "Запрос на разблокировку",
   stripeSecurePayment: "Безопасные платежи через Stripe!",
   redirecting: "Вы будете перенаправлены.",
@@ -3112,6 +3126,8 @@ const hiIN: Translation = {
   notifyUnlockDesc: "अब आप अपनी कंपनी का संवेदनशील डेटा संपादित कर सकते हैं।",
   notifyNewMessageTitle: "नया संदेश",
   notifyNewMessageDesc: "सपोर्ट ने आपके संदेश का उत्तर दिया है।",
+  notifySubscriptionExpiringTitle: "सदस्यता समाप्त हो रही है",
+  notifySubscriptionExpiringDesc: "आपकी सदस्यता जल्द ही समाप्त हो जाएगी। पहुंच बनाए रखने के लिए अभी नवीनीकरण करें!",
   notifyMasterUnlockRequest: "अनलॉक अनुरोध",
   stripeSecurePayment: "Stripe के साथ सुरक्षित भुगतान करें!",
   redirecting: "आपको रीडायरेक्ट कर दिया जाएगा।",
@@ -3496,6 +3512,8 @@ const bnBD: Translation = {
   notifyUnlockDesc: "আপনি এখন আপনার কোম্পানির সংবেদনশীল তথ্য সম্পাদনা করতে পারেন।",
   notifyNewMessageTitle: "নতুন বার্তা",
   notifyNewMessageDesc: "সাপোর্ট আপনার বার্তার উত্তর দিয়েছে।",
+  notifySubscriptionExpiringTitle: "সাবস্ক্রিপশন শেষ হচ্ছে",
+  notifySubscriptionExpiringDesc: "আপনার সাবস্ক্রিপশন শীঘ্রই শেষ হবে। অ্যাক্সেস বজায় রাখতে এখনই রিনিউ করুন!",
   notifyMasterUnlockRequest: "আনলক অনুরোধ",
   stripeSecurePayment: "Stripe এর মাধ্যমে নিরাপদ পেমেন্ট করুন!",
   redirecting: "আপনাকে রিডাইরেক্ট করা হবে।",
