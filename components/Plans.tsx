@@ -96,9 +96,6 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       bestValue: true,
       features: [
         t.featEverythingMonthly,
-        t.planWebsiteBonus,
-        t.planMugsBonus,
-        t.planDomainBonus,
         t.featCloudBackup,
         t.featHdLogo
       ],

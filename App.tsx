@@ -34,8 +34,7 @@ import {
   Headphones,
   MessageSquare,
   ShieldCheck,
-  Mail,
-  Gift
+  Mail
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
 import { 
@@ -60,7 +59,6 @@ import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
 import PremiumBanner from './components/PremiumBanner';
-import { GiftRequestForm } from './components/GiftRequestForm';
 import PaymentManager from './components/PaymentManager';
 import ExpenseManager from './components/ExpenseManager';
 import Plans from './components/Plans';
@@ -102,7 +100,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'gifts'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -144,9 +142,33 @@ const App: React.FC = () => {
   const [unreadCount, setUnreadCount] = useState(0);
   const [showNewMessageAlert, setShowNewMessageAlert] = useState(false);
   const [showUnlockAlert, setShowUnlockAlert] = useState(false);
+  const [showExpiryAlert, setShowExpiryAlert] = useState(false);
+  const [daysRemaining, setDaysRemaining] = useState<number | null>(null);
   const [showSupportGreeting, setShowSupportGreeting] = useState(false);
   const [greetingShown, setGreetingShown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  useEffect(() => {
+    if (currentUser && currentUser.subscriptionExpiresAt && currentUser.plan !== PlanType.FREE) {
+      const expiryDate = new Date(currentUser.subscriptionExpiresAt);
+      const today = new Date();
+      const diffTime = expiryDate.getTime() - today.getTime();
+      const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+      
+      setDaysRemaining(diffDays);
+
+      if (currentUser.plan === PlanType.PREMIUM_MONTHLY && diffDays <= 5 && diffDays > 0) {
+        setShowExpiryAlert(true);
+      } else if (currentUser.plan === PlanType.PREMIUM_ANNUAL && diffDays <= 30 && diffDays > 0) {
+        setShowExpiryAlert(true);
+      } else {
+        setShowExpiryAlert(false);
+      }
+    } else {
+      setShowExpiryAlert(false);
+      setDaysRemaining(null);
+    }
+  }, [currentUser?.subscriptionExpiresAt, currentUser?.plan]);
 
   useEffect(() => {
     if (currentUser && view === 'app' && !greetingShown) {
@@ -1487,6 +1509,19 @@ const App: React.FC = () => {
         </div>
       )}
 
+      {showExpiryAlert && daysRemaining !== null && (
+        <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[10000] bg-amber-600 text-white px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-top duration-700 border border-amber-400">
+           <div className="w-12 h-12 bg-white/20 rounded-full flex items-center justify-center animate-pulse"><Clock size={28} /></div>
+           <div>
+             <p className="font-black text-sm uppercase tracking-widest">ATENÇÃO!!!!</p>
+             <p className="text-xs font-bold text-white/80">
+               {t.subscriptionExpiryAlert.replace('{{days}}', daysRemaining.toString())}
+             </p>
+           </div>
+           <button onClick={() => setShowExpiryAlert(false)} className="ml-4 p-2 hover:bg-white/10 rounded-full"><X size={20} /></button>
+        </div>
+      )}
+
       {showNewMessageAlert && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[9998] bg-slate-900 text-white px-8 py-5 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-top duration-500 border border-white/10">
           <div className="w-12 h-12 bg-amber-500 text-slate-900 rounded-full flex items-center justify-center animate-bounce shadow-lg"><MessageSquare size={24} /></div>
@@ -1988,7 +2023,6 @@ const App: React.FC = () => {
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
                   { id: 'plans', label: t.plans, icon: Crown },
-                  ...(currentUser?.plan === PlanType.PREMIUM_ANNUAL ? [{ id: 'gifts', label: t.giftTitle.split(':')[0], icon: Gift }] : []),
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
@@ -2102,10 +2136,6 @@ const App: React.FC = () => {
                 <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12">
                   {currentUser?.plan === PlanType.FREE && activeTab === 'dashboard' && <PremiumBanner locale={locale} onUpgrade={() => setActiveTab('plans')} />}
                   {activeTab === 'dashboard' && <Dashboard locale={locale} currencyCode={currencyCode} budgets={budgets} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => setActiveTab('plans')} />}
-                  
-                  {activeTab === 'gifts' && currentUser?.plan === PlanType.PREMIUM_ANNUAL && (
-                    <GiftRequestForm company={currentUser} locale={locale} />
-                  )}
                   
                   {activeTab === 'reports' && (
                     currentUser?.plan === PlanType.FREE ? (
