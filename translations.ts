@@ -381,6 +381,14 @@ export interface Translation {
   landingPreviewProfitGrowth: string;
   supportGreeting: string;
   subscriptionExpiryAlert: string;
+  projectFilesLabel: string;
+  uploadPdfLabel: string;
+  viewPdfLabel: string;
+  downloadPdfLabel: string;
+  noFilesLabel: string;
+  addFileLabel: string;
+  fileLimitReached: string;
+  upgradeToUploadFiles: string;
 }
 
 const enUS: Translation = {
@@ -789,6 +797,14 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   landingPreviewProfitGrowth: "+32% this month",
   supportGreeting: "Any questions? We're here to help!",
   subscriptionExpiryAlert: "Attention! Your subscription expires in {{days}} days.",
+  projectFilesLabel: "Project Files",
+  uploadPdfLabel: "Upload PDF",
+  viewPdfLabel: "View",
+  downloadPdfLabel: "Download",
+  noFilesLabel: "No files uploaded",
+  addFileLabel: "Add File",
+  fileLimitReached: "File limit reached!",
+  upgradeToUploadFiles: "Upgrade to upload project files",
 };
 
 const ptPT: Translation = {
@@ -1197,6 +1213,14 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   landingPreviewProfitGrowth: "+32% este mês",
   supportGreeting: "Tens alguma dúvida? Estamos aqui para ajudar!",
   subscriptionExpiryAlert: "Atenção! A sua assinatura expira em {{days}} dias.",
+  projectFilesLabel: "Arquivos do Projeto",
+  uploadPdfLabel: "Upload PDF",
+  viewPdfLabel: "Visualizar",
+  downloadPdfLabel: "Download",
+  noFilesLabel: "Nenhum arquivo enviado",
+  addFileLabel: "Adicionar Arquivo",
+  fileLimitReached: "Limite de arquivos atingido!",
+  upgradeToUploadFiles: "Upgrade para anexar arquivos ao projeto",
 };
 
 const ptBR: Translation = {
@@ -1594,6 +1618,14 @@ const frFR: Translation = {
   landingPreviewProfitGrowth: "+32% ce mois-ci",
   supportGreeting: "Bonjour ! Avez-vous des questions ? Nous sommes prêts à vous ajudar.",
   subscriptionExpiryAlert: "Attention ! Votre abonnement expire dans {{days}} jours.",
+  projectFilesLabel: "Fichiers du Projet",
+  uploadPdfLabel: "Télécharger PDF",
+  viewPdfLabel: "Voir",
+  downloadPdfLabel: "Télécharger",
+  noFilesLabel: "Aucun fichier téléchargé",
+  addFileLabel: "Ajouter un fichier",
+  fileLimitReached: "Limite de fichiers atteinte !",
+  upgradeToUploadFiles: "Mettez à niveau pour joindre des fichiers",
 };
 
 const itIT: Translation = {
@@ -1976,6 +2008,14 @@ const itIT: Translation = {
   landingPreviewProfitGrowth: "+32% questo mese",
   supportGreeting: "Ciao! Hai domande? Siamo pronti ad aiutarti.",
   subscriptionExpiryAlert: "Attenzione! Il tuo abbonamento scade tra {{days}} giorni.",
+  projectFilesLabel: "File del Progetto",
+  uploadPdfLabel: "Carica PDF",
+  viewPdfLabel: "Visualizza",
+  downloadPdfLabel: "Scarica",
+  noFilesLabel: "Nessun file caricato",
+  addFileLabel: "Aggiungi File",
+  fileLimitReached: "Limite file raggiunto!",
+  upgradeToUploadFiles: "Aggiorna per allegare file",
 };
 
 const esES: Translation = {
@@ -2384,6 +2424,14 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   landingPreviewProfitGrowth: "+32% este mes",
   supportGreeting: "¡Hola! ¿Tiene alguna pregunta? Estamos listos para ayudar.",
   subscriptionExpiryAlert: "¡Atención! Tu suscripción caduca en {{days}} días.",
+  projectFilesLabel: "Archivos del Proyecto",
+  uploadPdfLabel: "Subir PDF",
+  viewPdfLabel: "Ver",
+  downloadPdfLabel: "Descargar",
+  noFilesLabel: "No hay archivos subidos",
+  addFileLabel: "Añadir Archivo",
+  fileLimitReached: "¡Límite de archivos alcanzado!",
+  upgradeToUploadFiles: "Actualiza para adjuntar archivos",
 };
 
 const ruRU: Translation = {
@@ -2766,6 +2814,14 @@ const ruRU: Translation = {
   landingPreviewProfitGrowth: "+32% в этом месяце",
   supportGreeting: "Здравствуйте! У вас есть вопросы? Мы готовы помочь.",
   subscriptionExpiryAlert: "Внимание! Ваша подписка истекает через {{days}} дней.",
+  projectFilesLabel: "Файлы проекта",
+  uploadPdfLabel: "Загрузить PDF",
+  viewPdfLabel: "Просмотреть",
+  downloadPdfLabel: "Скачать",
+  noFilesLabel: "Файлы не загружены",
+  addFileLabel: "Добавить файл",
+  fileLimitReached: "Лимит файлов исчерпан!",
+  upgradeToUploadFiles: "Обновитесь, чтобы прикреплять файлы",
 };
 
 const hiIN: Translation = {
@@ -3148,6 +3204,14 @@ const hiIN: Translation = {
   landingPreviewProfitGrowth: "इस महीने +32%",
   supportGreeting: "नमस्ते! क्या आपके पास कोई प्रश्न हैं? हम मदद के लिए तैयार हैं।",
   subscriptionExpiryAlert: "ध्यान दें! आपकी सदस्यता {{days}} दिनों में समाप्त हो जाएगी।",
+  projectFilesLabel: "परियोजना फ़ाइलें",
+  uploadPdfLabel: "PDF अपलोड करें",
+  viewPdfLabel: "देखें",
+  downloadPdfLabel: "डाउनलोड करें",
+  noFilesLabel: "कोई फ़ाइल अपलोड नहीं की गई",
+  addFileLabel: "फ़ाइल जोड़ें",
+  fileLimitReached: "फ़ाइल सीमा समाप्त!",
+  upgradeToUploadFiles: "फ़ाइलें अपलोड करने के लिए अपग्रेड करें",
 };
 
 const bnBD: Translation = {
@@ -3530,6 +3594,14 @@ const bnBD: Translation = {
   landingPreviewProfitGrowth: "এই মাসে +৩২%",
   supportGreeting: "হ্যালো! আপনার কি কোন প্রশ্ন আছে? আমরা সাহায্য করতে প্রস্তুত।",
   subscriptionExpiryAlert: "মনোযোগ! আপনার সাবস্ক্রিপশন {{days}} দিনের মধ্যে শেষ হবে।",
+  projectFilesLabel: "প্রকল্প ফাইল",
+  uploadPdfLabel: "PDF আপলোড করুন",
+  viewPdfLabel: "দেখুন",
+  downloadPdfLabel: "ডাউনলোড করুন",
+  noFilesLabel: "কোন ফাইল আপলোড করা হয়নি",
+  addFileLabel: "ফাইল যোগ করুন",
+  fileLimitReached: "ফাইল সীমা অতিক্রম করেছে!",
+  upgradeToUploadFiles: "ফাইল আপলোড করতে আপগ্রেড করুন",
 };
 
 export const translations: Record<Locale, Translation> = {

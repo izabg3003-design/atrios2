@@ -14,6 +14,8 @@ import {
   CheckCircle2, 
   XCircle, 
   Clock, 
+  Banknote,
+  Eye,
   Download,
   Crown,
   Construction,
@@ -395,6 +397,11 @@ const App: React.FC = () => {
     if (!currentUser) return true;
     const hasData = !!(currentUser.logo || currentUser.nif);
     return hasData && !currentUser.canEditSensitiveData;
+  }, [currentUser]);
+
+  const isPremium = useMemo(() => {
+    if (!currentUser) return false;
+    return currentUser.plan !== PlanType.FREE;
   }, [currentUser]);
 
   const canCreateBudget = useMemo(() => {
@@ -1211,6 +1218,26 @@ const App: React.FC = () => {
         setView('app');
       }, 3500);
     }
+  };
+
+  const viewProof = (url: string) => {
+    const win = window.open();
+    if (win) {
+      if (url.startsWith('data:application/pdf')) {
+        win.document.write(`<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`);
+      } else {
+        win.document.write(`<img src="${url}" style="max-width:100%">`);
+      }
+    }
+  };
+
+  const downloadProof = (url: string, name: string) => {
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = name;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
   };
 
   const handleSaveBudget = (budget: Budget) => {
@@ -2205,6 +2232,32 @@ const App: React.FC = () => {
                                     <span className="flex items-center gap-1.5 lg:gap-2"><User size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {budget.contactName}</span>
                                     <span className="flex items-center gap-1.5 lg:gap-2"><Clock size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span>
                                   </div>
+                                  {isPremium && budget.projectFiles && budget.projectFiles.length > 0 && (
+                                    <div className="mt-3 flex flex-wrap gap-2">
+                                      {budget.projectFiles.map(file => (
+                                        <div key={file.id} className="flex items-center gap-2 bg-slate-50 px-3 py-1.5 rounded-lg border border-slate-100 group/file">
+                                          <FileText size={12} className="text-red-500" />
+                                          <span className="text-[9px] font-bold text-slate-600 truncate max-w-[100px]">{file.name}</span>
+                                          <div className="flex items-center gap-1 ml-1">
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); viewProof(file.url); }}
+                                              className="p-1 text-slate-400 hover:text-slate-900 transition-colors"
+                                              title={t.viewPdfLabel}
+                                            >
+                                              <Eye size={12} />
+                                            </button>
+                                            <button 
+                                              onClick={(e) => { e.stopPropagation(); downloadProof(file.url, file.name); }}
+                                              className="p-1 text-slate-400 hover:text-slate-900 transition-colors"
+                                              title={t.downloadPdfLabel}
+                                            >
+                                              <Download size={12} />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  )}
                                 </div>
                                 <div className="sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0 flex sm:flex-col justify-between items-center sm:items-end">
                                   <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">{t.total}</p>

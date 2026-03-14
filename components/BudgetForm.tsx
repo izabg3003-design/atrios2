@@ -90,6 +90,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   ]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialData?.expenses || []);
   const [payments, setPayments] = useState<PaymentRecord[]>(initialData?.payments || []);
+  const [projectFiles, setProjectFiles] = useState<{ name: string; url: string; id: string }[]>(initialData?.projectFiles || []);
 
   const isPremium = company.plan !== PlanType.FREE;
   const isLocked = !isPremium && !!initialData;
@@ -199,7 +200,8 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   const downloadProof = (url: string, name: string) => {
     const link = document.createElement('a');
     link.href = url;
-    link.download = `comprovativo_${name}.png`;
+    const isPdf = url.startsWith('data:application/pdf');
+    link.download = isPdf ? name : `comprovativo_${name}.png`;
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -208,8 +210,47 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   const viewProof = (url: string) => {
     const win = window.open();
     if (win) {
-      win.document.write(`<img src="${url}" style="max-width:100%">`);
+      if (url.startsWith('data:application/pdf')) {
+        win.document.write(`<iframe src="${url}" style="width:100%; height:100%; border:none;"></iframe>`);
+      } else {
+        win.document.write(`<img src="${url}" style="max-width:100%">`);
+      }
     }
+  };
+
+  const handleProjectFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      if (!isPremium) {
+        alert(t.upgradeToUploadFiles);
+        return;
+      }
+
+      Array.from(files).forEach((file: any) => {
+        if (file.type !== 'application/pdf') {
+          alert("Apenas arquivos PDF são permitidos.");
+          return;
+        }
+        if (file.size > 2000000) { // 2MB limit for project files
+          alert(translations[locale].imageTooLarge);
+          return;
+        }
+
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setProjectFiles(prev => [...prev, {
+            id: uuidv4(),
+            name: file.name,
+            url: reader.result as string
+          }]);
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeProjectFile = (id: string) => {
+    setProjectFiles(prev => prev.filter(f => f.id !== id));
   };
 
   const toggleService = (serviceId: string) => {
@@ -259,6 +300,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
         items,
         expenses,
         payments,
+        projectFiles,
         totalAmount,
         status,
         observations,
@@ -386,6 +428,65 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Mail size={12} /> {t.workPostalCode}</label>
               <input type="text" value={workPostalCode} onChange={e => setWorkPostalCode(e.target.value)} disabled={isLocked} placeholder={t.postalCodePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
+          </div>
+        </section>
+
+        <section className="space-y-4 sm:space-y-6">
+          <h4 className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1">
+            <FileText size={14} className="sm:w-4 sm:h-4" /> {t.projectFilesLabel}
+          </h4>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            {projectFiles.map(file => (
+              <div key={file.id} className="flex items-center justify-between p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl group">
+                <div className="flex items-center gap-3 overflow-hidden">
+                  <FileText size={20} className="text-red-500 shrink-0" />
+                  <span className="text-sm font-bold text-slate-700 truncate">{file.name}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <button type="button" onClick={() => viewProof(file.url)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                    <Eye size={16} />
+                  </button>
+                  <button type="button" onClick={() => downloadProof(file.url, file.name)} className="p-2 text-slate-400 hover:text-slate-900 transition-colors">
+                    <Download size={16} />
+                  </button>
+                  <button type="button" onClick={() => removeProjectFile(file.id)} disabled={isLocked} className="p-2 text-slate-400 hover:text-red-500 transition-colors disabled:opacity-30">
+                    <Trash2 size={16} />
+                  </button>
+                </div>
+              </div>
+            ))}
+            
+            {isPremium && !isLocked && (
+              <button 
+                type="button" 
+                onClick={() => fileInputRefs.current['projectFiles']?.click()}
+                className="flex items-center justify-center gap-3 p-4 border-2 border-dashed border-slate-200 rounded-2xl text-slate-400 hover:border-slate-900 hover:text-slate-900 transition-all group"
+              >
+                <Upload size={20} className="group-hover:scale-110 transition-transform" />
+                <span className="text-xs font-black uppercase tracking-widest">{t.addFileLabel}</span>
+                <input 
+                  type="file" 
+                  ref={el => fileInputRefs.current['projectFiles'] = el}
+                  onChange={handleProjectFileUpload}
+                  accept=".pdf"
+                  multiple
+                  className="hidden"
+                />
+              </button>
+            )}
+
+            {!isPremium && !isLocked && (
+              <div className="flex flex-col items-center justify-center gap-3 p-6 bg-amber-50 border-2 border-dashed border-amber-200 rounded-2xl text-amber-600">
+                <div className="flex items-center gap-2">
+                  <Crown size={18} className="text-amber-500" />
+                  <span className="text-[10px] font-black uppercase tracking-widest">Premium</span>
+                </div>
+                <p className="text-[10px] font-bold text-center opacity-80">{t.upgradeToUploadFiles}</p>
+                <button type="button" onClick={onUpgrade} className="text-[10px] font-black uppercase underline decoration-2 underline-offset-4 hover:text-amber-700 transition-colors">
+                  {t.updatePlanBtn}
+                </button>
+              </div>
+            )}
           </div>
         </section>
 

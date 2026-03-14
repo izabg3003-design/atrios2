@@ -82,6 +82,7 @@ export interface Budget {
   items: ServiceItem[];
   expenses: ExpenseRecord[];
   totalAmount: number;
+  projectFiles?: { name: string; url: string; id: string }[];
   status: BudgetStatus;
   createdAt: string;
   payments: PaymentRecord[];
