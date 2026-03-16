@@ -103,6 +103,17 @@ export interface SupportMessage {
   read: boolean;
 }
 
+export interface StoreOrder {
+  id: string;
+  companyId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  uploadedImage?: string;
+  status: 'pending' | 'processing' | 'completed';
+  createdAt: string;
+}
+
 export interface Transaction {
   id: string;
   companyId: string;

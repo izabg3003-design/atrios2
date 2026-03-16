@@ -1,7 +1,9 @@
-import React, { useState } from 'react';
-import { ShoppingBag, Check, MessageSquare, Info, Star, Package, Shield, Truck } from 'lucide-react';
+import React, { useState, useRef } from 'react';
+import { ShoppingBag, Check, MessageSquare, Info, Star, Package, Shield, Truck, Plus, Minus, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Translation } from '../translations';
+import { saveStoreOrder, generateShortId } from '../services/storage';
+import { StoreOrder } from '../types';
 
 interface Product {
   id: string;
@@ -14,11 +16,16 @@ interface Product {
 interface StoreProps {
   t: Translation;
   locale: string;
+  companyId: string;
 }
 
-export const Store: React.FC<StoreProps> = ({ t, locale }) => {
+export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
+  const [quantity, setQuantity] = useState(10);
+  const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const products: Product[] = [
     {
@@ -102,18 +109,53 @@ export const Store: React.FC<StoreProps> = ({ t, locale }) => {
 
   const handleRequestQuote = (product: Product) => {
     setSelectedProduct(product);
+    setQuantity(10); // Reset to default
+    setUploadedImage(null);
+  };
+
+  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setUploadedImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const confirmQuoteRequest = () => {
+    if (!selectedProduct) return;
+    
+    setIsProcessing(true);
+    
+    const newOrder: StoreOrder = {
+      id: generateShortId(),
+      companyId,
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
+      quantity,
+      uploadedImage: uploadedImage || undefined,
+      status: 'pending',
+      createdAt: new Date().toISOString()
+    };
+
+    saveStoreOrder(newOrder);
+
     // Simulate request
     setTimeout(() => {
+      setIsProcessing(false);
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
         setSelectedProduct(null);
       }, 3000);
-    }, 1000);
+    }, 1500);
   };
 
   return (
     <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+      
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="space-y-2">
           <div className="flex items-center gap-3 text-amber-500">
@@ -229,10 +271,17 @@ export const Store: React.FC<StoreProps> = ({ t, locale }) => {
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[3rem] p-12 max-w-md w-full text-center shadow-2xl border border-slate-100"
+              className="bg-white rounded-[3rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden relative"
             >
+              <button 
+                onClick={() => setSelectedProduct(null)}
+                className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <X size={24} />
+              </button>
+
               {showSuccess ? (
-                <div className="space-y-6">
+                <div className="space-y-6 text-center py-12">
                   <div className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
                     <Check size={48} />
                   </div>
@@ -241,8 +290,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale }) => {
                     <p className="text-slate-500 font-medium">Entraremos em contacto em breve com o orçamento para <strong>{selectedProduct.name}</strong>.</p>
                   </div>
                 </div>
-              ) : (
-                <div className="space-y-8">
+              ) : isProcessing ? (
+                <div className="space-y-8 text-center py-12">
                   <div className="w-24 h-24 bg-amber-500 text-white rounded-full flex items-center justify-center mx-auto animate-pulse shadow-xl shadow-amber-500/20">
                     <ShoppingBag size={48} />
                   </div>
@@ -250,6 +299,79 @@ export const Store: React.FC<StoreProps> = ({ t, locale }) => {
                     <h3 className="text-3xl font-black uppercase italic tracking-tighter">Processando...</h3>
                     <p className="text-slate-500 font-medium">Estamos a preparar o seu pedido de orçamento.</p>
                   </div>
+                </div>
+              ) : (
+                <div className="space-y-8">
+                  <div className="flex items-center gap-6">
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shrink-0">
+                      <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                    </div>
+                    <div>
+                      <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{selectedProduct.name}</h3>
+                      <p className="text-slate-500 text-sm font-medium">{selectedProduct.category}</p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.quantity}</label>
+                      <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
+                        <button 
+                          onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                          className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-900 shadow-sm hover:bg-slate-900 hover:text-white transition-all"
+                        >
+                          <Minus size={20} />
+                        </button>
+                        <input 
+                          type="number" 
+                          value={quantity}
+                          onChange={(e) => setQuantity(Math.max(1, parseInt(e.target.value) || 1))}
+                          className="flex-1 bg-transparent text-center font-black text-xl outline-none"
+                        />
+                        <button 
+                          onClick={() => setQuantity(quantity + 1)}
+                          className="w-12 h-12 bg-white rounded-xl flex items-center justify-center text-slate-900 shadow-sm hover:bg-slate-900 hover:text-white transition-all"
+                        >
+                          <Plus size={20} />
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-4">
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.uploadLogo}</label>
+                      <div 
+                        onClick={() => fileInputRef.current?.click()}
+                        className={`h-16 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-3 cursor-pointer overflow-hidden relative ${uploadedImage ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-amber-500 hover:bg-amber-50'}`}
+                      >
+                        {uploadedImage ? (
+                          <>
+                            <img src={uploadedImage} alt="Logo" className="absolute inset-0 w-full h-full object-cover opacity-20" />
+                            <Check size={20} className="text-emerald-600" />
+                            <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Logo OK</span>
+                          </>
+                        ) : (
+                          <>
+                            <Upload size={20} className="text-slate-400" />
+                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Upload</span>
+                          </>
+                        )}
+                        <input 
+                          type="file" 
+                          ref={fileInputRef}
+                          onChange={handleImageUpload}
+                          accept="image/*"
+                          className="hidden"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  <button 
+                    onClick={confirmQuoteRequest}
+                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-amber-500 transition-all shadow-2xl shadow-slate-900/20"
+                  >
+                    {t.requestQuote}
+                  </button>
                 </div>
               )}
             </motion.div>

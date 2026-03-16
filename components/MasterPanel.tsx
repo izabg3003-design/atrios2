@@ -28,6 +28,7 @@ import {
   Zap,
   Download,
   Globe,
+  ShoppingBag,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -42,7 +43,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder } from '../types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -55,7 +56,8 @@ import {
   getTransactions,
   getCoupons,
   saveCoupon,
-  removeCoupon
+  removeCoupon,
+  getStoreOrders
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -68,13 +70,14 @@ interface MasterPanelProps {
 
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
   
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
@@ -150,6 +153,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
        if (sender && activeTab !== 'messages') setLastMessageAlert({ name: sender.name, content: last.content });
     }
     prevUnreadCount.current = unreadCount;
+
+    // Buscar pedidos da loja
+    const { data: cloudOrders } = await supabase.from('store_orders').select('*').order('createdAt', { ascending: false });
+    if (cloudOrders) {
+      localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
+      setStoreOrders(cloudOrders);
+    } else {
+      setStoreOrders(getStoreOrders());
+    }
 
     setCompanies(allCompanies);
     companiesRef.current = allCompanies;
@@ -402,6 +414,27 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (window.confirm(`${t.masterDeleteUser} "${name}"?`)) { removeCompany(id); setCompanies(prev => prev.filter(c => c.id !== id)); if (selectedCompanyId === id) setSelectedCompanyId(null); }
   };
 
+  const updateOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
+    try {
+      const { error } = await supabase
+        .from('store_orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      setStoreOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      
+      // Update local storage
+      const localOrders = getStoreOrders();
+      const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+      localStorage.setItem('atrios_store_orders', JSON.stringify(updatedLocal));
+
+    } catch (err) {
+      console.error('Error updating order status:', err);
+    }
+  };
+
   const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
@@ -545,6 +578,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
+              { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
             ].map(tab => (
@@ -657,6 +691,96 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden flex h-[600px] animate-in fade-in">
              <div className="w-80 border-r border-white/10 flex flex-col bg-slate-950/50"><div className="p-6 border-b border-white/10"><h3 className="font-black text-sm uppercase tracking-widest text-slate-400 italic">{t.masterChatConversations}</h3></div><div className="flex-1 overflow-y-auto no-scrollbar">{companies.map(comp => { const unread = getMessages(comp.id).filter(m => m.senderRole === 'user' && !m.read).length; return (<button key={comp.id} onClick={() => selectChat(comp.id)} className={`w-full p-6 text-left flex items-start gap-4 hover:bg-white/5 border-b border-white/5 ${selectedCompanyId === comp.id ? 'bg-white/10' : ''} relative`}><div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-amber-500 shrink-0">{comp.name?.charAt(0)}</div><div className="flex-1 min-w-0"><p className="font-black text-sm truncate">{comp.name}</p><p className="text-[10px] text-slate-500 truncate mt-1">{t.viewProof}</p></div>{unread > 0 && <span className="absolute top-6 right-6 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">{unread}</span>}</button>);})}</div></div>
              <div className="flex-1 flex flex-col bg-slate-900/20">{selectedCompanyId ? (<><div className="p-6 border-b border-white/10 bg-white/5 flex items-center gap-4"><div className="w-10 h-10 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black">{companies.find(c => c.id === selectedCompanyId)?.name?.charAt(0)}</div><p className="font-black italic">{companies.find(c => c.id === selectedCompanyId)?.name}</p></div><div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">{messages.length === 0 ? <div className="h-full flex items-center justify-center text-slate-500 uppercase font-black text-[10px]">{t.supportNoMessages}</div> : messages.map(m => (<div key={m.id} className={`flex ${m.senderRole === 'master' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[70%] p-4 rounded-2xl text-sm font-medium ${m.senderRole === 'master' ? 'bg-amber-500 text-slate-950 rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}`}>{m.senderRole === 'user' ? (m.translatedContent || m.content) : m.content}</div></div>))}<div ref={chatEndRef} /></div><form onSubmit={handleSendMessage} className="p-6 bg-white/5 border-t border-white/10 flex gap-4"><input disabled={isTranslating} type="text" value={newMessage} onChange={e => setNewMessage(e.target.value)} placeholder={t.supportChatPlaceholder} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none" /><button type="submit" disabled={!newMessage.trim() || isTranslating} className="bg-amber-500 text-slate-950 p-4 rounded-2xl hover:scale-110 transition-all">{isTranslating ? <Loader2 className="animate-spin" /> : <Send />}</button></form></>) : <div className="flex-1 flex items-center justify-center opacity-40 uppercase font-black text-xs">{t.masterChatSelectUser}</div>}</div>
+          </div>
+        )}
+
+        {activeTab === 'store' && (
+          <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
+            <div className="p-8 border-b border-white/10 bg-white/5 flex justify-between items-center">
+              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
+                <ShoppingBag size={24} /> {t.masterStoreTab}
+              </h2>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
+                    <th className="px-8 py-6">{t.masterTableIdCompany}</th>
+                    <th className="px-8 py-6">Produto</th>
+                    <th className="px-8 py-6">Qtd</th>
+                    <th className="px-8 py-6">Imagem</th>
+                    <th className="px-8 py-6">Status</th>
+                    <th className="px-8 py-6 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {storeOrders.map(order => {
+                    const company = companies.find(c => c.id === order.companyId);
+                    return (
+                      <tr key={order.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/10 text-amber-500 flex items-center justify-center font-black uppercase">
+                              {company?.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="font-black text-sm">{company?.name || 'Desconhecido'}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {order.companyId}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-400 text-sm">
+                          {order.productName}
+                        </td>
+                        <td className="px-8 py-6 font-black text-amber-500">
+                          {order.quantity}
+                        </td>
+                        <td className="px-8 py-6">
+                          {order.uploadedImage ? (
+                            <button 
+                              onClick={() => window.open(order.uploadedImage, '_blank')}
+                              className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-amber-500 transition-all"
+                            >
+                              <img src={order.uploadedImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-600 uppercase font-black">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                            order.status === 'pending' ? 'border-amber-500/50 text-amber-500' :
+                            order.status === 'processing' ? 'border-blue-500/50 text-blue-500' :
+                            'border-emerald-500/50 text-emerald-500'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <select 
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+                              className="bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase outline-none focus:border-amber-500"
+                            >
+                              <option value="pending">Pendente</option>
+                              <option value="processing">Processando</option>
+                              <option value="completed">Concluído</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {storeOrders.length === 0 && (
+                <div className="p-20 text-center">
+                  <ShoppingBag size={48} className="mx-auto text-slate-700 mb-4" />
+                  <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Nenhum pedido encontrado</p>
+                </div>
+              )}
+            </div>
           </div>
         )}
 

@@ -1,4 +1,4 @@
-import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon } from '../types';
+import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder } from '../types';
 import { syncToCloud, supabase } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -9,6 +9,7 @@ const STORAGE_KEY_MESSAGES = 'atrios_messages';
 const STORAGE_KEY_TRANSACTIONS = 'atrios_transactions';
 const STORAGE_KEY_COUPONS = 'atrios_coupons';
 const STORAGE_KEY_SESSION = 'atrios_session';
+const STORAGE_KEY_STORE_ORDERS = 'atrios_store_orders';
 
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -169,6 +170,23 @@ export const removeCoupon = async (id: string) => {
   await supabase.from('coupons').delete().eq('id', id);
 };
 
+export const getStoreOrders = (): StoreOrder[] => {
+  const data = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveStoreOrder = (order: StoreOrder) => {
+  const orders = getStoreOrders();
+  const index = orders.findIndex(o => o.id === order.id);
+  if (index > -1) {
+    orders[index] = order;
+  } else {
+    orders.push(order);
+  }
+  localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
+  syncToCloud('store_orders', order);
+};
+
 /**
  * Recupera todos os dados do Supabase e atualiza o armazenamento local.
  * Garante que orçamentos antigos, despesas e status de plano apareçam na página do usuário.
@@ -206,6 +224,15 @@ export const hydrateLocalData = async (companyId: string) => {
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
       const otherMessages = allMessages.filter(m => m.companyId !== companyId);
       localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...messages]));
+    }
+
+    // 4. Hidratar Pedidos da Loja
+    const { data: storeOrders } = await supabase.from('store_orders').select('*').eq('companyId', companyId);
+    if (storeOrders) {
+      const localOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
+      let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
+      const otherOrders = allOrders.filter(o => o.companyId !== companyId);
+      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...storeOrders]));
     }
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);

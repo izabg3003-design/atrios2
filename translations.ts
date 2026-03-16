@@ -404,6 +404,8 @@ export interface Translation {
   tape: string;
   trowel: string;
   safetyGloves: string;
+  uploadLogo: string;
+  masterStoreTab: string;
 }
 
 const enUS: Translation = {
@@ -835,6 +837,8 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   tape: "Tape",
   trowel: "Trowel",
   safetyGloves: "Safety Gloves",
+  uploadLogo: "Upload Logo/Image",
+  masterStoreTab: "Store Orders",
 };
 
 const ptPT: Translation = {
@@ -1266,6 +1270,8 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   tape: "Fita",
   trowel: "Colher de Pedreiro",
   safetyGloves: "Luvas de Proteção",
+  uploadLogo: "Carregar Logo/Imagem",
+  masterStoreTab: "Pedidos Loja",
 };
 
 const ptBR: Translation = {
@@ -1686,6 +1692,8 @@ const frFR: Translation = {
   tape: "Ruban",
   trowel: "Truelle",
   safetyGloves: "Gants de Protection",
+  uploadLogo: "Charger Logo/Image",
+  masterStoreTab: "Commandes Boutique",
 };
 
 const itIT: Translation = {
@@ -2091,6 +2099,8 @@ const itIT: Translation = {
   tape: "Nastro",
   trowel: "Cazzuola",
   safetyGloves: "Guanti di Protezione",
+  uploadLogo: "Carica Logo/Immagine",
+  masterStoreTab: "Ordini Negozio",
 };
 
 const esES: Translation = {
@@ -2522,6 +2532,8 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   tape: "Cinta",
   trowel: "Paleta de Albañil",
   safetyGloves: "Guantes de Protección",
+  uploadLogo: "Cargar Logo/Imagen",
+  masterStoreTab: "Pedidos Tienda",
 };
 
 const ruRU: Translation = {
@@ -2927,6 +2939,8 @@ const ruRU: Translation = {
   tape: "Лента",
   trowel: "Мастерок",
   safetyGloves: "Защитные перчатки",
+  uploadLogo: "Загрузить логотип/изображение",
+  masterStoreTab: "Заказы магазина",
 };
 
 const hiIN: Translation = {
@@ -3332,6 +3346,8 @@ const hiIN: Translation = {
   tape: "टेप",
   trowel: "कन्नी",
   safetyGloves: "सुरक्षा दस्ताने",
+  uploadLogo: "लोगो/छवि अपलोड करें",
+  masterStoreTab: "स्टोर ऑर्डर",
 };
 
 const bnBD: Translation = {
@@ -3737,6 +3753,8 @@ const bnBD: Translation = {
   tape: "টেপ",
   trowel: "কর্নিকা",
   safetyGloves: "সুরক্ষা দস্তানা",
+  uploadLogo: "লোগো/ছবি আপলোড করুন",
+  masterStoreTab: "স্টোর অর্ডার",
 };
 
 export const translations: Record<Locale, Translation> = {

@@ -2178,7 +2178,7 @@ const App: React.FC = () => {
                     ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
                   )}
 
-                  {activeTab === 'store' && <Store t={t} locale={locale} />}
+                  {activeTab === 'store' && currentUser && <Store t={t} locale={locale} companyId={currentUser.id} />}
 
                   {activeTab === 'budgets' && (
                     <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
