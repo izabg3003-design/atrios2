@@ -116,6 +116,10 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+        alert("A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB.");
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setUploadedImage(reader.result as string);
@@ -124,7 +128,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
     }
   };
 
-  const confirmQuoteRequest = () => {
+  const confirmQuoteRequest = async () => {
     if (!selectedProduct) return;
     
     setIsProcessing(true);
@@ -140,17 +144,19 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
       createdAt: new Date().toISOString()
     };
 
-    saveStoreOrder(newOrder);
-
-    // Simulate request
-    setTimeout(() => {
+    try {
+      await saveStoreOrder(newOrder);
       setIsProcessing(false);
       setShowSuccess(true);
       setTimeout(() => {
         setShowSuccess(false);
         setSelectedProduct(null);
       }, 3000);
-    }, 1500);
+    } catch (error) {
+      console.error("Erro ao enviar pedido:", error);
+      setIsProcessing(false);
+      alert("Erro ao enviar pedido. Verifique sua conexão.");
+    }
   };
 
   return (

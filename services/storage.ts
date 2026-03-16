@@ -175,7 +175,7 @@ export const getStoreOrders = (): StoreOrder[] => {
   return data ? JSON.parse(data) : [];
 };
 
-export const saveStoreOrder = (order: StoreOrder) => {
+export const saveStoreOrder = async (order: StoreOrder) => {
   const orders = getStoreOrders();
   const index = orders.findIndex(o => o.id === order.id);
   if (index > -1) {
@@ -184,7 +184,7 @@ export const saveStoreOrder = (order: StoreOrder) => {
     orders.push(order);
   }
   localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
-  syncToCloud('store_orders', order);
+  await syncToCloud('store_orders', order);
 };
 
 /**

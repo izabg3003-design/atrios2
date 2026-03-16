@@ -155,7 +155,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     prevUnreadCount.current = unreadCount;
 
     // Buscar pedidos da loja
-    const { data: cloudOrders } = await supabase.from('store_orders').select('*').order('createdAt', { ascending: false });
+    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*').order('createdAt', { ascending: false });
+    if (ordersError) console.error("Erro ao buscar pedidos da loja:", ordersError.message);
+    
+    console.log("Pedidos da loja carregados:", cloudOrders);
+
     if (cloudOrders) {
       localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
       setStoreOrders(cloudOrders);
@@ -248,12 +252,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
+    // Subscrição para pedidos da loja
+    const storeChannel = supabase
+      .channel('master-store-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'store_orders' },
+        () => {
+          loadData();
+        }
+      )
+      .subscribe();
+
     // Fallback polling para o Master
     const fallback = setInterval(loadData, 15000);
 
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(companyChannel);
+      supabase.removeChannel(storeChannel);
       clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);
@@ -700,6 +717,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
                 <ShoppingBag size={24} /> {t.masterStoreTab}
               </h2>
+              <button 
+                onClick={() => loadData()}
+                className="p-3 bg-white/5 text-amber-500 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+              >
+                <TrendingUp size={18} className="rotate-90" /> Atualizar
+              </button>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left">
