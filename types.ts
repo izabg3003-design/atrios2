@@ -84,7 +84,7 @@ export interface Budget {
   totalAmount: number;
   projectFiles?: { name: string; url: string; id: string }[];
   status: BudgetStatus;
-  createdAt: string;
+  created_at: string;
   payments: PaymentRecord[];
   observations?: string;
   includeIva: boolean;
@@ -111,7 +111,7 @@ export interface Product {
   category: string;
   description: string;
   active: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface StoreOrder {
@@ -123,7 +123,7 @@ export interface StoreOrder {
   notes?: string;
   uploadedImage?: string;
   status: 'pending' | 'processing' | 'completed';
-  createdAt: string;
+  created_at: string;
 }
 
 export interface Transaction {
@@ -143,7 +143,7 @@ export interface Coupon {
   code: string;
   discountPercentage: number;
   active: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface Company {
@@ -158,7 +158,7 @@ export interface Company {
   phone?: string;
   plan: PlanType;
   verified: boolean;
-  createdAt: string;
+  created_at: string;
   firstLoginAt?: string;
   subscriptionExpiresAt?: string;
   canEditSensitiveData?: boolean;

@@ -170,7 +170,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     prevUnreadCount.current = unreadCount;
 
     // Buscar pedidos da loja
-    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*').order('createdAt', { ascending: false });
+    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*').order('created_at', { ascending: false });
     if (ordersError) console.error("Erro ao buscar pedidos da loja:", ordersError.message);
     
     if (cloudOrders) {
@@ -181,7 +181,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
 
     // Buscar produtos da loja
-    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*').order('createdAt', { ascending: false });
+    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (productsError) console.error("Erro ao buscar produtos:", productsError.message);
 
     if (cloudProducts) {
@@ -362,7 +362,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const handleCreateCoupon = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newCouponCode) return;
-    saveCoupon({ id: Math.random().toString(36).substr(2, 9), code: newCouponCode.toUpperCase(), discountPercentage: newCouponDiscount, active: true, createdAt: new Date().toISOString() });
+    saveCoupon({ id: Math.random().toString(36).substr(2, 9), code: newCouponCode.toUpperCase(), discountPercentage: newCouponDiscount, active: true, created_at: new Date().toISOString() });
     setCoupons(getCoupons());
     setNewCouponCode('');
   };
@@ -402,7 +402,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   const saveConfig = () => {
     if (!imagePreview) { alert(t.masterBannerSelectError); return; }
-    const updated = [...activeNotifications, { id: Math.random().toString(36).substr(2, 9).toUpperCase(), imageUrl: imagePreview, targetAudience, active: true, createdAt: new Date().toISOString() }];
+    const updated = [...activeNotifications, { id: Math.random().toString(36).substr(2, 9).toUpperCase(), imageUrl: imagePreview, targetAudience, active: true, created_at: new Date().toISOString() }];
     saveGlobalNotifications(updated);
     setActiveNotifications(updated);
     setImagePreview(null);
@@ -498,7 +498,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       description: productDescription,
       image: productImage || 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
       active: true,
-      createdAt: editingProduct?.createdAt || new Date().toISOString()
+      created_at: editingProduct?.created_at || new Date().toISOString()
     };
 
     await saveProduct(product);
@@ -534,7 +534,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
-    await saveCompany({ id: Math.random().toString(36).substr(2, 9).toUpperCase(), name: manualUserName, email: manualUserEmail, password: manualUserPass, plan: manualUserPlan, verified: true, createdAt: new Date().toISOString(), isManual: true, manualPaymentProof: manualProofPreview, subscriptionExpiresAt: manualUserPlan === PlanType.FREE ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
+    await saveCompany({ id: Math.random().toString(36).substr(2, 9).toUpperCase(), name: manualUserName, email: manualUserEmail, password: manualUserPass, plan: manualUserPlan, verified: true, created_at: new Date().toISOString(), isManual: true, manualPaymentProof: manualProofPreview, subscriptionExpiresAt: manualUserPlan === PlanType.FREE ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
     loadData();
     setShowAddUserModal(false);
     setManualUserName(''); setManualUserEmail(''); setManualUserPass(''); setManualProofPreview(null);
@@ -898,7 +898,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         )}
 
         {activeTab === 'notifications' && (
-          <div className="space-y-10 animate-in fade-in"><div className="flex justify-center"><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2><div className="space-y-6"><label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">{imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}<input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label><div className="grid grid-cols-2 gap-3">{['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (<button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>))}</div><button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button></div></div></div><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{activeNotifications.length === 0 ? (<div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>) : (activeNotifications.map(n => (<div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative"><div className="aspect-video w-full relative"><img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button></div></div><div className="p-4 flex justify-between items-center bg-white/5"><span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span><span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.createdAt).toLocaleDateString(locale)}</span></div></div>)))}</div></div></div>
+          <div className="space-y-10 animate-in fade-in"><div className="flex justify-center"><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2><div className="space-y-6"><label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">{imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}<input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label><div className="grid grid-cols-2 gap-3">{['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (<button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>))}</div><button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button></div></div></div><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{activeNotifications.length === 0 ? (<div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>) : (activeNotifications.map(n => (<div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative"><div className="aspect-video w-full relative"><img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button></div></div><div className="p-4 flex justify-between items-center bg-white/5"><span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span><span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.created_at).toLocaleDateString(locale)}</span></div></div>)))}</div></div></div>
         )}
 
         {activeTab === 'products' && (

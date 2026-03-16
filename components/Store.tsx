@@ -66,7 +66,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
       notes: notes || undefined,
       uploadedImage: uploadedImage || undefined,
       status: 'pending',
-      createdAt: new Date().toISOString()
+      created_at: new Date().toISOString()
     };
 
     try {

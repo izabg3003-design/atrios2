@@ -545,7 +545,7 @@ const App: React.FC = () => {
       doc.text(`#${budget.id.toUpperCase()}`, pageWidth - margin - 60, 33);
       
       doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, pageWidth - margin - 60, 42);
+      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.created_at).toLocaleDateString(locale)}`, pageWidth - margin - 60, 42);
       if (budget.validity) {
         doc.text(`${normalizeForPdf(pdfT.estimateValidity)}:`, pageWidth - margin - 60, 48);
         doc.setFont('helvetica', 'bold').text(normalizeForPdf(budget.validity), pageWidth - margin - 60, 53);
@@ -670,7 +670,7 @@ const App: React.FC = () => {
       doc.text(`#${budget.id.toUpperCase()}`, 120, 32);
       
       doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, 120, 38);
+      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.created_at).toLocaleDateString(locale)}`, 120, 38);
       if (budget.validity) doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, 120, 43);
 
       // --- CLIENT & SERVICES SECTION ---
@@ -1171,7 +1171,7 @@ const App: React.FC = () => {
       password,
       plan: PlanType.FREE,
       verified: true,
-      createdAt: new Date().toISOString(),
+      created_at: new Date().toISOString(),
       firstLoginAt: new Date().toISOString(),
       lastLocale: locale
     };
@@ -2235,7 +2235,7 @@ const App: React.FC = () => {
                                   </div>
                                   <div className="flex flex-wrap items-center gap-3 sm:gap-4 lg:gap-6 text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest lg:tracking-[0.2em]">
                                     <span className="flex items-center gap-1.5 lg:gap-2"><User size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {budget.contactName}</span>
-                                    <span className="flex items-center gap-1.5 lg:gap-2"><Clock size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {new Date(budget.createdAt).toLocaleDateString(locale)}</span>
+                                    <span className="flex items-center gap-1.5 lg:gap-2"><Clock size={10} className="sm:w-3 sm:h-3 lg:w-3.5 lg:h-3.5" /> {new Date(budget.created_at).toLocaleDateString(locale)}</span>
                                   </div>
                                   {isPremium && budget.projectFiles && budget.projectFiles.length > 0 && (
                                     <div className="mt-3 flex flex-wrap gap-2">
