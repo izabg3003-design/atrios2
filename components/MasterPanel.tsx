@@ -733,6 +733,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     <th className="px-8 py-6">Qtd</th>
                     <th className="px-8 py-6">Imagem</th>
                     <th className="px-8 py-6">Status</th>
+                    <th className="px-8 py-6">Observações</th>
                     <th className="px-8 py-6 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -778,6 +779,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           }`}>
                             {order.status}
                           </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="text-xs text-slate-400 max-w-[200px] truncate" title={order.notes}>
+                            {order.notes || '-'}
+                          </p>
                         </td>
                         <td className="px-8 py-6 text-right">
                           <div className="flex items-center justify-end gap-2">

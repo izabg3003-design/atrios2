@@ -22,6 +22,7 @@ interface StoreProps {
 export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(10);
+  const [notes, setNotes] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -139,6 +140,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
       productId: selectedProduct.id,
       productName: selectedProduct.name,
       quantity,
+      notes: notes || undefined,
       uploadedImage: uploadedImage || undefined,
       status: 'pending',
       createdAt: new Date().toISOString()
@@ -148,6 +150,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
       await saveStoreOrder(newOrder);
       setIsProcessing(false);
       setShowSuccess(true);
+      setNotes('');
       setTimeout(() => {
         setShowSuccess(false);
         setSelectedProduct(null);
@@ -370,6 +373,16 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
                         />
                       </div>
                     </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações / Descrição</label>
+                    <textarea 
+                      value={notes}
+                      onChange={(e) => setNotes(e.target.value)}
+                      placeholder="Ex: Tamanho XL, cor azul, detalhes específicos..."
+                      className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-medium outline-none focus:border-amber-500 transition-all min-h-[100px] resize-none"
+                    />
                   </div>
 
                   <button 

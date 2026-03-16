@@ -109,6 +109,7 @@ export interface StoreOrder {
   productId: string;
   productName: string;
   quantity: number;
+  notes?: string;
   uploadedImage?: string;
   status: 'pending' | 'processing' | 'completed';
   createdAt: string;
