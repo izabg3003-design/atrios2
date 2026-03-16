@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
+import { Store } from './components/Store';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -36,7 +37,8 @@ import {
   Headphones,
   MessageSquare,
   ShieldCheck,
-  Mail
+  Mail,
+  ShoppingBag
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
 import { 
@@ -2049,6 +2051,7 @@ const App: React.FC = () => {
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
+                  { id: 'store', label: t.store, icon: ShoppingBag },
                   { id: 'plans', label: t.plans, icon: Crown },
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
@@ -2174,6 +2177,8 @@ const App: React.FC = () => {
                       </div>
                     ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
                   )}
+
+                  {activeTab === 'store' && <Store t={t} locale={locale} />}
 
                   {activeTab === 'budgets' && (
                     <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">

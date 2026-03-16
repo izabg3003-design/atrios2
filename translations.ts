@@ -389,6 +389,21 @@ export interface Translation {
   addFileLabel: string;
   fileLimitReached: string;
   upgradeToUploadFiles: string;
+  store: string;
+  storeTitle: string;
+  storeSub: string;
+  requestQuote: string;
+  customMugs: string;
+  customTshirts: string;
+  customVests: string;
+  sweatshirts: string;
+  safetyHelmets: string;
+  customWorkwear: string;
+  safetyGlasses: string;
+  customStickers: string;
+  tape: string;
+  trowel: string;
+  safetyGloves: string;
 }
 
 const enUS: Translation = {
@@ -805,6 +820,21 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   addFileLabel: "Add File",
   fileLimitReached: "File limit reached!",
   upgradeToUploadFiles: "Upgrade to upload project files",
+  store: "Store",
+  storeTitle: "ÁTRIOS STORE",
+  storeSub: "Personalized items for your construction business",
+  requestQuote: "Request Quote",
+  customMugs: "Custom Mugs",
+  customTshirts: "Custom T-shirts",
+  customVests: "Custom Vests",
+  sweatshirts: "Sweatshirts",
+  safetyHelmets: "Safety Helmets",
+  customWorkwear: "Custom Workwear",
+  safetyGlasses: "Safety Glasses",
+  customStickers: "Custom Stickers",
+  tape: "Tape",
+  trowel: "Trowel",
+  safetyGloves: "Safety Gloves",
 };
 
 const ptPT: Translation = {
@@ -1221,6 +1251,21 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   addFileLabel: "Adicionar Arquivo",
   fileLimitReached: "Limite de arquivos atingido!",
   upgradeToUploadFiles: "Upgrade para anexar arquivos ao projeto",
+  store: "Loja",
+  storeTitle: "LOJA ÁTRIOS",
+  storeSub: "Itens personalizados para sua obra",
+  requestQuote: "Solicitar Orçamento",
+  customMugs: "Canecas Personalizadas",
+  customTshirts: "T-shirts Personalizadas",
+  customVests: "Coletes Personalizados",
+  sweatshirts: "Sweatshirts",
+  safetyHelmets: "Capacetes de Proteção",
+  customWorkwear: "Obra Personalizada",
+  safetyGlasses: "Óculos de Proteção",
+  customStickers: "Adesivos Personalizados",
+  tape: "Fita",
+  trowel: "Colher de Pedreiro",
+  safetyGloves: "Luvas de Proteção",
 };
 
 const ptBR: Translation = {
@@ -1626,6 +1671,21 @@ const frFR: Translation = {
   addFileLabel: "Ajouter un fichier",
   fileLimitReached: "Limite de fichiers atteinte !",
   upgradeToUploadFiles: "Mettez à niveau pour joindre des fichiers",
+  store: "Boutique",
+  storeTitle: "BOUTIQUE ÁTRIOS",
+  storeSub: "Articles personnalisés pour votre chantier",
+  requestQuote: "Demander un Devis",
+  customMugs: "Mugs Personnalisés",
+  customTshirts: "T-shirts Personnalisés",
+  customVests: "Gilets Personnalisés",
+  sweatshirts: "Sweatshirts",
+  safetyHelmets: "Casques de Protection",
+  customWorkwear: "Chantier Personnalisé",
+  safetyGlasses: "Lunettes de Protection",
+  customStickers: "Autocollants Personnalisés",
+  tape: "Ruban",
+  trowel: "Truelle",
+  safetyGloves: "Gants de Protection",
 };
 
 const itIT: Translation = {
@@ -2016,6 +2076,21 @@ const itIT: Translation = {
   addFileLabel: "Aggiungi File",
   fileLimitReached: "Limite file raggiunto!",
   upgradeToUploadFiles: "Aggiorna per allegare file",
+  store: "Negozio",
+  storeTitle: "NEGOZIO ÁTRIOS",
+  storeSub: "Articoli personalizzati per il tuo cantiere",
+  requestQuote: "Richiedi Preventivo",
+  customMugs: "Tazze Personalizzate",
+  customTshirts: "T-shirt Personalizzate",
+  customVests: "Gilet Personalizzati",
+  sweatshirts: "Felpe",
+  safetyHelmets: "Caschi di Protezione",
+  customWorkwear: "Cantiere Personalizzato",
+  safetyGlasses: "Occhiali di Protezione",
+  customStickers: "Adesivi Personalizzati",
+  tape: "Nastro",
+  trowel: "Cazzuola",
+  safetyGloves: "Guanti di Protezione",
 };
 
 const esES: Translation = {
@@ -2432,6 +2507,21 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   addFileLabel: "Añadir Archivo",
   fileLimitReached: "¡Límite de archivos alcanzado!",
   upgradeToUploadFiles: "Actualiza para adjuntar archivos",
+  store: "Tienda",
+  storeTitle: "TIENDA ÁTRIOS",
+  storeSub: "Artículos personalizados para tu obra",
+  requestQuote: "Solicitar Presupuesto",
+  customMugs: "Tazas Personalizadas",
+  customTshirts: "Camisetas Personalizadas",
+  customVests: "Chalecos Personalizados",
+  sweatshirts: "Sudaderas",
+  safetyHelmets: "Cascos de Protección",
+  customWorkwear: "Obra Personalizada",
+  safetyGlasses: "Gafas de Protección",
+  customStickers: "Pegatinas Personalizadas",
+  tape: "Cinta",
+  trowel: "Paleta de Albañil",
+  safetyGloves: "Guantes de Protección",
 };
 
 const ruRU: Translation = {
@@ -2822,6 +2912,21 @@ const ruRU: Translation = {
   addFileLabel: "Добавить файл",
   fileLimitReached: "Лимит файлов исчерпан!",
   upgradeToUploadFiles: "Обновитесь, чтобы прикреплять файлы",
+  store: "Магазин",
+  storeTitle: "МАГАЗИН ÁTRIOS",
+  storeSub: "Персонализированные товары для вашей стройки",
+  requestQuote: "Запросить цену",
+  customMugs: "Кружки с логотипом",
+  customTshirts: "Футболки с логотипом",
+  customVests: "Жилеты с логотипом",
+  sweatshirts: "Толстовки",
+  safetyHelmets: "Защитные каски",
+  customWorkwear: "Спецодежда на заказ",
+  safetyGlasses: "Защитные очки",
+  customStickers: "Наклейки на заказ",
+  tape: "Лента",
+  trowel: "Мастерок",
+  safetyGloves: "Защитные перчатки",
 };
 
 const hiIN: Translation = {
@@ -3212,6 +3317,21 @@ const hiIN: Translation = {
   addFileLabel: "फ़ाइल जोड़ें",
   fileLimitReached: "फ़ाइल सीमा समाप्त!",
   upgradeToUploadFiles: "फ़ाइलें अपलोड करने के लिए अपग्रेड करें",
+  store: "स्टोर",
+  storeTitle: "ÁTRIOS स्टोर",
+  storeSub: "आपके निर्माण व्यवसाय के लिए व्यक्तिगत आइटम",
+  requestQuote: "कोटेशन का अनुरोध करें",
+  customMugs: "कस्टम मग",
+  customTshirts: "कस्टम टी-शर्ट",
+  customVests: "कस्टम वेस्ट",
+  sweatshirts: "स्वेटशर्ट",
+  safetyHelmets: "सुरक्षा हेलमेट",
+  customWorkwear: "कस्टम वर्कवियर",
+  safetyGlasses: "सुरक्षा चश्मा",
+  customStickers: "कस्टम स्टिकर",
+  tape: "टेप",
+  trowel: "कन्नी",
+  safetyGloves: "सुरक्षा दस्ताने",
 };
 
 const bnBD: Translation = {
@@ -3602,6 +3722,21 @@ const bnBD: Translation = {
   addFileLabel: "ফাইল যোগ করুন",
   fileLimitReached: "ফাইল সীমা অতিক্রম করেছে!",
   upgradeToUploadFiles: "ফাইল আপলোড করতে আপগ্রেড করুন",
+  store: "স্টোর",
+  storeTitle: "ÁTRIOS স্টোর",
+  storeSub: "আপনার নির্মাণ ব্যবসার জন্য ব্যক্তিগতকৃত আইটেম",
+  requestQuote: "উদ্ধৃতি অনুরোধ করুন",
+  customMugs: "কাস্টম মগ",
+  customTshirts: "কাস্টম টি-শার্ট",
+  customVests: "কাস্টম ভেস্ট",
+  sweatshirts: "সোয়েটশার্ট",
+  safetyHelmets: "সুরক্ষা হেলমেট",
+  customWorkwear: "কাস্টম ওয়ার্কওয়্যার",
+  safetyGlasses: "সুরক্ষা চশমা",
+  customStickers: "কাস্টম স্টিকার",
+  tape: "টেপ",
+  trowel: "কর্নিকা",
+  safetyGloves: "সুরক্ষা দস্তানা",
 };
 
 export const translations: Record<Locale, Translation> = {
