@@ -1,25 +1,20 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { ShoppingBag, Check, MessageSquare, Info, Star, Package, Shield, Truck, Plus, Minus, Upload, X, Image as ImageIcon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Translation } from '../translations';
-import { saveStoreOrder, generateShortId } from '../services/storage';
-import { StoreOrder } from '../types';
-
-interface Product {
-  id: string;
-  name: string;
-  image: string;
-  category: string;
-  description: string;
-}
+import { saveStoreOrder, generateShortId, getProducts } from '../services/storage';
+import { StoreOrder, Product } from '../types';
 
 interface StoreProps {
   t: Translation;
   locale: string;
   companyId: string;
+  companyName?: string;
+  companyEmail?: string;
 }
 
-export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
+export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName, companyEmail }) => {
+  const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(10);
   const [notes, setNotes] = useState('');
@@ -28,85 +23,13 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const products: Product[] = [
-    {
-      id: 'mugs',
-      name: t.customMugs,
-      image: 'https://images.unsplash.com/photo-1514228742587-6b1558fcca3d?auto=format&fit=crop&q=80&w=800',
-      category: 'Branding',
-      description: 'Canecas de cerâmica de alta qualidade com o logo da sua empresa.'
-    },
-    {
-      id: 'tshirts',
-      name: t.customTshirts,
-      image: 'https://images.unsplash.com/photo-1521572163474-6864f9cf17ab?auto=format&fit=crop&q=80&w=800',
-      category: 'Apparel',
-      description: 'T-shirts 100% algodão personalizadas para a sua equipa.'
-    },
-    {
-      id: 'vests',
-      name: t.customVests,
-      image: 'https://images.unsplash.com/photo-1591195853828-11db59a44f6b?auto=format&fit=crop&q=80&w=800',
-      category: 'Safety',
-      description: 'Coletes refletores de alta visibilidade com personalização.'
-    },
-    {
-      id: 'sweatshirts',
-      name: t.sweatshirts,
-      image: 'https://images.unsplash.com/photo-1556821840-3a63f95609a7?auto=format&fit=crop&q=80&w=800',
-      category: 'Apparel',
-      description: 'Sweatshirts quentes e confortáveis para trabalho no exterior.'
-    },
-    {
-      id: 'helmets',
-      name: t.safetyHelmets,
-      image: 'https://images.unsplash.com/photo-1513467535987-fd81bc7d62f8?auto=format&fit=crop&q=80&w=800',
-      category: 'Safety',
-      description: 'Capacetes de proteção certificados com o seu logo.'
-    },
-    {
-      id: 'workwear',
-      name: t.customWorkwear,
-      image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&q=80&w=800',
-      category: 'Branding',
-      description: 'Itens de obra personalizados para reforçar a sua marca.'
-    },
-    {
-      id: 'glasses',
-      name: t.safetyGlasses,
-      image: 'https://images.unsplash.com/photo-1582550943397-391f021d427d?auto=format&fit=crop&q=80&w=800',
-      category: 'Safety',
-      description: 'Óculos de proteção resistentes e ergonómicos.'
-    },
-    {
-      id: 'stickers',
-      name: t.customStickers,
-      image: 'https://images.unsplash.com/photo-1572375927902-e6090dbb90ad?auto=format&fit=crop&q=80&w=800',
-      category: 'Branding',
-      description: 'Adesivos vinílicos resistentes para ferramentas e veículos.'
-    },
-    {
-      id: 'tape',
-      name: t.tape,
-      image: 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
-      category: 'Tools',
-      description: 'Fita métrica e fitas adesivas de alta resistência.'
-    },
-    {
-      id: 'trowel',
-      name: t.trowel,
-      image: 'https://images.unsplash.com/photo-1534398079543-7ae6d016b86a?auto=format&fit=crop&q=80&w=800',
-      category: 'Tools',
-      description: 'Colher de pedreiro profissional em aço inoxidável.'
-    },
-    {
-      id: 'gloves',
-      name: t.safetyGloves,
-      image: 'https://images.unsplash.com/photo-1597423498219-04418210827d?auto=format&fit=crop&q=80&w=800',
-      category: 'Safety',
-      description: 'Luvas de proteção resistentes para trabalhos pesados.'
-    }
-  ];
+  useEffect(() => {
+    const loadProducts = async () => {
+      const data = await getProducts();
+      setProducts(data.filter(p => p.active !== false));
+    };
+    loadProducts();
+  }, []);
 
   const handleRequestQuote = (product: Product) => {
     setSelectedProduct(product);
@@ -162,8 +85,43 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
     }
   };
 
+  const isTestUser = 
+    companyId === 'innova' || 
+    companyId?.toLowerCase().includes('innova') || 
+    companyName?.toLowerCase().includes('innova') ||
+    companyEmail?.toLowerCase().includes('innova') ||
+    companyEmail === 'izarelleBraga@gmail.com';
+
   return (
-    <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
+    <div className="relative min-h-[600px]">
+      {/* Overlay EM BREVE - Oculto para o usuário de teste innova */}
+      {!isTestUser && (
+        <div className="absolute inset-0 z-50 flex items-start justify-center p-6 pt-20 md:pt-32">
+          <motion.div 
+            initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
+            animate={{ opacity: 1, scale: 1, rotate: -2 }}
+            className="bg-white/90 backdrop-blur-xl p-10 md:p-16 rounded-[4rem] border border-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] text-center space-y-6 max-w-lg w-full"
+          >
+            <div className="w-24 h-24 bg-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/20 rotate-3">
+              <ShoppingBag size={48} />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
+                Em Breve<br/>
+                <span className="text-amber-500">Loja!</span>
+              </h2>
+              <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">
+                Estamos a preparar novidades incríveis para si.
+              </p>
+            </div>
+            <div className="pt-4">
+              <div className="h-1 w-12 bg-slate-200 mx-auto rounded-full" />
+            </div>
+          </motion.div>
+        </div>
+      )}
+
+      <div className={`max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 ${!isTestUser ? 'blur-2xl pointer-events-none select-none opacity-50' : ''}`}>
       
       <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
         <div className="space-y-2">
@@ -397,6 +355,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId }) => {
           </motion.div>
         )}
       </AnimatePresence>
+    </div>
     </div>
   );
 };

@@ -1,4 +1,4 @@
-import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder } from '../types';
+import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product } from '../types';
 import { syncToCloud, supabase } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -10,6 +10,7 @@ const STORAGE_KEY_TRANSACTIONS = 'atrios_transactions';
 const STORAGE_KEY_COUPONS = 'atrios_coupons';
 const STORAGE_KEY_SESSION = 'atrios_session';
 const STORAGE_KEY_STORE_ORDERS = 'atrios_store_orders';
+const STORAGE_KEY_PRODUCTS = 'atrios_products';
 
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
@@ -187,6 +188,31 @@ export const saveStoreOrder = async (order: StoreOrder) => {
   await syncToCloud('store_orders', order);
 };
 
+export const getProducts = (): Product[] => {
+  const data = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const saveProduct = async (product: Product) => {
+  const products = getProducts();
+  const index = products.findIndex(p => p.id === product.id);
+  if (index > -1) {
+    products[index] = product;
+  } else {
+    products.push(product);
+  }
+  localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  
+  return await syncToCloud('products', product);
+};
+
+export const deleteProduct = async (id: string) => {
+  const products = getProducts().filter(p => p.id !== id);
+  localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  
+  return await supabase.from('products').delete().eq('id', id);
+};
+
 /**
  * Recupera todos os dados do Supabase e atualiza o armazenamento local.
  * Garante que orçamentos antigos, despesas e status de plano apareçam na página do usuário.
@@ -233,6 +259,12 @@ export const hydrateLocalData = async (companyId: string) => {
       let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
       const otherOrders = allOrders.filter(o => o.companyId !== companyId);
       localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...storeOrders]));
+    }
+
+    // 5. Hidratar Produtos
+    const { data: products } = await supabase.from('products').select('*');
+    if (products) {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
     }
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);

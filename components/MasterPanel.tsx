@@ -19,7 +19,9 @@ import {
   Ticket,
   Percent,
   LayoutDashboard,
+  Package,
   ArrowUpRight,
+  Settings,
   UserPlus,
   Ban,
   BarChart3,
@@ -43,7 +45,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product } from '../types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -57,7 +59,11 @@ import {
   getCoupons,
   saveCoupon,
   removeCoupon,
-  getStoreOrders
+  getStoreOrders,
+  getProducts,
+  saveProduct,
+  deleteProduct,
+  generateShortId
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -70,7 +76,7 @@ interface MasterPanelProps {
 
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -78,6 +84,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  // Product Form State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productName, setProductName] = useState('');
+  const [productCode, setProductCode] = useState('');
+  const [productCategory, setProductCategory] = useState('Branding');
+  const [productDescription, setProductDescription] = useState('');
+  const [productImage, setProductImage] = useState<string | null>(null);
   
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
@@ -158,13 +173,22 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*').order('createdAt', { ascending: false });
     if (ordersError) console.error("Erro ao buscar pedidos da loja:", ordersError.message);
     
-    console.log("Pedidos da loja carregados:", cloudOrders);
-
     if (cloudOrders) {
       localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
       setStoreOrders(cloudOrders);
     } else {
       setStoreOrders(getStoreOrders());
+    }
+
+    // Buscar produtos da loja
+    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*').order('createdAt', { ascending: false });
+    if (productsError) console.error("Erro ao buscar produtos:", productsError.message);
+
+    if (cloudProducts) {
+      localStorage.setItem('atrios_products', JSON.stringify(cloudProducts));
+      setProducts(cloudProducts);
+    } else {
+      setProducts(getProducts());
     }
 
     setCompanies(allCompanies);
@@ -452,6 +476,61 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   };
 
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProductImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const product: Product = {
+      id: editingProduct?.id || generateShortId(),
+      code: productCode,
+      name: productName,
+      category: productCategory,
+      description: productDescription,
+      image: productImage || 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
+      active: true,
+      createdAt: editingProduct?.createdAt || new Date().toISOString()
+    };
+
+    await saveProduct(product);
+    
+    // Reset form
+    setEditingProduct(null);
+    setProductName('');
+    setProductCode('');
+    setProductCategory('Branding');
+    setProductDescription('');
+    setProductImage(null);
+    
+    loadData();
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductName(product.name);
+    setProductCode(product.code);
+    setProductCategory(product.category);
+    setProductDescription(product.description);
+    setProductImage(product.image);
+    setActiveTab('products');
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este produto?')) {
+      await deleteProduct(id);
+      loadData();
+    }
+  };
+
   const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
@@ -596,6 +675,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
               { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
+              { id: 'products', label: 'Produtos', icon: Package },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
             ].map(tab => (
@@ -819,6 +899,140 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
         {activeTab === 'notifications' && (
           <div className="space-y-10 animate-in fade-in"><div className="flex justify-center"><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2><div className="space-y-6"><label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">{imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}<input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label><div className="grid grid-cols-2 gap-3">{['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (<button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>))}</div><button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button></div></div></div><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{activeNotifications.length === 0 ? (<div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>) : (activeNotifications.map(n => (<div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative"><div className="aspect-video w-full relative"><img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button></div></div><div className="p-4 flex justify-between items-center bg-white/5"><span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span><span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.createdAt).toLocaleDateString(locale)}</span></div></div>)))}</div></div></div>
+        )}
+
+        {activeTab === 'products' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in">
+            <div className="lg:col-span-1 bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8 h-fit">
+              <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
+                <Package size={28} /> {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+              </h2>
+              <form onSubmit={handleSaveProduct} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Código do Produto</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={productCode} 
+                    onChange={e => setProductCode(e.target.value)} 
+                    placeholder="EX: MUG-001" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Nome do Produto</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={productName} 
+                    onChange={e => setProductName(e.target.value)} 
+                    placeholder="Nome do produto" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Categoria</label>
+                  <select 
+                    value={productCategory} 
+                    onChange={e => setProductCategory(e.target.value)} 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase"
+                  >
+                    <option value="Branding">Branding</option>
+                    <option value="Apparel">Vestuário</option>
+                    <option value="Safety">Segurança</option>
+                    <option value="Tools">Ferramentas</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Descrição</label>
+                  <textarea 
+                    required 
+                    value={productDescription} 
+                    onChange={e => setProductDescription(e.target.value)} 
+                    placeholder="Descrição do produto..." 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium outline-none min-h-[100px] resize-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Foto do Produto</label>
+                  <label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-40">
+                    {productImage ? (
+                      <img src={productImage} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload size={24} className="text-slate-400 mb-2" />
+                        <span className="text-[10px] font-black uppercase">Upload Foto</span>
+                      </div>
+                    )}
+                    <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+                  </label>
+                </div>
+                <div className="flex gap-3">
+                  <button type="submit" className="flex-1 py-5 bg-amber-500 text-slate-950 rounded-[1.5rem] font-black text-lg hover:bg-amber-400 uppercase">
+                    {editingProduct ? 'Atualizar' : 'Salvar'}
+                  </button>
+                  {editingProduct && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setProductName('');
+                        setProductCode('');
+                        setProductDescription('');
+                        setProductImage(null);
+                      }}
+                      className="px-6 py-5 bg-white/5 rounded-[1.5rem] font-black text-sm uppercase"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8">
+              <h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase">
+                <Package size={28} /> Produtos Ativos
+              </h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {products.length === 0 ? (
+                  <div className="col-span-full py-20 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
+                    Nenhum produto cadastrado
+                  </div>
+                ) : (
+                  products.map(p => (
+                    <div key={p.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative flex flex-col">
+                      <div className="aspect-video w-full relative">
+                        <img src={p.image} className="w-full h-full object-cover" alt={p.name} />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                          <button 
+                            onClick={() => handleEditProduct(p)} 
+                            className="p-4 bg-amber-500 text-slate-950 rounded-full hover:scale-110 transition-transform"
+                          >
+                            <Settings size={24} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(p.id)} 
+                            className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                          >
+                            <Trash2 size={24} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-6 space-y-2 flex-1">
+                        <div className="flex justify-between items-start">
+                          <span className="text-[10px] font-black uppercase text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md">{p.code}</span>
+                          <span className="text-[10px] font-black uppercase text-slate-500">{p.category}</span>
+                        </div>
+                        <h3 className="text-xl font-black italic uppercase tracking-tighter">{p.name}</h3>
+                        <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

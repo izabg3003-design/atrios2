@@ -103,6 +103,17 @@ export interface SupportMessage {
   read: boolean;
 }
 
+export interface Product {
+  id: string;
+  code: string;
+  name: string;
+  image: string;
+  category: string;
+  description: string;
+  active: boolean;
+  createdAt: string;
+}
+
 export interface StoreOrder {
   id: string;
   companyId: string;
