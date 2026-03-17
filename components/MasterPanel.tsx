@@ -170,25 +170,53 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     prevUnreadCount.current = unreadCount;
 
     // Buscar pedidos da loja
-    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*').order('created_at', { ascending: false });
+    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*');
     if (ordersError) console.error("Erro ao buscar pedidos da loja:", ordersError.message);
     
-    if (cloudOrders) {
+    if (cloudOrders && cloudOrders.length > 0) {
       localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
-      setStoreOrders(cloudOrders);
+      setStoreOrders(cloudOrders.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      }));
+    } else if (!ordersError) {
+      // Se não houver erro mas o cloud estiver vazio, só limpamos se o local também estiver vazio ou se quisermos forçar a limpeza
+      // Para evitar que suma ao salvar, vamos manter o local se o cloud estiver vazio
+      const localOrders = getStoreOrders();
+      if (localOrders.length > 0 && (!cloudOrders || cloudOrders.length === 0)) {
+        setStoreOrders(localOrders);
+      } else {
+        setStoreOrders([]);
+      }
     } else {
       setStoreOrders(getStoreOrders());
     }
 
     // Buscar produtos da loja
-    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*');
     if (productsError) console.error("Erro ao buscar produtos:", productsError.message);
+    console.log("Produtos recebidos do cloud:", cloudProducts);
 
-    if (cloudProducts) {
+    if (cloudProducts && cloudProducts.length > 0) {
       localStorage.setItem('atrios_products', JSON.stringify(cloudProducts));
-      setProducts(cloudProducts);
+      setProducts(cloudProducts.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      }));
+    } else if (!productsError) {
+      const localProducts = await getProducts();
+      console.log("Cloud vazio, usando produtos locais:", localProducts);
+      if (localProducts.length > 0 && (!cloudProducts || cloudProducts.length === 0)) {
+        setProducts(localProducts);
+      } else {
+        setProducts([]);
+      }
     } else {
-      setProducts(await getProducts());
+      const localFallback = await getProducts();
+      console.log("Erro no cloud, usando fallback local:", localFallback);
+      setProducts(localFallback);
     }
 
     setCompanies(allCompanies);
@@ -501,7 +529,22 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       created_at: editingProduct?.created_at || new Date().toISOString()
     };
 
-    await saveProduct(product);
+    const success = await saveProduct(product);
+    
+    if (!success) {
+      console.warn("Falha na sincronização cloud, mas salvo localmente.");
+    }
+    
+    // Update local state immediately to prevent disappearing
+    setProducts(prev => {
+      const index = prev.findIndex(p => p.id === product.id);
+      if (index > -1) {
+        const updated = [...prev];
+        updated[index] = product;
+        return updated;
+      }
+      return [product, ...prev];
+    });
     
     // Reset form
     setEditingProduct(null);
@@ -511,7 +554,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setProductDescription('');
     setProductImage(null);
     
-    loadData();
+    // Refresh from cloud in background with delay to allow sync to complete
+    setTimeout(() => {
+      loadData();
+    }, 3000); // Increased delay to 3s
   };
 
   const handleEditProduct = (product: Product) => {

@@ -176,7 +176,7 @@ export const getStoreOrders = (): StoreOrder[] => {
   return data ? JSON.parse(data) : [];
 };
 
-export const saveStoreOrder = async (order: StoreOrder) => {
+export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
   const orders = getStoreOrders();
   const index = orders.findIndex(o => o.id === order.id);
   if (index > -1) {
@@ -185,24 +185,33 @@ export const saveStoreOrder = async (order: StoreOrder) => {
     orders.push(order);
   }
   localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
-  await syncToCloud('store_orders', order);
+  return await syncToCloud('store_orders', order);
 };
 
 export const getProducts = async (): Promise<Product[]> => {
   try {
-    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
-    if (data) {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(data));
-      return data;
+    const { data, error } = await supabase.from('products').select('*');
+    if (data && data.length > 0) {
+      console.log("Produtos carregados do Supabase:", data.length);
+      const sorted = data.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
+      return sorted;
     }
+    if (error) console.warn("Erro ao buscar produtos no Supabase:", error.message);
   } catch (err) {
     console.error("Error fetching products from Supabase:", err);
   }
   const data = localStorage.getItem(STORAGE_KEY_PRODUCTS);
-  return data ? JSON.parse(data) : [];
+  const local = data ? JSON.parse(data) : [];
+  console.log("Retornando produtos locais:", local.length);
+  return local;
 };
 
-export const saveProduct = async (product: Product) => {
+export const saveProduct = async (product: Product): Promise<boolean> => {
   const products = await getProducts();
   const index = products.findIndex(p => p.id === product.id);
   if (index > -1) {
@@ -264,16 +273,26 @@ export const hydrateLocalData = async (companyId: string) => {
     // 4. Hidratar Pedidos da Loja
     const { data: storeOrders } = await supabase.from('store_orders').select('*').eq('companyId', companyId);
     if (storeOrders) {
+      const sorted = storeOrders.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
       const localOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
       let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
       const otherOrders = allOrders.filter(o => o.companyId !== companyId);
-      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...storeOrders]));
+      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...sorted]));
     }
 
     // 5. Hidratar Produtos
-    const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    const { data: products } = await supabase.from('products').select('*');
     if (products) {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+      const sorted = products.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      });
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
     }
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);
