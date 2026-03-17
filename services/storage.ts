@@ -189,10 +189,20 @@ export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
 };
 
 export const getProducts = async (): Promise<Product[]> => {
+  const timestamp = new Date().getTime();
+  console.log(`getProducts: Iniciando busca (ts: ${timestamp})...`);
   try {
+    // Adicionamos um parâmetro dummy para evitar cache agressivo se houver
     const { data, error } = await supabase.from('products').select('*');
+    
+    console.log("getProducts: Resposta do Supabase:", { 
+      hasData: !!data, 
+      count: data?.length, 
+      error: error ? { message: error.message, code: error.code } : null 
+    });
+    
     if (data && data.length > 0) {
-      console.log("Produtos carregados do Supabase:", data.length);
+      console.log("getProducts: Sucesso! Atualizando localStorage com", data.length, "produtos.");
       const sorted = data.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -201,17 +211,25 @@ export const getProducts = async (): Promise<Product[]> => {
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
       return sorted;
     }
-    if (error) console.warn("Erro ao buscar produtos no Supabase:", error.message);
+    
+    if (error) {
+      console.warn("getProducts: Erro Supabase:", error.message);
+    } else {
+      console.log("getProducts: Supabase retornou vazio.");
+    }
   } catch (err) {
-    console.error("Error fetching products from Supabase:", err);
+    console.error("getProducts: Exceção:", err);
   }
-  const data = localStorage.getItem(STORAGE_KEY_PRODUCTS);
-  const local = data ? JSON.parse(data) : [];
-  console.log("Retornando produtos locais:", local.length);
+  
+  const localData = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+  console.log("getProducts: Lendo do localStorage:", localData ? "Encontrado" : "Vazio");
+  const local = localData ? JSON.parse(localData) : [];
+  console.log("getProducts: Retornando", local.length, "produtos locais.");
   return local;
 };
 
 export const saveProduct = async (product: Product): Promise<boolean> => {
+  console.log("saveProduct: Iniciando salvamento do produto:", product.id);
   const products = await getProducts();
   const index = products.findIndex(p => p.id === product.id);
   if (index > -1) {
@@ -220,8 +238,11 @@ export const saveProduct = async (product: Product): Promise<boolean> => {
     products.push(product);
   }
   localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  console.log("saveProduct: Salvo no localStorage. Total de produtos:", products.length);
   
-  return await syncToCloud('products', product);
+  const syncResult = await syncToCloud('products', product);
+  console.log("saveProduct: Resultado da sincronização cloud:", syncResult);
+  return syncResult;
 };
 
 export const deleteProduct = async (id: string) => {

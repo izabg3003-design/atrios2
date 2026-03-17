@@ -23,13 +23,26 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
+  const loadProducts = async () => {
+    console.log("Store: Iniciando carregamento de produtos...");
+    const data = await getProducts();
+    console.log("Store: Produtos recebidos de getProducts():", data);
+    // Temporariamente removendo o filtro de active para garantir que apareça
+    setProducts(data);
+  };
+
   useEffect(() => {
-    const loadProducts = async () => {
-      const data = await getProducts();
-      console.log("Fetched products for store:", data);
-      setProducts(data.filter(p => p.active !== false));
-    };
     loadProducts();
+    
+    // Escutar mudanças no localStorage (útil se o MasterPanel estiver em outra aba)
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'atrios_products') {
+        console.log("Store: Detectada mudança no localStorage, recarregando...");
+        loadProducts();
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
+    return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
   const handleRequestQuote = (product: Product) => {
@@ -130,8 +143,15 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
             <ShoppingBag size={24} />
             <span className="text-xs font-black uppercase tracking-[0.3em]">{t.store}</span>
           </div>
-          <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase">
+          <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase flex items-center gap-4">
             {t.storeTitle}
+            <button 
+              onClick={loadProducts}
+              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
+              title="Atualizar Loja"
+            >
+              <Package size={24} />
+            </button>
           </h1>
           <p className="text-slate-500 font-medium max-w-xl">
             {t.storeSub}
@@ -152,15 +172,33 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
-        {products.map((product, index) => (
-          <motion.div
-            key={product.id}
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: index * 0.05 }}
-            className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
+      {products.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-12 text-center">
+          <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-3xl flex items-center justify-center mb-6">
+            <Package size={40} />
+          </div>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Nenhum produto disponível</h3>
+          <p className="text-slate-500 font-medium max-w-xs mx-auto mb-8">
+            Ainda não temos produtos cadastrados nesta categoria. Por favor, volte mais tarde ou tente atualizar a loja.
+          </p>
+          <button 
+            onClick={loadProducts}
+            className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all flex items-center gap-3"
           >
+            <Package size={20} />
+            Tentar Novamente
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+          {products.map((product, index) => (
+            <motion.div
+              key={product.id}
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: index * 0.05 }}
+              className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
+            >
             <div className="relative aspect-[4/5] overflow-hidden">
               <img 
                 src={product.image} 
@@ -210,6 +248,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
           </motion.div>
         ))}
       </div>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
         {[

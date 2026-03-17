@@ -21,13 +21,14 @@ import {
   LayoutDashboard,
   Package,
   ArrowUpRight,
+  Search,
+  Zap,
   Settings,
   UserPlus,
   Ban,
   BarChart3,
   Crown,
   CreditCard,
-  Zap,
   Download,
   Globe,
   ShoppingBag,
@@ -65,7 +66,7 @@ import {
   deleteProduct,
   generateShortId
 } from '../services/storage';
-import { supabase } from '../services/supabase';
+import { supabase, testTableAccess } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -205,18 +206,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
       }));
-    } else if (!productsError) {
-      const localProducts = await getProducts();
-      console.log("Cloud vazio, usando produtos locais:", localProducts);
-      if (localProducts.length > 0 && (!cloudProducts || cloudProducts.length === 0)) {
-        setProducts(localProducts);
-      } else {
-        setProducts([]);
-      }
     } else {
-      const localFallback = await getProducts();
-      console.log("Erro no cloud, usando fallback local:", localFallback);
-      setProducts(localFallback);
+      // Se o cloud estiver vazio ou der erro, tentamos manter o que temos localmente
+      const localProducts = await getProducts();
+      console.log("Cloud sem dados, mantendo/usando produtos locais:", localProducts);
+      if (localProducts.length > 0) {
+        setProducts(localProducts);
+      }
     }
 
     setCompanies(allCompanies);
@@ -1037,9 +1033,71 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             </div>
 
             <div className="lg:col-span-2 bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8">
-              <h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase">
-                <Package size={28} /> Produtos Ativos
-              </h2>
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase">
+                  <Package size={28} /> Produtos Ativos
+                </h2>
+                <button
+                  onClick={async () => {
+                    const localProducts = await getProducts();
+                    if (localProducts.length === 0) {
+                      alert("Nenhum produto local para sincronizar.");
+                      return;
+                    }
+                    
+                    if (confirm(`Deseja tentar sincronizar ${localProducts.length} produtos com o Supabase?`)) {
+                      let successCount = 0;
+                      for (const p of localProducts) {
+                        const success = await saveProduct(p);
+                        if (success) successCount++;
+                      }
+                      alert(`Sincronização concluída!\nSucesso: ${successCount}\nFalha: ${localProducts.length - successCount}`);
+                      loadData();
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-500/20 transition-all flex items-center gap-2"
+                >
+                  <Zap size={14} />
+                  Sincronizar Tudo
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log("--- DIAGNÓSTICO DE PRODUTOS ---");
+                    const localRaw = localStorage.getItem('atrios_products');
+                    const localParsed = localRaw ? JSON.parse(localRaw) : [];
+                    console.log("Local Storage 'atrios_products':", localRaw);
+                    console.log("Estado 'products':", products);
+                    
+                    const hasViteUrl = !!import.meta.env.VITE_SUPABASE_URL;
+                    const hasViteKey = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+                    
+                    console.log("Configuração Supabase:");
+                    console.log("- VITE_SUPABASE_URL:", hasViteUrl ? "Definido" : "NÃO DEFINIDO (Usando fallback)");
+                    console.log("- VITE_SUPABASE_ANON_KEY:", hasViteKey ? "Definido" : "NÃO DEFINIDO (Usando fallback)");
+                    
+                    try {
+                      console.log("Testando conexão Supabase...");
+                      const test = await testTableAccess('products');
+                      
+                      if (!test.success) {
+                        console.error("Erro na conexão Supabase:", test.error);
+                        const err = test.error as any;
+                        alert(`ERRO DE CONEXÃO SUPABASE:\n\nStatus: ${test.status}\nMensagem: ${err?.message || "Erro desconhecido"}\nCódigo: ${err?.code || "N/A"}\n\nPOSSÍVEIS CAUSAS:\n1. Tabela 'products' não existe.\n2. RLS (Security) bloqueando acesso.\n3. Chaves incorretas.\n\nSQL PARA CRIAR TABELA (se não existir):\nCREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\nSQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "Public Access" ON products FOR ALL USING (true) WITH CHECK (true);`);
+                      } else {
+                        console.log("Conexão Supabase OK. Status:", test.status);
+                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${test.status}\nProdutos Locais: ${localParsed.length}\n\nSe os produtos não aparecem no banco, verifique se a coluna 'id' na tabela 'products' é do tipo TEXT.\n\nSe estiver usando UUID, mude para TEXT ou altere a lógica de ID.`);
+                      }
+                    } catch (e) {
+                      console.error("Falha crítica no diagnóstico:", e);
+                      alert("Falha crítica: " + (e as Error).message);
+                    }
+                  }}
+                  className="px-4 py-2 bg-white/10 text-slate-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white/20 transition-all flex items-center gap-2"
+                >
+                  <Search size={14} />
+                  Diagnóstico
+                </button>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 {products.length === 0 ? (
                   <div className="col-span-full py-20 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
