@@ -180,7 +180,7 @@ export interface GlobalNotification {
   imageUrl: string;
   targetAudience: AudienceType;
   active: boolean;
-  createdAt: string;
+  created_at: string;
 }
 
 export interface AuthState {

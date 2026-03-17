@@ -26,6 +26,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   useEffect(() => {
     const loadProducts = async () => {
       const data = await getProducts();
+      console.log("Fetched products for store:", data);
       setProducts(data.filter(p => p.active !== false));
     };
     loadProducts();

@@ -188,13 +188,22 @@ export const saveStoreOrder = async (order: StoreOrder) => {
   await syncToCloud('store_orders', order);
 };
 
-export const getProducts = (): Product[] => {
+export const getProducts = async (): Promise<Product[]> => {
+  try {
+    const { data, error } = await supabase.from('products').select('*').order('created_at', { ascending: false });
+    if (data) {
+      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(data));
+      return data;
+    }
+  } catch (err) {
+    console.error("Error fetching products from Supabase:", err);
+  }
   const data = localStorage.getItem(STORAGE_KEY_PRODUCTS);
   return data ? JSON.parse(data) : [];
 };
 
 export const saveProduct = async (product: Product) => {
-  const products = getProducts();
+  const products = await getProducts();
   const index = products.findIndex(p => p.id === product.id);
   if (index > -1) {
     products[index] = product;
@@ -207,7 +216,7 @@ export const saveProduct = async (product: Product) => {
 };
 
 export const deleteProduct = async (id: string) => {
-  const products = getProducts().filter(p => p.id !== id);
+  const products = (await getProducts()).filter(p => p.id !== id);
   localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
   
   return await supabase.from('products').delete().eq('id', id);
@@ -233,7 +242,7 @@ export const hydrateLocalData = async (companyId: string) => {
     }
 
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
-    const { data: budgets } = await supabase.from('budgets').select('*').eq('companyId', companyId);
+    const { data: budgets } = await supabase.from('budgets').select('*').eq('companyId', companyId).order('created_at', { ascending: false });
     if (budgets) {
       const localBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
       let allBudgets: Budget[] = localBudgetsStr ? JSON.parse(localBudgetsStr) : [];
@@ -262,7 +271,7 @@ export const hydrateLocalData = async (companyId: string) => {
     }
 
     // 5. Hidratar Produtos
-    const { data: products } = await supabase.from('products').select('*');
+    const { data: products } = await supabase.from('products').select('*').order('created_at', { ascending: false });
     if (products) {
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
     }

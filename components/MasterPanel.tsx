@@ -188,7 +188,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       localStorage.setItem('atrios_products', JSON.stringify(cloudProducts));
       setProducts(cloudProducts);
     } else {
-      setProducts(getProducts());
+      setProducts(await getProducts());
     }
 
     setCompanies(allCompanies);

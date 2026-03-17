@@ -65,7 +65,7 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
       
       const monthlyTotal = budgets
         .filter(b => {
-          const bDate = new Date(b.createdAt);
+          const bDate = new Date(b.created_at);
           return bDate.getFullYear() === d.getFullYear() && bDate.getMonth() === d.getMonth();
         })
         .reduce((sum, b) => sum + b.totalAmount, 0);

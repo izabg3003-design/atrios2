@@ -77,7 +77,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
   };
 
   const periodSales = useMemo(() => {
-    return budgets.filter(b => b.status === BudgetStatus.APPROVED && isInPeriod(b.createdAt));
+    return budgets.filter(b => b.status === BudgetStatus.APPROVED && isInPeriod(b.created_at));
   }, [budgets, selectedPeriod, reportMonth, reportYear]);
 
   const periodExpenses = useMemo(() => {
@@ -114,7 +114,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
         d.setDate(now.getDate() - i);
         const dayStr = d.toISOString().split('T')[0];
         
-        const dayBudgets = periodSales.filter(s => s.createdAt.startsWith(dayStr));
+        const dayBudgets = periodSales.filter(s => s.created_at.startsWith(dayStr));
         const daySales = dayBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const dayExpenses = periodExpenses.filter(e => e.date.startsWith(dayStr)).reduce((sum, e) => sum + e.amount, 0);
         const dayIva = calculateIva(dayBudgets);
@@ -133,7 +133,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
         const d = new Date(reportYear, reportMonth, i);
         const dayStr = d.toISOString().split('T')[0];
         
-        const dayBudgets = periodSales.filter(s => s.createdAt.startsWith(dayStr));
+        const dayBudgets = periodSales.filter(s => s.created_at.startsWith(dayStr));
         const daySales = dayBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const dayExpenses = periodExpenses.filter(e => e.date.startsWith(dayStr)).reduce((sum, e) => sum + e.amount, 0);
         const dayIva = calculateIva(dayBudgets);
@@ -148,7 +148,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
       }
     } else if (selectedPeriod === 'annual') {
       for (let i = 0; i < 12; i++) {
-        const monthBudgets = periodSales.filter(s => new Date(s.createdAt).getMonth() === i);
+        const monthBudgets = periodSales.filter(s => new Date(s.created_at).getMonth() === i);
         const monthSales = monthBudgets.reduce((sum, s) => sum + s.totalAmount, 0);
         const monthExpenses = periodExpenses.filter(e => new Date(e.date).getMonth() === i).reduce((sum, e) => sum + e.amount, 0);
         const monthIva = calculateIva(monthBudgets);
@@ -451,7 +451,7 @@ const Reports: React.FC<ReportsProps> = ({ budgets, locale, currencyCode, onExpo
                   <div className="w-10 h-10 lg:w-12 lg:h-12 bg-emerald-50 text-emerald-600 rounded-xl lg:rounded-2xl flex items-center justify-center shrink-0"><CheckCircle2 size={20} className="lg:w-6 lg:h-6" /></div>
                   <div className="flex-1 min-w-0">
                     <h4 className="font-black text-slate-900 truncate text-sm lg:text-base">{budget.clientName}</h4>
-                    <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(budget.createdAt).toLocaleDateString(locale)}</p>
+                    <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest">{new Date(budget.created_at).toLocaleDateString(locale)}</p>
                   </div>
                   <div className="text-right shrink-0">
                     <p className="font-black text-slate-900 text-sm lg:text-base">{(budget.totalAmount * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
