@@ -39,7 +39,8 @@ import {
   MessageSquare,
   ShieldCheck,
   Mail,
-  ShoppingBag
+  ShoppingBag,
+  RefreshCw
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
 import { 
@@ -454,6 +455,10 @@ const App: React.FC = () => {
         if (updated) {
           setCurrentUser(updated);
           currentUserRef.current = updated;
+        } else {
+          // Se não encontrou após hidratação, a conta foi excluída no Supabase
+          console.warn("Conta não encontrada no Supabase após hidratação. Fazendo logout.");
+          handleLogout();
         }
       }
     };
@@ -1114,6 +1119,14 @@ const App: React.FC = () => {
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
+  const handleLogout = () => {
+    saveSession(null);
+    setView('landing');
+    setCurrentUser(null);
+    currentUserRef.current = null;
+    setBudgets([]);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email === 'jeferson.goes36@gmail.com' && password === 'izalivjeh') {
@@ -1121,18 +1134,28 @@ const App: React.FC = () => {
       return;
     }
     
-    // 1. Tentar localizar usuário localmente
-    const localCompanies = getStoredCompanies();
-    let company = localCompanies.find(c => c.email === email && c.password === password);
-    
-    // 2. Se não estiver no local, buscar no Supabase (Permite login em novos dispositivos)
-    if (!company) {
-      const { data, error } = await supabase.from('companies').select('*').eq('email', email).eq('password', password).single();
-      if (data && !error) {
-        company = data as Company;
-        saveCompany(company); // Salva no local storage para sessões futuras
+    // 1. SEMPRE buscar no Supabase para garantir que a conta ainda existe e não está bloqueada
+    const { data: companyData, error: loginError } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('email', email)
+      .eq('password', password)
+      .single();
+
+    if (loginError || !companyData) {
+      // Se não encontrou no Supabase, mas existe localmente, removemos o local pois foi excluído na nuvem
+      const localCompanies = getStoredCompanies();
+      const existsLocally = localCompanies.some(c => c.email === email);
+      if (existsLocally) {
+        const filtered = localCompanies.filter(c => c.email !== email);
+        localStorage.setItem('atrios_companies', JSON.stringify(filtered));
       }
+      alert(t.invalidCredentials);
+      return;
     }
+
+    const company = companyData as Company;
+    saveCompany(company); // Atualiza/Salva no local storage
 
     if (company) {
       if (company.isBlocked) {
@@ -1559,6 +1582,31 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleManualSync = async () => {
+    if (!currentUser) return;
+    setIsSyncing(true);
+    try {
+      await hydrateLocalData(currentUser.id);
+      setBudgets(getStoredBudgets(currentUser.id));
+      // Track sync event
+      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+        ReactGA.event({
+          category: 'User',
+          action: 'Manual Sync',
+          label: currentUser.email
+        });
+      }
+      alert("Sincronização concluída com sucesso!");
+    } catch (error) {
+      console.error("Manual sync error:", error);
+      alert("Erro ao sincronizar dados. Verifique sua conexão.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const Selectors = ({ dark = true }: { dark?: boolean }) => {
     const isMobile = windowWidth < 640;
     return (
@@ -1595,6 +1643,20 @@ const App: React.FC = () => {
             <option value="bn-BD" className="text-slate-900">🇧🇩 {isMobile ? 'BN' : 'BN - বাংলাদেশ (Bengali)'}</option>
           </select>
         </div>
+        
+        {currentUser && (
+          <button
+            onClick={handleManualSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm transition-all disabled:opacity-50`}
+            title="Sincronizar agora"
+          >
+            <RefreshCw size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px] ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className={`text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} tracking-tight`}>
+              {isSyncing ? '...' : 'SYNC'}
+            </span>
+          </button>
+        )}
       </div>
     );
   };
@@ -2188,7 +2250,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <button 
-                onClick={() => { saveSession(null); setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
+                onClick={handleLogout} 
                 className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2 sm:py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
               >
                 <LogOut size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" /> {t.logout}

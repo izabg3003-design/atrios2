@@ -56,32 +56,49 @@ export const syncToCloud = async (table: string, data: any): Promise<SyncResult>
         console.warn("syncToCloud: Erro de tipo de dado (provavelmente UUID). Verifique se a coluna 'id' no Supabase é do tipo TEXT.");
       }
 
-      // Se o erro for 'PGRST204' (column not found), tenta identificar a coluna e remover
+      // Se o erro for 'PGRST204' (column not found), tenta identificar a coluna e mapear ou remover
       if (error.code === 'PGRST204') {
         const match = error.message.match(/Could not find the '(.+)' column/);
         const missingColumn = match ? match[1] : null;
         
         if (missingColumn && cleanData[missingColumn] !== undefined) {
-          console.warn(`syncToCloud: Coluna '${missingColumn}' não encontrada em ${table}. Tentando sincronizar sem ela...`);
           const retryData = { ...cleanData };
-          delete retryData[missingColumn];
+          
+          // Mapeamento inteligente para colunas comuns
+          if (missingColumn === 'companyId') {
+            console.warn(`syncToCloud: Coluna 'companyId' não encontrada, tentando 'company_id'...`);
+            retryData.company_id = cleanData.companyId;
+            delete retryData.companyId;
+          } else if (missingColumn === 'company_id') {
+            console.warn(`syncToCloud: Coluna 'company_id' não encontrada, tentando 'companyid'...`);
+            retryData.companyid = cleanData.company_id;
+            delete retryData.company_id;
+          } else {
+            console.warn(`syncToCloud: Coluna '${missingColumn}' não encontrada em ${table}. Tentando sincronizar sem ela...`);
+            delete retryData[missingColumn];
+          }
           
           const { error: retryError } = await supabase.from(table).upsert(retryData);
           if (!retryError) {
-            console.log(`syncToCloud: Sincronização de ${table} (sem ${missingColumn}) concluída.`);
+            console.log(`syncToCloud: Sincronização de ${table} concluída após mapeamento/remoção.`);
             return { success: true };
           }
           
-          // Se ainda falhar, pode haver outra coluna faltando. Vamos tentar recursivamente uma vez.
+          // Se ainda falhar por coluna não encontrada, tenta novamente uma vez
           if (retryError.code === 'PGRST204') {
             const secondMatch = retryError.message.match(/Could not find the '(.+)' column/);
             const secondMissingColumn = secondMatch ? secondMatch[1] : null;
             if (secondMissingColumn && retryData[secondMissingColumn] !== undefined) {
-              console.warn(`syncToCloud: Segunda coluna '${secondMissingColumn}' não encontrada em ${table}. Tentando novamente...`);
-              delete retryData[secondMissingColumn];
-              const { error: finalError } = await supabase.from(table).upsert(retryData);
-              if (!finalError) return { success: true };
-              return { success: false, error: finalError };
+               // Tenta mapear a segunda coluna se for company_id
+               if (secondMissingColumn === 'company_id') {
+                 retryData.companyid = retryData.company_id;
+                 delete retryData.company_id;
+               } else {
+                 delete retryData[secondMissingColumn];
+               }
+               const { error: finalError } = await supabase.from(table).upsert(retryData);
+               if (!finalError) return { success: true };
+               return { success: false, error: finalError };
             }
           }
           return { success: false, error: retryError };

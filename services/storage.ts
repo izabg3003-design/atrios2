@@ -276,6 +276,7 @@ export const deleteProduct = async (id: string) => {
 export const mapBudgetFromSupabase = (b: any): Budget => {
   const mapped: any = { ...b };
   if (b.company_id && !b.companyId) mapped.companyId = b.company_id;
+  if (b.companyid && !b.companyId) mapped.companyId = b.companyid;
   if (b.client_name && !b.clientName) mapped.clientName = b.client_name;
   if (b.contact_name && !b.contactName) mapped.contactName = b.contact_name;
   if (b.contact_phone && !b.contactPhone) mapped.contactPhone = b.contact_phone;
@@ -312,7 +313,18 @@ export const mapOrderFromSupabase = (o: any): StoreOrder => {
 export const hydrateLocalData = async (companyId: string) => {
   try {
     // 1. Hidratar Empresa (Garante Plano Premium/Free correto)
-    const { data: companyData } = await supabase.from('companies').select('*').eq('id', companyId).single();
+    const { data: companyData, error: companyError } = await supabase.from('companies').select('*').eq('id', companyId).single();
+    
+    if (companyError && companyError.code === 'PGRST116') {
+      // Empresa não encontrada (foi excluída no Supabase)
+      console.warn(`[Hydrate] Empresa ${companyId} não encontrada no Supabase. Removendo localmente.`);
+      const companies = getStoredCompanies();
+      const filtered = companies.filter(c => c.id !== companyId);
+      localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(filtered));
+      // Se for o usuário atual, a sessão será invalidada no App.tsx via polling ou refresh
+      return; 
+    }
+
     if (companyData) {
       const companies = getStoredCompanies();
       const idx = companies.findIndex(c => c.id === companyId);
@@ -325,7 +337,7 @@ export const hydrateLocalData = async (companyId: string) => {
     }
 
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
-    console.log(`Buscando orçamentos para a empresa ${companyId}...`);
+    console.log(`[Hydrate] Buscando orçamentos para a empresa ${companyId}...`);
     
     // Tenta buscar com camelCase primeiro
     let { data: budgets, error: budgetsError } = await supabase
@@ -334,9 +346,9 @@ export const hydrateLocalData = async (companyId: string) => {
       .eq('companyId', companyId)
       .order('created_at', { ascending: false });
       
-    // Se falhar por coluna não encontrada, tenta snake_case
-    if (budgetsError && (budgetsError.code === 'PGRST204' || budgetsError.message.includes('companyId'))) {
-      console.warn("hydrateLocalData: Coluna 'companyId' não encontrada, tentando 'company_id'...");
+    // Se falhar por coluna não encontrada, tenta snake_case ou lowercase
+    if (budgetsError && (budgetsError.code === 'PGRST204' || budgetsError.code === '42703' || (budgetsError.message && budgetsError.message.includes('companyId')))) {
+      console.warn("[Hydrate] Coluna 'companyId' não encontrada, tentando 'company_id'...");
       const { data: budgetsSnake, error: snakeError } = await supabase
         .from('budgets')
         .select('*')
@@ -346,14 +358,27 @@ export const hydrateLocalData = async (companyId: string) => {
       if (!snakeError) {
         budgets = budgetsSnake;
         budgetsError = null;
+      } else if (snakeError.code === '42703' || (snakeError.message && snakeError.message.includes('company_id'))) {
+        console.warn("[Hydrate] Coluna 'company_id' não encontrada, tentando 'companyid'...");
+        const { data: budgetsLower, error: lowerError } = await supabase
+          .from('budgets')
+          .select('*')
+          .eq('companyid', companyId)
+          .order('created_at', { ascending: false });
+          
+        if (!lowerError) {
+          budgets = budgetsLower;
+          budgetsError = null;
+        }
       }
     }
 
     if (budgetsError) {
-      console.error("Erro ao buscar orçamentos do Supabase:", budgetsError);
+      console.error("[Hydrate] Erro ao buscar orçamentos do Supabase:", budgetsError);
     }
     
-    if (budgets && budgets.length > 0) {
+    if (budgets) {
+      console.log(`[Hydrate] ${budgets.length} orçamentos encontrados na nuvem.`);
       // Mapear campos snake_case para camelCase se necessário
       const mappedBudgets = budgets.map(mapBudgetFromSupabase);
 
@@ -363,8 +388,9 @@ export const hydrateLocalData = async (companyId: string) => {
       // Filtra orçamentos de outras empresas e combina com os baixados da nuvem
       const otherBudgets = allBudgets.filter(b => b.companyId !== companyId);
       
+      // IMPORTANTE: Mesmo que mappedBudgets seja vazio, salvamos para limpar os excluídos
       localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mappedBudgets]));
-      console.log(`Hidratados ${mappedBudgets.length} orçamentos para a empresa ${companyId}`);
+      console.log(`[Hydrate] Hidratados ${mappedBudgets.length} orçamentos para a empresa ${companyId}`);
     }
 
     // 3. Hidratar Mensagens de Suporte
@@ -385,6 +411,7 @@ export const hydrateLocalData = async (companyId: string) => {
       const localMsgsStr = localStorage.getItem(STORAGE_KEY_MESSAGES);
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
       const otherMessages = allMessages.filter(m => m.companyId !== companyId);
+      // IMPORTANTE: Mesmo que mappedMessages seja vazio, salvamos para limpar os excluídos
       localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mappedMessages]));
     }
 
@@ -411,6 +438,7 @@ export const hydrateLocalData = async (companyId: string) => {
       const localOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
       let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
       const otherOrders = allOrders.filter(o => o.companyId !== companyId);
+      // IMPORTANTE: Mesmo que sorted seja vazio, salvamos para limpar os excluídos
       localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...sorted]));
     }
 
