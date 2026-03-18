@@ -49,9 +49,13 @@ export const removeCompany = async (id: string) => {
   await supabase.from('companies').delete().eq('id', id);
 };
 
-export const getStoredBudgets = (companyId: string): Budget[] => {
+export const getAllStoredBudgets = (): Budget[] => {
   const data = localStorage.getItem(STORAGE_KEY_BUDGETS);
-  const budgets: Budget[] = data ? JSON.parse(data) : [];
+  return data ? JSON.parse(data) : [];
+};
+
+export const getStoredBudgets = (companyId: string): Budget[] => {
+  const budgets = getAllStoredBudgets();
   return budgets.filter(b => b.companyId === companyId);
 };
 
@@ -285,14 +289,25 @@ export const hydrateLocalData = async (companyId: string) => {
     }
 
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
-    const { data: budgets } = await supabase.from('budgets').select('*').eq('companyId', companyId).order('created_at', { ascending: false });
+    const { data: budgets, error: budgetsError } = await supabase.from('budgets').select('*').eq('companyId', companyId).order('created_at', { ascending: false });
+    if (budgetsError) {
+      console.error("Erro ao buscar orçamentos do Supabase:", budgetsError);
+    }
+    
     if (budgets) {
       const localBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
       let allBudgets: Budget[] = localBudgetsStr ? JSON.parse(localBudgetsStr) : [];
       
       // Filtra orçamentos de outras empresas e combina com os baixados da nuvem
       const otherBudgets = allBudgets.filter(b => b.companyId !== companyId);
+      
+      // Garantir que os dados do Supabase estão no formato correto (camelCase vs snake_case se necessário)
+      // Nota: O Supabase JS SDK geralmente retorna o que está no banco. 
+      // Se o banco usa snake_case e o código camelCase, precisamos mapear.
+      // Mas assumindo que o banco segue o modelo do objeto Budget.
+      
       localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...budgets]));
+      console.log(`Hidratados ${budgets.length} orçamentos para a empresa ${companyId}`);
     }
 
     // 3. Hidratar Mensagens de Suporte

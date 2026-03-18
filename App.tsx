@@ -45,6 +45,7 @@ import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, Glob
 import { 
   getStoredCompanies, 
   saveCompany, 
+  getAllStoredBudgets,
   getStoredBudgets, 
   saveBudget, 
   getPdfDownloadCount, 
@@ -251,6 +252,59 @@ const App: React.FC = () => {
         )
         .subscribe();
 
+      // Subscrição para orçamentos (real-time sync)
+      const budgetChannel = supabase
+        .channel(`user-budgets-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'budgets'
+          },
+          (payload) => {
+            console.log('Budget change detected:', payload.eventType, payload);
+            
+            const allBudgets = getAllStoredBudgets();
+            const otherBudgets = allBudgets.filter(b => b.companyId !== currentUser.id);
+            const myBudgets = allBudgets.filter(b => b.companyId === currentUser.id);
+            let changed = false;
+            
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const newBudget = payload.new as Budget;
+              if (!newBudget || newBudget.companyId !== currentUser.id) return;
+              
+              const idx = myBudgets.findIndex(b => b.id === newBudget.id);
+              if (idx > -1) {
+                // Only update if data actually changed to avoid infinite loops or unnecessary renders
+                if (JSON.stringify(myBudgets[idx]) !== JSON.stringify(newBudget)) {
+                  myBudgets[idx] = newBudget;
+                  changed = true;
+                }
+              } else {
+                myBudgets.unshift(newBudget);
+                changed = true;
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = myBudgets.findIndex(b => b.id === deletedId);
+              if (idx > -1) {
+                myBudgets.splice(idx, 1);
+                changed = true;
+              }
+            }
+            
+            if (changed) {
+              // Atualizar localStorage e estado
+              localStorage.setItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
+              setBudgets([...myBudgets]);
+            }
+          }
+        )
+        .subscribe();
+
       // Subscrição para novas mensagens do Master
       const msgChannel = supabase
         .channel(`user-messages-${currentUser.id}`)
@@ -297,6 +351,7 @@ const App: React.FC = () => {
 
       return () => {
         supabase.removeChannel(companyChannel);
+        supabase.removeChannel(budgetChannel);
         supabase.removeChannel(msgChannel);
         clearInterval(fallback);
       };
@@ -385,6 +440,10 @@ const App: React.FC = () => {
     const initData = async () => {
       if (currentUser?.id) {
         await hydrateLocalData(currentUser.id);
+        
+        // Update budgets state after hydration
+        setBudgets(getStoredBudgets(currentUser.id));
+        
         const all = getStoredCompanies();
         const updated = all.find(c => c.id === currentUser.id);
         if (updated) {
@@ -1083,6 +1142,9 @@ const App: React.FC = () => {
       // Hidratar dados do Supabase ao logar com sucesso
       await hydrateLocalData(company.id);
       
+      // Update budgets state after hydration
+      setBudgets(getStoredBudgets(company.id));
+      
       if (!company.firstLoginAt) {
         company.firstLoginAt = new Date().toISOString();
         saveCompany(company);
@@ -1213,6 +1275,9 @@ const App: React.FC = () => {
       
       await hydrateLocalData(company.id);
       
+      // Update budgets state after hydration
+      setBudgets(getStoredBudgets(company.id));
+      
       setCurrentUser(company);
       currentUserRef.current = company;
       setShowWelcome(true);
@@ -1286,6 +1351,10 @@ const App: React.FC = () => {
       if (sessionId && currentUser) {
         // Refresh user data to see the new plan
         await hydrateLocalData(currentUser.id);
+        
+        // Update budgets state after hydration
+        setBudgets(getStoredBudgets(currentUser.id));
+        
         const updatedCompanies = getStoredCompanies();
         const updatedUser = updatedCompanies.find(c => c.id === currentUser.id);
         if (updatedUser) {
@@ -1528,7 +1597,7 @@ const App: React.FC = () => {
   if (view === 'master') return <MasterPanel onLogout={() => { saveSession(null); setView('landing'); }} locale={locale} />;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full justify-center items-center">
+    <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
       {showWelcome && currentUser && <WelcomeScreen company={currentUser} locale={locale} />}
       
       {showUnlockAlert && (
