@@ -83,8 +83,14 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
       created_at: new Date().toISOString()
     };
 
+    console.log("Store: Enviando novo pedido:", newOrder);
+
     try {
-      await saveStoreOrder(newOrder);
+      const success = await saveStoreOrder(newOrder);
+      console.log("Store: Resultado do saveStoreOrder:", success);
+      if (!success) {
+        throw new Error("Falha na sincronização cloud");
+      }
       setIsProcessing(false);
       setShowSuccess(true);
       setNotes('');
@@ -95,7 +101,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
     } catch (error) {
       console.error("Erro ao enviar pedido:", error);
       setIsProcessing(false);
-      alert("Erro ao enviar pedido. Verifique sua conexão.");
+      alert("Erro ao enviar pedido para o servidor. Verifique sua conexão ou se as tabelas do banco de dados foram criadas.");
     }
   };
 
@@ -223,7 +229,10 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
             
             <div className="p-8 space-y-4 flex-1 flex flex-col">
               <div className="flex justify-between items-start gap-2">
-                <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{product.name}</h3>
+                <div className="space-y-1">
+                  <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{product.category}</span>
+                  <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{product.name}</h3>
+                </div>
                 <div className="flex items-center gap-1 text-amber-500">
                   <Star size={12} fill="currentColor" />
                   <span className="text-[10px] font-black">4.9</span>

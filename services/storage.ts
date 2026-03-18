@@ -177,15 +177,28 @@ export const getStoreOrders = (): StoreOrder[] => {
 };
 
 export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
-  const orders = getStoreOrders();
-  const index = orders.findIndex(o => o.id === order.id);
-  if (index > -1) {
-    orders[index] = order;
-  } else {
-    orders.push(order);
+  try {
+    const orders = getStoreOrders();
+    const index = orders.findIndex(o => o.id === order.id);
+    if (index > -1) {
+      orders[index] = order;
+    } else {
+      orders.push(order);
+    }
+    localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
+    
+    // Tenta sincronizar com a nuvem, mas não bloqueia o sucesso local
+    const result = await syncToCloud('store_orders', order);
+    if (!result.success) {
+      console.warn("saveStoreOrder: Falha na sincronização cloud, mas o pedido foi salvo localmente.", result.error);
+      // Retornamos true pois o pedido foi salvo localmente com sucesso
+    }
+    
+    return true;
+  } catch (error) {
+    console.error("saveStoreOrder: Erro ao salvar pedido:", error);
+    return false;
   }
-  localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
-  return await syncToCloud('store_orders', order);
 };
 
 export const getProducts = async (): Promise<Product[]> => {
@@ -228,7 +241,7 @@ export const getProducts = async (): Promise<Product[]> => {
   return local;
 };
 
-export const saveProduct = async (product: Product): Promise<boolean> => {
+export const saveProduct = async (product: Product): Promise<{ success: boolean, error?: any }> => {
   console.log("saveProduct: Iniciando salvamento do produto:", product.id);
   const products = await getProducts();
   const index = products.findIndex(p => p.id === product.id);

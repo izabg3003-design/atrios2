@@ -15,16 +15,22 @@ export const testTableAccess = async (tableName: string) => {
   }
 };
 
-export const syncToCloud = async (table: string, data: any): Promise<boolean> => {
+export interface SyncResult {
+  success: boolean;
+  error?: any;
+}
+
+export const syncToCloud = async (table: string, data: any): Promise<SyncResult> => {
   try {
     // Remove problematic fields if table doesn't have them
     const cleanData = { ...data };
     
-    if (table === 'products') {
+    if (table === 'products' || table === 'store_orders') {
       // Se a imagem for muito grande (base64), pode causar erro de payload ou de coluna
-      if (cleanData.image && cleanData.image.length > 100000) {
-        console.warn("syncToCloud: Imagem do produto muito grande (>100KB), removendo para sincronização cloud.");
-        delete cleanData.image;
+      const imageField = table === 'products' ? 'image' : 'uploadedImage';
+      if (cleanData[imageField] && cleanData[imageField].length > 100000) {
+        console.warn(`syncToCloud: Imagem de ${table} muito grande (>100KB), removendo para sincronização cloud.`);
+        delete cleanData[imageField];
       }
     }
     
@@ -46,27 +52,63 @@ export const syncToCloud = async (table: string, data: any): Promise<boolean> =>
       });
       
       // Se o erro for '22P02' (invalid text representation), pode ser o ID que não é UUID
-      if (error.code === '22P02' && typeof cleanData.id === 'string' && !cleanData.id.includes('-')) {
-        console.warn("syncToCloud: Possível erro de tipo UUID. Verifique se a coluna 'id' no Supabase é do tipo TEXT ou UUID.");
+      if (error.code === '22P02') {
+        console.warn("syncToCloud: Erro de tipo de dado (provavelmente UUID). Verifique se a coluna 'id' no Supabase é do tipo TEXT.");
+      }
+
+      // Se o erro for 'PGRST204' (column not found), tenta identificar a coluna e remover
+      if (error.code === 'PGRST204') {
+        const match = error.message.match(/Could not find the '(.+)' column/);
+        const missingColumn = match ? match[1] : null;
+        
+        if (missingColumn && cleanData[missingColumn] !== undefined) {
+          console.warn(`syncToCloud: Coluna '${missingColumn}' não encontrada em ${table}. Tentando sincronizar sem ela...`);
+          const retryData = { ...cleanData };
+          delete retryData[missingColumn];
+          
+          const { error: retryError } = await supabase.from(table).upsert(retryData);
+          if (!retryError) {
+            console.log(`syncToCloud: Sincronização de ${table} (sem ${missingColumn}) concluída.`);
+            return { success: true };
+          }
+          
+          // Se ainda falhar, pode haver outra coluna faltando. Vamos tentar recursivamente uma vez.
+          if (retryError.code === 'PGRST204') {
+            const secondMatch = retryError.message.match(/Could not find the '(.+)' column/);
+            const secondMissingColumn = secondMatch ? secondMatch[1] : null;
+            if (secondMissingColumn && retryData[secondMissingColumn] !== undefined) {
+              console.warn(`syncToCloud: Segunda coluna '${secondMissingColumn}' não encontrada em ${table}. Tentando novamente...`);
+              delete retryData[secondMissingColumn];
+              const { error: finalError } = await supabase.from(table).upsert(retryData);
+              if (!finalError) return { success: true };
+              return { success: false, error: finalError };
+            }
+          }
+          return { success: false, error: retryError };
+        }
       }
 
       // Se falhar por causa da imagem (payload too large), tenta sem a imagem
-      if (cleanData.image && (error.message.includes('large') || error.code === '413')) {
+      const imageField = table === 'products' ? 'image' : 'uploadedImage';
+      if (cleanData[imageField] && (error.message.includes('large') || error.code === '413' || error.message.includes('payload'))) {
         console.warn(`syncToCloud: Tentando sincronizar ${table} sem a imagem devido ao tamanho...`);
-        const { image, ...noImageData } = cleanData;
+        const noImageData = { ...cleanData };
+        delete noImageData[imageField];
+        
         const { error: retryError } = await supabase.from(table).upsert(noImageData);
         if (!retryError) {
           console.log(`syncToCloud: Sincronização de ${table} (sem imagem) concluída.`);
-          return true;
+          return { success: true };
         }
+        return { success: false, error: retryError };
       }
-      return false;
+      return { success: false, error };
     }
     
     console.log(`syncToCloud: Sincronização de ${table} concluída com sucesso. Retorno:`, upsertData);
-    return true;
+    return { success: true };
   } catch (err) {
     console.error(`Falha crítica na conexão com Supabase (${table}):`, err);
-    return false;
+    return { success: false, error: err };
   }
 };

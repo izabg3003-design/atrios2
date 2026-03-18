@@ -171,8 +171,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     prevUnreadCount.current = unreadCount;
 
     // Buscar pedidos da loja
+    console.log("MasterPanel: Buscando pedidos da loja no Supabase...");
     const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*');
-    if (ordersError) console.error("Erro ao buscar pedidos da loja:", ordersError.message);
+    if (ordersError) {
+      console.error("MasterPanel: Erro ao buscar pedidos da loja:", ordersError.message, ordersError.details);
+    } else {
+      console.log(`MasterPanel: ${cloudOrders?.length || 0} pedidos recebidos do cloud.`);
+    }
     
     if (cloudOrders && cloudOrders.length > 0) {
       localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
@@ -200,8 +205,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     console.log("Produtos recebidos do cloud:", cloudProducts);
 
     if (cloudProducts && cloudProducts.length > 0) {
-      localStorage.setItem('atrios_products', JSON.stringify(cloudProducts));
-      setProducts(cloudProducts.sort((a, b) => {
+      const syncedProducts = cloudProducts.map(p => ({ ...p, synced: true }));
+      localStorage.setItem('atrios_products', JSON.stringify(syncedProducts));
+      setProducts(syncedProducts.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
@@ -300,14 +306,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
-    // Subscrição para pedidos da loja
-    const storeChannel = supabase
+    // Subscrição para novos pedidos da loja
+    const storeOrdersChannel = supabase
       .channel('master-store-orders')
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'store_orders' },
-        () => {
-          loadData();
+        (payload) => {
+          console.log("Mudança em store_orders recebida:", payload);
+          loadData(); // Recarrega tudo para garantir consistência
         }
       )
       .subscribe();
@@ -318,7 +325,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(companyChannel);
-      supabase.removeChannel(storeChannel);
+      supabase.removeChannel(storeOrdersChannel);
       clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);
@@ -525,21 +532,31 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       created_at: editingProduct?.created_at || new Date().toISOString()
     };
 
-    const success = await saveProduct(product);
+    const result = await saveProduct(product);
     
-    if (!success) {
-      console.warn("Falha na sincronização cloud, mas salvo localmente.");
+    const finalProduct = { ...product, synced: result.success };
+    
+    if (!result.success) {
+      console.warn("Falha na sincronização cloud, mas salvo localmente.", result.error);
+      const err = result.error as any;
+      if (err?.code === '42501') {
+        alert("ERRO DE PERMISSÃO (RLS):\nO Supabase não permitiu salvar o produto. Clique no botão 'Diagnóstico' para ver como liberar o acesso (SQL).");
+      } else if (err?.code === '22P02') {
+        alert("ERRO DE TIPO (UUID):\nA coluna 'id' no Supabase parece ser do tipo UUID, mas o app usa Texto. Mude o tipo da coluna para TEXT no Supabase.");
+      } else if (err?.message) {
+        alert(`Erro ao sincronizar com nuvem: ${err.message}`);
+      }
     }
     
     // Update local state immediately to prevent disappearing
     setProducts(prev => {
-      const index = prev.findIndex(p => p.id === product.id);
+      const index = prev.findIndex(p => p.id === finalProduct.id);
       if (index > -1) {
         const updated = [...prev];
-        updated[index] = product;
+        updated[index] = finalProduct;
         return updated;
       }
-      return [product, ...prev];
+      return [finalProduct, ...prev];
     });
     
     // Reset form
@@ -1048,8 +1065,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     if (confirm(`Deseja tentar sincronizar ${localProducts.length} produtos com o Supabase?`)) {
                       let successCount = 0;
                       for (const p of localProducts) {
-                        const success = await saveProduct(p);
-                        if (success) successCount++;
+                        const result = await saveProduct(p);
+                        if (result.success) successCount++;
                       }
                       alert(`Sincronização concluída!\nSucesso: ${successCount}\nFalha: ${localProducts.length - successCount}`);
                       loadData();
@@ -1077,15 +1094,33 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     
                     try {
                       console.log("Testando conexão Supabase...");
-                      const test = await testTableAccess('products');
+                      const testProducts = await testTableAccess('products');
+                      const testOrders = await testTableAccess('store_orders');
                       
-                      if (!test.success) {
-                        console.error("Erro na conexão Supabase:", test.error);
-                        const err = test.error as any;
-                        alert(`ERRO DE CONEXÃO SUPABASE:\n\nStatus: ${test.status}\nMensagem: ${err?.message || "Erro desconhecido"}\nCódigo: ${err?.code || "N/A"}\n\nPOSSÍVEIS CAUSAS:\n1. Tabela 'products' não existe.\n2. RLS (Security) bloqueando acesso.\n3. Chaves incorretas.\n\nSQL PARA CRIAR TABELA (se não existir):\nCREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\nSQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY "Public Access" ON products FOR ALL USING (true) WITH CHECK (true);`);
+                      if (!testProducts.success || !testOrders.success) {
+                        console.error("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error });
+                        const errP = testProducts.error as any;
+                        const errO = testOrders.error as any;
+                        
+                        let msg = "ERRO DE CONEXÃO SUPABASE:\n\n";
+                        
+                        if (!testProducts.success) {
+                          msg += `TABELA 'products':\nStatus: ${testProducts.status}\nMensagem: ${errP?.message || "Erro"}\n\n`;
+                        }
+                        
+                        if (!testOrders.success) {
+                          msg += `TABELA 'store_orders':\nStatus: ${testOrders.status}\nMensagem: ${errO?.message || "Erro"}\n\n`;
+                        }
+                        
+                        msg += "SQL PARA CRIAR TABELAS (se não existirem):\n\n";
+                        msg += "CREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                        msg += "CREATE TABLE store_orders (\n  id TEXT PRIMARY KEY,\n  \"companyId\" TEXT,\n  \"productId\" TEXT,\n  \"productName\" TEXT,\n  quantity INTEGER,\n  notes TEXT,\n  \"uploadedImage\" TEXT,\n  status TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                        msg += "SQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON products FOR ALL USING (true) WITH CHECK (true);\n\nALTER TABLE store_orders ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON store_orders FOR ALL USING (true) WITH CHECK (true);";
+                        
+                        alert(msg);
                       } else {
-                        console.log("Conexão Supabase OK. Status:", test.status);
-                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${test.status}\nProdutos Locais: ${localParsed.length}\n\nSe os produtos não aparecem no banco, verifique se a coluna 'id' na tabela 'products' é do tipo TEXT.\n\nSe estiver usando UUID, mude para TEXT ou altere a lógica de ID.`);
+                        console.log("Conexão Supabase OK. Status:", testProducts.status);
+                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${testProducts.status}\nProdutos Locais: ${localParsed.length}\nPedidos Locais: ${storeOrders.length}\n\nSe os dados não aparecem no banco, verifique se a coluna 'id' nas tabelas é do tipo TEXT.`);
                       }
                     } catch (e) {
                       console.error("Falha crítica no diagnóstico:", e);
@@ -1123,13 +1158,29 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           </button>
                         </div>
                       </div>
-                      <div className="p-6 space-y-2 flex-1">
-                        <div className="flex justify-between items-start">
-                          <span className="text-[10px] font-black uppercase text-amber-500 bg-amber-500/10 px-2 py-1 rounded-md">{p.code}</span>
-                          <span className="text-[10px] font-black uppercase text-slate-500">{p.category}</span>
+                      <div className="p-6 space-y-3 flex-1 flex flex-col">
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{p.category}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-400/10 px-2 py-0.5 rounded-md">{p.code}</span>
+                              {p.synced === false && (
+                                <span className="text-[7px] font-black uppercase text-red-500 bg-red-500/10 px-1 py-0.5 rounded flex items-center gap-1">
+                                  <AlertCircle size={8} /> Offline
+                                </span>
+                              )}
+                              {p.synced === true && (
+                                <span className="text-[7px] font-black uppercase text-green-500 bg-green-500/10 px-1 py-0.5 rounded flex items-center gap-1">
+                                  <CheckCircle size={8} /> Cloud
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{p.name}</h3>
                         </div>
-                        <h3 className="text-xl font-black italic uppercase tracking-tighter">{p.name}</h3>
-                        <p className="text-xs text-slate-400 line-clamp-2">{p.description}</p>
+                        <p className="text-sm text-slate-500 font-medium leading-relaxed flex-1">
+                          {p.description}
+                        </p>
                       </div>
                     </div>
                   ))

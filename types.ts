@@ -112,6 +112,7 @@ export interface Product {
   description: string;
   active: boolean;
   created_at: string;
+  synced?: boolean;
 }
 
 export interface StoreOrder {
