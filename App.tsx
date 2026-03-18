@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
 import { Store } from './components/Store';
+import { InstallPWA } from './components/InstallPWA';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -2456,6 +2457,8 @@ const App: React.FC = () => {
               `}</style>
             </div>
           )}
+          
+          <InstallPWA />
         </div>
       )}
     </div>
