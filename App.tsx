@@ -45,8 +45,11 @@ import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, Glob
 import { 
   getStoredCompanies, 
   saveCompany, 
-  getAllStoredBudgets,
   getStoredBudgets, 
+  getAllStoredBudgets,
+  mapBudgetFromSupabase,
+  mapMessageFromSupabase,
+  mapOrderFromSupabase,
   saveBudget, 
   getPdfDownloadCount, 
   incrementPdfDownloadCount,
@@ -271,7 +274,7 @@ const App: React.FC = () => {
             let changed = false;
             
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const newBudget = payload.new as Budget;
+              const newBudget = mapBudgetFromSupabase(payload.new);
               if (!newBudget || newBudget.companyId !== currentUser.id) return;
               
               const idx = myBudgets.findIndex(b => b.id === newBudget.id);
@@ -317,7 +320,7 @@ const App: React.FC = () => {
             filter: `companyId=eq.${currentUser.id}`
           },
           (payload) => {
-            const newMessage = payload.new as SupportMessage;
+            const newMessage = mapMessageFromSupabase(payload.new);
             if (!newMessage || !newMessage.id) return;
             
             // Atualizar localStorage
@@ -439,10 +442,12 @@ const App: React.FC = () => {
   useEffect(() => {
     const initData = async () => {
       if (currentUser?.id) {
+        console.log("Iniciando hidratação de dados para:", currentUser.id);
         await hydrateLocalData(currentUser.id);
         
         // Update budgets state after hydration
-        setBudgets(getStoredBudgets(currentUser.id));
+        const currentBudgets = getStoredBudgets(currentUser.id);
+        setBudgets(currentBudgets);
         
         const all = getStoredCompanies();
         const updated = all.find(c => c.id === currentUser.id);
@@ -453,7 +458,7 @@ const App: React.FC = () => {
       }
     };
     initData();
-  }, []);
+  }, [currentUser?.id]);
 
   const isSettingsLocked = useMemo(() => {
     if (!currentUser) return true;

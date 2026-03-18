@@ -273,6 +273,42 @@ export const deleteProduct = async (id: string) => {
  * Recupera todos os dados do Supabase e atualiza o armazenamento local.
  * Garante que orçamentos antigos, despesas e status de plano apareçam na página do usuário.
  */
+export const mapBudgetFromSupabase = (b: any): Budget => {
+  const mapped: any = { ...b };
+  if (b.company_id && !b.companyId) mapped.companyId = b.company_id;
+  if (b.client_name && !b.clientName) mapped.clientName = b.client_name;
+  if (b.contact_name && !b.contactName) mapped.contactName = b.contact_name;
+  if (b.contact_phone && !b.contactPhone) mapped.contactPhone = b.contact_phone;
+  if (b.work_location && !b.workLocation) mapped.workLocation = b.work_location;
+  if (b.work_number && !b.workNumber) mapped.workNumber = b.work_number;
+  if (b.work_postal_code && !b.workPostalCode) mapped.workPostalCode = b.work_postal_code;
+  if (b.client_nif && !b.clientNif) mapped.clientNif = b.client_nif;
+  if (b.services_selected && !b.servicesSelected) mapped.servicesSelected = b.services_selected;
+  if (b.total_amount && !b.totalAmount) mapped.totalAmount = b.total_amount;
+  if (b.project_files && !b.projectFiles) mapped.projectFiles = b.project_files;
+  if (b.include_iva !== undefined && b.includeIva === undefined) mapped.includeIva = b.include_iva;
+  if (b.iva_percentage !== undefined && b.ivaPercentage === undefined) mapped.ivaPercentage = b.iva_percentage;
+  if (b.payment_method && !b.paymentMethod) mapped.paymentMethod = b.payment_method;
+  return mapped as Budget;
+};
+
+export const mapMessageFromSupabase = (m: any): SupportMessage => {
+  const mapped: any = { ...m };
+  if (m.company_id && !m.companyId) mapped.companyId = m.company_id;
+  if (m.sender_role && !m.senderRole) mapped.senderRole = m.sender_role;
+  if (m.translated_content && !m.translatedContent) mapped.translatedContent = m.translated_content;
+  return mapped as SupportMessage;
+};
+
+export const mapOrderFromSupabase = (o: any): StoreOrder => {
+  const mapped: any = { ...o };
+  if (o.company_id && !o.companyId) mapped.companyId = o.company_id;
+  if (o.product_id && !o.productId) mapped.productId = o.product_id;
+  if (o.product_name && !o.productName) mapped.productName = o.product_name;
+  if (o.uploaded_image && !o.uploadedImage) mapped.uploadedImage = o.uploaded_image;
+  return mapped as StoreOrder;
+};
+
 export const hydrateLocalData = async (companyId: string) => {
   try {
     // 1. Hidratar Empresa (Garante Plano Premium/Free correto)
@@ -289,40 +325,85 @@ export const hydrateLocalData = async (companyId: string) => {
     }
 
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
-    const { data: budgets, error: budgetsError } = await supabase.from('budgets').select('*').eq('companyId', companyId).order('created_at', { ascending: false });
+    console.log(`Buscando orçamentos para a empresa ${companyId}...`);
+    
+    // Tenta buscar com camelCase primeiro
+    let { data: budgets, error: budgetsError } = await supabase
+      .from('budgets')
+      .select('*')
+      .eq('companyId', companyId)
+      .order('created_at', { ascending: false });
+      
+    // Se falhar por coluna não encontrada, tenta snake_case
+    if (budgetsError && (budgetsError.code === 'PGRST204' || budgetsError.message.includes('companyId'))) {
+      console.warn("hydrateLocalData: Coluna 'companyId' não encontrada, tentando 'company_id'...");
+      const { data: budgetsSnake, error: snakeError } = await supabase
+        .from('budgets')
+        .select('*')
+        .eq('company_id', companyId)
+        .order('created_at', { ascending: false });
+      
+      if (!snakeError) {
+        budgets = budgetsSnake;
+        budgetsError = null;
+      }
+    }
+
     if (budgetsError) {
       console.error("Erro ao buscar orçamentos do Supabase:", budgetsError);
     }
     
-    if (budgets) {
+    if (budgets && budgets.length > 0) {
+      // Mapear campos snake_case para camelCase se necessário
+      const mappedBudgets = budgets.map(mapBudgetFromSupabase);
+
       const localBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
       let allBudgets: Budget[] = localBudgetsStr ? JSON.parse(localBudgetsStr) : [];
       
       // Filtra orçamentos de outras empresas e combina com os baixados da nuvem
       const otherBudgets = allBudgets.filter(b => b.companyId !== companyId);
       
-      // Garantir que os dados do Supabase estão no formato correto (camelCase vs snake_case se necessário)
-      // Nota: O Supabase JS SDK geralmente retorna o que está no banco. 
-      // Se o banco usa snake_case e o código camelCase, precisamos mapear.
-      // Mas assumindo que o banco segue o modelo do objeto Budget.
-      
-      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...budgets]));
-      console.log(`Hidratados ${budgets.length} orçamentos para a empresa ${companyId}`);
+      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mappedBudgets]));
+      console.log(`Hidratados ${mappedBudgets.length} orçamentos para a empresa ${companyId}`);
     }
 
     // 3. Hidratar Mensagens de Suporte
-    const { data: messages } = await supabase.from('messages').select('*').eq('companyId', companyId);
+    console.log(`Buscando mensagens para a empresa ${companyId}...`);
+    let { data: messages, error: messagesError } = await supabase.from('messages').select('*').eq('companyId', companyId);
+    
+    if (messagesError && (messagesError.code === 'PGRST204' || messagesError.message.includes('companyId'))) {
+      const { data: msgsSnake, error: msgsSnakeError } = await supabase.from('messages').select('*').eq('company_id', companyId);
+      if (!msgsSnakeError) {
+        messages = msgsSnake;
+        messagesError = null;
+      }
+    }
+
     if (messages) {
+      const mappedMessages = messages.map(mapMessageFromSupabase);
+
       const localMsgsStr = localStorage.getItem(STORAGE_KEY_MESSAGES);
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
       const otherMessages = allMessages.filter(m => m.companyId !== companyId);
-      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...messages]));
+      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mappedMessages]));
     }
 
     // 4. Hidratar Pedidos da Loja
-    const { data: storeOrders } = await supabase.from('store_orders').select('*').eq('companyId', companyId);
+    console.log(`Buscando pedidos da loja para a empresa ${companyId}...`);
+    let { data: storeOrders, error: ordersError } = await supabase.from('store_orders').select('*').eq('companyId', companyId);
+
+    if (ordersError && (ordersError.code === 'PGRST204' || ordersError.message.includes('companyId'))) {
+      const { data: ordersSnake, error: ordersSnakeError } = await supabase.from('store_orders').select('*').eq('company_id', companyId);
+      if (!ordersSnakeError) {
+        storeOrders = ordersSnake;
+        ordersError = null;
+      }
+    }
+
     if (storeOrders) {
-      const sorted = storeOrders.sort((a, b) => {
+      const mappedOrders = storeOrders.map(mapOrderFromSupabase);
+
+      const sorted = mappedOrders.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;

@@ -64,7 +64,9 @@ import {
   getProducts,
   saveProduct,
   deleteProduct,
-  generateShortId
+  generateShortId,
+  mapMessageFromSupabase,
+  mapOrderFromSupabase
 } from '../services/storage';
 import { supabase, testTableAccess } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -156,11 +158,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Buscar mensagens do Supabase
     const { data: cloudMessages } = await supabase.from('messages').select('*');
+    const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
     if (cloudMessages) {
-      localStorage.setItem('atrios_messages', JSON.stringify(cloudMessages));
+      localStorage.setItem('atrios_messages', JSON.stringify(mappedMessages));
     }
 
-    const allMsgs = cloudMessages || getMessages();
+    const allMsgs = mappedMessages.length > 0 ? mappedMessages : getMessages();
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
     if (unreadCount > prevUnreadCount.current) {
@@ -173,15 +176,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     // Buscar pedidos da loja
     console.log("MasterPanel: Buscando pedidos da loja no Supabase...");
     const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*');
+    const mappedOrders = cloudOrders ? cloudOrders.map(mapOrderFromSupabase) : [];
     if (ordersError) {
       console.error("MasterPanel: Erro ao buscar pedidos da loja:", ordersError.message, ordersError.details);
     } else {
-      console.log(`MasterPanel: ${cloudOrders?.length || 0} pedidos recebidos do cloud.`);
+      console.log(`MasterPanel: ${mappedOrders.length} pedidos recebidos do cloud.`);
     }
     
-    if (cloudOrders && cloudOrders.length > 0) {
-      localStorage.setItem('atrios_store_orders', JSON.stringify(cloudOrders));
-      setStoreOrders(cloudOrders.sort((a, b) => {
+    if (mappedOrders.length > 0) {
+      localStorage.setItem('atrios_store_orders', JSON.stringify(mappedOrders));
+      setStoreOrders(mappedOrders.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
         return dateB - dateA;
@@ -241,7 +245,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload['new'] as SupportMessage;
+          const newMessage = mapMessageFromSupabase(payload['new']);
           if (!newMessage || !newMessage.id) return;
           
           // Atualizar localStorage
