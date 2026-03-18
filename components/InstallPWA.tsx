@@ -29,16 +29,41 @@ export const InstallPWA: React.FC = () => {
 
     window.addEventListener('beforeinstallprompt', handler);
 
+    // Para iOS, mostrar o balão mesmo sem beforeinstallprompt
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
+    
+    if (isIOS && !isStandalone) {
+      setTimeout(() => setIsVisible(true), 3000);
+    }
+
+    const installedHandler = () => {
+      setIsVisible(false);
+      setDeferredPrompt(null);
+    };
+
+    window.addEventListener('appinstalled', installedHandler);
+
     // Verificar se já está instalado
-    if (window.matchMedia('(display-mode: standalone)').matches) {
+    if (isStandalone) {
       setIsVisible(false);
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('appinstalled', installedHandler);
+    };
   }, []);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) return;
+    if (!deferredPrompt) {
+      // Caso seja iOS ou outro navegador sem suporte ao prompt automático
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        alert('Para instalar no iOS: Toque no ícone de partilha (quadrado com seta) e selecione "Adicionar ao Ecrã Principal".');
+      }
+      return;
+    }
 
     // Mostrar o prompt de instalação
     deferredPrompt.prompt();
@@ -54,12 +79,7 @@ export const InstallPWA: React.FC = () => {
 
   const handleDismiss = () => {
     setIsVisible(false);
-    // Guardar no sessionStorage para não mostrar novamente nesta sessão
-    sessionStorage.setItem('pwa-prompt-dismissed', 'true');
   };
-
-  // Não mostrar se já foi dispensado nesta sessão
-  if (sessionStorage.getItem('pwa-prompt-dismissed')) return null;
 
   return (
     <AnimatePresence>
