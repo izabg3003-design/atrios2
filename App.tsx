@@ -1528,7 +1528,7 @@ const App: React.FC = () => {
   if (view === 'master') return <MasterPanel onLogout={() => { saveSession(null); setView('landing'); }} locale={locale} />;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+    <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full justify-center items-center">
       {showWelcome && currentUser && <WelcomeScreen company={currentUser} locale={locale} />}
       
       {showUnlockAlert && (
@@ -1609,7 +1609,7 @@ const App: React.FC = () => {
       )}
 
       {view === 'landing' ? (
-        <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900">
+        <div className="min-h-screen w-full max-w-[1440px] mx-auto bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900 shadow-2xl relative">
           {/* Navigation */}
           <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
@@ -2027,7 +2027,7 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full">
+        <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full max-w-[1440px] mx-auto shadow-2xl border-x border-slate-100">
           {/* Mobile Sidebar Overlay */}
           {isMobileMenuOpen && (
             <div 
