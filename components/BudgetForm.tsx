@@ -78,8 +78,8 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   const [ivaPercentage, setIvaPercentage] = useState(initialData?.ivaPercentage || 23);
   
   const [budgetDate, setBudgetDate] = useState(
-    initialData?.created_at 
-    ? initialData.created_at.split('T')[0] 
+    initialData?.createdAt 
+    ? initialData.createdAt.split('T')[0] 
     : new Date().toISOString().split('T')[0]
   );
   
@@ -308,7 +308,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
         paymentMethod,
         includeIva,
         ivaPercentage,
-        created_at: finalDate.toISOString(),
+        createdAt: finalDate.toISOString(),
       } as any;
 
       onSave(budgetToSave);

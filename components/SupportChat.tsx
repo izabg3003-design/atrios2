@@ -9,15 +9,69 @@ import { translateMessage } from '../services/gemini';
 interface SupportChatProps {
   company: Company;
   locale: Locale;
-  messages: SupportMessage[];
   onClose: () => void;
 }
 
-const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, onClose }) => {
+const SupportChat: React.FC<SupportChatProps> = ({ company, locale, onClose }) => {
   const t = translations[locale];
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const fetchMsgs = () => {
+      setMessages(getMessages(company.id));
+    };
+
+    fetchMsgs();
+    
+    // Subscrição em tempo real para novas mensagens
+    const channel = supabase
+      .channel(`chat-${company.id}`)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'messages',
+          filter: `companyId=eq.${company.id}`
+        },
+        (payload) => {
+          const newMessage = payload['new'] as SupportMessage;
+          if (!newMessage || !newMessage.id) return;
+
+          setMessages(prev => {
+            if (prev.find(m => m.id === newMessage.id)) {
+              // Se já existe, apenas atualizamos o estado de leitura se necessário
+              return prev.map(m => m.id === newMessage.id ? { ...m, ...newMessage } : m);
+            }
+            
+            // Atualizar localStorage para manter consistência
+            const allMsgs = getMessages();
+            if (!allMsgs.find(m => m.id === newMessage.id)) {
+              allMsgs.push(newMessage);
+              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            }
+            
+            return [...prev, newMessage];
+          });
+        }
+      )
+      .subscribe((status) => {
+        if (status !== 'SUBSCRIBED') {
+          console.warn("Realtime não disponível, usando fallback...");
+        }
+      });
+
+    // Fallback: Busca a cada 10 segundos caso o Realtime falhe
+    const fallbackInterval = setInterval(fetchMsgs, 10000);
+
+    return () => {
+      supabase.removeChannel(channel);
+      clearInterval(fallbackInterval);
+    };
+  }, [company.id]);
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -46,13 +100,10 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
     };
 
     saveMessage(msg);
-    // O App.tsx vai receber a atualização via Realtime ou via saveMessage que atualiza o localStorage
+    setMessages(prev => [...prev, msg]);
     setNewMessage('');
     setIsTranslating(false);
   };
-
-  // Filtrar mensagens apenas para esta empresa (embora o App.tsx já deva ter filtrado)
-  const companyMessages = messages.filter(m => String(m.companyId) === String(company.id));
 
   return (
     <div className="fixed inset-x-0 bottom-0 sm:inset-auto sm:bottom-32 sm:right-8 w-full sm:w-96 h-[100dvh] sm:h-[500px] bg-white sm:rounded-[2.5rem] shadow-2xl flex flex-col overflow-hidden animate-in slide-in-from-bottom duration-500 z-[9999] border-t sm:border border-slate-100">
@@ -69,7 +120,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 no-scrollbar bg-slate-50/50">
-        {companyMessages.length === 0 ? (
+        {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
              <div className="w-16 h-16 bg-slate-100 text-slate-300 rounded-3xl flex items-center justify-center">
                <MessageSquare size={32} />
@@ -79,7 +130,7 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
              </p>
           </div>
         ) : (
-          companyMessages.map(m => (
+          messages.map(m => (
             <div key={m.id} className={`flex ${m.senderRole === 'user' ? 'justify-end' : 'justify-start'}`}>
               <div className={`max-w-[85%] sm:max-w-[80%] p-4 rounded-[1.5rem] text-sm font-bold shadow-sm ${
                 m.senderRole === 'user' 

@@ -84,7 +84,7 @@ export interface Budget {
   totalAmount: number;
   projectFiles?: { name: string; url: string; id: string }[];
   status: BudgetStatus;
-  created_at: string;
+  createdAt: string;
   payments: PaymentRecord[];
   observations?: string;
   includeIva: boolean;
@@ -101,30 +101,6 @@ export interface SupportMessage {
   translatedContent?: string;
   timestamp: string;
   read: boolean;
-}
-
-export interface Product {
-  id: string;
-  code: string;
-  name: string;
-  image: string;
-  category: string;
-  description: string;
-  active: boolean;
-  created_at: string;
-  synced?: boolean;
-}
-
-export interface StoreOrder {
-  id: string;
-  companyId: string;
-  productId: string;
-  productName: string;
-  quantity: number;
-  notes?: string;
-  uploadedImage?: string;
-  status: 'pending' | 'processing' | 'completed';
-  created_at: string;
 }
 
 export interface Transaction {
@@ -144,7 +120,7 @@ export interface Coupon {
   code: string;
   discountPercentage: number;
   active: boolean;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface Company {
@@ -159,7 +135,7 @@ export interface Company {
   phone?: string;
   plan: PlanType;
   verified: boolean;
-  created_at: string;
+  createdAt: string;
   firstLoginAt?: string;
   subscriptionExpiresAt?: string;
   canEditSensitiveData?: boolean;
@@ -181,7 +157,7 @@ export interface GlobalNotification {
   imageUrl: string;
   targetAudience: AudienceType;
   active: boolean;
-  created_at: string;
+  createdAt: string;
 }
 
 export interface AuthState {
