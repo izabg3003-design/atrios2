@@ -505,7 +505,7 @@ const App: React.FC = () => {
       // Fallback polling para dados básicos
       const fallback = setInterval(() => {
         const all = getStoredCompanies();
-        const updated = all.find(c => c.id === currentUser.id);
+        const updated = all.find(c => String(c.id) === String(currentUser.id));
         if (updated && JSON.stringify(currentUserRef.current) !== JSON.stringify(updated)) {
           setCurrentUser(updated);
           currentUserRef.current = updated;
@@ -603,30 +603,6 @@ const App: React.FC = () => {
 
   const [isSyncing, setIsSyncing] = useState(false);
 
-  const handleSync = async () => {
-    if (!currentUser?.id || isSyncing) return;
-    setIsSyncing(true);
-    console.log("Manual sync triggered for:", currentUser.id);
-    try {
-      await hydrateLocalData(currentUser.id);
-      setBudgets(getStoredBudgets(currentUser.id));
-      setOrders(getStoredStoreOrders(currentUser.id));
-      setMessages(getMessages(currentUser.id));
-      
-      const all = getStoredCompanies();
-      const updated = all.find(c => c.id === currentUser.id);
-      if (updated) {
-        setCurrentUser(updated);
-        currentUserRef.current = updated;
-      }
-      console.log("Manual sync completed.");
-    } catch (error) {
-      console.error("Error during manual sync:", error);
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   useEffect(() => {
     const initData = async () => {
       if (currentUser?.id) {
@@ -649,7 +625,7 @@ const App: React.FC = () => {
           console.log(`Hidratação concluída. ${currentBudgets.length} orçamentos, ${currentOrders.length} pedidos e ${currentMessages.length} mensagens carregados.`);
           
           const all = getStoredCompanies();
-          const updated = all.find(c => c.id === currentUser.id);
+          const updated = all.find(c => String(c.id) === String(currentUser.id));
           if (updated) {
             setCurrentUser(updated);
             currentUserRef.current = updated;
@@ -1589,7 +1565,7 @@ const App: React.FC = () => {
         setBudgets(getStoredBudgets(currentUser.id));
         
         const updatedCompanies = getStoredCompanies();
-        const updatedUser = updatedCompanies.find(c => c.id === currentUser.id);
+        const updatedUser = updatedCompanies.find(c => String(c.id) === String(currentUser.id));
         if (updatedUser) {
           setCurrentUser(updatedUser);
           currentUserRef.current = updatedUser;
@@ -1787,12 +1763,19 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleManualSync = async () => {
-    if (!currentUser) return;
+  const handleSync = async () => {
+    if (!currentUser?.id || isSyncing) return;
+    
     setIsSyncing(true);
     try {
-      await hydrateLocalData(currentUser.id);
-      setBudgets(getStoredBudgets(currentUser.id));
+      console.log("[Sync] Iniciando sincronização manual...");
+      const { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages } = await hydrateLocalData(currentUser.id);
+      
+      // Atualiza estados locais com os dados novos vindos da nuvem
+      setBudgets(fetchedBudgets);
+      setOrders(fetchedOrders);
+      setMessages(fetchedMessages);
+      
       // Track sync event
       if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
         ReactGA.event({
@@ -1801,10 +1784,11 @@ const App: React.FC = () => {
           label: currentUser.email
         });
       }
-      alert("Sincronização concluída com sucesso!");
+      
+      alert("Dados sincronizados com sucesso!");
     } catch (error) {
-      console.error("Manual sync error:", error);
-      alert("Erro ao sincronizar dados. Verifique sua conexão.");
+      console.error("[Sync] Erro na sincronização manual:", error);
+      alert("Falha ao sincronizar dados. Verifique sua conexão.");
     } finally {
       setIsSyncing(false);
     }
@@ -1849,7 +1833,7 @@ const App: React.FC = () => {
         
         {currentUser && (
           <button
-            onClick={handleManualSync}
+            onClick={handleSync}
             disabled={isSyncing}
             className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm transition-all disabled:opacity-50`}
             title="Sincronizar agora"
