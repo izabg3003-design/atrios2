@@ -140,6 +140,8 @@ const App: React.FC = () => {
   }, [view, activeTab, currentUser]);
   const [isHydrating, setIsHydrating] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
@@ -226,6 +228,7 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && view === 'app') {
+      currentUserRef.current = currentUser;
       // Subscrição para Produtos (Store Products)
       const productsChannel = supabase
         .channel('user-products')
@@ -309,22 +312,23 @@ const App: React.FC = () => {
           (payload) => {
             console.log('Budget change detected:', payload.eventType, payload);
             
-            // Filtrar manualmente para garantir que pertence a esta empresa
-            // Lida com companyId, company_id ou companyid
-            const budgetData = (payload.new || payload.old) as any;
-            const budgetCompanyId = budgetData?.companyId || budgetData?.company_id || budgetData?.companyid;
-            
-            if (budgetCompanyId !== currentUser.id) {
-              console.log('Budget change ignored: belongs to another company', budgetCompanyId);
-              return;
-            }
-            
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
+
             const allBudgets = getAllStoredBudgets();
-            const otherBudgets = allBudgets.filter(b => b.companyId !== currentUser.id);
-            const myBudgets = allBudgets.filter(b => b.companyId === currentUser.id);
+            const otherBudgets = allBudgets.filter(b => String(b.companyId) !== String(currentId));
+            const myBudgets = allBudgets.filter(b => String(b.companyId) === String(currentId));
             let changed = false;
             
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const budgetData = payload.new as any;
+              const budgetCompanyId = budgetData?.companyId || budgetData?.company_id || budgetData?.companyid;
+              
+              if (String(budgetCompanyId) !== String(currentId)) {
+                console.log('Budget change ignored: belongs to another company', budgetCompanyId, currentId);
+                return;
+              }
+
               const newBudget = mapBudgetFromSupabase(payload.new);
               if (!newBudget) return;
               
@@ -352,10 +356,13 @@ const App: React.FC = () => {
             if (changed) {
               localStorage.setItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
               setBudgets([...myBudgets]);
+              console.log('Budgets state updated from real-time event');
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`Budget subscription status for ${currentUser.id}:`, status);
+        });
 
       // Subscrição para Pedidos da Loja (Store Orders)
       const ordersChannel = supabase
@@ -370,28 +377,33 @@ const App: React.FC = () => {
           (payload) => {
             console.log('Order change detected:', payload.eventType, payload);
             
-            // Filtrar manualmente
-            const orderData = (payload.new || payload.old) as any;
-            const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
-            
-            if (orderCompanyId !== currentUser.id) return;
-            
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
+
             const allOrders = getStoredStoreOrders();
-            const otherOrders = allOrders.filter(o => o.companyId !== currentUser.id);
-            const myOrders = allOrders.filter(o => o.companyId === currentUser.id);
+            const otherOrders = allOrders.filter(o => String(o.companyId) !== String(currentId));
+            const myOrders = allOrders.filter(o => String(o.companyId) === String(currentId));
             let changed = false;
             
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const orderData = payload.new as any;
+              const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
+              
+              if (String(orderCompanyId) !== String(currentId)) return;
+
               const newOrder = mapOrderFromSupabase(payload.new);
               if (!newOrder) return;
               
               const idx = myOrders.findIndex(o => o.id === newOrder.id);
               if (idx > -1) {
-                myOrders[idx] = newOrder;
+                if (JSON.stringify(myOrders[idx]) !== JSON.stringify(newOrder)) {
+                  myOrders[idx] = newOrder;
+                  changed = true;
+                }
               } else {
                 myOrders.unshift(newOrder);
+                changed = true;
               }
-              changed = true;
             } else if (payload.eventType === 'DELETE') {
               const deletedId = payload.old?.id;
               if (!deletedId) return;
@@ -410,10 +422,14 @@ const App: React.FC = () => {
                 return dateB - dateA;
               });
               localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...sorted]));
+              setOrders([...sorted]);
+              console.log('Orders state updated from real-time event');
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`Orders subscription status for ${currentUser.id}:`, status);
+        });
 
       // Subscrição para novas mensagens do Master
       const msgChannel = supabase
@@ -423,31 +439,68 @@ const App: React.FC = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'messages',
-            filter: `companyId=eq.${currentUser.id}`
+            table: 'messages'
           },
           (payload) => {
-            const newMessage = mapMessageFromSupabase(payload.new);
-            if (!newMessage || !newMessage.id) return;
+            console.log('Message change detected:', payload.eventType, payload);
             
-            // Atualizar localStorage
-            const allMsgs = getMessages();
-            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
-            if (existingIdx === -1) {
-              allMsgs.push(newMessage);
-            } else {
-              allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
-            }
-            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
 
-            if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
-              setShowNewMessageAlert(true);
-              setTimeout(() => setShowNewMessageAlert(false), 8000);
-              setUnreadCount(prev => prev + 1);
+            const msgData = (payload.new || payload.old) as any;
+            const msgCompanyId = msgData?.companyId || msgData?.company_id || msgData?.companyid;
+            
+            // Se for DELETE, tentamos encontrar nas mensagens locais se não tiver companyId no old
+            if (payload.eventType !== 'DELETE' && String(msgCompanyId) !== String(currentId)) return;
+
+            const allMsgs = getMessages();
+            let changed = false;
+
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const newMessage = mapMessageFromSupabase(payload.new);
+              if (!newMessage || !newMessage.id) return;
+              
+              const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+              if (idx === -1) {
+                allMsgs.push(newMessage);
+                changed = true;
+                
+                if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
+                  setShowNewMessageAlert(true);
+                  setTimeout(() => setShowNewMessageAlert(false), 8000);
+                }
+              } else {
+                if (JSON.stringify(allMsgs[idx]) !== JSON.stringify(newMessage)) {
+                  allMsgs[idx] = { ...allMsgs[idx], ...newMessage };
+                  changed = true;
+                }
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = allMsgs.findIndex(m => m.id === deletedId);
+              if (idx > -1) {
+                allMsgs.splice(idx, 1);
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+              const myMsgs = allMsgs.filter(m => String(m.companyId) === String(currentId));
+              setMessages(myMsgs);
+              
+              const unread = myMsgs.filter(m => m.senderRole === 'master' && !m.read);
+              setUnreadCount(unread.length);
+              console.log('Messages state updated from real-time event');
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`Messages subscription status for ${currentUser.id}:`, status);
+        });
+
 
       // Fallback polling para dados básicos
       const fallback = setInterval(() => {
@@ -462,6 +515,7 @@ const App: React.FC = () => {
       return () => {
         supabase.removeChannel(companyChannel);
         supabase.removeChannel(budgetChannel);
+        supabase.removeChannel(ordersChannel);
         supabase.removeChannel(msgChannel);
         clearInterval(fallback);
       };
@@ -489,6 +543,7 @@ const App: React.FC = () => {
       
       const checkMessages = () => {
         const msgs = getMessages(currentUser.id);
+        setMessages(msgs);
         const unread = msgs.filter(m => m.senderRole === 'master' && !m.read);
         setUnreadCount(unread.length);
       };
@@ -546,19 +601,52 @@ const App: React.FC = () => {
     saveSession(currentUser?.id || null, view, activeTab, currencyCode);
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
+  const handleSync = async () => {
+    if (!currentUser?.id || isSyncing) return;
+    setIsSyncing(true);
+    console.log("Manual sync triggered for:", currentUser.id);
+    try {
+      await hydrateLocalData(currentUser.id);
+      setBudgets(getStoredBudgets(currentUser.id));
+      setOrders(getStoredStoreOrders(currentUser.id));
+      setMessages(getMessages(currentUser.id));
+      
+      const all = getStoredCompanies();
+      const updated = all.find(c => c.id === currentUser.id);
+      if (updated) {
+        setCurrentUser(updated);
+        currentUserRef.current = updated;
+      }
+      console.log("Manual sync completed.");
+    } catch (error) {
+      console.error("Error during manual sync:", error);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   useEffect(() => {
     const initData = async () => {
       if (currentUser?.id) {
         setIsHydrating(true);
-        // Limpa o estado local para garantir que apenas os dados do banco sejam mostrados após a hidratação
-        setBudgets([]); 
         console.log("Iniciando hidratação de dados para:", currentUser.id);
         try {
+          // Hydrate data from cloud
           await hydrateLocalData(currentUser.id);
           
           // Update budgets state after hydration
           const currentBudgets = getStoredBudgets(currentUser.id);
           setBudgets(currentBudgets);
+          
+          const currentOrders = getStoredStoreOrders(currentUser.id);
+          setOrders(currentOrders);
+          
+          const currentMessages = getMessages(currentUser.id);
+          setMessages(currentMessages);
+          
+          console.log(`Hidratação concluída. ${currentBudgets.length} orçamentos, ${currentOrders.length} pedidos e ${currentMessages.length} mensagens carregados.`);
           
           const all = getStoredCompanies();
           const updated = all.find(c => c.id === currentUser.id);
@@ -571,8 +659,9 @@ const App: React.FC = () => {
           }
         } catch (error) {
           console.error("Erro durante a hidratação inicial:", error);
-          // Mesmo com erro, tenta carregar o que tem localmente
-          setBudgets(getStoredBudgets(currentUser.id));
+          // Fallback to local data
+          const localBudgets = getStoredBudgets(currentUser.id);
+          setBudgets(localBudgets);
         } finally {
           setIsHydrating(false);
         }
@@ -1698,8 +1787,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const [isSyncing, setIsSyncing] = useState(false);
-
   const handleManualSync = async () => {
     if (!currentUser) return;
     setIsSyncing(true);
@@ -2398,6 +2485,15 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
+                <button 
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className={`p-2.5 lg:p-4 rounded-xl lg:rounded-[1.5rem] transition-all flex items-center gap-2 ${isSyncing ? 'bg-slate-100 text-slate-400' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  title="Sincronizar Dados"
+                >
+                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                  <span className="hidden lg:inline text-xs font-black uppercase tracking-widest">{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+                </button>
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
                 <button 
                   onClick={() => { 
@@ -2437,7 +2533,16 @@ const App: React.FC = () => {
                     ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
                   )}
 
-                  {activeTab === 'store' && currentUser && <Store t={t} locale={locale} companyId={currentUser.id} companyName={currentUser.name} companyEmail={currentUser.email} />}
+                  {activeTab === 'store' && currentUser && (
+                    <Store 
+                      t={t} 
+                      locale={locale} 
+                      companyId={currentUser.id} 
+                      companyName={currentUser.name} 
+                      companyEmail={currentUser.email}
+                      orders={orders}
+                    />
+                  )}
 
                   {activeTab === 'budgets' && (
                     <div className="space-y-6 lg:space-y-8 animate-in fade-in slide-in-from-bottom-4 duration-500">
@@ -2659,7 +2764,17 @@ const App: React.FC = () => {
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowPaymentManager(false); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
           <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
-          {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
+          {showSupportChat && currentUser && (
+            <SupportChat 
+              locale={locale} 
+              company={currentUser} 
+              messages={messages}
+              onClose={() => { 
+                setShowSupportChat(false); 
+                markMessagesAsRead(currentUser.id, 'user'); 
+              }} 
+            />
+          )}
           
           {showSupportGreeting && !showSupportChat && (
             <div className="fixed bottom-28 right-8 z-[40] animate-in slide-in-from-bottom-4 fade-in duration-500">

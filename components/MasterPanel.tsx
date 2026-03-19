@@ -79,6 +79,7 @@ interface MasterPanelProps {
 
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
+  const [isSyncing, setIsSyncing] = useState(false);
   const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -133,7 +134,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const loadData = async () => {
-    setActiveNotifications(getGlobalNotifications());
+    setIsSyncing(true);
+    try {
+      setActiveNotifications(getGlobalNotifications());
     
     // Buscar empresas diretamente do Supabase para garantir que todos os usuários apareçam
     const { data: cloudCompanies } = await supabase
@@ -205,7 +208,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Buscar produtos da loja
     const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*');
-    if (productsError) console.error("Erro ao buscar produtos:", productsError.message);
+    if (productsError) {
+      console.error("Erro ao buscar produtos:", productsError.message);
+    }
     console.log("Produtos recebidos do cloud:", cloudProducts);
 
     if (cloudProducts && cloudProducts.length > 0) {
@@ -217,9 +222,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         return dateB - dateA;
       }));
     } else {
-      // Se o cloud estiver vazio ou der erro, tentamos manter o que temos localmente
       const localProducts = await getProducts();
-      console.log("Cloud sem dados, mantendo/usando produtos locais:", localProducts);
       if (localProducts.length > 0) {
         setProducts(localProducts);
       }
@@ -233,10 +236,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (selectedCompanyId) {
       setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
     }
+    } catch (error) {
+      console.error("Error loading data in MasterPanel:", error);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   useEffect(() => {
     loadData();
+
+    if (!supabase) return;
 
     // Subscrição para novas mensagens (todas, para o Master)
     const msgChannel = supabase
@@ -245,38 +255,53 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = mapMessageFromSupabase(payload['new']);
+          console.log('Master message change detected:', payload.eventType, payload);
+          const newMessage = mapMessageFromSupabase(payload['new'] || payload['old']);
           if (!newMessage || !newMessage.id) return;
           
-          // Atualizar localStorage
           const allMsgs = getMessages();
-          const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
-          if (existingIdx === -1) {
-            allMsgs.push(newMessage);
-          } else {
-            allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
-          }
-          localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+          let changed = false;
 
-          // Se for do usuário, mostrar alerta se não estiver no chat dele
-          if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
-            const allCompanies = getStoredCompanies();
-            const sender = allCompanies.find(c => c.id === newMessage.companyId);
-            if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
-              setLastMessageAlert({ name: sender.name, content: newMessage.content });
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
+            if (existingIdx === -1) {
+              allMsgs.push(newMessage);
+              changed = true;
+              
+              if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
+                const allCompanies = getStoredCompanies();
+                const sender = allCompanies.find(c => c.id === newMessage.companyId);
+                if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
+                  setLastMessageAlert({ name: sender.name, content: newMessage.content });
+                }
+              }
+            } else {
+              if (JSON.stringify(allMsgs[existingIdx]) !== JSON.stringify(newMessage)) {
+                allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
+                changed = true;
+              }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+            if (idx > -1) {
+              allMsgs.splice(idx, 1);
+              changed = true;
             }
           }
 
-          // Recarregar mensagens se o chat estiver aberto
-          if (selectedCompanyId === newMessage.companyId) {
-            setMessages(getMessages(selectedCompanyId));
-          } else {
-            // Forçar atualização da lista lateral para mostrar badges de não lidas
-            setCompanies(prev => [...prev]);
+          if (changed) {
+            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            if (selectedCompanyId === newMessage.companyId) {
+              setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
+            } else {
+              setCompanies(prev => [...prev]);
+            }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Master messages subscription status:', status);
+      });
 
     // Subscrição para mudanças nas empresas (novos usuários e pedidos de desbloqueio)
     const companyChannel = supabase
@@ -285,30 +310,45 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'companies' },
         (payload) => {
-          const updatedCompany = payload['new'] as Company;
+          console.log('Master company change detected:', payload.eventType, payload);
+          const updatedCompany = (payload['new'] || payload['old']) as Company;
           if (!updatedCompany || updatedCompany.email === 'jeferson.goes36@gmail.com') return;
           
-          // Atualizar localStorage
           const companies = getStoredCompanies();
-          const idx = companies.findIndex(c => c.id === updatedCompany.id);
-          
-          if (idx > -1) {
-            // Atualização de usuário existente
-            const old = companies[idx];
-            if (!old.unlockRequested && updatedCompany.unlockRequested) {
-              setLastUnlockAlert(updatedCompany.name);
+          let changed = false;
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            if (idx > -1) {
+              const old = companies[idx];
+              if (!old.unlockRequested && updatedCompany.unlockRequested) {
+                setLastUnlockAlert(updatedCompany.name);
+              }
+              if (JSON.stringify(old) !== JSON.stringify(updatedCompany)) {
+                companies[idx] = updatedCompany;
+                changed = true;
+              }
+            } else {
+              companies.push(updatedCompany);
+              changed = true;
             }
-            companies[idx] = updatedCompany;
-          } else {
-            // Novo usuário cadastrado
-            companies.push(updatedCompany);
+          } else if (payload.eventType === 'DELETE') {
+            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            if (idx > -1) {
+              companies.splice(idx, 1);
+              changed = true;
+            }
           }
           
-          localStorage.setItem('atrios_companies', JSON.stringify(companies));
-          setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          if (changed) {
+            localStorage.setItem('atrios_companies', JSON.stringify(companies));
+            setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Master companies subscription status:', status);
+      });
 
     // Subscrição para novos pedidos da loja
     const storeOrdersChannel = supabase
@@ -317,14 +357,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'store_orders' },
         (payload) => {
-          console.log("Mudança em store_orders recebida:", payload);
-          loadData(); // Recarrega tudo para garantir consistência
+          console.log("Master order change detected:", payload.eventType, payload);
+          loadData();
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Master orders subscription status:', status);
+      });
 
     // Fallback polling para o Master
-    const fallback = setInterval(loadData, 15000);
+    const fallback = setInterval(loadData, 30000);
 
     return () => {
       supabase.removeChannel(msgChannel);
@@ -748,6 +790,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 {tab.id === 'messages' && unreadMessagesTotalCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-pulse">{unreadMessagesTotalCount}</span>}
               </button>
             ))}
+            <button 
+              onClick={loadData}
+              disabled={isSyncing}
+              className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                isSyncing ? 'bg-white/5 text-slate-500' : 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
+              }`}
+            >
+              <Zap size={14} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+            </button>
             <button onClick={onLogout} className="ml-2 px-6 py-2.5 hover:bg-red-500/20 text-red-400 rounded-xl transition-all font-black text-xs uppercase"><ArrowLeft size={16} className="inline mr-2" /> {t.logout}</button>
           </nav>
         </div>

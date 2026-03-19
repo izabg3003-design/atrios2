@@ -59,9 +59,13 @@ export const getStoredBudgets = (companyId: string): Budget[] => {
   return budgets.filter(b => b.companyId === companyId);
 };
 
-export const getStoredStoreOrders = (): StoreOrder[] => {
+export const getStoredStoreOrders = (companyId?: string): StoreOrder[] => {
   const data = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
-  return data ? JSON.parse(data) : [];
+  const orders: StoreOrder[] = data ? JSON.parse(data) : [];
+  if (companyId) {
+    return orders.filter(o => String(o.companyId) === String(companyId));
+  }
+  return orders;
 };
 
 export const getStoredProducts = (): Product[] => {
@@ -147,17 +151,29 @@ export const markMessagesAsRead = async (companyId: string, role: 'user' | 'mast
   if (!data) return;
   const messages: SupportMessage[] = JSON.parse(data);
   const updated = messages.map(m => {
-    if (m.companyId === companyId && m.senderRole !== role) {
+    if (String(m.companyId) === String(companyId) && m.senderRole !== role) {
       return { ...m, read: true };
     }
     return m;
   });
   localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
 
-  await supabase.from('messages')
-    .update({ read: true })
-    .eq('companyId', companyId)
-    .neq('senderRole', role);
+  // Tenta atualizar no Supabase com mapeamento de coluna resiliente
+  try {
+    const { error } = await supabase.from('messages')
+      .update({ read: true })
+      .eq('companyId', companyId)
+      .neq('senderRole', role);
+      
+    if (error && (error.code === 'PGRST204' || error.message.includes('companyId'))) {
+      await supabase.from('messages')
+        .update({ read: true })
+        .eq('company_id', companyId)
+        .neq('sender_role', role);
+    }
+  } catch (err) {
+    console.error("Erro ao marcar mensagens como lidas no cloud:", err);
+  }
 };
 
 export const getTransactions = (): Transaction[] => {
@@ -403,7 +419,7 @@ export const hydrateLocalData = async (companyId: string) => {
       let allBudgets: Budget[] = localBudgetsStr ? JSON.parse(localBudgetsStr) : [];
       
       // Filtra orçamentos de outras empresas e combina com os baixados da nuvem
-      const otherBudgets = allBudgets.filter(b => b.companyId !== companyId);
+      const otherBudgets = allBudgets.filter(b => String(b.companyId) !== String(companyId));
       
       // IMPORTANTE: Mesmo que mappedBudgets seja vazio, salvamos para limpar os excluídos
       const finalBudgets = [...otherBudgets, ...mappedBudgets];
@@ -415,9 +431,9 @@ export const hydrateLocalData = async (companyId: string) => {
     console.log(`Buscando mensagens para a empresa ${companyId}...`);
     let { data: messages, error: messagesError } = await supabase.from('messages').select('*').eq('companyId', companyId);
     
-    if (messagesError && (messagesError.code === 'PGRST204' || messagesError.message.includes('companyId'))) {
+    if (messagesError || !messages) {
       const { data: msgsSnake, error: msgsSnakeError } = await supabase.from('messages').select('*').eq('company_id', companyId);
-      if (!msgsSnakeError) {
+      if (!msgsSnakeError && msgsSnake) {
         messages = msgsSnake;
         messagesError = null;
       }
@@ -425,11 +441,9 @@ export const hydrateLocalData = async (companyId: string) => {
 
     if (messages) {
       const mappedMessages = messages.map(mapMessageFromSupabase);
-
       const localMsgsStr = localStorage.getItem(STORAGE_KEY_MESSAGES);
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
-      const otherMessages = allMessages.filter(m => m.companyId !== companyId);
-      // IMPORTANTE: Mesmo que mappedMessages seja vazio, salvamos para limpar os excluídos
+      const otherMessages = allMessages.filter(m => String(m.companyId) !== String(companyId));
       localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mappedMessages]));
     }
 
@@ -437,9 +451,9 @@ export const hydrateLocalData = async (companyId: string) => {
     console.log(`Buscando pedidos da loja para a empresa ${companyId}...`);
     let { data: storeOrders, error: ordersError } = await supabase.from('store_orders').select('*').eq('companyId', companyId);
 
-    if (ordersError && (ordersError.code === 'PGRST204' || ordersError.message.includes('companyId'))) {
+    if (ordersError || !storeOrders) {
       const { data: ordersSnake, error: ordersSnakeError } = await supabase.from('store_orders').select('*').eq('company_id', companyId);
-      if (!ordersSnakeError) {
+      if (!ordersSnakeError && ordersSnake) {
         storeOrders = ordersSnake;
         ordersError = null;
       }
@@ -455,7 +469,7 @@ export const hydrateLocalData = async (companyId: string) => {
       });
       const localOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
       let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
-      const otherOrders = allOrders.filter(o => o.companyId !== companyId);
+      const otherOrders = allOrders.filter(o => String(o.companyId) !== String(companyId));
       // IMPORTANTE: Mesmo que sorted seja vazio, salvamos para limpar os excluídos
       localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...sorted]));
     }
@@ -481,7 +495,7 @@ export const hydrateLocalData = async (companyId: string) => {
     if (transactions) {
       const localTransStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
       let allTrans: Transaction[] = localTransStr ? JSON.parse(localTransStr) : [];
-      const otherTrans = allTrans.filter(t => t.companyId !== companyId);
+      const otherTrans = allTrans.filter(t => String(t.companyId) !== String(companyId));
       localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([...otherTrans, ...transactions]));
     }
 

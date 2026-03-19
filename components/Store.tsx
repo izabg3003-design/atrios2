@@ -11,9 +11,10 @@ interface StoreProps {
   companyId: string;
   companyName?: string;
   companyEmail?: string;
+  orders: StoreOrder[];
 }
 
-export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName, companyEmail }) => {
+export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName, companyEmail, orders }) => {
   const [products, setProducts] = useState<Product[]>([]);
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(10);
