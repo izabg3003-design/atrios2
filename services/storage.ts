@@ -76,13 +76,20 @@ export const saveBudget = (budget: Budget) => {
     }
     
     localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+    console.log(`[Storage] Orçamento ${budget.id} salvo localmente. Sincronizando com a nuvem...`);
   } catch (err) {
     console.error("Error saving budget to localStorage:", err);
     throw err;
   }
 
   // O Supabase recebe o objeto completo via UPSERT (Insert ou Update automático pelo ID)
-  syncToCloud('budgets', budget);
+  syncToCloud('budgets', budget).then(res => {
+    if (res.success) {
+      console.log(`[Storage] Orçamento ${budget.id} sincronizado com sucesso no Supabase.`);
+    } else {
+      console.error(`[Storage] Falha ao sincronizar orçamento ${budget.id}:`, res.error);
+    }
+  });
 };
 
 export const getPdfDownloadCount = (companyId: string): number => {
@@ -378,7 +385,7 @@ export const hydrateLocalData = async (companyId: string) => {
     }
     
     if (budgets) {
-      console.log(`[Hydrate] ${budgets.length} orçamentos encontrados na nuvem.`);
+      console.log(`[Hydrate] ${budgets.length} orçamentos encontrados na nuvem para ${companyId}.`);
       // Mapear campos snake_case para camelCase se necessário
       const mappedBudgets = budgets.map(mapBudgetFromSupabase);
 
@@ -389,8 +396,9 @@ export const hydrateLocalData = async (companyId: string) => {
       const otherBudgets = allBudgets.filter(b => b.companyId !== companyId);
       
       // IMPORTANTE: Mesmo que mappedBudgets seja vazio, salvamos para limpar os excluídos
-      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mappedBudgets]));
-      console.log(`[Hydrate] Hidratados ${mappedBudgets.length} orçamentos para a empresa ${companyId}`);
+      const finalBudgets = [...otherBudgets, ...mappedBudgets];
+      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(finalBudgets));
+      console.log(`[Hydrate] Hidratados ${mappedBudgets.length} orçamentos para a empresa ${companyId}. Total no storage: ${finalBudgets.length}`);
     }
 
     // 3. Hidratar Mensagens de Suporte

@@ -42,7 +42,7 @@ import {
   ShoppingBag,
   RefreshCw
 } from 'lucide-react';
-import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
+import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -136,6 +136,7 @@ const App: React.FC = () => {
       });
     }
   }, [view, activeTab, currentUser]);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
@@ -223,20 +224,56 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && view === 'app') {
-      // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado)
+      // Subscrição para Produtos (Store Products)
+      const productsChannel = supabase
+        .channel('user-products')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products'
+          },
+          (payload) => {
+            console.log('Product change detected:', payload.eventType, payload);
+            // Simplesmente re-hidrata os produtos locais
+            supabase.from('products').select('*').then(({ data }) => {
+              if (data) {
+                const sorted = data.sort((a, b) => {
+                  const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                  const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                  return dateB - dateA;
+                });
+                localStorage.setItem('atrios_products', JSON.stringify(sorted));
+              }
+            });
+          }
+        )
+        .subscribe();
+
+      // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado ou exclusão)
       const companyChannel = supabase
         .channel(`user-company-${currentUser.id}`)
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: '*',
             schema: 'public',
             table: 'companies',
             filter: `id=eq.${currentUser.id}`
           },
           (payload) => {
+            console.log('Company change detected:', payload.eventType, payload);
+            
+            if (payload.eventType === 'DELETE') {
+              console.warn('Sua conta foi excluída do servidor. Fazendo logout...');
+              handleLogout();
+              return;
+            }
+
             const updated = payload.new as Company;
             if (!updated) return;
+            
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
               setShowUnlockAlert(true);
               setTimeout(() => setShowUnlockAlert(false), 8000);
@@ -257,6 +294,7 @@ const App: React.FC = () => {
         .subscribe();
 
       // Subscrição para orçamentos (real-time sync)
+      // Subscrição para Orçamentos (Budgets) - Adicionado filtro para segurança e performance
       const budgetChannel = supabase
         .channel(`user-budgets-${currentUser.id}`)
         .on(
@@ -264,7 +302,8 @@ const App: React.FC = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'budgets'
+            table: 'budgets',
+            filter: `companyId=eq.${currentUser.id}`
           },
           (payload) => {
             console.log('Budget change detected:', payload.eventType, payload);
@@ -276,11 +315,10 @@ const App: React.FC = () => {
             
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               const newBudget = mapBudgetFromSupabase(payload.new);
-              if (!newBudget || newBudget.companyId !== currentUser.id) return;
+              if (!newBudget) return;
               
               const idx = myBudgets.findIndex(b => b.id === newBudget.id);
               if (idx > -1) {
-                // Only update if data actually changed to avoid infinite loops or unnecessary renders
                 if (JSON.stringify(myBudgets[idx]) !== JSON.stringify(newBudget)) {
                   myBudgets[idx] = newBudget;
                   changed = true;
@@ -301,9 +339,57 @@ const App: React.FC = () => {
             }
             
             if (changed) {
-              // Atualizar localStorage e estado
               localStorage.setItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
               setBudgets([...myBudgets]);
+            }
+          }
+        )
+        .subscribe();
+
+      // Subscrição para Pedidos da Loja (Store Orders) - NOVO
+      const ordersChannel = supabase
+        .channel(`user-orders-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'store_orders',
+            filter: `companyId=eq.${currentUser.id}`
+          },
+          (payload) => {
+            console.log('Order change detected:', payload.eventType, payload);
+            
+            const localOrdersStr = localStorage.getItem('atrios_store_orders');
+            let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
+            const otherOrders = allOrders.filter(o => o.companyId !== currentUser.id);
+            const myOrders = allOrders.filter(o => o.companyId === currentUser.id);
+            let changed = false;
+
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const newOrder = mapOrderFromSupabase(payload.new);
+              if (!newOrder) return;
+
+              const idx = myOrders.findIndex(o => o.id === newOrder.id);
+              if (idx > -1) {
+                myOrders[idx] = newOrder;
+              } else {
+                myOrders.unshift(newOrder);
+              }
+              changed = true;
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              const idx = myOrders.findIndex(o => o.id === deletedId);
+              if (idx > -1) {
+                myOrders.splice(idx, 1);
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...myOrders]));
+              // Se estiver na aba de loja, o estado será atualizado na próxima renderização ou via polling
             }
           }
         )
@@ -443,22 +529,32 @@ const App: React.FC = () => {
   useEffect(() => {
     const initData = async () => {
       if (currentUser?.id) {
+        setIsHydrating(true);
+        // Limpa o estado local para garantir que apenas os dados do banco sejam mostrados após a hidratação
+        setBudgets([]); 
         console.log("Iniciando hidratação de dados para:", currentUser.id);
-        await hydrateLocalData(currentUser.id);
-        
-        // Update budgets state after hydration
-        const currentBudgets = getStoredBudgets(currentUser.id);
-        setBudgets(currentBudgets);
-        
-        const all = getStoredCompanies();
-        const updated = all.find(c => c.id === currentUser.id);
-        if (updated) {
-          setCurrentUser(updated);
-          currentUserRef.current = updated;
-        } else {
-          // Se não encontrou após hidratação, a conta foi excluída no Supabase
-          console.warn("Conta não encontrada no Supabase após hidratação. Fazendo logout.");
-          handleLogout();
+        try {
+          await hydrateLocalData(currentUser.id);
+          
+          // Update budgets state after hydration
+          const currentBudgets = getStoredBudgets(currentUser.id);
+          setBudgets(currentBudgets);
+          
+          const all = getStoredCompanies();
+          const updated = all.find(c => c.id === currentUser.id);
+          if (updated) {
+            setCurrentUser(updated);
+            currentUserRef.current = updated;
+          } else {
+            console.warn("Conta não encontrada no Supabase após hidratação. Fazendo logout.");
+            handleLogout();
+          }
+        } catch (error) {
+          console.error("Erro durante a hidratação inicial:", error);
+          // Mesmo com erro, tenta carregar o que tem localmente
+          setBudgets(getStoredBudgets(currentUser.id));
+        } finally {
+          setIsHydrating(false);
         }
       }
     };
@@ -2258,7 +2354,13 @@ const App: React.FC = () => {
             </div>
           </aside>
 
-          <main className="flex-1 flex flex-col overflow-hidden w-full">
+          <main className="flex-1 flex flex-col overflow-hidden w-full relative">
+            {isHydrating && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="font-black text-slate-900 uppercase tracking-widest text-[10px] animate-pulse">Sincronizando com a nuvem...</p>
+              </div>
+            )}
             <header className="h-20 lg:h-24 bg-white border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 lg:px-12 shrink-0 gap-4">
               <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
                 <button 
