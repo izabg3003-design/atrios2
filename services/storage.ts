@@ -59,6 +59,16 @@ export const getStoredBudgets = (companyId: string): Budget[] => {
   return budgets.filter(b => b.companyId === companyId);
 };
 
+export const getStoredStoreOrders = (): StoreOrder[] => {
+  const data = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
+  return data ? JSON.parse(data) : [];
+};
+
+export const getStoredProducts = (): Product[] => {
+  const data = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+  return data ? JSON.parse(data) : [];
+};
+
 /**
  * Salva o orçamento completo no Supabase.
  * Inclui as tabelas aninhadas de itens, despesas e pagamentos com comprovativos (Base64).
@@ -459,6 +469,27 @@ export const hydrateLocalData = async (companyId: string) => {
         return dateB - dateA;
       });
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
+    }
+
+    // 6. Hidratar Transações
+    console.log(`Buscando transações para a empresa ${companyId}...`);
+    let { data: transactions } = await supabase.from('transactions').select('*').eq('companyId', companyId);
+    if (!transactions) {
+      const { data: transSnake } = await supabase.from('transactions').select('*').eq('company_id', companyId);
+      transactions = transSnake;
+    }
+    if (transactions) {
+      const localTransStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
+      let allTrans: Transaction[] = localTransStr ? JSON.parse(localTransStr) : [];
+      const otherTrans = allTrans.filter(t => t.companyId !== companyId);
+      localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([...otherTrans, ...transactions]));
+    }
+
+    // 7. Hidratar Cupons
+    console.log(`Buscando cupons...`);
+    const { data: coupons } = await supabase.from('coupons').select('*');
+    if (coupons) {
+      localStorage.setItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
     }
   } catch (err) {
     console.error("Falha ao recuperar dados remotos:", err);

@@ -48,6 +48,8 @@ import {
   saveCompany, 
   getStoredBudgets, 
   getAllStoredBudgets,
+  getStoredStoreOrders,
+  getStoredProducts,
   mapBudgetFromSupabase,
   mapMessageFromSupabase,
   mapOrderFromSupabase,
@@ -294,7 +296,7 @@ const App: React.FC = () => {
         .subscribe();
 
       // Subscrição para orçamentos (real-time sync)
-      // Subscrição para Orçamentos (Budgets) - Adicionado filtro para segurança e performance
+      // Subscrição para Orçamentos (Budgets)
       const budgetChannel = supabase
         .channel(`user-budgets-${currentUser.id}`)
         .on(
@@ -302,11 +304,20 @@ const App: React.FC = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'budgets',
-            filter: `companyId=eq.${currentUser.id}`
+            table: 'budgets'
           },
           (payload) => {
             console.log('Budget change detected:', payload.eventType, payload);
+            
+            // Filtrar manualmente para garantir que pertence a esta empresa
+            // Lida com companyId, company_id ou companyid
+            const budgetData = (payload.new || payload.old) as any;
+            const budgetCompanyId = budgetData?.companyId || budgetData?.company_id || budgetData?.companyid;
+            
+            if (budgetCompanyId !== currentUser.id) {
+              console.log('Budget change ignored: belongs to another company', budgetCompanyId);
+              return;
+            }
             
             const allBudgets = getAllStoredBudgets();
             const otherBudgets = allBudgets.filter(b => b.companyId !== currentUser.id);
@@ -346,7 +357,7 @@ const App: React.FC = () => {
         )
         .subscribe();
 
-      // Subscrição para Pedidos da Loja (Store Orders) - NOVO
+      // Subscrição para Pedidos da Loja (Store Orders)
       const ordersChannel = supabase
         .channel(`user-orders-${currentUser.id}`)
         .on(
@@ -354,22 +365,26 @@ const App: React.FC = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'store_orders',
-            filter: `companyId=eq.${currentUser.id}`
+            table: 'store_orders'
           },
           (payload) => {
             console.log('Order change detected:', payload.eventType, payload);
             
-            const localOrdersStr = localStorage.getItem('atrios_store_orders');
-            let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
+            // Filtrar manualmente
+            const orderData = (payload.new || payload.old) as any;
+            const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
+            
+            if (orderCompanyId !== currentUser.id) return;
+            
+            const allOrders = getStoredStoreOrders();
             const otherOrders = allOrders.filter(o => o.companyId !== currentUser.id);
             const myOrders = allOrders.filter(o => o.companyId === currentUser.id);
             let changed = false;
-
+            
             if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
               const newOrder = mapOrderFromSupabase(payload.new);
               if (!newOrder) return;
-
+              
               const idx = myOrders.findIndex(o => o.id === newOrder.id);
               if (idx > -1) {
                 myOrders[idx] = newOrder;
@@ -380,16 +395,21 @@ const App: React.FC = () => {
             } else if (payload.eventType === 'DELETE') {
               const deletedId = payload.old?.id;
               if (!deletedId) return;
+              
               const idx = myOrders.findIndex(o => o.id === deletedId);
               if (idx > -1) {
                 myOrders.splice(idx, 1);
                 changed = true;
               }
             }
-
+            
             if (changed) {
-              localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...myOrders]));
-              // Se estiver na aba de loja, o estado será atualizado na próxima renderização ou via polling
+              const sorted = myOrders.sort((a, b) => {
+                const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+                const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+                return dateB - dateA;
+              });
+              localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...sorted]));
             }
           }
         )
