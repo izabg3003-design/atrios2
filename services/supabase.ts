@@ -22,11 +22,11 @@ export interface SyncResult {
 
 export const syncToCloud = async (table: string, data: any): Promise<SyncResult> => {
   try {
-    // Remove problematic fields if table doesn't have them
+    // Clone data to avoid modifying the original object
     const cleanData = { ...data };
     
+    // 1. Tratamento de imagens grandes para evitar erro de payload
     if (table === 'products' || table === 'store_orders') {
-      // Se a imagem for muito grande (base64), pode causar erro de payload ou de coluna
       const imageField = table === 'products' ? 'image' : 'uploadedImage';
       if (cleanData[imageField] && cleanData[imageField].length > 100000) {
         console.warn(`syncToCloud: Imagem de ${table} muito grande (>100KB), removendo para sincronização cloud.`);
@@ -34,104 +34,109 @@ export const syncToCloud = async (table: string, data: any): Promise<SyncResult>
       }
     }
 
-    // Mapeamento preventivo de campos comuns para evitar erros de coluna não encontrada
-    if (cleanData.companyId && !cleanData.company_id) cleanData.company_id = cleanData.companyId;
-    if (cleanData.createdAt && !cleanData.created_at) cleanData.created_at = cleanData.createdAt;
-    if (cleanData.clientName && !cleanData.client_name) cleanData.client_name = cleanData.clientName;
-    if (cleanData.totalAmount && !cleanData.total_amount) cleanData.total_amount = cleanData.totalAmount;
+    // 2. Mapeamento Proativo de CamelCase para SnakeCase
+    // Definimos um mapeamento de campos conhecidos que precisam ser convertidos
+    const mapping: Record<string, string> = {
+      companyId: 'company_id',
+      createdAt: 'created_at',
+      timestamp: 'created_at',
+      clientName: 'client_name',
+      contactName: 'contact_name',
+      contactPhone: 'contact_phone',
+      workLocation: 'work_location',
+      workNumber: 'work_number',
+      workPostalCode: 'work_postal_code',
+      clientNif: 'client_nif',
+      servicesSelected: 'services_selected',
+      totalAmount: 'total_amount',
+      projectFiles: 'project_files',
+      includeIva: 'include_iva',
+      ivaPercentage: 'iva_percentage',
+      paymentMethod: 'payment_method',
+      productId: 'product_id',
+      productName: 'product_name',
+      uploadedImage: 'uploaded_image',
+      senderRole: 'sender_role',
+      translatedContent: 'translated_content',
+      itemId: 'item_id',
+      itemName: 'item_name',
+      imageUrl: 'image_url',
+      firstLoginAt: 'first_login_at',
+      subscriptionExpiresAt: 'subscription_expires_at',
+      canEditSensitiveData: 'can_edit_sensitive_data',
+      unlockRequested: 'unlock_requested',
+      lastLocale: 'last_locale',
+      isBlocked: 'is_blocked',
+      isManual: 'is_manual',
+      manualPaymentProof: 'manual_payment_proof'
+    };
+
+    // Aplicamos o mapeamento e REMOVEMOS o campo original se ele for diferente do novo
+    Object.keys(mapping).forEach(camelKey => {
+      const snakeKey = mapping[camelKey];
+      if (cleanData[camelKey] !== undefined) {
+        // Se o campo snake_case ainda não existe ou se o camelCase é o que tem valor
+        if (cleanData[snakeKey] === undefined || cleanData[camelKey] !== null) {
+          cleanData[snakeKey] = cleanData[camelKey];
+        }
+        // Removemos o camelCase para evitar erro de "coluna não encontrada" no Supabase
+        if (camelKey !== snakeKey) {
+          delete cleanData[camelKey];
+        }
+      }
+    });
+
+    // 3. Garantir que arrays/objetos sejam enviados como string se necessário
+    // Algumas tabelas no Supabase podem estar como TEXT em vez de JSONB
+    const jsonFields = ['items', 'expenses', 'payments', 'services_selected', 'project_files', 'pdf_template'];
+    jsonFields.forEach(field => {
+      if (cleanData[field] && typeof cleanData[field] === 'object') {
+        // Se for array ou objeto, convertemos para string para garantir compatibilidade
+        // O Supabase aceita objetos se a coluna for JSONB, mas falha se for TEXT.
+        // Stringify funciona em ambos (embora no JSONB fique como string literal).
+        cleanData[field] = JSON.stringify(cleanData[field]);
+      }
+    });
+
+    // 4. Mapeamento adicional para companyid (sem underscore) que aparece em alguns lugares
+    if (cleanData.company_id) {
+       cleanData.companyid = cleanData.company_id;
+    }
     
-    console.log(`syncToCloud: Tentando sincronizar ${table} (ID: ${cleanData.id}) no Supabase...`);
+    console.log(`syncToCloud: Tentando sincronizar ${table} (ID: ${cleanData.id || cleanData.company_id}) no Supabase...`);
     
-    // Tenta upsert. Se falhar, tentaremos entender o porquê.
-    const { error, data: upsertData } = await supabase
+    // Tenta upsert.
+    const { error } = await supabase
       .from(table)
-      .upsert(cleanData)
-      .select();
+      .upsert(cleanData);
     
     if (error) {
       console.error(`syncToCloud: Erro ao sincronizar ${table}:`, {
         message: error.message,
-        details: error.details,
-        hint: error.hint,
         code: error.code,
         dataSent: cleanData
       });
       
-      // Se o erro for '22P02' (invalid text representation), pode ser o ID que não é UUID
-      if (error.code === '22P02') {
-        console.warn("syncToCloud: Erro de tipo de dado (provavelmente UUID). Verifique se a coluna 'id' no Supabase é do tipo TEXT.");
-      }
-
-      // Se o erro for 'PGRST204' (column not found), tenta identificar a coluna e mapear ou remover
+      // Fallback: se falhar por coluna não encontrada, tentamos remover a coluna problemática e repetir
       if (error.code === 'PGRST204') {
         const match = error.message.match(/Could not find the '(.+)' column/);
         const missingColumn = match ? match[1] : null;
-        
         if (missingColumn && cleanData[missingColumn] !== undefined) {
+          console.warn(`syncToCloud: Removendo coluna inexistente '${missingColumn}' e tentando novamente...`);
           const retryData = { ...cleanData };
-          
-          // Mapeamento inteligente para colunas comuns
-          if (missingColumn === 'companyId') {
-            console.warn(`syncToCloud: Coluna 'companyId' não encontrada, tentando 'company_id'...`);
-            retryData.company_id = cleanData.companyId;
-            delete retryData.companyId;
-          } else if (missingColumn === 'company_id') {
-            console.warn(`syncToCloud: Coluna 'company_id' não encontrada, tentando 'companyid'...`);
-            retryData.companyid = cleanData.company_id;
-            delete retryData.company_id;
-          } else {
-            console.warn(`syncToCloud: Coluna '${missingColumn}' não encontrada em ${table}. Tentando sincronizar sem ela...`);
-            delete retryData[missingColumn];
-          }
-          
+          delete retryData[missingColumn];
           const { error: retryError } = await supabase.from(table).upsert(retryData);
-          if (!retryError) {
-            console.log(`syncToCloud: Sincronização de ${table} concluída após mapeamento/remoção.`);
-            return { success: true };
-          }
-          
-          // Se ainda falhar por coluna não encontrada, tenta novamente uma vez
-          if (retryError.code === 'PGRST204') {
-            const secondMatch = retryError.message.match(/Could not find the '(.+)' column/);
-            const secondMissingColumn = secondMatch ? secondMatch[1] : null;
-            if (secondMissingColumn && retryData[secondMissingColumn] !== undefined) {
-               // Tenta mapear a segunda coluna se for company_id
-               if (secondMissingColumn === 'company_id') {
-                 retryData.companyid = retryData.company_id;
-                 delete retryData.company_id;
-               } else {
-                 delete retryData[secondMissingColumn];
-               }
-               const { error: finalError } = await supabase.from(table).upsert(retryData);
-               if (!finalError) return { success: true };
-               return { success: false, error: finalError };
-            }
-          }
+          if (!retryError) return { success: true };
           return { success: false, error: retryError };
         }
       }
-
-      // Se falhar por causa da imagem (payload too large), tenta sem a imagem
-      const imageField = table === 'products' ? 'image' : 'uploadedImage';
-      if (cleanData[imageField] && (error.message.includes('large') || error.code === '413' || error.message.includes('payload'))) {
-        console.warn(`syncToCloud: Tentando sincronizar ${table} sem a imagem devido ao tamanho...`);
-        const noImageData = { ...cleanData };
-        delete noImageData[imageField];
-        
-        const { error: retryError } = await supabase.from(table).upsert(noImageData);
-        if (!retryError) {
-          console.log(`syncToCloud: Sincronização de ${table} (sem imagem) concluída.`);
-          return { success: true };
-        }
-        return { success: false, error: retryError };
-      }
+      
       return { success: false, error };
     }
-    
-    console.log(`syncToCloud: Sincronização de ${table} concluída com sucesso. Retorno:`, upsertData);
+
     return { success: true };
   } catch (err) {
-    console.error(`Falha crítica na conexão com Supabase (${table}):`, err);
+    console.error(`syncToCloud: Erro inesperado em ${table}:`, err);
     return { success: false, error: err };
   }
 };
