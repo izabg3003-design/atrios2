@@ -42,7 +42,8 @@ import {
   Mail,
   ShoppingBag,
   Palette,
-  RefreshCw
+  RefreshCw,
+  Trash2
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder, CustomOrderRequest } from './types';
 import { 
@@ -58,6 +59,7 @@ import {
   mapOrderFromSupabase,
   mapCustomOrderFromSupabase,
   saveBudget, 
+  removeBudget,
   getPdfDownloadCount, 
   incrementPdfDownloadCount,
   getGlobalNotifications,
@@ -1634,6 +1636,32 @@ const App: React.FC = () => {
     }
   };
 
+  const handleDeleteBudget = async (id: string) => {
+    if (!currentUser) return;
+    
+    const confirmMsg = locale.startsWith('pt') 
+      ? "Tem certeza que deseja excluir este orçamento?" 
+      : "Are you sure you want to delete this budget?";
+      
+    if (window.confirm(confirmMsg)) {
+      const success = await removeBudget(id);
+      if (success) {
+        setBudgets(getStoredBudgets(currentUser.id));
+        const successMsg = locale.startsWith('pt') 
+          ? "Orçamento excluído com sucesso!" 
+          : "Budget deleted successfully!";
+        // No alert to be less intrusive, or maybe just a toast if available.
+        // But alert is standard in this app.
+        alert(successMsg);
+      } else {
+        const errorMsg = locale.startsWith('pt') 
+          ? "Erro ao excluir orçamento." 
+          : "Error deleting budget.";
+        alert(errorMsg);
+      }
+    }
+  };
+
   useEffect(() => {
     const checkSession = async () => {
       const urlParams = new URLSearchParams(window.location.search);
@@ -2730,7 +2758,13 @@ const App: React.FC = () => {
                                   >
                                     <Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
-                                  <button onClick={(e) => { e.stopPropagation(); exportToPDF(budget); }} className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"><Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /></button>
+                                  <button 
+                                    onClick={(e) => { e.stopPropagation(); exportToPDF(budget); }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                    title={t.downloadPdfLabel}
+                                  >
+                                    <Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                  </button>
                                    <button 
                                      onClick={(e) => { 
                                        e.stopPropagation();
@@ -2741,6 +2775,16 @@ const App: React.FC = () => {
                                    >
                                      <FileText size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                    </button>
+                                   <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation();
+                                      handleDeleteBudget(budget.id);
+                                    }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-xl lg:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
+                                    title={locale.startsWith('pt') ? "Excluir" : "Delete"}
+                                  >
+                                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                  </button>
                                    <button 
                                     onClick={(e) => { 
                                       e.stopPropagation();

@@ -147,6 +147,27 @@ export const saveBudget = (budget: Budget) => {
   });
 };
 
+export const removeBudget = async (id: string) => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_BUDGETS);
+    let budgets: Budget[] = data ? JSON.parse(data) : [];
+    budgets = budgets.filter(b => b.id !== id);
+    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+    console.log(`[Storage] Orçamento ${id} removido localmente. Sincronizando com a nuvem...`);
+    
+    // Sync deletion to Supabase
+    const { error } = await supabase.from('budgets').delete().eq('id', id);
+    if (error) {
+      console.error("Error deleting from Supabase:", error);
+    }
+    
+    return true;
+  } catch (err) {
+    console.error("Error removing budget:", err);
+    return false;
+  }
+};
+
 export const getPdfDownloadCount = (companyId: string): number => {
   const data = localStorage.getItem(STORAGE_KEY_PDF_COUNT);
   const counts = data ? JSON.parse(data) : {};
