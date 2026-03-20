@@ -1,6 +1,9 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
+import { Store } from './components/Store';
+import { CustomOrders } from './components/CustomOrders';
+import { InstallPWA } from './components/InstallPWA';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -36,13 +39,24 @@ import {
   Headphones,
   MessageSquare,
   ShieldCheck,
-  Mail
+  Mail,
+  ShoppingBag,
+  Palette,
+  RefreshCw
 } from 'lucide-react';
-import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate } from './types';
+import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder, CustomOrderRequest } from './types';
 import { 
   getStoredCompanies, 
   saveCompany, 
   getStoredBudgets, 
+  getAllStoredBudgets,
+  getStoredStoreOrders,
+  getStoredCustomOrders,
+  getStoredProducts,
+  mapBudgetFromSupabase,
+  mapMessageFromSupabase,
+  mapOrderFromSupabase,
+  mapCustomOrderFromSupabase,
   saveBudget, 
   getPdfDownloadCount, 
   incrementPdfDownloadCount,
@@ -102,7 +116,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'custom-orders'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -128,7 +142,11 @@ const App: React.FC = () => {
       });
     }
   }, [view, activeTab, currentUser]);
+  const [isHydrating, setIsHydrating] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
+  const [orders, setOrders] = useState<StoreOrder[]>([]);
+  const [customOrders, setCustomOrders] = useState<CustomOrderRequest[]>([]);
+  const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
@@ -215,20 +233,57 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser && view === 'app') {
-      // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado)
+      currentUserRef.current = currentUser;
+      // Subscrição para Produtos (Store Products)
+      const productsChannel = supabase
+        .channel('user-products')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'products'
+          },
+          (payload) => {
+            console.log('Product change detected:', payload.eventType, payload);
+            // Simplesmente re-hidrata os produtos locais
+            supabase.from('products').select('*').then(({ data }) => {
+              if (data) {
+                const sorted = data.sort((a, b) => {
+                  const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                  const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                  return dateB - dateA;
+                });
+                localStorage.setItem('atrios_products', JSON.stringify(sorted));
+              }
+            });
+          }
+        )
+        .subscribe();
+
+      // Subscrição para mudanças na própria empresa (ex: desbloqueio aprovado ou exclusão)
       const companyChannel = supabase
         .channel(`user-company-${currentUser.id}`)
         .on(
           'postgres_changes',
           {
-            event: 'UPDATE',
+            event: '*',
             schema: 'public',
             table: 'companies',
             filter: `id=eq.${currentUser.id}`
           },
           (payload) => {
+            console.log('Company change detected:', payload.eventType, payload);
+            
+            if (payload.eventType === 'DELETE') {
+              console.warn('Sua conta foi excluída do servidor. Fazendo logout...');
+              handleLogout();
+              return;
+            }
+
             const updated = payload.new as Company;
             if (!updated) return;
+            
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
               setShowUnlockAlert(true);
               setTimeout(() => setShowUnlockAlert(false), 8000);
@@ -248,6 +303,206 @@ const App: React.FC = () => {
         )
         .subscribe();
 
+      // Subscrição para orçamentos (real-time sync)
+      // Subscrição para Orçamentos (Budgets)
+      const budgetChannel = supabase
+        .channel(`user-budgets-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'budgets'
+          },
+          (payload) => {
+            console.log('Budget change detected:', payload.eventType, payload);
+            
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
+
+            const allBudgets = getAllStoredBudgets();
+            const otherBudgets = allBudgets.filter(b => String(b.companyId) !== String(currentId));
+            const myBudgets = allBudgets.filter(b => String(b.companyId) === String(currentId));
+            let changed = false;
+            
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const budgetData = payload.new as any;
+              const budgetCompanyId = budgetData?.companyId || budgetData?.company_id || budgetData?.companyid;
+              
+              if (String(budgetCompanyId) !== String(currentId)) {
+                console.log('Budget change ignored: belongs to another company', budgetCompanyId, currentId);
+                return;
+              }
+
+              const newBudget = mapBudgetFromSupabase(payload.new);
+              if (!newBudget) return;
+              
+              const idx = myBudgets.findIndex(b => b.id === newBudget.id);
+              if (idx > -1) {
+                if (JSON.stringify(myBudgets[idx]) !== JSON.stringify(newBudget)) {
+                  myBudgets[idx] = newBudget;
+                  changed = true;
+                }
+              } else {
+                myBudgets.unshift(newBudget);
+                changed = true;
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = myBudgets.findIndex(b => b.id === deletedId);
+              if (idx > -1) {
+                myBudgets.splice(idx, 1);
+                changed = true;
+              }
+            }
+            
+            if (changed) {
+              localStorage.setItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
+              setBudgets([...myBudgets]);
+              console.log('Budgets state updated from real-time event');
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Budget subscription status for ${currentUser.id}:`, status);
+        });
+
+      // Subscrição para Pedidos da Loja (Store Orders)
+      const ordersChannel = supabase
+        .channel(`user-orders-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'store_orders'
+          },
+          (payload) => {
+            console.log('Order change detected:', payload.eventType, payload);
+            
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
+
+            const allOrders = getStoredStoreOrders();
+            const otherOrders = allOrders.filter(o => String(o.companyId) !== String(currentId));
+            const myOrders = allOrders.filter(o => String(o.companyId) === String(currentId));
+            let changed = false;
+            
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const orderData = payload.new as any;
+              const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
+              
+              if (String(orderCompanyId) !== String(currentId)) return;
+
+              const newOrder = mapOrderFromSupabase(payload.new);
+              if (!newOrder) return;
+              
+              const idx = myOrders.findIndex(o => o.id === newOrder.id);
+              if (idx > -1) {
+                if (JSON.stringify(myOrders[idx]) !== JSON.stringify(newOrder)) {
+                  myOrders[idx] = newOrder;
+                  changed = true;
+                }
+              } else {
+                myOrders.unshift(newOrder);
+                changed = true;
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = myOrders.findIndex(o => o.id === deletedId);
+              if (idx > -1) {
+                myOrders.splice(idx, 1);
+                changed = true;
+              }
+            }
+            
+            if (changed) {
+              const sorted = myOrders.sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+              });
+              localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...sorted]));
+              setOrders([...sorted]);
+              console.log('Orders state updated from real-time event');
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Orders subscription status for ${currentUser.id}:`, status);
+        });
+
+      // Subscrição para Pedidos Personalizados (Custom Orders)
+      const customOrdersChannel = supabase
+        .channel(`user-custom-orders-${currentUser.id}`)
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'custom_order_requests'
+          },
+          (payload) => {
+            console.log('Custom order change detected:', payload.eventType, payload);
+            
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
+
+            const allCustomOrders = getStoredCustomOrders();
+            const otherCustomOrders = allCustomOrders.filter(o => String(o.companyId) !== String(currentId));
+            const myCustomOrders = allCustomOrders.filter(o => String(o.companyId) === String(currentId));
+            let changed = false;
+            
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const orderData = payload.new as any;
+              const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
+              
+              if (String(orderCompanyId) !== String(currentId)) return;
+
+              const newOrder = mapCustomOrderFromSupabase(payload.new);
+              if (!newOrder) return;
+              
+              const idx = myCustomOrders.findIndex(o => o.id === newOrder.id);
+              if (idx > -1) {
+                if (JSON.stringify(myCustomOrders[idx]) !== JSON.stringify(newOrder)) {
+                  myCustomOrders[idx] = newOrder;
+                  changed = true;
+                }
+              } else {
+                myCustomOrders.unshift(newOrder);
+                changed = true;
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = myCustomOrders.findIndex(o => o.id === deletedId);
+              if (idx > -1) {
+                myCustomOrders.splice(idx, 1);
+                changed = true;
+              }
+            }
+            
+            if (changed) {
+              const sorted = myCustomOrders.sort((a, b) => {
+                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+                return dateB - dateA;
+              });
+              localStorage.setItem('atrios_custom_orders', JSON.stringify([...otherCustomOrders, ...sorted]));
+              setCustomOrders([...sorted]);
+              console.log('Custom orders state updated from real-time event');
+            }
+          }
+        )
+        .subscribe((status) => {
+          console.log(`Custom orders subscription status for ${currentUser.id}:`, status);
+        });
+
       // Subscrição para novas mensagens do Master
       const msgChannel = supabase
         .channel(`user-messages-${currentUser.id}`)
@@ -256,36 +511,73 @@ const App: React.FC = () => {
           {
             event: '*',
             schema: 'public',
-            table: 'messages',
-            filter: `companyId=eq.${currentUser.id}`
+            table: 'messages'
           },
           (payload) => {
-            const newMessage = payload.new as SupportMessage;
-            if (!newMessage || !newMessage.id) return;
+            console.log('Message change detected:', payload.eventType, payload);
             
-            // Atualizar localStorage
-            const allMsgs = getMessages();
-            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
-            if (existingIdx === -1) {
-              allMsgs.push(newMessage);
-            } else {
-              allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
-            }
-            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            const currentId = currentUserRef.current?.id;
+            if (!currentId) return;
 
-            if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
-              setShowNewMessageAlert(true);
-              setTimeout(() => setShowNewMessageAlert(false), 8000);
-              setUnreadCount(prev => prev + 1);
+            const msgData = (payload.new || payload.old) as any;
+            const msgCompanyId = msgData?.companyId || msgData?.company_id || msgData?.companyid;
+            
+            // Se for DELETE, tentamos encontrar nas mensagens locais se não tiver companyId no old
+            if (payload.eventType !== 'DELETE' && String(msgCompanyId) !== String(currentId)) return;
+
+            const allMsgs = getMessages();
+            let changed = false;
+
+            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+              const newMessage = mapMessageFromSupabase(payload.new);
+              if (!newMessage || !newMessage.id) return;
+              
+              const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+              if (idx === -1) {
+                allMsgs.push(newMessage);
+                changed = true;
+                
+                if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
+                  setShowNewMessageAlert(true);
+                  setTimeout(() => setShowNewMessageAlert(false), 8000);
+                }
+              } else {
+                if (JSON.stringify(allMsgs[idx]) !== JSON.stringify(newMessage)) {
+                  allMsgs[idx] = { ...allMsgs[idx], ...newMessage };
+                  changed = true;
+                }
+              }
+            } else if (payload.eventType === 'DELETE') {
+              const deletedId = payload.old?.id;
+              if (!deletedId) return;
+              
+              const idx = allMsgs.findIndex(m => m.id === deletedId);
+              if (idx > -1) {
+                allMsgs.splice(idx, 1);
+                changed = true;
+              }
+            }
+
+            if (changed) {
+              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+              const myMsgs = allMsgs.filter(m => String(m.companyId) === String(currentId));
+              setMessages(myMsgs);
+              
+              const unread = myMsgs.filter(m => m.senderRole === 'master' && !m.read);
+              setUnreadCount(unread.length);
+              console.log('Messages state updated from real-time event');
             }
           }
         )
-        .subscribe();
+        .subscribe((status) => {
+          console.log(`Messages subscription status for ${currentUser.id}:`, status);
+        });
+
 
       // Fallback polling para dados básicos
       const fallback = setInterval(() => {
         const all = getStoredCompanies();
-        const updated = all.find(c => c.id === currentUser.id);
+        const updated = all.find(c => String(c.id) === String(currentUser.id));
         if (updated && JSON.stringify(currentUserRef.current) !== JSON.stringify(updated)) {
           setCurrentUser(updated);
           currentUserRef.current = updated;
@@ -294,6 +586,8 @@ const App: React.FC = () => {
 
       return () => {
         supabase.removeChannel(companyChannel);
+        supabase.removeChannel(budgetChannel);
+        supabase.removeChannel(ordersChannel);
         supabase.removeChannel(msgChannel);
         clearInterval(fallback);
       };
@@ -321,6 +615,7 @@ const App: React.FC = () => {
       
       const checkMessages = () => {
         const msgs = getMessages(currentUser.id);
+        setMessages(msgs);
         const unread = msgs.filter(m => m.senderRole === 'master' && !m.read);
         setUnreadCount(unread.length);
       };
@@ -378,20 +673,54 @@ const App: React.FC = () => {
     saveSession(currentUser?.id || null, view, activeTab, currencyCode);
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
+  const [isSyncing, setIsSyncing] = useState(false);
+
   useEffect(() => {
     const initData = async () => {
       if (currentUser?.id) {
-        await hydrateLocalData(currentUser.id);
-        const all = getStoredCompanies();
-        const updated = all.find(c => c.id === currentUser.id);
-        if (updated) {
-          setCurrentUser(updated);
-          currentUserRef.current = updated;
+        setIsHydrating(true);
+        console.log("Iniciando hidratação de dados para:", currentUser.id);
+        try {
+          // Hydrate data from cloud
+          await hydrateLocalData(currentUser.id);
+          
+          // Update budgets state after hydration
+          const currentBudgets = getStoredBudgets(currentUser.id);
+          setBudgets(currentBudgets);
+          
+          const currentOrders = getStoredStoreOrders(currentUser.id);
+          setOrders(currentOrders);
+
+          const currentCustomOrders = getStoredCustomOrders();
+          const myCustomOrders = currentCustomOrders.filter(o => String(o.companyId) === String(currentUser.id));
+          setCustomOrders(myCustomOrders);
+          
+          const currentMessages = getMessages(currentUser.id);
+          setMessages(currentMessages);
+          
+          console.log(`Hidratação concluída. ${currentBudgets.length} orçamentos, ${currentOrders.length} pedidos e ${currentMessages.length} mensagens carregados.`);
+          
+          const all = getStoredCompanies();
+          const updated = all.find(c => String(c.id) === String(currentUser.id));
+          if (updated) {
+            setCurrentUser(updated);
+            currentUserRef.current = updated;
+          } else {
+            console.warn("Conta não encontrada no Supabase após hidratação. Fazendo logout.");
+            handleLogout();
+          }
+        } catch (error) {
+          console.error("Erro durante a hidratação inicial:", error);
+          // Fallback to local data
+          const localBudgets = getStoredBudgets(currentUser.id);
+          setBudgets(localBudgets);
+        } finally {
+          setIsHydrating(false);
         }
       }
     };
     initData();
-  }, []);
+  }, [currentUser?.id]);
 
   const isSettingsLocked = useMemo(() => {
     if (!currentUser) return true;
@@ -1047,6 +1376,14 @@ const App: React.FC = () => {
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
+  const handleLogout = () => {
+    saveSession(null);
+    setView('landing');
+    setCurrentUser(null);
+    currentUserRef.current = null;
+    setBudgets([]);
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (email === 'jeferson.goes36@gmail.com' && password === 'izalivjeh') {
@@ -1054,18 +1391,28 @@ const App: React.FC = () => {
       return;
     }
     
-    // 1. Tentar localizar usuário localmente
-    const localCompanies = getStoredCompanies();
-    let company = localCompanies.find(c => c.email === email && c.password === password);
-    
-    // 2. Se não estiver no local, buscar no Supabase (Permite login em novos dispositivos)
-    if (!company) {
-      const { data, error } = await supabase.from('companies').select('*').eq('email', email).eq('password', password).single();
-      if (data && !error) {
-        company = data as Company;
-        saveCompany(company); // Salva no local storage para sessões futuras
+    // 1. SEMPRE buscar no Supabase para garantir que a conta ainda existe e não está bloqueada
+    const { data: companyData, error: loginError } = await supabase
+      .from('companies')
+      .select('*')
+      .eq('email', email)
+      .eq('password', password)
+      .single();
+
+    if (loginError || !companyData) {
+      // Se não encontrou no Supabase, mas existe localmente, removemos o local pois foi excluído na nuvem
+      const localCompanies = getStoredCompanies();
+      const existsLocally = localCompanies.some(c => c.email === email);
+      if (existsLocally) {
+        const filtered = localCompanies.filter(c => c.email !== email);
+        localStorage.setItem('atrios_companies', JSON.stringify(filtered));
       }
+      alert(t.invalidCredentials);
+      return;
     }
+
+    const company = companyData as Company;
+    saveCompany(company); // Atualiza/Salva no local storage
 
     if (company) {
       if (company.isBlocked) {
@@ -1079,6 +1426,9 @@ const App: React.FC = () => {
       
       // Hidratar dados do Supabase ao logar com sucesso
       await hydrateLocalData(company.id);
+      
+      // Update budgets state after hydration
+      setBudgets(getStoredBudgets(company.id));
       
       if (!company.firstLoginAt) {
         company.firstLoginAt = new Date().toISOString();
@@ -1210,6 +1560,9 @@ const App: React.FC = () => {
       
       await hydrateLocalData(company.id);
       
+      // Update budgets state after hydration
+      setBudgets(getStoredBudgets(company.id));
+      
       setCurrentUser(company);
       currentUserRef.current = company;
       setShowWelcome(true);
@@ -1283,8 +1636,12 @@ const App: React.FC = () => {
       if (sessionId && currentUser) {
         // Refresh user data to see the new plan
         await hydrateLocalData(currentUser.id);
+        
+        // Update budgets state after hydration
+        setBudgets(getStoredBudgets(currentUser.id));
+        
         const updatedCompanies = getStoredCompanies();
-        const updatedUser = updatedCompanies.find(c => c.id === currentUser.id);
+        const updatedUser = updatedCompanies.find(c => String(c.id) === String(currentUser.id));
         if (updatedUser) {
           setCurrentUser(updatedUser);
           currentUserRef.current = updatedUser;
@@ -1482,6 +1839,38 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  const handleSync = async () => {
+    if (!currentUser?.id || isSyncing) return;
+    
+    setIsSyncing(true);
+    try {
+      console.log("[Sync] Iniciando sincronização manual...");
+      const { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders } = await hydrateLocalData(currentUser.id);
+      
+      // Atualiza estados locais com os dados novos vindos da nuvem
+      setBudgets(fetchedBudgets);
+      setOrders(fetchedOrders);
+      setCustomOrders(fetchedCustomOrders);
+      setMessages(fetchedMessages);
+      
+      // Track sync event
+      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+        ReactGA.event({
+          category: 'User',
+          action: 'Manual Sync',
+          label: currentUser.email
+        });
+      }
+      
+      alert("Dados sincronizados com sucesso!");
+    } catch (error) {
+      console.error("[Sync] Erro na sincronização manual:", error);
+      alert("Falha ao sincronizar dados. Verifique sua conexão.");
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
   const Selectors = ({ dark = true }: { dark?: boolean }) => {
     const isMobile = windowWidth < 640;
     return (
@@ -1518,6 +1907,20 @@ const App: React.FC = () => {
             <option value="bn-BD" className="text-slate-900">🇧🇩 {isMobile ? 'BN' : 'BN - বাংলাদেশ (Bengali)'}</option>
           </select>
         </div>
+        
+        {currentUser && (
+          <button
+            onClick={handleSync}
+            disabled={isSyncing}
+            className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm transition-all disabled:opacity-50`}
+            title="Sincronizar agora"
+          >
+            <RefreshCw size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px] ${isSyncing ? 'animate-spin' : ''}`} />
+            <span className={`text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} tracking-tight`}>
+              {isSyncing ? '...' : 'SYNC'}
+            </span>
+          </button>
+        )}
       </div>
     );
   };
@@ -1525,7 +1928,7 @@ const App: React.FC = () => {
   if (view === 'master') return <MasterPanel onLogout={() => { saveSession(null); setView('landing'); }} locale={locale} />;
 
   return (
-    <div className="flex h-screen bg-slate-50 overflow-hidden relative">
+    <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
       {showWelcome && currentUser && <WelcomeScreen company={currentUser} locale={locale} />}
       
       {showUnlockAlert && (
@@ -1606,7 +2009,7 @@ const App: React.FC = () => {
       )}
 
       {view === 'landing' ? (
-        <div className="min-h-screen bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900">
+        <div className="min-h-screen w-full max-w-[1440px] mx-auto bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900 shadow-2xl relative">
           {/* Navigation */}
           <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
@@ -2024,7 +2427,7 @@ const App: React.FC = () => {
           </div>
         </div>
       ) : (
-        <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full">
+        <div className="flex h-screen bg-slate-50 overflow-hidden relative w-full max-w-[1440px] mx-auto shadow-2xl border-x border-slate-100">
           {/* Mobile Sidebar Overlay */}
           {isMobileMenuOpen && (
             <div 
@@ -2049,6 +2452,8 @@ const App: React.FC = () => {
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
+                  { id: 'store', label: t.store, icon: ShoppingBag },
+                  { id: 'custom-orders', label: t.customOrdersTitle, icon: PlusCircle },
                   { id: 'plans', label: t.plans, icon: Crown },
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
@@ -2110,7 +2515,7 @@ const App: React.FC = () => {
                 )}
               </div>
               <button 
-                onClick={() => { saveSession(null); setView('landing'); setCurrentUser(null); currentUserRef.current = null; }} 
+                onClick={handleLogout} 
                 className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2 sm:py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
               >
                 <LogOut size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" /> {t.logout}
@@ -2118,7 +2523,13 @@ const App: React.FC = () => {
             </div>
           </aside>
 
-          <main className="flex-1 flex flex-col overflow-hidden w-full">
+          <main className="flex-1 flex flex-col overflow-hidden w-full relative">
+            {isHydrating && (
+              <div className="absolute inset-0 bg-white/60 backdrop-blur-sm z-50 flex flex-col items-center justify-center animate-in fade-in duration-300">
+                <div className="w-12 h-12 border-4 border-slate-900 border-t-transparent rounded-full animate-spin mb-4" />
+                <p className="font-black text-slate-900 uppercase tracking-widest text-[10px] animate-pulse">Sincronizando com a nuvem...</p>
+              </div>
+            )}
             <header className="h-20 lg:h-24 bg-white border-b border-slate-100 flex items-center justify-between px-4 sm:px-6 lg:px-12 shrink-0 gap-4">
               <div className="flex items-center gap-2 sm:gap-3 lg:hidden">
                 <button 
@@ -2136,6 +2547,15 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
+                <button 
+                  onClick={handleSync}
+                  disabled={isSyncing}
+                  className={`p-2.5 lg:p-4 rounded-xl lg:rounded-[1.5rem] transition-all flex items-center gap-2 ${isSyncing ? 'bg-slate-100 text-slate-400' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
+                  title="Sincronizar Dados"
+                >
+                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
+                  <span className="hidden lg:inline text-xs font-black uppercase tracking-widest">{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
+                </button>
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
                 <button 
                   onClick={() => { 
@@ -2173,6 +2593,27 @@ const App: React.FC = () => {
                          <button onClick={() => setActiveTab('plans')} className="px-8 lg:px-12 py-4 lg:py-5 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black hover:bg-slate-800 transition-all shadow-2xl flex items-center gap-3 lg:gap-4 text-sm lg:text-base"><Crown size={20} className="text-amber-400 lg:w-6 lg:h-6" /> {t.viewPremiumPlans}</button>
                       </div>
                     ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
+                  )}
+
+                  {activeTab === 'store' && currentUser && (
+                    <Store 
+                      t={t} 
+                      locale={locale} 
+                      companyId={currentUser.id} 
+                      companyName={currentUser.name} 
+                      companyEmail={currentUser.email}
+                      orders={orders}
+                    />
+                  )}
+
+                  {activeTab === 'custom-orders' && currentUser && (
+                    <CustomOrders 
+                      t={t} 
+                      locale={locale} 
+                      companyId={currentUser.id} 
+                      companyName={currentUser.name} 
+                      companyEmail={currentUser.email}
+                    />
                   )}
 
                   {activeTab === 'budgets' && (
@@ -2395,7 +2836,17 @@ const App: React.FC = () => {
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowPaymentManager(false); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
           <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
-          {showSupportChat && currentUser && <SupportChat locale={locale} company={currentUser} onClose={() => { setShowSupportChat(false); markMessagesAsRead(currentUser.id, 'user'); }} />}
+          {showSupportChat && currentUser && (
+            <SupportChat 
+              locale={locale} 
+              company={currentUser} 
+              messages={messages}
+              onClose={() => { 
+                setShowSupportChat(false); 
+                markMessagesAsRead(currentUser.id, 'user'); 
+              }} 
+            />
+          )}
           
           {showSupportGreeting && !showSupportChat && (
             <div className="fixed bottom-28 right-8 z-[40] animate-in slide-in-from-bottom-4 fade-in duration-500">
@@ -2451,6 +2902,8 @@ const App: React.FC = () => {
               `}</style>
             </div>
           )}
+          
+          <InstallPWA />
         </div>
       )}
     </div>

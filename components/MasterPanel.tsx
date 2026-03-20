@@ -6,6 +6,7 @@ import {
   Calendar, 
   ArrowLeft,
   Bell,
+  Palette,
   Upload,
   Trash2,
   CheckCircle,
@@ -19,15 +20,19 @@ import {
   Ticket,
   Percent,
   LayoutDashboard,
+  Package,
   ArrowUpRight,
+  Search,
+  Zap,
+  Settings,
   UserPlus,
   Ban,
   BarChart3,
   Crown,
   CreditCard,
-  Zap,
   Download,
   Globe,
+  ShoppingBag,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -42,7 +47,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -55,9 +60,18 @@ import {
   getTransactions,
   getCoupons,
   saveCoupon,
-  removeCoupon
+  removeCoupon,
+  getStoreOrders,
+  getStoredCustomOrders,
+  getProducts,
+  saveProduct,
+  deleteProduct,
+  generateShortId,
+  mapMessageFromSupabase,
+  mapOrderFromSupabase,
+  mapCustomOrderFromSupabase
 } from '../services/storage';
-import { supabase } from '../services/supabase';
+import { supabase, testTableAccess } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -68,13 +82,25 @@ interface MasterPanelProps {
 
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons'>('home');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'custom-orders'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
+  const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
+  const [customOrders, setCustomOrders] = useState<CustomOrderRequest[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
+  
+  // Product Form State
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productName, setProductName] = useState('');
+  const [productCode, setProductCode] = useState('');
+  const [productCategory, setProductCategory] = useState('Branding');
+  const [productDescription, setProductDescription] = useState('');
+  const [productImage, setProductImage] = useState<string | null>(null);
   
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
@@ -112,7 +138,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const loadData = async () => {
-    setActiveNotifications(getGlobalNotifications());
+    setIsSyncing(true);
+    try {
+      setActiveNotifications(getGlobalNotifications());
     
     // Buscar empresas diretamente do Supabase para garantir que todos os usuários apareçam
     const { data: cloudCompanies } = await supabase
@@ -137,11 +165,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Buscar mensagens do Supabase
     const { data: cloudMessages } = await supabase.from('messages').select('*');
+    const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
     if (cloudMessages) {
-      localStorage.setItem('atrios_messages', JSON.stringify(cloudMessages));
+      localStorage.setItem('atrios_messages', JSON.stringify(mappedMessages));
     }
 
-    const allMsgs = cloudMessages || getMessages();
+    const allMsgs = mappedMessages.length > 0 ? mappedMessages : getMessages();
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
     if (unreadCount > prevUnreadCount.current) {
@@ -151,6 +180,76 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
     prevUnreadCount.current = unreadCount;
 
+    // Buscar pedidos da loja
+    console.log("MasterPanel: Buscando pedidos da loja no Supabase...");
+    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*');
+    const mappedOrders = cloudOrders ? cloudOrders.map(mapOrderFromSupabase) : [];
+    
+    // Buscar orçamentos personalizados
+    console.log("MasterPanel: Buscando orçamentos personalizados no Supabase...");
+    const { data: cloudCustomOrders, error: customOrdersError } = await supabase.from('custom_order_requests').select('*');
+    const mappedCustomOrders = cloudCustomOrders ? cloudCustomOrders.map(mapCustomOrderFromSupabase) : [];
+
+    if (ordersError) {
+      console.error("MasterPanel: Erro ao buscar pedidos da loja:", ordersError.message, ordersError.details);
+    } else {
+      console.log(`MasterPanel: ${mappedOrders.length} pedidos recebidos do cloud.`);
+    }
+    
+    if (mappedOrders.length > 0) {
+      localStorage.setItem('atrios_store_orders', JSON.stringify(mappedOrders));
+      setStoreOrders(mappedOrders.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }));
+    } else if (!ordersError) {
+      // Se não houver erro mas o cloud estiver vazio, só limpamos se o local também estiver vazio ou se quisermos forçar a limpeza
+      // Para evitar que suma ao salvar, vamos manter o local se o cloud estiver vazio
+      const localOrders = getStoreOrders();
+      if (localOrders.length > 0 && (!cloudOrders || cloudOrders.length === 0)) {
+        setStoreOrders(localOrders);
+      } else {
+        setStoreOrders([]);
+      }
+    } else {
+      setStoreOrders(getStoreOrders());
+    }
+
+    if (mappedCustomOrders.length > 0) {
+      localStorage.setItem('atrios_custom_orders', JSON.stringify(mappedCustomOrders));
+      setCustomOrders(mappedCustomOrders.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+        return dateB - dateA;
+      }));
+    } else if (!customOrdersError) {
+      const localCustomOrders = getStoredCustomOrders();
+      setCustomOrders(localCustomOrders);
+    }
+
+    // Buscar produtos da loja
+    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*');
+    if (productsError) {
+      console.error("Erro ao buscar produtos:", productsError.message);
+    }
+    console.log("Produtos recebidos do cloud:", cloudProducts);
+
+    if (cloudProducts && cloudProducts.length > 0) {
+      const syncedProducts = cloudProducts.map(p => ({ ...p, synced: true }));
+      localStorage.setItem('atrios_products', JSON.stringify(syncedProducts));
+      setProducts(syncedProducts.sort((a, b) => {
+        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
+        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+        return dateB - dateA;
+      }));
+    } else {
+      const localProducts = await getProducts();
+      if (localProducts.length > 0) {
+        setProducts(localProducts);
+      }
+    }
+
     setCompanies(allCompanies);
     companiesRef.current = allCompanies;
     setTransactions(getTransactions().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
@@ -159,10 +258,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (selectedCompanyId) {
       setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
     }
+    } catch (error) {
+      console.error("Error loading data in MasterPanel:", error);
+    } finally {
+      setIsSyncing(false);
+    }
   };
 
   useEffect(() => {
     loadData();
+
+    if (!supabase) return;
 
     // Subscrição para novas mensagens (todas, para o Master)
     const msgChannel = supabase
@@ -171,38 +277,53 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'messages' },
         (payload) => {
-          const newMessage = payload['new'] as SupportMessage;
+          console.log('Master message change detected:', payload.eventType, payload);
+          const newMessage = mapMessageFromSupabase(payload['new'] || payload['old']);
           if (!newMessage || !newMessage.id) return;
           
-          // Atualizar localStorage
           const allMsgs = getMessages();
-          const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
-          if (existingIdx === -1) {
-            allMsgs.push(newMessage);
-          } else {
-            allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
-          }
-          localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+          let changed = false;
 
-          // Se for do usuário, mostrar alerta se não estiver no chat dele
-          if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
-            const allCompanies = getStoredCompanies();
-            const sender = allCompanies.find(c => c.id === newMessage.companyId);
-            if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
-              setLastMessageAlert({ name: sender.name, content: newMessage.content });
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
+            if (existingIdx === -1) {
+              allMsgs.push(newMessage);
+              changed = true;
+              
+              if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
+                const allCompanies = getStoredCompanies();
+                const sender = allCompanies.find(c => c.id === newMessage.companyId);
+                if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
+                  setLastMessageAlert({ name: sender.name, content: newMessage.content });
+                }
+              }
+            } else {
+              if (JSON.stringify(allMsgs[existingIdx]) !== JSON.stringify(newMessage)) {
+                allMsgs[existingIdx] = { ...allMsgs[existingIdx], ...newMessage };
+                changed = true;
+              }
+            }
+          } else if (payload.eventType === 'DELETE') {
+            const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+            if (idx > -1) {
+              allMsgs.splice(idx, 1);
+              changed = true;
             }
           }
 
-          // Recarregar mensagens se o chat estiver aberto
-          if (selectedCompanyId === newMessage.companyId) {
-            setMessages(getMessages(selectedCompanyId));
-          } else {
-            // Forçar atualização da lista lateral para mostrar badges de não lidas
-            setCompanies(prev => [...prev]);
+          if (changed) {
+            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            if (selectedCompanyId === newMessage.companyId) {
+              setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
+            } else {
+              setCompanies(prev => [...prev]);
+            }
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Master messages subscription status:', status);
+      });
 
     // Subscrição para mudanças nas empresas (novos usuários e pedidos de desbloqueio)
     const companyChannel = supabase
@@ -211,37 +332,84 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         'postgres_changes',
         { event: '*', schema: 'public', table: 'companies' },
         (payload) => {
-          const updatedCompany = payload['new'] as Company;
+          console.log('Master company change detected:', payload.eventType, payload);
+          const updatedCompany = (payload['new'] || payload['old']) as Company;
           if (!updatedCompany || updatedCompany.email === 'jeferson.goes36@gmail.com') return;
           
-          // Atualizar localStorage
           const companies = getStoredCompanies();
-          const idx = companies.findIndex(c => c.id === updatedCompany.id);
-          
-          if (idx > -1) {
-            // Atualização de usuário existente
-            const old = companies[idx];
-            if (!old.unlockRequested && updatedCompany.unlockRequested) {
-              setLastUnlockAlert(updatedCompany.name);
+          let changed = false;
+
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            if (idx > -1) {
+              const old = companies[idx];
+              if (!old.unlockRequested && updatedCompany.unlockRequested) {
+                setLastUnlockAlert(updatedCompany.name);
+              }
+              if (JSON.stringify(old) !== JSON.stringify(updatedCompany)) {
+                companies[idx] = updatedCompany;
+                changed = true;
+              }
+            } else {
+              companies.push(updatedCompany);
+              changed = true;
             }
-            companies[idx] = updatedCompany;
-          } else {
-            // Novo usuário cadastrado
-            companies.push(updatedCompany);
+          } else if (payload.eventType === 'DELETE') {
+            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            if (idx > -1) {
+              companies.splice(idx, 1);
+              changed = true;
+            }
           }
           
-          localStorage.setItem('atrios_companies', JSON.stringify(companies));
-          setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          if (changed) {
+            localStorage.setItem('atrios_companies', JSON.stringify(companies));
+            setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+          }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('Master companies subscription status:', status);
+      });
+
+    // Subscrição para novos pedidos da loja
+    const storeOrdersChannel = supabase
+      .channel('master-store-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'store_orders' },
+        (payload) => {
+          console.log("Master order change detected:", payload.eventType, payload);
+          loadData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Master orders subscription status:', status);
+      });
+
+    // Subscrição para orçamentos personalizados
+    const customOrdersChannel = supabase
+      .channel('master-custom-orders')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'custom_order_requests' },
+        (payload) => {
+          console.log("Master custom order change detected:", payload.eventType, payload);
+          loadData();
+        }
+      )
+      .subscribe((status) => {
+        console.log('Master custom orders subscription status:', status);
+      });
 
     // Fallback polling para o Master
-    const fallback = setInterval(loadData, 15000);
+    const fallback = setInterval(loadData, 30000);
 
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(companyChannel);
+      supabase.removeChannel(storeOrdersChannel);
+      supabase.removeChannel(customOrdersChannel);
       clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);
@@ -402,6 +570,131 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (window.confirm(`${t.masterDeleteUser} "${name}"?`)) { removeCompany(id); setCompanies(prev => prev.filter(c => c.id !== id)); if (selectedCompanyId === id) setSelectedCompanyId(null); }
   };
 
+  const updateOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
+    try {
+      const { error } = await supabase
+        .from('store_orders')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      setStoreOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      
+      // Update local storage
+      const localOrders = getStoreOrders();
+      const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+      localStorage.setItem('atrios_store_orders', JSON.stringify(updatedLocal));
+
+    } catch (err) {
+      console.error('Error updating order status:', err);
+    }
+  };
+
+  const updateCustomOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
+    try {
+      const { error } = await supabase
+        .from('custom_order_requests')
+        .update({ status: newStatus })
+        .eq('id', orderId);
+
+      if (error) throw error;
+
+      setCustomOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+      
+      // Update local storage
+      const localOrders = getStoredCustomOrders();
+      const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+      localStorage.setItem('atrios_custom_orders', JSON.stringify(updatedLocal));
+
+    } catch (err) {
+      console.error('Error updating custom order status:', err);
+    }
+  };
+
+  const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setProductImage(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    
+    const product: Product = {
+      id: editingProduct?.id || generateShortId(),
+      code: productCode,
+      name: productName,
+      category: productCategory,
+      description: productDescription,
+      image: productImage || 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
+      active: true,
+      createdAt: editingProduct?.createdAt || new Date().toISOString()
+    };
+
+    const result = await saveProduct(product);
+    
+    const finalProduct = { ...product, synced: result.success };
+    
+    if (!result.success) {
+      console.warn("Falha na sincronização cloud, mas salvo localmente.", result.error);
+      const err = result.error as any;
+      if (err?.code === '42501') {
+        alert("ERRO DE PERMISSÃO (RLS):\nO Supabase não permitiu salvar o produto. Clique no botão 'Diagnóstico' para ver como liberar o acesso (SQL).");
+      } else if (err?.code === '22P02') {
+        alert("ERRO DE TIPO (UUID):\nA coluna 'id' no Supabase parece ser do tipo UUID, mas o app usa Texto. Mude o tipo da coluna para TEXT no Supabase.");
+      } else if (err?.message) {
+        alert(`Erro ao sincronizar com nuvem: ${err.message}`);
+      }
+    }
+    
+    // Update local state immediately to prevent disappearing
+    setProducts(prev => {
+      const index = prev.findIndex(p => p.id === finalProduct.id);
+      if (index > -1) {
+        const updated = [...prev];
+        updated[index] = finalProduct;
+        return updated;
+      }
+      return [finalProduct, ...prev];
+    });
+    
+    // Reset form
+    setEditingProduct(null);
+    setProductName('');
+    setProductCode('');
+    setProductCategory('Branding');
+    setProductDescription('');
+    setProductImage(null);
+    
+    // Refresh from cloud in background with delay to allow sync to complete
+    setTimeout(() => {
+      loadData();
+    }, 3000); // Increased delay to 3s
+  };
+
+  const handleEditProduct = (product: Product) => {
+    setEditingProduct(product);
+    setProductName(product.name);
+    setProductCode(product.code);
+    setProductCategory(product.category);
+    setProductDescription(product.description);
+    setProductImage(product.image);
+    setActiveTab('products');
+  };
+
+  const handleDeleteProduct = async (id: string) => {
+    if (confirm('Tem certeza que deseja excluir este produto?')) {
+      await deleteProduct(id);
+      loadData();
+    }
+  };
+
   const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
@@ -545,6 +838,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
+              { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
+              { id: 'custom-orders', label: t.customOrders, icon: Palette },
+              { id: 'products', label: 'Produtos', icon: Package },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
             ].map(tab => (
@@ -554,6 +850,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 {tab.id === 'messages' && unreadMessagesTotalCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-pulse">{unreadMessagesTotalCount}</span>}
               </button>
             ))}
+            <button 
+              onClick={loadData}
+              disabled={isSyncing}
+              className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
+                isSyncing ? 'bg-white/5 text-slate-500' : 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
+              }`}
+            >
+              <Zap size={14} className={isSyncing ? 'animate-spin' : ''} />
+              {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
+            </button>
             <button onClick={onLogout} className="ml-2 px-6 py-2.5 hover:bg-red-500/20 text-red-400 rounded-xl transition-all font-black text-xs uppercase"><ArrowLeft size={16} className="inline mr-2" /> {t.logout}</button>
           </nav>
         </div>
@@ -660,12 +966,446 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           </div>
         )}
 
+        {activeTab === 'store' && (
+          <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
+            <div className="p-8 border-b border-white/10 bg-white/5 flex justify-between items-center">
+              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
+                <ShoppingBag size={24} /> {t.masterStoreTab}
+              </h2>
+              <button 
+                onClick={() => loadData()}
+                className="p-3 bg-white/5 text-amber-500 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+              >
+                <TrendingUp size={18} className="rotate-90" /> Atualizar
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
+                    <th className="px-8 py-6">{t.masterTableIdCompany}</th>
+                    <th className="px-8 py-6">Produto</th>
+                    <th className="px-8 py-6">Qtd</th>
+                    <th className="px-8 py-6">Imagem</th>
+                    <th className="px-8 py-6">Status</th>
+                    <th className="px-8 py-6">Observações</th>
+                    <th className="px-8 py-6 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {storeOrders.map(order => {
+                    const company = companies.find(c => c.id === order.companyId);
+                    return (
+                      <tr key={order.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/10 text-amber-500 flex items-center justify-center font-black uppercase">
+                              {company?.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="font-black text-sm">{company?.name || 'Desconhecido'}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {order.companyId}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-400 text-sm">
+                          {order.productName}
+                        </td>
+                        <td className="px-8 py-6 font-black text-amber-500">
+                          {order.quantity}
+                        </td>
+                        <td className="px-8 py-6">
+                          {order.uploadedImage ? (
+                            <button 
+                              onClick={() => window.open(order.uploadedImage, '_blank')}
+                              className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-amber-500 transition-all"
+                            >
+                              <img src={order.uploadedImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-600 uppercase font-black">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                            order.status === 'pending' ? 'border-amber-500/50 text-amber-500' :
+                            order.status === 'processing' ? 'border-blue-500/50 text-blue-500' :
+                            'border-emerald-500/50 text-emerald-500'
+                          }`}>
+                            {order.status}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="text-xs text-slate-400 max-w-[200px] truncate" title={order.notes}>
+                            {order.notes || '-'}
+                          </p>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <select 
+                              value={order.status}
+                              onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
+                              className="bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase outline-none focus:border-amber-500"
+                            >
+                              <option value="pending">Pendente</option>
+                              <option value="processing">Processando</option>
+                              <option value="completed">Concluído</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {storeOrders.length === 0 && (
+                <div className="p-20 text-center">
+                  <ShoppingBag size={48} className="mx-auto text-slate-700 mb-4" />
+                  <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Nenhum pedido encontrado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'custom-orders' && (
+          <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
+            <div className="p-8 border-b border-white/10 bg-white/5 flex justify-between items-center">
+              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
+                <Palette size={24} /> {t.customOrders}
+              </h2>
+              <button 
+                onClick={() => loadData()}
+                className="p-3 bg-white/5 text-amber-500 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
+              >
+                <TrendingUp size={18} className="rotate-90" /> Atualizar
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
+                    <th className="px-8 py-6">{t.masterTableIdCompany}</th>
+                    <th className="px-8 py-6">Item</th>
+                    <th className="px-8 py-6">Qtd</th>
+                    <th className="px-8 py-6">Imagem</th>
+                    <th className="px-8 py-6">Status</th>
+                    <th className="px-8 py-6">Descrição</th>
+                    <th className="px-8 py-6 text-right">Ações</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {customOrders.map(order => {
+                    const company = companies.find(c => c.id === order.companyId);
+                    return (
+                      <tr key={order.id} className="hover:bg-white/5 transition-colors group">
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-xl bg-white/10 text-amber-500 flex items-center justify-center font-black uppercase">
+                              {company?.name?.charAt(0) || '?'}
+                            </div>
+                            <div>
+                              <p className="font-black text-sm">{company?.name || 'Desconhecido'}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {order.companyId}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-400 text-sm">
+                          {order.itemName}
+                        </td>
+                        <td className="px-8 py-6 font-black text-amber-500">
+                          {order.quantity}
+                        </td>
+                        <td className="px-8 py-6">
+                          {order.uploadedImage ? (
+                            <button 
+                              onClick={() => window.open(order.uploadedImage, '_blank')}
+                              className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-amber-500 transition-all"
+                            >
+                              <img src={order.uploadedImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                            </button>
+                          ) : (
+                            <span className="text-[10px] text-slate-600 uppercase font-black">N/A</span>
+                          )}
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                            order.status === 'pending' ? 'border-amber-500/50 text-amber-500' :
+                            order.status === 'processing' ? 'border-blue-500/50 text-blue-500' :
+                            'border-emerald-500/50 text-emerald-500'
+                          }`}>
+                            {order.status === 'pending' ? 'Pendente' : order.status === 'processing' ? 'Processando' : 'Concluído'}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="text-xs text-slate-400 max-w-[200px] truncate" title={order.description}>
+                            {order.description || '-'}
+                          </p>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-2">
+                            <select 
+                              value={order.status}
+                              onChange={(e) => updateCustomOrderStatus(order.id, e.target.value as any)}
+                              className="bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase outline-none focus:border-amber-500"
+                            >
+                              <option value="pending">Pendente</option>
+                              <option value="processing">Processando</option>
+                              <option value="completed">Concluído</option>
+                            </select>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+              {customOrders.length === 0 && (
+                <div className="p-20 text-center">
+                  <Palette size={48} className="mx-auto text-slate-700 mb-4" />
+                  <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Nenhum orçamento personalizado encontrado</p>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
         {activeTab === 'coupons' && (
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-10 animate-in fade-in"><div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Ticket size={28} /> {t.masterCouponCreate}</h2><form onSubmit={handleCreateCoupon} className="space-y-6"><div><label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.masterCouponCode}</label><input required type="text" value={newCouponCode} onChange={e => setNewCouponCode(e.target.value)} placeholder="EX: ATRIOS20" className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase" /></div><div><label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">{t.masterCouponDiscount}</label><div className="flex items-center gap-4"><input required type="range" min="5" max="90" step="5" value={newCouponDiscount} onChange={e => setNewCouponDiscount(Number(e.target.value))} className="flex-1 accent-amber-500" /><span className="w-20 text-center bg-white/10 py-3 rounded-xl font-black text-amber-500">{newCouponDiscount}%</span></div></div><button type="submit" className="w-full py-5 bg-amber-500 text-slate-950 rounded-[1.5rem] font-black text-lg hover:bg-amber-400 uppercase">{t.masterSaveActivate}</button></form></div><div className="bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Percent size={28} /> {t.masterCouponActive}</h2><div className="space-y-4 max-h-[400px] overflow-y-auto no-scrollbar">{coupons.length === 0 ? <div className="py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.masterCouponEmpty}</div> : coupons.map(cp => (<div key={cp.id} className="bg-white/5 border border-white/10 p-6 rounded-[2rem] flex justify-between items-center group"><div className="flex items-center gap-6"><div className="w-14 h-14 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center"><Ticket /></div><div><p className="text-xl font-black italic uppercase tracking-tighter">{cp.code}</p><p className="text-[10px] font-black text-emerald-400 uppercase">{cp.discountPercentage}% {t.masterDiscountOff}</p></div></div><button onClick={() => handleDeleteCoupon(cp.id)} className="p-4 text-red-500 rounded-xl hover:bg-red-500 transition-all"><Trash2 size={18} /></button></div>))}</div></div></div>
         )}
 
         {activeTab === 'notifications' && (
           <div className="space-y-10 animate-in fade-in"><div className="flex justify-center"><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2><div className="space-y-6"><label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">{imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}<input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label><div className="grid grid-cols-2 gap-3">{['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (<button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>))}</div><button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button></div></div></div><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{activeNotifications.length === 0 ? (<div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>) : (activeNotifications.map(n => (<div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative"><div className="aspect-video w-full relative"><img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button></div></div><div className="p-4 flex justify-between items-center bg-white/5"><span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span><span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.createdAt).toLocaleDateString(locale)}</span></div></div>)))}</div></div></div>
+        )}
+
+        {activeTab === 'products' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in">
+            <div className="lg:col-span-1 bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8 h-fit">
+              <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
+                <Package size={28} /> {editingProduct ? 'Editar Produto' : 'Novo Produto'}
+              </h2>
+              <form onSubmit={handleSaveProduct} className="space-y-6">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Código do Produto</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={productCode} 
+                    onChange={e => setProductCode(e.target.value)} 
+                    placeholder="EX: MUG-001" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Nome do Produto</label>
+                  <input 
+                    required 
+                    type="text" 
+                    value={productName} 
+                    onChange={e => setProductName(e.target.value)} 
+                    placeholder="Nome do produto" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Categoria</label>
+                  <select 
+                    value={productCategory} 
+                    onChange={e => setProductCategory(e.target.value)} 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none uppercase"
+                  >
+                    <option value="Branding">Branding</option>
+                    <option value="Apparel">Vestuário</option>
+                    <option value="Safety">Segurança</option>
+                    <option value="Tools">Ferramentas</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Descrição</label>
+                  <textarea 
+                    required 
+                    value={productDescription} 
+                    onChange={e => setProductDescription(e.target.value)} 
+                    placeholder="Descrição do produto..." 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-medium outline-none min-h-[100px] resize-none" 
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Foto do Produto</label>
+                  <label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-40">
+                    {productImage ? (
+                      <img src={productImage} className="absolute inset-0 w-full h-full object-cover opacity-60" />
+                    ) : (
+                      <div className="flex flex-col items-center">
+                        <Upload size={24} className="text-slate-400 mb-2" />
+                        <span className="text-[10px] font-black uppercase">Upload Foto</span>
+                      </div>
+                    )}
+                    <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
+                  </label>
+                </div>
+                <div className="flex gap-3">
+                  <button type="submit" className="flex-1 py-5 bg-amber-500 text-slate-950 rounded-[1.5rem] font-black text-lg hover:bg-amber-400 uppercase">
+                    {editingProduct ? 'Atualizar' : 'Salvar'}
+                  </button>
+                  {editingProduct && (
+                    <button 
+                      type="button" 
+                      onClick={() => {
+                        setEditingProduct(null);
+                        setProductName('');
+                        setProductCode('');
+                        setProductDescription('');
+                        setProductImage(null);
+                      }}
+                      className="px-6 py-5 bg-white/5 rounded-[1.5rem] font-black text-sm uppercase"
+                    >
+                      Cancelar
+                    </button>
+                  )}
+                </div>
+              </form>
+            </div>
+
+            <div className="lg:col-span-2 bg-white/5 border border-white/10 p-10 rounded-[3rem] space-y-8">
+              <div className="flex justify-between items-center">
+                <h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase">
+                  <Package size={28} /> Produtos Ativos
+                </h2>
+                <button
+                  onClick={async () => {
+                    const localProducts = await getProducts();
+                    if (localProducts.length === 0) {
+                      alert("Nenhum produto local para sincronizar.");
+                      return;
+                    }
+                    
+                    if (confirm(`Deseja tentar sincronizar ${localProducts.length} produtos com o Supabase?`)) {
+                      let successCount = 0;
+                      for (const p of localProducts) {
+                        const result = await saveProduct(p);
+                        if (result.success) successCount++;
+                      }
+                      alert(`Sincronização concluída!\nSucesso: ${successCount}\nFalha: ${localProducts.length - successCount}`);
+                      loadData();
+                    }
+                  }}
+                  className="px-4 py-2 bg-amber-500/10 text-amber-500 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-amber-500/20 transition-all flex items-center gap-2"
+                >
+                  <Zap size={14} />
+                  Sincronizar Tudo
+                </button>
+                <button
+                  onClick={async () => {
+                    console.log("--- DIAGNÓSTICO DE PRODUTOS ---");
+                    const localRaw = localStorage.getItem('atrios_products');
+                    const localParsed = localRaw ? JSON.parse(localRaw) : [];
+                    console.log("Local Storage 'atrios_products':", localRaw);
+                    console.log("Estado 'products':", products);
+                    
+                    const hasViteUrl = !!import.meta.env.VITE_SUPABASE_URL;
+                    const hasViteKey = !!import.meta.env.VITE_SUPABASE_ANON_KEY;
+                    
+                    console.log("Configuração Supabase:");
+                    console.log("- VITE_SUPABASE_URL:", hasViteUrl ? "Definido" : "NÃO DEFINIDO (Usando fallback)");
+                    console.log("- VITE_SUPABASE_ANON_KEY:", hasViteKey ? "Definido" : "NÃO DEFINIDO (Usando fallback)");
+                    
+                    try {
+                      console.log("Testando conexão Supabase...");
+                      const testProducts = await testTableAccess('products');
+                      const testOrders = await testTableAccess('store_orders');
+                      
+                      if (!testProducts.success || !testOrders.success) {
+                        console.error("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error });
+                        const errP = testProducts.error as any;
+                        const errO = testOrders.error as any;
+                        
+                        let msg = "ERRO DE CONEXÃO SUPABASE:\n\n";
+                        
+                        if (!testProducts.success) {
+                          msg += `TABELA 'products':\nStatus: ${testProducts.status}\nMensagem: ${errP?.message || "Erro"}\n\n`;
+                        }
+                        
+                        if (!testOrders.success) {
+                          msg += `TABELA 'store_orders':\nStatus: ${testOrders.status}\nMensagem: ${errO?.message || "Erro"}\n\n`;
+                        }
+                        
+                        msg += "SQL PARA CRIAR TABELAS (se não existirem):\n\n";
+                        msg += "CREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                        msg += "CREATE TABLE store_orders (\n  id TEXT PRIMARY KEY,\n  \"companyId\" TEXT,\n  \"productId\" TEXT,\n  \"productName\" TEXT,\n  quantity INTEGER,\n  notes TEXT,\n  \"uploadedImage\" TEXT,\n  status TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                        msg += "SQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON products FOR ALL USING (true) WITH CHECK (true);\n\nALTER TABLE store_orders ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON store_orders FOR ALL USING (true) WITH CHECK (true);";
+                        
+                        alert(msg);
+                      } else {
+                        console.log("Conexão Supabase OK. Status:", testProducts.status);
+                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${testProducts.status}\nProdutos Locais: ${localParsed.length}\nPedidos Locais: ${storeOrders.length}\n\nSe os dados não aparecem no banco, verifique se a coluna 'id' nas tabelas é do tipo TEXT.`);
+                      }
+                    } catch (e) {
+                      console.error("Falha crítica no diagnóstico:", e);
+                      alert("Falha crítica: " + (e as Error).message);
+                    }
+                  }}
+                  className="px-4 py-2 bg-white/10 text-slate-400 rounded-xl font-black uppercase tracking-widest text-[10px] hover:bg-white/20 transition-all flex items-center gap-2"
+                >
+                  <Search size={14} />
+                  Diagnóstico
+                </button>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                {products.length === 0 ? (
+                  <div className="col-span-full py-20 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
+                    Nenhum produto cadastrado
+                  </div>
+                ) : (
+                  products.map(p => (
+                    <div key={p.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative flex flex-col">
+                      <div className="aspect-video w-full relative">
+                        <img src={p.image} className="w-full h-full object-cover" alt={p.name} />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-4">
+                          <button 
+                            onClick={() => handleEditProduct(p)} 
+                            className="p-4 bg-amber-500 text-slate-950 rounded-full hover:scale-110 transition-transform"
+                          >
+                            <Settings size={24} />
+                          </button>
+                          <button 
+                            onClick={() => handleDeleteProduct(p.id)} 
+                            className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"
+                          >
+                            <Trash2 size={24} />
+                          </button>
+                        </div>
+                      </div>
+                      <div className="p-6 space-y-3 flex-1 flex flex-col">
+                        <div className="space-y-1">
+                          <div className="flex justify-between items-center">
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{p.category}</span>
+                            <div className="flex items-center gap-2">
+                              <span className="text-[8px] font-black uppercase text-slate-400 bg-slate-400/10 px-2 py-0.5 rounded-md">{p.code}</span>
+                              {p.synced === false && (
+                                <span className="text-[7px] font-black uppercase text-red-500 bg-red-500/10 px-1 py-0.5 rounded flex items-center gap-1">
+                                  <AlertCircle size={8} /> Offline
+                                </span>
+                              )}
+                              {p.synced === true && (
+                                <span className="text-[7px] font-black uppercase text-green-500 bg-green-500/10 px-1 py-0.5 rounded flex items-center gap-1">
+                                  <CheckCircle size={8} /> Cloud
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                          <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{p.name}</h3>
+                        </div>
+                        <p className="text-sm text-slate-500 font-medium leading-relaxed flex-1">
+                          {p.description}
+                        </p>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
       </div>
     </div>

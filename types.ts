@@ -160,6 +160,48 @@ export interface GlobalNotification {
   createdAt: string;
 }
 
+export interface CustomOrderItem {
+  id: string;
+  name: string;
+  icon: string;
+}
+
+export interface CustomOrderRequest {
+  id: string;
+  companyId: string;
+  itemId: string;
+  itemName: string;
+  quantity: number;
+  description: string;
+  imageUrl?: string;
+  status: 'pending' | 'processing' | 'completed';
+  createdAt: string;
+}
+
+export interface Product {
+  id: string;
+  name: string;
+  code: string;
+  category: string;
+  description: string;
+  image: string;
+  price?: number;
+  active: boolean;
+  createdAt?: string;
+}
+
+export interface StoreOrder {
+  id: string;
+  companyId: string;
+  productId: string;
+  productName: string;
+  quantity: number;
+  notes: string;
+  uploadedImage?: string;
+  status: 'pending' | 'processing' | 'completed';
+  createdAt?: string;
+}
+
 export interface AuthState {
   user: Company | null;
   isAuthenticated: boolean;
