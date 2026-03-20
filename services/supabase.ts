@@ -33,6 +33,12 @@ export const syncToCloud = async (table: string, data: any): Promise<SyncResult>
         delete cleanData[imageField];
       }
     }
+
+    // Mapeamento preventivo de campos comuns para evitar erros de coluna não encontrada
+    if (cleanData.companyId && !cleanData.company_id) cleanData.company_id = cleanData.companyId;
+    if (cleanData.createdAt && !cleanData.created_at) cleanData.created_at = cleanData.createdAt;
+    if (cleanData.clientName && !cleanData.client_name) cleanData.client_name = cleanData.clientName;
+    if (cleanData.totalAmount && !cleanData.total_amount) cleanData.total_amount = cleanData.totalAmount;
     
     console.log(`syncToCloud: Tentando sincronizar ${table} (ID: ${cleanData.id}) no Supabase...`);
     

@@ -1411,7 +1411,12 @@ const App: React.FC = () => {
       return;
     }
 
-    const company = companyData as Company;
+    const companyRaw = companyData as any;
+    const company: Company = {
+      ...companyRaw,
+      id: companyRaw.id || companyRaw.company_id || companyRaw.companyid
+    };
+    
     saveCompany(company); // Atualiza/Salva no local storage
 
     if (company) {

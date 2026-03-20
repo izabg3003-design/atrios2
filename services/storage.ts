@@ -351,6 +351,18 @@ export const deleteProduct = async (id: string) => {
  * Recupera todos os dados do Supabase e atualiza o armazenamento local.
  * Garante que orçamentos antigos, despesas e status de plano apareçam na página do usuário.
  */
+const safeParse = (data: any) => {
+  if (typeof data === 'string') {
+    try {
+      return JSON.parse(data);
+    } catch (e) {
+      console.error("Error parsing JSON field:", e);
+      return [];
+    }
+  }
+  return data || [];
+};
+
 export const mapBudgetFromSupabase = (b: any): Budget => {
   const mapped: any = { ...b };
   if (b.company_id && !b.companyId) mapped.companyId = b.company_id;
@@ -368,6 +380,15 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
   if (b.include_iva !== undefined && b.includeIva === undefined) mapped.includeIva = b.include_iva;
   if (b.iva_percentage !== undefined && b.ivaPercentage === undefined) mapped.ivaPercentage = b.iva_percentage;
   if (b.payment_method && !b.paymentMethod) mapped.paymentMethod = b.payment_method;
+  if (b.created_at && !b.createdAt) mapped.createdAt = b.created_at;
+  
+  // Garantir que arrays sejam arrays (caso venham como string JSON)
+  mapped.items = safeParse(b.items);
+  mapped.expenses = safeParse(b.expenses);
+  mapped.payments = safeParse(b.payments);
+  mapped.servicesSelected = safeParse(b.servicesSelected || b.services_selected);
+  mapped.projectFiles = safeParse(b.projectFiles || b.project_files);
+  
   return mapped as Budget;
 };
 
@@ -376,6 +397,9 @@ export const mapMessageFromSupabase = (m: any): SupportMessage => {
   if (m.company_id && !m.companyId) mapped.companyId = m.company_id;
   if (m.sender_role && !m.senderRole) mapped.senderRole = m.sender_role;
   if (m.translated_content && !m.translatedContent) mapped.translatedContent = m.translated_content;
+  if (m.created_at && !m.createdAt) mapped.createdAt = m.created_at;
+  if (m.created_at && !m.timestamp) mapped.timestamp = m.created_at;
+  if (m.timestamp && !m.created_at) mapped.created_at = m.timestamp;
   return mapped as SupportMessage;
 };
 
@@ -385,6 +409,7 @@ export const mapOrderFromSupabase = (o: any): StoreOrder => {
   if (o.product_id && !o.productId) mapped.productId = o.product_id;
   if (o.product_name && !o.productName) mapped.productName = o.product_name;
   if (o.uploaded_image && !o.uploadedImage) mapped.uploadedImage = o.uploaded_image;
+  if (o.created_at && !o.createdAt) mapped.createdAt = o.created_at;
   return mapped as StoreOrder;
 };
 
@@ -416,6 +441,15 @@ const fetchResilient = async (table: string, companyId: string, orderCol?: strin
         return { data, error: null };
       }
       
+      // Se o erro for relacionado à coluna de ordenação, tentamos sem ordenação
+      if (orderCol && (error.message?.includes('column') || error.message?.includes('order'))) {
+        console.warn(`fetchResilient: Coluna de ordenação '${orderCol}' não encontrada em ${table}. Tentando sem ordenação...`);
+        const { data: fallbackData, error: fallbackError } = await supabase.from(table).select('*').eq(col, companyId);
+        if (!fallbackError) {
+          return { data: fallbackData, error: null };
+        }
+      }
+      
       lastError = error;
       // Se o erro for "coluna não encontrada", tentamos a próxima
       if (error.code === 'PGRST204' || error.message?.includes('column')) {
@@ -438,6 +472,10 @@ const fetchResilient = async (table: string, companyId: string, orderCol?: strin
 };
 
 export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Budget[], orders: StoreOrder[], messages: SupportMessage[], customOrders: CustomOrderRequest[] }> => {
+  if (!companyId) {
+    console.warn("[Hydrate] companyId não fornecido. Abortando hidratação.");
+    return { budgets: [], orders: [], messages: [], customOrders: [] };
+  }
   let fetchedBudgets: Budget[] = getStoredBudgets(companyId);
   let fetchedOrders: StoreOrder[] = getStoredStoreOrders(companyId);
   let fetchedMessages: SupportMessage[] = getMessages(companyId);
@@ -445,7 +483,16 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
   try {
     // 1. Hidratar Empresa (Garante Plano Premium/Free correto)
-    const { data: companyData, error: companyError } = await supabase.from('companies').select('*').eq('id', companyId).single();
+    let { data: companyData, error: companyError } = await supabase.from('companies').select('*').eq('id', companyId).single();
+    
+    // Fallback para company_id se id falhar
+    if (companyError && (companyError.code === 'PGRST204' || companyError.message?.includes('column'))) {
+      const { data: fallbackData, error: fallbackError } = await supabase.from('companies').select('*').eq('company_id', companyId).single();
+      if (!fallbackError) {
+        companyData = fallbackData;
+        companyError = null;
+      }
+    }
     
     if (companyError && companyError.code === 'PGRST116') {
       console.warn(`[Hydrate] Empresa ${companyId} não encontrada no Supabase. Removendo localmente.`);
@@ -456,12 +503,17 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     }
 
     if (companyData) {
+      // Mapeamento de campos da empresa
+      const mappedCompany: any = { ...companyData };
+      if (companyData.company_id && !companyData.id) mappedCompany.id = companyData.company_id;
+      if (companyData.companyid && !companyData.id) mappedCompany.id = companyData.companyid;
+      
       const companies = getStoredCompanies();
       const idx = companies.findIndex(c => String(c.id) === String(companyId));
       if (idx > -1) {
-        companies[idx] = companyData;
+        companies[idx] = mappedCompany;
       } else {
-        companies.push(companyData);
+        companies.push(mappedCompany);
       }
       localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
     }
