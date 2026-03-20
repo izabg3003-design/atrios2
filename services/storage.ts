@@ -548,7 +548,18 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const localBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
       let allBudgets: Budget[] = localBudgetsStr ? JSON.parse(localBudgetsStr) : [];
       const otherBudgets = allBudgets.filter(b => String(b.companyId) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...fetchedBudgets]));
+      const currentCompanyLocalBudgets = allBudgets.filter(b => String(b.companyId) === String(companyId));
+      
+      // Merge: keep local budgets that are not in the fetched list (unsynced)
+      const mergedBudgets = [...fetchedBudgets];
+      currentCompanyLocalBudgets.forEach(lb => {
+        if (!mergedBudgets.some(mb => mb.id === lb.id)) {
+          mergedBudgets.push(lb);
+        }
+      });
+      
+      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mergedBudgets]));
+      fetchedBudgets = mergedBudgets;
     }
 
     // 3. Hidratar Mensagens de Suporte
@@ -564,7 +575,17 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const localMsgsStr = localStorage.getItem(STORAGE_KEY_MESSAGES);
       let allMessages: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
       const otherMessages = allMessages.filter(m => String(m.companyId) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...fetchedMessages]));
+      const currentCompanyLocalMessages = allMessages.filter(m => String(m.companyId) === String(companyId));
+      
+      const mergedMessages = [...fetchedMessages];
+      currentCompanyLocalMessages.forEach(lm => {
+        if (!mergedMessages.some(mm => mm.id === lm.id)) {
+          mergedMessages.push(lm);
+        }
+      });
+      
+      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mergedMessages]));
+      fetchedMessages = mergedMessages;
     }
 
     // 4. Hidratar Pedidos da Loja
@@ -580,7 +601,17 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const localOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
       let allOrders: StoreOrder[] = localOrdersStr ? JSON.parse(localOrdersStr) : [];
       const otherOrders = allOrders.filter(o => String(o.companyId) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...fetchedOrders]));
+      const currentCompanyLocalOrders = allOrders.filter(o => String(o.companyId) === String(companyId));
+      
+      const mergedOrders = [...fetchedOrders];
+      currentCompanyLocalOrders.forEach(lo => {
+        if (!mergedOrders.some(mo => mo.id === lo.id)) {
+          mergedOrders.push(lo);
+        }
+      });
+      
+      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...mergedOrders]));
+      fetchedOrders = mergedOrders;
     }
 
     // 5. Hidratar Produtos
