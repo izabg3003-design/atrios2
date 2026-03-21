@@ -111,7 +111,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
     companyId?.toLowerCase().includes('innova') || 
     companyName?.toLowerCase().includes('innova') ||
     companyEmail?.toLowerCase().includes('innova') ||
-    companyEmail === 'izarelleBraga@gmail.com';
+    companyEmail === 'izarelleBraga@gmail.com' ||
+    companyEmail === 'c@c.com';
 
   return (
     <div className="relative min-h-[600px]">
@@ -128,11 +129,11 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
             </div>
             <div className="space-y-2">
               <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
-                Em Breve<br/>
-                <span className="text-amber-500">Loja!</span>
+                {t.comingSoon}<br/>
+                <span className="text-amber-500">{t.store}!</span>
               </h2>
               <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">
-                Estamos a preparar novidades incríveis para si.
+                {t.comingSoonDesc}
               </p>
             </div>
             <div className="pt-4">
@@ -174,7 +175,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
             ))}
           </div>
           <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            +500 empresas já pediram
+            {t.companiesRequested}
           </div>
         </div>
       </div>
@@ -184,16 +185,16 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
           <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-3xl flex items-center justify-center mb-6">
             <Package size={40} />
           </div>
-          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">Nenhum produto disponível</h3>
+          <h3 className="text-xl font-black text-slate-900 uppercase tracking-tight mb-2">{t.noProductsAvailable}</h3>
           <p className="text-slate-500 font-medium max-w-xs mx-auto mb-8">
-            Ainda não temos produtos cadastrados nesta categoria. Por favor, volte mais tarde ou tente atualizar a loja.
+            {t.noProductsDesc}
           </p>
           <button 
             onClick={loadProducts}
             className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all flex items-center gap-3"
           >
             <Package size={20} />
-            Tentar Novamente
+            {t.tryAgain}
           </button>
         </div>
       ) : (
@@ -245,7 +246,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <Package size={14} />
-                  <span>Stock OK</span>
+                  <span>{t.stockOk}</span>
                 </div>
                 <button 
                   onClick={() => handleRequestQuote(product)}
@@ -262,9 +263,9 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
         {[
-          { icon: Shield, title: 'Qualidade Garantida', desc: 'Materiais testados e aprovados para uso profissional.' },
-          { icon: Truck, title: 'Entrega Rápida', desc: 'Enviamos para todo o país em tempo recorde.' },
-          { icon: MessageSquare, title: 'Suporte Dedicado', desc: 'Dúvidas sobre personalização? Fale connosco.' }
+          { icon: Shield, title: t.guaranteedQuality, desc: t.guaranteedQualityDesc },
+          { icon: Truck, title: t.fastDelivery, desc: t.fastDeliveryDesc },
+          { icon: MessageSquare, title: t.dedicatedSupport, desc: t.dedicatedSupportDesc }
         ].map((feature, i) => (
           <div key={i} className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col items-center text-center space-y-4">
             <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-100">
@@ -303,8 +304,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     <Check size={48} />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-3xl font-black uppercase italic tracking-tighter">Pedido Enviado!</h3>
-                    <p className="text-slate-500 font-medium">Entraremos em contacto em breve com o orçamento para <strong>{selectedProduct.name}</strong>.</p>
+                    <h3 className="text-3xl font-black uppercase italic tracking-tighter">{t.orderSent}</h3>
+                    <p className="text-slate-500 font-medium">{t.orderSentDesc} <strong>{selectedProduct.name}</strong>.</p>
                   </div>
                 </div>
               ) : isProcessing ? (
@@ -313,8 +314,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     <ShoppingBag size={48} />
                   </div>
                   <div className="space-y-2">
-                    <h3 className="text-3xl font-black uppercase italic tracking-tighter">Processando...</h3>
-                    <p className="text-slate-500 font-medium">Estamos a preparar o seu pedido de orçamento.</p>
+                    <h3 className="text-3xl font-black uppercase italic tracking-tighter">{t.processing}</h3>
+                    <p className="text-slate-500 font-medium">{t.processingDesc}</p>
                   </div>
                 </div>
               ) : (
@@ -384,11 +385,11 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                   </div>
 
                   <div className="space-y-4">
-                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">Observações / Descrição</label>
+                    <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.observationsDescription}</label>
                     <textarea 
                       value={notes}
                       onChange={(e) => setNotes(e.target.value)}
-                      placeholder="Ex: Tamanho XL, cor azul, detalhes específicos..."
+                      placeholder={t.observationsDescriptionPlaceholder}
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-medium outline-none focus:border-amber-500 transition-all min-h-[100px] resize-none"
                     />
                   </div>

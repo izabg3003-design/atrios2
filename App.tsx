@@ -2,7 +2,6 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
 import { Store } from './components/Store';
-import { CustomOrders } from './components/CustomOrders';
 import { InstallPWA } from './components/InstallPWA';
 import { 
   LayoutDashboard, 
@@ -45,19 +44,17 @@ import {
   RefreshCw,
   Trash2
 } from 'lucide-react';
-import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder, CustomOrderRequest } from './types';
+import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
   getStoredCompanies, 
   saveCompany, 
   getStoredBudgets, 
   getAllStoredBudgets,
   getStoredStoreOrders,
-  getStoredCustomOrders,
   getStoredProducts,
   mapBudgetFromSupabase,
   mapMessageFromSupabase,
   mapOrderFromSupabase,
-  mapCustomOrderFromSupabase,
   saveBudget, 
   removeBudget,
   getPdfDownloadCount, 
@@ -118,7 +115,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'custom-orders'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -147,7 +144,6 @@ const App: React.FC = () => {
   const [isHydrating, setIsHydrating] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
-  const [customOrders, setCustomOrders] = useState<CustomOrderRequest[]>([]);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
@@ -438,73 +434,6 @@ const App: React.FC = () => {
           console.log(`Orders subscription status for ${currentUser.id}:`, status);
         });
 
-      // Subscrição para Pedidos Personalizados (Custom Orders)
-      const customOrdersChannel = supabase
-        .channel(`user-custom-orders-${currentUser.id}`)
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'custom_order_requests'
-          },
-          (payload) => {
-            console.log('Custom order change detected:', payload.eventType, payload);
-            
-            const currentId = currentUserRef.current?.id;
-            if (!currentId) return;
-
-            const allCustomOrders = getStoredCustomOrders();
-            const otherCustomOrders = allCustomOrders.filter(o => String(o.companyId) !== String(currentId));
-            const myCustomOrders = allCustomOrders.filter(o => String(o.companyId) === String(currentId));
-            let changed = false;
-            
-            if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-              const orderData = payload.new as any;
-              const orderCompanyId = orderData?.companyId || orderData?.company_id || orderData?.companyid;
-              
-              if (String(orderCompanyId) !== String(currentId)) return;
-
-              const newOrder = mapCustomOrderFromSupabase(payload.new);
-              if (!newOrder) return;
-              
-              const idx = myCustomOrders.findIndex(o => o.id === newOrder.id);
-              if (idx > -1) {
-                if (JSON.stringify(myCustomOrders[idx]) !== JSON.stringify(newOrder)) {
-                  myCustomOrders[idx] = newOrder;
-                  changed = true;
-                }
-              } else {
-                myCustomOrders.unshift(newOrder);
-                changed = true;
-              }
-            } else if (payload.eventType === 'DELETE') {
-              const deletedId = payload.old?.id;
-              if (!deletedId) return;
-              
-              const idx = myCustomOrders.findIndex(o => o.id === deletedId);
-              if (idx > -1) {
-                myCustomOrders.splice(idx, 1);
-                changed = true;
-              }
-            }
-            
-            if (changed) {
-              const sorted = myCustomOrders.sort((a, b) => {
-                const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
-                const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
-                return dateB - dateA;
-              });
-              localStorage.setItem('atrios_custom_orders', JSON.stringify([...otherCustomOrders, ...sorted]));
-              setCustomOrders([...sorted]);
-              console.log('Custom orders state updated from real-time event');
-            }
-          }
-        )
-        .subscribe((status) => {
-          console.log(`Custom orders subscription status for ${currentUser.id}:`, status);
-        });
-
       // Subscrição para novas mensagens do Master
       const msgChannel = supabase
         .channel(`user-messages-${currentUser.id}`)
@@ -692,10 +621,6 @@ const App: React.FC = () => {
           
           const currentOrders = getStoredStoreOrders(currentUser.id);
           setOrders(currentOrders);
-
-          const currentCustomOrders = getStoredCustomOrders();
-          const myCustomOrders = currentCustomOrders.filter(o => String(o.companyId) === String(currentUser.id));
-          setCustomOrders(myCustomOrders);
           
           const currentMessages = getMessages(currentUser.id);
           setMessages(currentMessages);
@@ -1878,12 +1803,11 @@ const App: React.FC = () => {
     setIsSyncing(true);
     try {
       console.log("[Sync] Iniciando sincronização manual...");
-      const { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders } = await hydrateLocalData(currentUser.id);
+      const { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages } = await hydrateLocalData(currentUser.id);
       
       // Atualiza estados locais com os dados novos vindos da nuvem
       setBudgets(fetchedBudgets);
       setOrders(fetchedOrders);
-      setCustomOrders(fetchedCustomOrders);
       setMessages(fetchedMessages);
       
       // Track sync event
@@ -2486,7 +2410,6 @@ const App: React.FC = () => {
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
                   { id: 'store', label: t.store, icon: ShoppingBag },
-                  { id: 'custom-orders', label: t.customOrdersTitle, icon: PlusCircle },
                   { id: 'plans', label: t.plans, icon: Crown },
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
@@ -2636,16 +2559,6 @@ const App: React.FC = () => {
                       companyName={currentUser.name} 
                       companyEmail={currentUser.email}
                       orders={orders}
-                    />
-                  )}
-
-                  {activeTab === 'custom-orders' && currentUser && (
-                    <CustomOrders 
-                      t={t} 
-                      locale={locale} 
-                      companyId={currentUser.id} 
-                      companyName={currentUser.name} 
-                      companyEmail={currentUser.email}
                     />
                   )}
 
