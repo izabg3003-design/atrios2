@@ -2,9 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
-export const InstallPWA: React.FC = () => {
+interface InstallPWAProps {
+  view: string;
+}
+
+export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
+  const [hasDismissed, setHasDismissed] = useState(false);
 
   useEffect(() => {
     // Registrar Service Worker
@@ -18,13 +23,21 @@ export const InstallPWA: React.FC = () => {
       });
     }
 
+    const delay = view === 'landing' ? 5000 : 10000;
+    let timer: any;
+
+    const showPrompt = () => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(() => setIsVisible(true), delay);
+    };
+
     const handler = (e: any) => {
       // Prevenir que o prompt padrão apareça
       e.preventDefault();
       // Guardar o evento para ser usado depois
       setDeferredPrompt(e);
-      // Mostrar o balão após alguns segundos
-      setTimeout(() => setIsVisible(true), 3000);
+      // Mostrar o balão após o tempo definido
+      showPrompt();
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -33,8 +46,8 @@ export const InstallPWA: React.FC = () => {
     const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
     
-    if (isIOS && !isStandalone) {
-      setTimeout(() => setIsVisible(true), 3000);
+    if ((deferredPrompt || (isIOS && !isStandalone)) && !isVisible && !hasDismissed && !isStandalone) {
+      showPrompt();
     }
 
     const installedHandler = () => {
@@ -44,16 +57,12 @@ export const InstallPWA: React.FC = () => {
 
     window.addEventListener('appinstalled', installedHandler);
 
-    // Verificar se já está instalado
-    if (isStandalone) {
-      setIsVisible(false);
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('appinstalled', installedHandler);
+      if (timer) clearTimeout(timer);
     };
-  }, []);
+  }, [view, deferredPrompt, hasDismissed]);
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) {
@@ -79,6 +88,7 @@ export const InstallPWA: React.FC = () => {
 
   const handleDismiss = () => {
     setIsVisible(false);
+    setHasDismissed(true);
   };
 
   return (

@@ -2876,7 +2876,7 @@ const App: React.FC = () => {
             </div>
           )}
           
-          <InstallPWA />
+          <InstallPWA view={view} />
         </div>
       )}
     </div>
