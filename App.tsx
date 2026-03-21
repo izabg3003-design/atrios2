@@ -2412,8 +2412,8 @@ const App: React.FC = () => {
           )}
 
           <aside className={`fixed inset-y-0 left-0 w-72 sm:w-80 bg-white border-r border-slate-100 flex flex-col shrink-0 shadow-2xl lg:shadow-sm z-[70] transition-transform duration-300 lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="p-6 sm:p-8 lg:p-10">
-              <div className="flex items-center justify-between mb-8 sm:mb-12 lg:mb-16">
+            <div className="p-4 sm:p-6 lg:p-8 pb-1 sm:pb-2 lg:pb-3">
+              <div className="flex items-center justify-between mb-4 sm:mb-8 lg:mb-10">
                 <div className="flex items-center gap-3">
                   <div className="bg-amber-500 p-2 rounded-xl"><Construction className="text-white" size={20} /></div>
                   <span className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter">{t.appName}</span>
@@ -2451,7 +2451,7 @@ const App: React.FC = () => {
                 })}
               </nav>
             </div>
-            <div className="mt-auto p-4 sm:p-6 border-t border-slate-50 space-y-4">
+            <div className="mt-0 p-2 sm:p-3 border-t border-slate-50 space-y-1">
               <div className="lg:hidden flex flex-col gap-2 animate-in slide-in-from-bottom duration-500">
                 <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 shadow-sm">
                   <Coins size={14} className="text-white/60" />
@@ -2474,7 +2474,7 @@ const App: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <div className="bg-slate-50 p-3 sm:p-4 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-3 relative">
+              <div className="bg-slate-50 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-2 relative">
                 <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-slate-900 rounded-lg sm:rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden shrink-0">
                   {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : (currentUser?.name?.charAt(0) || '')}
                 </div>
@@ -2490,7 +2490,7 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-2 sm:py-3 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
+                className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-1 sm:py-1.5 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
               >
                 <LogOut size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" /> {t.logout}
               </button>
@@ -2521,15 +2521,6 @@ const App: React.FC = () => {
               </div>
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
-                <button 
-                  onClick={handleSync}
-                  disabled={isSyncing}
-                  className={`p-2.5 lg:p-4 rounded-xl lg:rounded-[1.5rem] transition-all flex items-center gap-2 ${isSyncing ? 'bg-slate-100 text-slate-400' : 'bg-slate-50 text-slate-500 hover:bg-slate-100'}`}
-                  title="Sincronizar Dados"
-                >
-                  <RefreshCw size={16} className={isSyncing ? 'animate-spin' : ''} />
-                  <span className="hidden lg:inline text-xs font-black uppercase tracking-widest">{isSyncing ? 'Sincronizando...' : 'Sincronizar'}</span>
-                </button>
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
                 <button 
                   onClick={() => { 

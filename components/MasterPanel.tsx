@@ -83,7 +83,7 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'custom-orders'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -839,7 +839,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
               { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
-              { id: 'custom-orders', label: t.customOrders, icon: Palette },
               { id: 'products', label: 'Produtos', icon: Package },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
@@ -1062,108 +1061,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 <div className="p-20 text-center">
                   <ShoppingBag size={48} className="mx-auto text-slate-700 mb-4" />
                   <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Nenhum pedido encontrado</p>
-                </div>
-              )}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'custom-orders' && (
-          <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
-            <div className="p-8 border-b border-white/10 bg-white/5 flex justify-between items-center">
-              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
-                <Palette size={24} /> {t.customOrders}
-              </h2>
-              <button 
-                onClick={() => loadData()}
-                className="p-3 bg-white/5 text-amber-500 rounded-2xl hover:bg-white/10 transition-all flex items-center gap-2 text-xs font-black uppercase tracking-widest"
-              >
-                <TrendingUp size={18} className="rotate-90" /> Atualizar
-              </button>
-            </div>
-            <div className="overflow-x-auto">
-              <table className="w-full text-left">
-                <thead>
-                  <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
-                    <th className="px-8 py-6">{t.masterTableIdCompany}</th>
-                    <th className="px-8 py-6">Item</th>
-                    <th className="px-8 py-6">Qtd</th>
-                    <th className="px-8 py-6">Imagem</th>
-                    <th className="px-8 py-6">Status</th>
-                    <th className="px-8 py-6">Descrição</th>
-                    <th className="px-8 py-6 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-white/5">
-                  {customOrders.map(order => {
-                    const company = companies.find(c => c.id === order.companyId);
-                    return (
-                      <tr key={order.id} className="hover:bg-white/5 transition-colors group">
-                        <td className="px-8 py-6">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-white/10 text-amber-500 flex items-center justify-center font-black uppercase">
-                              {company?.name?.charAt(0) || '?'}
-                            </div>
-                            <div>
-                              <p className="font-black text-sm">{company?.name || 'Desconhecido'}</p>
-                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {order.companyId}</p>
-                            </div>
-                          </div>
-                        </td>
-                        <td className="px-8 py-6 font-bold text-slate-400 text-sm">
-                          {order.itemName}
-                        </td>
-                        <td className="px-8 py-6 font-black text-amber-500">
-                          {order.quantity}
-                        </td>
-                        <td className="px-8 py-6">
-                          {order.uploadedImage ? (
-                            <button 
-                              onClick={() => window.open(order.uploadedImage, '_blank')}
-                              className="w-12 h-12 rounded-lg overflow-hidden border border-white/10 hover:border-amber-500 transition-all"
-                            >
-                              <img src={order.uploadedImage} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                            </button>
-                          ) : (
-                            <span className="text-[10px] text-slate-600 uppercase font-black">N/A</span>
-                          )}
-                        </td>
-                        <td className="px-8 py-6">
-                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
-                            order.status === 'pending' ? 'border-amber-500/50 text-amber-500' :
-                            order.status === 'processing' ? 'border-blue-500/50 text-blue-500' :
-                            'border-emerald-500/50 text-emerald-500'
-                          }`}>
-                            {order.status === 'pending' ? 'Pendente' : order.status === 'processing' ? 'Processando' : 'Concluído'}
-                          </span>
-                        </td>
-                        <td className="px-8 py-6">
-                          <p className="text-xs text-slate-400 max-w-[200px] truncate" title={order.description}>
-                            {order.description || '-'}
-                          </p>
-                        </td>
-                        <td className="px-8 py-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
-                            <select 
-                              value={order.status}
-                              onChange={(e) => updateCustomOrderStatus(order.id, e.target.value as any)}
-                              className="bg-slate-900 border border-white/10 rounded-lg px-2 py-1 text-[10px] font-black uppercase outline-none focus:border-amber-500"
-                            >
-                              <option value="pending">Pendente</option>
-                              <option value="processing">Processando</option>
-                              <option value="completed">Concluído</option>
-                            </select>
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-              {customOrders.length === 0 && (
-                <div className="p-20 text-center">
-                  <Palette size={48} className="mx-auto text-slate-700 mb-4" />
-                  <p className="text-slate-500 font-black uppercase text-xs tracking-widest">Nenhum orçamento personalizado encontrado</p>
                 </div>
               )}
             </div>
