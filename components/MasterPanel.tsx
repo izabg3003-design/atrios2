@@ -834,12 +834,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         <div className="flex flex-col md:flex-row justify-between items-center border-b border-white/10 pb-8 gap-8">
           <div className="flex items-center gap-4"><div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20"><ShieldCheck size={32} className="text-slate-950" /></div><div><h1 className="text-4xl font-black tracking-tighter italic uppercase">{t.masterPanelTitle}</h1><p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.masterPanelSub}</p></div></div>
           <nav className="flex flex-wrap bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
-            <button 
-              onClick={() => setActiveTab('home')} 
-              className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === 'home' ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}
-            >
-              <LayoutDashboard size={16} /> {t.masterHomeTab}
-            </button>
+            {[
+              { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
+              { id: 'users', label: t.masterUsersTab, icon: Users },
+              { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
+              { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
+              { id: 'products', label: 'Produtos', icon: Package },
+              { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
+              { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
+            ].map(tab => (
+              <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
+                <tab.icon size={16} /> {tab.label}
+                {tab.id === 'users' && pendingRequestsCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-bounce">{pendingRequestsCount}</span>}
+                {tab.id === 'messages' && unreadMessagesTotalCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-pulse">{unreadMessagesTotalCount}</span>}
+              </button>
+            ))}
 
             <button 
               onClick={loadData}
@@ -852,30 +861,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
             </button>
 
-            <button 
-              onClick={() => setActiveTab('users')} 
-              className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === 'users' ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}
-            >
-              <Users size={16} /> {t.masterUsersTab}
-              {pendingRequestsCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-bounce">{pendingRequestsCount}</span>}
-            </button>
-
             <button onClick={onLogout} className="px-6 py-2.5 hover:bg-red-500/20 text-red-400 rounded-xl transition-all font-black text-xs uppercase flex items-center gap-2">
               <ArrowLeft size={16} /> {t.logout}
             </button>
-
-            {[
-              { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
-              { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
-              { id: 'products', label: 'Produtos', icon: Package },
-              { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
-              { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
-            ].map(tab => (
-              <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
-                <tab.icon size={16} /> {tab.label}
-                {tab.id === 'messages' && unreadMessagesTotalCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-pulse">{unreadMessagesTotalCount}</span>}
-              </button>
-            ))}
           </nav>
         </div>
 
