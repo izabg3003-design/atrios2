@@ -451,6 +451,8 @@ export interface Translation {
   item_sticker: string;
   item_tape: string;
   item_trowel: string;
+  storeMissionTitle?: string;
+  storeMissionDesc?: string;
 }
 
 const enUS: Translation = {
@@ -773,7 +775,7 @@ const enUS: Translation = {
   masterUpgradeUser: "Remove Restrictions",
   store: "Store",
   storeTitle: "ATRIOS Store",
-  storeSub: "Professional construction materials and equipment.",
+  storeSub: "Welcome to the ATRIOS Store, your strategic partner at every stage of construction. Here, professional quality meets innovation, offering a rigorous selection of materials and equipment designed to elevate the standard of your work. Explore our customization solutions and discover how we can turn your vision into reality with precision and durability.",
   requestQuote: "Request Quote",
   uploadLogo: "Upload Logo",
   comingSoon: "Coming Soon",
@@ -929,6 +931,8 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   item_sticker: "Custom Sticker",
   item_tape: "Tape",
   item_trowel: "Brick Trowel",
+  storeMissionTitle: "Our Mission",
+  storeMissionDesc: "Equipping the builders of tomorrow with the tools of today. At ATRIOS, we believe every brick tells a story and every estimate is the beginning of a dream come true.",
 };
 
 const ptPT: Translation = {
@@ -1251,7 +1255,7 @@ const ptPT: Translation = {
   masterUpgradeUser: "Retirar Restrições",
   store: "Loja",
   storeTitle: "Loja ÁTRIOS",
-  storeSub: "Materiais e equipamentos profissionais para construção.",
+  storeSub: "Bem-vindo à Loja ÁTRIOS, o seu parceiro estratégico em cada etapa da construção. Aqui, a qualidade profissional encontra a inovação, oferecendo uma seleção rigorosa de materiais e equipamentos desenhados para elevar o padrão das suas obras. Explore as nossas soluções de personalização e descubra como podemos transformar a sua visão em realidade com precisão e durabilidade.",
   requestQuote: "Pedir Orçamento",
   uploadLogo: "Carregar Logótipo",
   comingSoon: "Em Breve",
@@ -1407,6 +1411,8 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   item_sticker: "Adesivo Personalizado",
   item_tape: "Fita",
   item_trowel: "Colher de Pedreiro",
+  storeMissionTitle: "Nossa Missão",
+  storeMissionDesc: "Equipar os construtores do amanhã com as ferramentas de hoje. Na ÁTRIOS, acreditamos que cada tijolo conta uma história e cada orçamento é o início de um sonho realizado.",
 };
 
 const ptBR: Translation = {
@@ -1874,6 +1880,8 @@ const frFR: Translation = {
   item_sticker: "Autocollant Personnalisé",
   item_tape: "Ruban",
   item_trowel: "Truelle",
+  storeMissionTitle: "Notre Mission",
+  storeMissionDesc: "Équiper les bâtisseurs de demain avec les outils d'aujourd'hui. Chez ATRIOS, nous croyons que chaque brique raconte une histoire.",
 };
 
 const itIT: Translation = {
@@ -2326,6 +2334,8 @@ const itIT: Translation = {
   item_sticker: "Adesivo Personalizzato",
   item_tape: "Nastro",
   item_trowel: "Cazzuola",
+  storeMissionTitle: "La Nostra Missione",
+  storeMissionDesc: "Equipaggiare i costruttori di domani con gli strumenti di oggi. In ATRIOS, crediamo que ogni mattone racconti una storia.",
 };
 
 const esES: Translation = {
@@ -3256,6 +3266,8 @@ const ruRU: Translation = {
   item_sticker: "Индивидуальная наклейка",
   item_tape: "Лента",
   item_trowel: "Мастерок",
+  storeMissionTitle: "Наша миссия",
+  storeMissionDesc: "Оснащение строителей завтрашнего дня инструментами сегодняшнего дня. В ATRIOS мы верим, что каждый кирпич рассказывает историю.",
 };
 
 const hiIN: Translation = {

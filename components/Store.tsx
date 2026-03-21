@@ -145,39 +145,43 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
 
       <div className={`max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 ${!isTestUser ? 'blur-2xl pointer-events-none select-none opacity-50' : ''}`}>
       
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-6">
-        <div className="space-y-2">
-          <div className="flex items-center gap-3 text-amber-500">
-            <ShoppingBag size={24} />
-            <span className="text-xs font-black uppercase tracking-[0.3em]">{t.store}</span>
-          </div>
-          <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase flex items-center gap-4">
-            {t.storeTitle}
-            <button 
-              onClick={loadProducts}
-              className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
-              title="Atualizar Loja"
-            >
-              <Package size={24} />
-            </button>
-          </h1>
-          <p className="text-slate-500 font-medium max-w-xl">
-            {t.storeSub}
-          </p>
-        </div>
-        
-        <div className="flex items-center gap-4 bg-slate-50 p-4 rounded-3xl border border-slate-100">
-          <div className="flex -space-x-3">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-10 h-10 rounded-full border-4 border-white bg-slate-200 overflow-hidden">
-                <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
+      <div className="space-y-6">
+        <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-3 text-amber-500">
+              <ShoppingBag size={24} />
+              <span className="text-xs font-black uppercase tracking-[0.3em]">{t.store}</span>
+            </div>
+            <div className="flex flex-col md:flex-row md:items-center gap-4 md:gap-8">
+              <h1 className="text-4xl md:text-6xl font-black text-slate-900 tracking-tighter italic uppercase flex items-center gap-4">
+                {t.storeTitle}
+                <button 
+                  onClick={loadProducts}
+                  className="p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 rounded-full transition-colors"
+                  title="Atualizar Loja"
+                >
+                  <Package size={24} />
+                </button>
+              </h1>
+              
+              <div className="flex items-center gap-4 bg-slate-50 px-6 py-3 rounded-full border border-slate-100 shrink-0 self-start md:self-center">
+                <div className="flex -space-x-3">
+                  {[1, 2, 3].map(i => (
+                    <div key={i} className="w-8 h-8 rounded-full border-2 border-white bg-slate-200 overflow-hidden">
+                      <img src={`https://i.pravatar.cc/100?img=${i + 10}`} alt="User" />
+                    </div>
+                  ))}
+                </div>
+                <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  {t.companiesRequested}
+                </div>
               </div>
-            ))}
-          </div>
-          <div className="text-[10px] font-black uppercase tracking-widest text-slate-400">
-            {t.companiesRequested}
+            </div>
           </div>
         </div>
+        <p className="text-slate-500 font-medium max-w-3xl leading-relaxed">
+          {t.storeSub}
+        </p>
       </div>
 
       {products.length === 0 ? (
@@ -260,6 +264,18 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
         ))}
       </div>
       )}
+
+      <div className="bg-slate-900 text-white rounded-[3rem] p-12 md:p-20 overflow-hidden relative">
+        <div className="absolute top-0 right-0 w-1/2 h-full bg-gradient-to-l from-amber-500/20 to-transparent pointer-events-none" />
+        <div className="max-w-2xl relative z-10 space-y-6">
+          <h2 className="text-3xl md:text-5xl font-black italic uppercase tracking-tighter leading-none">
+            {t.storeMissionTitle}
+          </h2>
+          <p className="text-slate-400 text-lg font-medium leading-relaxed">
+            {t.storeMissionDesc}
+          </p>
+        </div>
+      </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8 pt-12">
         {[
