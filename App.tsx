@@ -347,12 +347,18 @@ const App: React.FC = () => {
               }
             } else if (payload.eventType === 'DELETE') {
               const deletedId = payload.old?.id;
-              if (!deletedId) return;
+              if (!deletedId) {
+                console.warn('Budget DELETE event received but old payload ID is missing:', payload);
+                return;
+              }
               
-              const idx = myBudgets.findIndex(b => b.id === deletedId);
+              const idx = myBudgets.findIndex(b => String(b.id) === String(deletedId));
               if (idx > -1) {
+                console.log(`Removing budget ${deletedId} from local state (real-time DELETE)`);
                 myBudgets.splice(idx, 1);
                 changed = true;
+              } else {
+                console.log(`Budget ${deletedId} not found in local state for deletion`);
               }
             }
             
@@ -409,12 +415,18 @@ const App: React.FC = () => {
               }
             } else if (payload.eventType === 'DELETE') {
               const deletedId = payload.old?.id;
-              if (!deletedId) return;
+              if (!deletedId) {
+                console.warn('Order DELETE event received but old payload ID is missing:', payload);
+                return;
+              }
               
-              const idx = myOrders.findIndex(o => o.id === deletedId);
+              const idx = myOrders.findIndex(o => String(o.id) === String(deletedId));
               if (idx > -1) {
+                console.log(`Removing order ${deletedId} from local state (real-time DELETE)`);
                 myOrders.splice(idx, 1);
                 changed = true;
+              } else {
+                console.log(`Order ${deletedId} not found in local state for deletion`);
               }
             }
             
@@ -480,12 +492,18 @@ const App: React.FC = () => {
               }
             } else if (payload.eventType === 'DELETE') {
               const deletedId = payload.old?.id;
-              if (!deletedId) return;
+              if (!deletedId) {
+                console.warn('Message DELETE event received but old payload ID is missing:', payload);
+                return;
+              }
               
-              const idx = allMsgs.findIndex(m => m.id === deletedId);
+              const idx = allMsgs.findIndex(m => String(m.id) === String(deletedId));
               if (idx > -1) {
+                console.log(`Removing message ${deletedId} from local state (real-time DELETE)`);
                 allMsgs.splice(idx, 1);
                 changed = true;
+              } else {
+                console.log(`Message ${deletedId} not found in local state for deletion`);
               }
             }
 

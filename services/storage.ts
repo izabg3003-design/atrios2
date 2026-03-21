@@ -572,10 +572,21 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const currentCompanyLocalBudgets = allBudgets.filter(b => String(b.companyId) === String(companyId));
       
       // Merge: keep local budgets that are not in the fetched list (unsynced)
+      // Mas apenas se forem muito recentes (criados nos últimos 5 minutos), 
+      // para evitar que orçamentos excluídos em outros dispositivos reapareçam.
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const mergedBudgets = [...fetchedBudgets];
+      
       currentCompanyLocalBudgets.forEach(lb => {
         if (!mergedBudgets.some(mb => mb.id === lb.id)) {
-          mergedBudgets.push(lb);
+          // Se não está no Supabase, mas é local, só mantemos se for "novo" (possivelmente ainda não sincronizado)
+          const isNew = lb.createdAt && lb.createdAt > fiveMinutesAgo;
+          if (isNew) {
+            console.log(`[Hydrate] Mantendo orçamento local não sincronizado: ${lb.id}`);
+            mergedBudgets.push(lb);
+          } else {
+            console.log(`[Hydrate] Removendo orçamento local que não existe mais no Supabase: ${lb.id}`);
+          }
         }
       });
       
@@ -598,10 +609,17 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const otherMessages = allMessages.filter(m => String(m.companyId) !== String(companyId));
       const currentCompanyLocalMessages = allMessages.filter(m => String(m.companyId) === String(companyId));
       
+      // Merge: keep local messages that are not in the fetched list (unsynced)
+      // Mas apenas se forem muito recentes (criados nos últimos 5 minutos)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const mergedMessages = [...fetchedMessages];
+      
       currentCompanyLocalMessages.forEach(lm => {
         if (!mergedMessages.some(mm => mm.id === lm.id)) {
-          mergedMessages.push(lm);
+          const isNew = lm.timestamp && lm.timestamp > fiveMinutesAgo;
+          if (isNew) {
+            mergedMessages.push(lm);
+          }
         }
       });
       
@@ -624,10 +642,17 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const otherOrders = allOrders.filter(o => String(o.companyId) !== String(companyId));
       const currentCompanyLocalOrders = allOrders.filter(o => String(o.companyId) === String(companyId));
       
+      // Merge: keep local orders that are not in the fetched list (unsynced)
+      // Mas apenas se forem muito recentes (criados nos últimos 5 minutos)
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
       const mergedOrders = [...fetchedOrders];
+      
       currentCompanyLocalOrders.forEach(lo => {
         if (!mergedOrders.some(mo => mo.id === lo.id)) {
-          mergedOrders.push(lo);
+          const isNew = lo.createdAt && lo.createdAt > fiveMinutesAgo;
+          if (isNew) {
+            mergedOrders.push(lo);
+          }
         }
       });
       
