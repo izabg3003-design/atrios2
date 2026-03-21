@@ -453,6 +453,10 @@ export interface Translation {
   item_trowel: string;
   storeMissionTitle?: string;
   storeMissionDesc?: string;
+  deleteBudgetRestriction: string;
+  premiumFeature: string;
+  confirmDeleteBudget: string;
+  deleteBudgetSuccess: string;
 }
 
 const enUS: Translation = {
@@ -933,6 +937,10 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   item_trowel: "Brick Trowel",
   storeMissionTitle: "Our Mission",
   storeMissionDesc: "Equipping the builders of tomorrow with the tools of today. At ATRIOS, we believe every brick tells a story and every estimate is the beginning of a dream come true.",
+  deleteBudgetRestriction: "Budget deletion is a premium feature. Upgrade to Premium to manage your history.",
+  premiumFeature: "Premium Feature",
+  confirmDeleteBudget: "Are you sure you want to delete this budget?",
+  deleteBudgetSuccess: "Budget deleted successfully!",
 };
 
 const ptPT: Translation = {
@@ -1413,6 +1421,10 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   item_trowel: "Colher de Pedreiro",
   storeMissionTitle: "Nossa Missão",
   storeMissionDesc: "Equipar os construtores do amanhã com as ferramentas de hoje. Na ÁTRIOS, acreditamos que cada tijolo conta uma história e cada orçamento é o início de um sonho realizado.",
+  deleteBudgetRestriction: "A eliminação de orçamentos é uma funcionalidade premium. Atualize para Premium para gerir o seu histórico.",
+  premiumFeature: "Funcionalidade Premium",
+  confirmDeleteBudget: "Tem a certeza que deseja eliminar este orçamento?",
+  deleteBudgetSuccess: "Orçamento eliminado com sucesso!",
 };
 
 const ptBR: Translation = {
@@ -1428,6 +1440,10 @@ const ptBR: Translation = {
   masterDeleteUser: "Excluir Usuário",
   masterDiscountOff: "OFF",
   subscriptionExpiryAlert: "Atenção! Sua assinatura expira em {{days}} dias.",
+  deleteBudgetRestriction: "A exclusão de orçamentos é uma funcionalidade premium. Atualize para o Premium para gerenciar seu histórico.",
+  premiumFeature: "Funcionalidade Premium",
+  confirmDeleteBudget: "Tem certeza que deseja excluir este orçamento?",
+  deleteBudgetSuccess: "Orçamento excluído com sucesso!",
 };
 
 const frFR: Translation = {
@@ -1882,6 +1898,10 @@ const frFR: Translation = {
   item_trowel: "Truelle",
   storeMissionTitle: "Notre Mission",
   storeMissionDesc: "Équiper les bâtisseurs de demain avec les outils d'aujourd'hui. Chez ATRIOS, nous croyons que chaque brique raconte une histoire.",
+  deleteBudgetRestriction: "La suppression de devis est une fonctionnalité premium. Passez au Premium pour gérer votre historique.",
+  premiumFeature: "Fonctionnalité Premium",
+  confirmDeleteBudget: "Êtes-vous sûr de vouloir supprimer ce devis ?",
+  deleteBudgetSuccess: "Devis supprimé avec succès !",
 };
 
 const itIT: Translation = {
@@ -2335,7 +2355,11 @@ const itIT: Translation = {
   item_tape: "Nastro",
   item_trowel: "Cazzuola",
   storeMissionTitle: "La Nostra Missione",
-  storeMissionDesc: "Equipaggiare i costruttori di domani con gli strumenti di oggi. In ATRIOS, crediamo que ogni mattone racconti una storia.",
+  storeMissionDesc: "Equipaggiare i costruttori di domani con gli strumenti di oggi. In ATRIOS, crediamo que ogni mattone racconti una história.",
+  deleteBudgetRestriction: "L'eliminazione dei preventivi è una funzione premium. Passa a Premium per gestire la tua cronologia.",
+  premiumFeature: "Funzionalità Premium",
+  confirmDeleteBudget: "Sei sicuro di voler eliminare questo preventivo?",
+  deleteBudgetSuccess: "Preventivo eliminato con successo!",
 };
 
 const esES: Translation = {
@@ -2814,6 +2838,10 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   item_sticker: "Pegatina Personalizada",
   item_tape: "Cinta",
   item_trowel: "Paleta de Albañil",
+  deleteBudgetRestriction: "La eliminación de presupuestos es una función premium. Actualiza a Premium para gestionar tu historial.",
+  premiumFeature: "Función Premium",
+  confirmDeleteBudget: "¿Estás seguro de que quieres eliminar este presupuesto?",
+  deleteBudgetSuccess: "¡Presupuesto eliminado con éxito!",
 };
 
 const ruRU: Translation = {
@@ -3268,6 +3296,10 @@ const ruRU: Translation = {
   item_trowel: "Мастерок",
   storeMissionTitle: "Наша миссия",
   storeMissionDesc: "Оснащение строителей завтрашнего дня инструментами сегодняшнего дня. В ATRIOS мы верим, что каждый кирпич рассказывает историю.",
+  deleteBudgetRestriction: "Удаление смет — это премиум-функция. Перейдите на Premium, чтобы управлять своей историей.",
+  premiumFeature: "Премиум-функция",
+  confirmDeleteBudget: "Вы уверены, что хотите удалить эту смету?",
+  deleteBudgetSuccess: "Смета успешно удалена!",
 };
 
 const hiIN: Translation = {
@@ -3720,6 +3752,10 @@ const hiIN: Translation = {
   item_sticker: "कस्टम स्टिकर",
   item_tape: "टेप",
   item_trowel: "ईंट कन्नी",
+  deleteBudgetRestriction: "बजट हटाना एक प्रीमियम सुविधा है। अपने इतिहास को प्रबंधित करने के लिए प्रीमियम में अपग्रेड करें।",
+  premiumFeature: "प्रीमियम सुविधा",
+  confirmDeleteBudget: "क्या आप वाकई इस बजट को हटाना चाहते हैं?",
+  deleteBudgetSuccess: "बजট सफलतापूर्वक हटा दिया गया!",
 };
 
 const bnBD: Translation = {
@@ -4172,6 +4208,10 @@ const bnBD: Translation = {
   item_sticker: "কাস্টম স্টিকার",
   item_tape: "টেপ",
   item_trowel: "ইটের ট্রোয়েল",
+  deleteBudgetRestriction: "বাজেট মুছে ফেলা একটি প্রিমিয়াম বৈশিষ্ট্য। আপনার ইতিহাস পরিচালনা করতে প্রিমিয়ামে আপগ্রেড করুন।",
+  premiumFeature: "প্রিমিয়াম বৈশিষ্ট্য",
+  confirmDeleteBudget: "আপনি কি নিশ্চিত যে আপনি এই বাজেটটি মুছে ফেলতে চান?",
+  deleteBudgetSuccess: "বাজেট সফলভাবে মুছে ফেলা হয়েছে!",
 };
 
 export const translations: Record<Locale, Translation> = {

@@ -1582,20 +1582,17 @@ const App: React.FC = () => {
   const handleDeleteBudget = async (id: string) => {
     if (!currentUser) return;
     
-    const confirmMsg = locale.startsWith('pt') 
-      ? "Tem certeza que deseja excluir este orçamento?" 
-      : "Are you sure you want to delete this budget?";
-      
-    if (window.confirm(confirmMsg)) {
+    if (!isPremium) {
+      alert(t.deleteBudgetRestriction);
+      setActiveTab('plans');
+      return;
+    }
+
+    if (window.confirm(t.confirmDeleteBudget)) {
       const success = await removeBudget(id);
       if (success) {
         setBudgets(getStoredBudgets(currentUser.id));
-        const successMsg = locale.startsWith('pt') 
-          ? "Orçamento excluído com sucesso!" 
-          : "Budget deleted successfully!";
-        // No alert to be less intrusive, or maybe just a toast if available.
-        // But alert is standard in this app.
-        alert(successMsg);
+        alert(t.deleteBudgetSuccess);
       } else {
         const errorMsg = locale.startsWith('pt') 
           ? "Erro ao excluir orçamento." 
@@ -2700,12 +2697,17 @@ const App: React.FC = () => {
                                    <button 
                                     onClick={(e) => { 
                                       e.stopPropagation();
+                                      if (!isPremium) {
+                                        alert(t.deleteBudgetRestriction);
+                                        setActiveTab('plans');
+                                        return;
+                                      }
                                       handleDeleteBudget(budget.id);
                                     }} 
-                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-red-50 text-red-600 rounded-xl lg:rounded-2xl hover:bg-red-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
-                                    title={locale.startsWith('pt') ? "Excluir" : "Delete"}
+                                    className={`flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 rounded-xl lg:rounded-2xl transition-all shadow-sm flex items-center justify-center ${!isPremium ? 'bg-slate-50 text-slate-400' : 'bg-red-50 text-red-600 hover:bg-red-600 hover:text-white'}`}
+                                    title={!isPremium ? t.premiumFeature : t.masterRemove}
                                   >
-                                    <Trash2 size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                    {!isPremium ? <Lock size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> : <Trash2 size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />}
                                   </button>
                                    <button 
                                     onClick={(e) => { 
