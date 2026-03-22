@@ -615,6 +615,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const handleProductImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
+      if (file.size > 500000) {
+        alert('A imagem é muito grande! Por favor, use uma imagem com menos de 500KB.');
+        return;
+      }
       const reader = new FileReader();
       reader.onloadend = () => {
         setProductImage(reader.result as string);
