@@ -174,7 +174,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       safeSetItem('atrios_messages', JSON.stringify(mappedMessages));
     }
 
-    const allMsgs = mappedMessages.length > 0 ? mappedMessages : getMessages();
+    const allMsgs = cloudMessages ? mappedMessages : getMessages();
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
     if (unreadCount > prevUnreadCount.current) {
@@ -200,36 +200,26 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       console.log(`MasterPanel: ${mappedOrders.length} pedidos recebidos do cloud.`);
     }
     
-    if (mappedOrders.length > 0) {
+    if (!ordersError && cloudOrders) {
       safeSetItem('atrios_store_orders', JSON.stringify(mappedOrders));
       setStoreOrders(mappedOrders.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       }));
-    } else if (!ordersError) {
-      // Se não houver erro mas o cloud estiver vazio, só limpamos se o local também estiver vazio ou se quisermos forçar a limpeza
-      // Para evitar que suma ao salvar, vamos manter o local se o cloud estiver vazio
-      const localOrders = getStoreOrders();
-      if (localOrders.length > 0 && (!cloudOrders || cloudOrders.length === 0)) {
-        setStoreOrders(localOrders);
-      } else {
-        setStoreOrders([]);
-      }
     } else {
       setStoreOrders(getStoreOrders());
     }
 
-    if (mappedCustomOrders.length > 0) {
+    if (!customOrdersError && cloudCustomOrders) {
       safeSetItem('atrios_custom_orders', JSON.stringify(mappedCustomOrders));
       setCustomOrders(mappedCustomOrders.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       }));
-    } else if (!customOrdersError) {
-      const localCustomOrders = getStoredCustomOrders();
-      setCustomOrders(localCustomOrders);
+    } else {
+      setCustomOrders(getStoredCustomOrders());
     }
 
     // Buscar produtos da loja
