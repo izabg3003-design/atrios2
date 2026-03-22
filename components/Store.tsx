@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { ShoppingBag, Check, MessageSquare, Info, Star, Package, Shield, Truck, Plus, Minus, Upload, X, Image as ImageIcon } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ShoppingBag, Check, MessageSquare, Info, Star, Package, Shield, Truck, Plus, Minus, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Translation } from '../translations';
 import { saveStoreOrder, generateShortId, getProducts } from '../services/storage';
@@ -19,11 +19,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(10);
   const [notes, setNotes] = useState('');
-  const [needsCustomization, setNeedsCustomization] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [uploadedImage, setUploadedImage] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const loadProducts = async (force = false) => {
     console.log(`Store: Iniciando carregamento de produtos (force: ${force})...`);
@@ -50,23 +47,6 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   const handleRequestQuote = (product: Product) => {
     setSelectedProduct(product);
     setQuantity(10); // Reset to default
-    setUploadedImage(null);
-    setNeedsCustomization(false);
-  };
-
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
-        alert("A imagem é muito grande. Por favor, escolha uma imagem menor que 2MB.");
-        return;
-      }
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setUploadedImage(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
   };
 
   const confirmQuoteRequest = async () => {
@@ -86,8 +66,6 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
       productName: selectedProduct.name,
       quantity,
       notes: notes || undefined,
-      needsCustomization,
-      uploadedImage: (needsCustomization && uploadedImage) ? uploadedImage : undefined,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
@@ -324,7 +302,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 gap-8">
                     <div className="space-y-4">
                       <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.quantity}</label>
                       <div className="flex items-center gap-4 bg-slate-50 p-2 rounded-2xl border border-slate-100">
@@ -348,59 +326,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                         </button>
                       </div>
                     </div>
-
-                    <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.needsCustomization}</label>
-                      <div 
-                        onClick={() => setNeedsCustomization(!needsCustomization)}
-                        className={`h-16 rounded-2xl border-2 transition-all flex items-center px-6 gap-4 cursor-pointer ${needsCustomization ? 'border-amber-500 bg-amber-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
-                      >
-                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${needsCustomization ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white'}`}>
-                          {needsCustomization && <Check size={16} strokeWidth={4} />}
-                        </div>
-                        <span className={`text-xs font-black uppercase tracking-widest ${needsCustomization ? 'text-amber-900' : 'text-slate-500'}`}>
-                          {needsCustomization ? t.yes : t.no}
-                        </span>
-                      </div>
-                    </div>
                   </div>
-
-                  <AnimatePresence>
-                    {needsCustomization && (
-                      <motion.div 
-                        initial={{ opacity: 0, height: 0 }}
-                        animate={{ opacity: 1, height: 'auto' }}
-                        exit={{ opacity: 0, height: 0 }}
-                        className="space-y-4 overflow-hidden"
-                      >
-                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.uploadLogo}</label>
-                        <div 
-                          onClick={() => fileInputRef.current?.click()}
-                          className={`h-24 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden relative ${uploadedImage ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-amber-500 hover:bg-amber-50'}`}
-                        >
-                          {uploadedImage ? (
-                            <>
-                              <img src={uploadedImage} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-20 p-4" />
-                              <Check size={24} className="text-emerald-600" />
-                              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Logo OK</span>
-                            </>
-                          ) : (
-                            <>
-                              <Upload size={24} className="text-slate-400" />
-                              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.uploadLogo}</span>
-                            </>
-                          )}
-                          <input 
-                            type="file" 
-                            ref={fileInputRef}
-                            onChange={handleImageUpload}
-                            accept="image/*"
-                            className="hidden"
-                          />
-                        </div>
-                      </motion.div>
-                    )}
-                  </AnimatePresence>
 
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.observationsDescription}</label>

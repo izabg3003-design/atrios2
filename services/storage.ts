@@ -347,6 +347,23 @@ export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
   }
 };
 
+export const deleteStoreOrder = async (id: string): Promise<boolean> => {
+  try {
+    const orders = getStoreOrders().filter(o => o.id !== id);
+    safeSetItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
+    
+    const { error } = await supabase.from('store_orders').delete().eq('id', id);
+    if (error) {
+      console.error("deleteStoreOrder: Erro ao deletar no Supabase:", error);
+      return false;
+    }
+    return true;
+  } catch (error) {
+    console.error("deleteStoreOrder: Erro inesperado:", error);
+    return false;
+  }
+};
+
 // Cache para evitar buscas excessivas no Supabase (reduz egress)
 const lastFetch: Record<string, number> = {};
 const CACHE_TTL = 5 * 60 * 1000; // 5 minutos

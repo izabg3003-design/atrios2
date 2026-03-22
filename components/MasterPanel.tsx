@@ -63,6 +63,7 @@ import {
   saveCoupon,
   removeCoupon,
   getStoreOrders,
+  deleteStoreOrder,
   getStoredCustomOrders,
   getProducts,
   saveProduct,
@@ -594,6 +595,23 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   };
 
+  const handleDeleteOrder = async (orderId: string) => {
+    if (!window.confirm("Tem certeza que deseja excluir esta solicitação de orçamento?")) return;
+    
+    try {
+      const success = await deleteStoreOrder(orderId);
+      if (success) {
+        setStoreOrders(prev => prev.filter(o => o.id !== orderId));
+        alert("Solicitação excluída com sucesso!");
+      } else {
+        alert("Erro ao excluir solicitação.");
+      }
+    } catch (err) {
+      console.error('Error deleting order:', err);
+      alert("Erro ao excluir solicitação.");
+    }
+  };
+
   const updateCustomOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
     try {
       const { error } = await supabase
@@ -1027,6 +1045,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     <th className="px-8 py-6">Imagem</th>
                     <th className="px-8 py-6">Status</th>
                     <th className="px-8 py-6">Observações</th>
+                    <th className="px-8 py-6 text-center">Excluir</th>
                     <th className="px-8 py-6 text-right">Ações</th>
                   </tr>
                 </thead>
@@ -1085,8 +1104,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             {order.notes || '-'}
                           </p>
                         </td>
+                        <td className="px-8 py-6 text-center">
+                          <button 
+                            onClick={() => handleDeleteOrder(order.id)}
+                            className="p-2 text-slate-500 hover:text-red-500 transition-colors"
+                            title="Excluir Solicitação"
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                        </td>
                         <td className="px-8 py-6 text-right">
-                          <div className="flex items-center justify-end gap-2">
+                          <div className="flex items-center justify-end gap-3">
                             <select 
                               value={order.status}
                               onChange={(e) => updateOrderStatus(order.id, e.target.value as any)}
