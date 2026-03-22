@@ -364,13 +364,13 @@ export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
 
   console.log(`getProducts: Iniciando busca no Supabase (force: ${forceRefresh})...`);
   try {
-    // Selecionamos apenas as colunas necessárias para a loja, omitindo additional_images que podem ser pesadas
+    // Revertendo para select('*') para garantir compatibilidade total, 
+    // mas mantendo o cache para economizar egress em acessos repetidos.
     const { data, error } = await supabase
       .from('products')
-      .select('id, name, code, category, description, image, price, active, created_at')
-      .eq('active', true);
+      .select('*');
     
-    if (data) {
+    if (data && data.length > 0) {
       lastFetch['products'] = now;
       const mapped = data.map(mapProductFromSupabase);
       const sorted = mapped.sort((a, b) => {
@@ -383,7 +383,7 @@ export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
     }
     
     if (error) {
-      console.warn("getProducts: Erro Supabase:", error.message);
+      console.error("getProducts: Erro Supabase:", error);
     }
   } catch (err) {
     console.error("getProducts: Exceção:", err);
@@ -733,8 +733,11 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     // 5. Hidratar Produtos (apenas se necessário)
     const now = new Date().getTime();
     if (!lastFetch['products'] || (now - lastFetch['products'] > CACHE_TTL)) {
-      const { data: products } = await supabase.from('products').select('id, name, code, category, description, image, price, active, created_at').eq('active', true);
-      if (products) {
+      const { data: products, error: prodError } = await supabase.from('products').select('*');
+      if (prodError) {
+        console.error("[Hydrate] Erro ao buscar produtos:", prodError);
+      }
+      if (products && products.length > 0) {
         lastFetch['products'] = now;
         safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
       }
