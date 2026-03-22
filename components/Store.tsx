@@ -211,11 +211,11 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               transition={{ delay: index * 0.05 }}
               className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
             >
-            <div className="relative aspect-square overflow-hidden">
+            <div className="relative aspect-square overflow-hidden bg-slate-50">
               <img 
                 src={product.image} 
                 alt={product.name}
-                className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700"
+                className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
               <div className="absolute top-4 left-4">
@@ -334,8 +334,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               ) : (
                 <div className="space-y-8">
                   <div className="flex items-center gap-6">
-                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shrink-0">
-                      <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
+                    <div className="w-24 h-24 rounded-2xl overflow-hidden border border-slate-100 shrink-0 bg-slate-50">
+                      <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-contain p-2" />
                     </div>
                     <div>
                       <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900 leading-tight">{selectedProduct.name}</h3>
