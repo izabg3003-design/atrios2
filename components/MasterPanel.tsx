@@ -70,7 +70,8 @@ import {
   generateShortId,
   mapMessageFromSupabase,
   mapOrderFromSupabase,
-  mapCustomOrderFromSupabase
+  mapCustomOrderFromSupabase,
+  safeSetItem
 } from '../services/storage';
 import { supabase, testTableAccess } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -154,7 +155,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     
     // Atualizar localStorage com os dados da nuvem
     if (cloudCompanies) {
-      localStorage.setItem('atrios_companies', JSON.stringify(cloudCompanies));
+      safeSetItem('atrios_companies', JSON.stringify(cloudCompanies));
     }
 
     // Alertas de Desbloqueio
@@ -169,7 +170,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const { data: cloudMessages } = await supabase.from('messages').select('*');
     const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
     if (cloudMessages) {
-      localStorage.setItem('atrios_messages', JSON.stringify(mappedMessages));
+      safeSetItem('atrios_messages', JSON.stringify(mappedMessages));
     }
 
     const allMsgs = mappedMessages.length > 0 ? mappedMessages : getMessages();
@@ -199,7 +200,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
     
     if (mappedOrders.length > 0) {
-      localStorage.setItem('atrios_store_orders', JSON.stringify(mappedOrders));
+      safeSetItem('atrios_store_orders', JSON.stringify(mappedOrders));
       setStoreOrders(mappedOrders.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -219,7 +220,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
 
     if (mappedCustomOrders.length > 0) {
-      localStorage.setItem('atrios_custom_orders', JSON.stringify(mappedCustomOrders));
+      safeSetItem('atrios_custom_orders', JSON.stringify(mappedCustomOrders));
       setCustomOrders(mappedCustomOrders.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
@@ -239,7 +240,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     if (cloudProducts && cloudProducts.length > 0) {
       const syncedProducts = cloudProducts.map(p => ({ ...p, synced: true }));
-      localStorage.setItem('atrios_products', JSON.stringify(syncedProducts));
+      safeSetItem('atrios_products', JSON.stringify(syncedProducts));
       setProducts(syncedProducts.sort((a, b) => {
         const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
         const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
@@ -314,7 +315,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           }
 
           if (changed) {
-            localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+            safeSetItem('atrios_messages', JSON.stringify(allMsgs));
             if (selectedCompanyId === newMessage.companyId) {
               setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
             } else {
@@ -365,7 +366,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           }
           
           if (changed) {
-            localStorage.setItem('atrios_companies', JSON.stringify(companies));
+            safeSetItem('atrios_companies', JSON.stringify(companies));
             setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
           }
         }
@@ -586,7 +587,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       // Update local storage
       const localOrders = getStoreOrders();
       const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-      localStorage.setItem('atrios_store_orders', JSON.stringify(updatedLocal));
+      safeSetItem('atrios_store_orders', JSON.stringify(updatedLocal));
 
     } catch (err) {
       console.error('Error updating order status:', err);
@@ -607,7 +608,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       // Update local storage
       const localOrders = getStoredCustomOrders();
       const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-      localStorage.setItem('atrios_custom_orders', JSON.stringify(updatedLocal));
+      safeSetItem('atrios_custom_orders', JSON.stringify(updatedLocal));
 
     } catch (err) {
       console.error('Error updating custom order status:', err);

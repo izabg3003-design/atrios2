@@ -13,6 +13,49 @@ const STORAGE_KEY_STORE_ORDERS = 'atrios_store_orders';
 const STORAGE_KEY_PRODUCTS = 'atrios_products';
 const STORAGE_KEY_CUSTOM_ORDERS = 'atrios_custom_orders';
 
+/**
+ * Helper para salvar no localStorage com tratamento de erro de cota excedida.
+ */
+export const safeSetItem = (key: string, value: string) => {
+  try {
+    localStorage.setItem(key, value);
+  } catch (e) {
+    if (e instanceof DOMException && (
+      e.code === 22 || 
+      e.code === 1014 || 
+      e.name === 'QuotaExceededError' || 
+      e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+    ) {
+      console.warn(`[Storage] Cota do LocalStorage excedida ao salvar '${key}'. Tentando liberar espaço...`);
+      
+      // Tenta remover dados menos críticos para abrir espaço
+      const keysToRemove = [
+        'atrios_notifications',
+        'atrios_messages',
+        'atrios_transactions',
+        'atrios_pdf_downloads'
+      ];
+      
+      for (const k of keysToRemove) {
+        if (k !== key) {
+          localStorage.removeItem(k);
+        }
+      }
+      
+      // Tenta salvar novamente após a limpeza
+      try {
+        localStorage.setItem(key, value);
+        console.log(`[Storage] Salvo com sucesso após limpeza parcial.`);
+      } catch (retryError) {
+        console.error(`[Storage] Falha crítica: Mesmo após limpeza, a cota foi excedida para '${key}'.`, retryError);
+        // Se ainda falhar, não podemos fazer muito além de não travar o app
+      }
+    } else {
+      console.error(`[Storage] Erro ao salvar no LocalStorage:`, e);
+    }
+  }
+};
+
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
 };
@@ -30,7 +73,7 @@ export const saveCompany = async (company: Company) => {
   } else {
     companies.push(company);
   }
-  localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
+  safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
   // Sincroniza plano e dados sensíveis com Supabase
   return await syncToCloud('companies', company);
@@ -38,13 +81,13 @@ export const saveCompany = async (company: Company) => {
 
 export const removeCompany = async (id: string) => {
   const companies = getStoredCompanies().filter(c => c.id !== id);
-  localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
+  safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
   const allBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
   if (allBudgetsStr) {
     const allBudgets = JSON.parse(allBudgetsStr);
     const filteredBudgets = allBudgets.filter((b: Budget) => b.companyId !== id);
-    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(filteredBudgets));
+    safeSetItem(STORAGE_KEY_BUDGETS, JSON.stringify(filteredBudgets));
   }
 
   await supabase.from('companies').delete().eq('id', id);
@@ -87,7 +130,7 @@ export const saveCustomOrderRequest = async (request: CustomOrderRequest): Promi
   try {
     const requests = getStoredCustomOrders();
     requests.unshift(request);
-    localStorage.setItem(STORAGE_KEY_CUSTOM_ORDERS, JSON.stringify(requests));
+    safeSetItem(STORAGE_KEY_CUSTOM_ORDERS, JSON.stringify(requests));
     
     // Sync to Supabase
     const { error } = await supabase
@@ -130,7 +173,7 @@ export const saveBudget = (budget: Budget) => {
       budgets.push(budget);
     }
     
-    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+    safeSetItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
     console.log(`[Storage] Orçamento ${budget.id} salvo localmente. Sincronizando com a nuvem...`);
   } catch (err) {
     console.error("Error saving budget to localStorage:", err);
@@ -152,7 +195,7 @@ export const removeBudget = async (id: string) => {
     const data = localStorage.getItem(STORAGE_KEY_BUDGETS);
     let budgets: Budget[] = data ? JSON.parse(data) : [];
     budgets = budgets.filter(b => b.id !== id);
-    localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
+    safeSetItem(STORAGE_KEY_BUDGETS, JSON.stringify(budgets));
     console.log(`[Storage] Orçamento ${id} removido localmente. Sincronizando com a nuvem...`);
     
     // Sync deletion to Supabase
@@ -178,7 +221,7 @@ export const incrementPdfDownloadCount = (companyId: string) => {
   const data = localStorage.getItem(STORAGE_KEY_PDF_COUNT);
   const counts = data ? JSON.parse(data) : {};
   counts[companyId] = (counts[companyId] || 0) + 1;
-  localStorage.setItem(STORAGE_KEY_PDF_COUNT, JSON.stringify(counts));
+  safeSetItem(STORAGE_KEY_PDF_COUNT, JSON.stringify(counts));
 };
 
 export const getGlobalNotifications = (): GlobalNotification[] => {
@@ -187,7 +230,7 @@ export const getGlobalNotifications = (): GlobalNotification[] => {
 };
 
 export const saveGlobalNotifications = (notifications: GlobalNotification[]) => {
-  localStorage.setItem(STORAGE_KEY_NOTIFICATIONS, JSON.stringify(notifications));
+  safeSetItem(STORAGE_KEY_NOTIFICATIONS, JSON.stringify(notifications));
   notifications.forEach(n => syncToCloud('notifications', n));
 };
 
@@ -203,7 +246,7 @@ export const getMessages = (companyId?: string): SupportMessage[] => {
 export const saveMessage = (message: SupportMessage) => {
   const messages = getMessages();
   messages.push(message);
-  localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
+  safeSetItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
   
   syncToCloud('messages', message);
 };
@@ -218,7 +261,7 @@ export const markMessagesAsRead = async (companyId: string, role: 'user' | 'mast
     }
     return m;
   });
-  localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
+  safeSetItem(STORAGE_KEY_MESSAGES, JSON.stringify(updated));
 
   // Tenta atualizar no Supabase com mapeamento de coluna resiliente
   try {
@@ -250,7 +293,7 @@ export const getTransactions = (companyId?: string): Transaction[] => {
 export const saveTransaction = (tx: Transaction) => {
   const txs = getTransactions();
   txs.push(tx);
-  localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(txs));
+  safeSetItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(txs));
   
   syncToCloud('transactions', tx);
 };
@@ -263,14 +306,14 @@ export const getCoupons = (): Coupon[] => {
 export const saveCoupon = (coupon: Coupon) => {
   const coupons = getCoupons();
   coupons.push(coupon);
-  localStorage.setItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
+  safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
   
   syncToCloud('coupons', coupon);
 };
 
 export const removeCoupon = async (id: string) => {
   const coupons = getCoupons().filter(c => c.id !== id);
-  localStorage.setItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
+  safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
   await supabase.from('coupons').delete().eq('id', id);
 };
 
@@ -288,7 +331,7 @@ export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
     } else {
       orders.push(order);
     }
-    localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
+    safeSetItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(orders));
     
     // Tenta sincronizar com a nuvem, mas não bloqueia o sucesso local
     const result = await syncToCloud('store_orders', order);
@@ -325,7 +368,7 @@ export const getProducts = async (): Promise<Product[]> => {
         const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
+      safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
       return sorted;
     }
     
@@ -354,7 +397,7 @@ export const saveProduct = async (product: Product): Promise<{ success: boolean,
   } else {
     products.push(product);
   }
-  localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
   console.log("saveProduct: Salvo no localStorage. Total de produtos:", products.length);
   
   const syncResult = await syncToCloud('products', product);
@@ -364,7 +407,7 @@ export const saveProduct = async (product: Product): Promise<{ success: boolean,
 
 export const deleteProduct = async (id: string) => {
   const products = (await getProducts()).filter(p => p.id !== id);
-  localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+  safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
   
   return await supabase.from('products').delete().eq('id', id);
 };
@@ -541,7 +584,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       console.warn(`[Hydrate] Empresa ${companyId} não encontrada no Supabase. Removendo localmente.`);
       const companies = getStoredCompanies();
       const filtered = companies.filter(c => String(c.id) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(filtered));
+      safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(filtered));
       return { budgets: [], orders: [], messages: [], customOrders: [] }; 
     }
 
@@ -558,7 +601,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       } else {
         companies.push(mappedCompany);
       }
-      localStorage.setItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
+      safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
     }
 
     // 1.5 Hidratar Pedidos Personalizados
@@ -574,7 +617,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const localCustomOrdersStr = localStorage.getItem(STORAGE_KEY_CUSTOM_ORDERS);
       let allCustomOrders: CustomOrderRequest[] = localCustomOrdersStr ? JSON.parse(localCustomOrdersStr) : [];
       const otherCustomOrders = allCustomOrders.filter(o => String(o.companyId) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_CUSTOM_ORDERS, JSON.stringify([...otherCustomOrders, ...fetchedCustomOrders]));
+      safeSetItem(STORAGE_KEY_CUSTOM_ORDERS, JSON.stringify([...otherCustomOrders, ...fetchedCustomOrders]));
     }
 
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
@@ -612,7 +655,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
         }
       });
       
-      localStorage.setItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mergedBudgets]));
+      safeSetItem(STORAGE_KEY_BUDGETS, JSON.stringify([...otherBudgets, ...mergedBudgets]));
       fetchedBudgets = mergedBudgets;
     }
 
@@ -645,7 +688,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
         }
       });
       
-      localStorage.setItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mergedMessages]));
+      safeSetItem(STORAGE_KEY_MESSAGES, JSON.stringify([...otherMessages, ...mergedMessages]));
       fetchedMessages = mergedMessages;
     }
 
@@ -678,14 +721,14 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
         }
       });
       
-      localStorage.setItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...mergedOrders]));
+      safeSetItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify([...otherOrders, ...mergedOrders]));
       fetchedOrders = mergedOrders;
     }
 
     // 5. Hidratar Produtos
     const { data: products } = await supabase.from('products').select('*');
     if (products) {
-      localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+      safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
     }
 
     // 6. Hidratar Transações
@@ -696,13 +739,13 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const localTransStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
       let allTrans: Transaction[] = localTransStr ? JSON.parse(localTransStr) : [];
       const otherTrans = allTrans.filter(t => String(t.companyId) !== String(companyId));
-      localStorage.setItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([...otherTrans, ...transactions]));
+      safeSetItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([...otherTrans, ...transactions]));
     }
 
     // 7. Hidratar Cupons
     const { data: coupons } = await supabase.from('coupons').select('*');
     if (coupons) {
-      localStorage.setItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
+      safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
     }
     
     return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };
@@ -721,7 +764,7 @@ export const saveSession = (companyId: string | null, view?: string, activeTab?:
   }
   
   const session = getSession() || { companyId: null, view: 'landing', activeTab: 'dashboard', currencyCode: 'EUR' };
-  localStorage.setItem(STORAGE_KEY_SESSION, JSON.stringify({
+  safeSetItem(STORAGE_KEY_SESSION, JSON.stringify({
     ...session,
     companyId: companyId || null,
     view: finalView,

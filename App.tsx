@@ -66,7 +66,8 @@ import {
   hydrateLocalData,
   saveSession,
   getSession,
-  generateShortId
+  generateShortId,
+  safeSetItem
 } from './services/storage';
 import { supabase } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
@@ -252,7 +253,7 @@ const App: React.FC = () => {
                   const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                   return dateB - dateA;
                 });
-                localStorage.setItem('atrios_products', JSON.stringify(sorted));
+                safeSetItem('atrios_products', JSON.stringify(sorted));
               }
             });
           }
@@ -292,7 +293,7 @@ const App: React.FC = () => {
             const idx = companies.findIndex(c => c.id === updated.id);
             if (idx > -1) {
               companies[idx] = updated;
-              localStorage.setItem('atrios_companies', JSON.stringify(companies));
+              safeSetItem('atrios_companies', JSON.stringify(companies));
             }
             
             setCurrentUser(updated);
@@ -363,7 +364,7 @@ const App: React.FC = () => {
             }
             
             if (changed) {
-              localStorage.setItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
+              safeSetItem('atrios_budgets', JSON.stringify([...otherBudgets, ...myBudgets]));
               setBudgets([...myBudgets]);
               console.log('Budgets state updated from real-time event');
             }
@@ -436,7 +437,7 @@ const App: React.FC = () => {
                 const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
                 return dateB - dateA;
               });
-              localStorage.setItem('atrios_store_orders', JSON.stringify([...otherOrders, ...sorted]));
+              safeSetItem('atrios_store_orders', JSON.stringify([...otherOrders, ...sorted]));
               setOrders([...sorted]);
               console.log('Orders state updated from real-time event');
             }
@@ -508,7 +509,7 @@ const App: React.FC = () => {
             }
 
             if (changed) {
-              localStorage.setItem('atrios_messages', JSON.stringify(allMsgs));
+              safeSetItem('atrios_messages', JSON.stringify(allMsgs));
               const myMsgs = allMsgs.filter(m => String(m.companyId) === String(currentId));
               setMessages(myMsgs);
               
@@ -1350,7 +1351,7 @@ const App: React.FC = () => {
       const existsLocally = localCompanies.some(c => c.email === email);
       if (existsLocally) {
         const filtered = localCompanies.filter(c => c.email !== email);
-        localStorage.setItem('atrios_companies', JSON.stringify(filtered));
+        safeSetItem('atrios_companies', JSON.stringify(filtered));
       }
       alert(t.invalidCredentials);
       return;
