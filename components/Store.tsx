@@ -70,9 +70,14 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   };
 
   const confirmQuoteRequest = async () => {
-    if (!selectedProduct) return;
+    console.log("confirmQuoteRequest: Iniciado");
+    if (!selectedProduct) {
+      console.warn("confirmQuoteRequest: Nenhum produto selecionado");
+      return;
+    }
     
     setIsProcessing(true);
+    console.log("confirmQuoteRequest: Estado isProcessing definido como true");
     
     const newOrder: StoreOrder = {
       id: generateShortId(),
@@ -270,16 +275,17 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-slate-50 rounded-[3rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden relative"
+              className="bg-slate-50 rounded-[2rem] lg:rounded-[3rem] max-w-2xl w-full max-h-[90vh] shadow-2xl border border-slate-100 relative flex flex-col overflow-hidden m-4"
             >
               <button 
                 onClick={() => setSelectedProduct(null)}
-                className="absolute top-8 right-8 p-2 text-slate-400 hover:text-slate-900 transition-colors"
+                className="absolute top-6 right-6 p-2 text-slate-400 hover:text-slate-900 transition-colors z-20 bg-white/80 backdrop-blur-sm rounded-full shadow-sm"
               >
                 <X size={24} />
               </button>
 
-              {showSuccess ? (
+              <div className="flex-1 overflow-y-auto p-8 lg:p-12">
+                {showSuccess ? (
                 <div className="space-y-6 text-center py-12">
                   <div className="w-24 h-24 bg-emerald-500 text-white rounded-full flex items-center justify-center mx-auto shadow-xl shadow-emerald-500/20">
                     <Check size={48} />
@@ -406,14 +412,30 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     />
                   </div>
 
-                  <button 
-                    onClick={confirmQuoteRequest}
-                    className="w-full py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-amber-500 transition-all shadow-2xl shadow-slate-900/20"
-                  >
-                    {t.requestQuote}
-                  </button>
+                  <div className="flex flex-col sm:flex-row gap-4 pt-4">
+                    <button 
+                      onClick={() => setSelectedProduct(null)}
+                      disabled={isProcessing}
+                      className="flex-1 py-5 bg-slate-100 text-slate-500 rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-slate-200 transition-all disabled:opacity-50"
+                    >
+                      {t.cancel || 'Cancelar'}
+                    </button>
+                    <button 
+                      onClick={confirmQuoteRequest}
+                      disabled={isProcessing}
+                      className="flex-[2] py-5 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-sm hover:bg-amber-500 transition-all shadow-2xl shadow-slate-900/20 disabled:opacity-50 flex items-center justify-center gap-3"
+                    >
+                      {isProcessing ? (
+                        <>
+                          <div className="w-5 h-5 border-4 border-white/20 border-t-white rounded-full animate-spin" />
+                          {t.processing}
+                        </>
+                      ) : t.requestQuote}
+                    </button>
+                  </div>
                 </div>
               )}
+              </div>
             </motion.div>
           </motion.div>
         )}
