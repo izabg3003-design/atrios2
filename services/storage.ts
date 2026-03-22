@@ -347,21 +347,31 @@ export const saveStoreOrder = async (order: StoreOrder): Promise<boolean> => {
   }
 };
 
-export const getProducts = async (): Promise<Product[]> => {
-  const timestamp = new Date().getTime();
-  console.log(`getProducts: Iniciando busca (ts: ${timestamp})...`);
+// Cache para evitar buscas excessivas no Supabase (reduz egress)
+const lastFetch: Record<string, number> = {};
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+
+export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
+  const now = new Date().getTime();
+  const localData = localStorage.getItem(STORAGE_KEY_PRODUCTS);
+  const local = localData ? JSON.parse(localData) : [];
+
+  // Se tivermos dados locais e não for um refresh forçado, e a última busca foi recente, retornamos o local
+  if (!forceRefresh && local.length > 0 && lastFetch['products'] && (now - lastFetch['products'] < CACHE_TTL)) {
+    console.log("getProducts: Retornando dados do cache local (TTL ativo).");
+    return local;
+  }
+
+  console.log(`getProducts: Iniciando busca no Supabase (force: ${forceRefresh})...`);
   try {
-    // Adicionamos um parâmetro dummy para evitar cache agressivo se houver
-    const { data, error } = await supabase.from('products').select('*');
+    // Selecionamos apenas as colunas necessárias para a loja, omitindo additional_images que podem ser pesadas
+    const { data, error } = await supabase
+      .from('products')
+      .select('id, name, code, category, description, image, price, active, created_at')
+      .eq('active', true);
     
-    console.log("getProducts: Resposta do Supabase:", { 
-      hasData: !!data, 
-      count: data?.length, 
-      error: error ? { message: error.message, code: error.code } : null 
-    });
-    
-    if (data && data.length > 0) {
-      console.log("getProducts: Sucesso! Atualizando localStorage com", data.length, "produtos.");
+    if (data) {
+      lastFetch['products'] = now;
       const mapped = data.map(mapProductFromSupabase);
       const sorted = mapped.sort((a, b) => {
         const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
@@ -374,17 +384,11 @@ export const getProducts = async (): Promise<Product[]> => {
     
     if (error) {
       console.warn("getProducts: Erro Supabase:", error.message);
-    } else {
-      console.log("getProducts: Supabase retornou vazio.");
     }
   } catch (err) {
     console.error("getProducts: Exceção:", err);
   }
   
-  const localData = localStorage.getItem(STORAGE_KEY_PRODUCTS);
-  console.log("getProducts: Lendo do localStorage:", localData ? "Encontrado" : "Vazio");
-  const local = localData ? JSON.parse(localData) : [];
-  console.log("getProducts: Retornando", local.length, "produtos locais.");
   return local;
 };
 
@@ -511,13 +515,13 @@ export const mapCustomOrderFromSupabase = (c: any): CustomOrderRequest => {
 };
 
 // Helper para buscar dados de forma resiliente tentando diferentes nomes de coluna para o ID da empresa
-const fetchResilient = async (table: string, companyId: string, orderCol?: string) => {
+const fetchResilient = async (table: string, companyId: string, orderCol?: string, select = '*') => {
   const columns = ['companyId', 'company_id', 'companyid'];
   let lastError = null;
   
   for (const col of columns) {
     try {
-      let query = supabase.from(table).select('*').eq(col, companyId);
+      let query = supabase.from(table).select(select).eq(col, companyId);
       if (orderCol) {
         query = query.order(orderCol, { ascending: false });
       }
@@ -531,7 +535,7 @@ const fetchResilient = async (table: string, companyId: string, orderCol?: strin
       // Se o erro for relacionado à coluna de ordenação, tentamos sem ordenação
       if (orderCol && (error.message?.includes('column') || error.message?.includes('order'))) {
         console.warn(`fetchResilient: Coluna de ordenação '${orderCol}' não encontrada em ${table}. Tentando sem ordenação...`);
-        const { data: fallbackData, error: fallbackError } = await supabase.from(table).select('*').eq(col, companyId);
+        const { data: fallbackData, error: fallbackError } = await supabase.from(table).select(select).eq(col, companyId);
         if (!fallbackError) {
           return { data: fallbackData, error: null };
         }
@@ -607,7 +611,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 1.5 Hidratar Pedidos Personalizados
     console.log(`[Hydrate] Buscando pedidos personalizados para a empresa ${companyId}...`);
-    const { data: customOrders, error: customOrdersError } = await fetchResilient('custom_order_requests', companyId);
+    const { data: customOrders, error: customOrdersError } = await fetchResilient('custom_order_requests', companyId, undefined, 'id, company_id, item_id, item_name, quantity, description, image_url, status, created_at');
     
     if (customOrdersError) {
       console.error("[Hydrate] Erro ao buscar pedidos personalizados:", customOrdersError);
@@ -624,7 +628,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
     console.log(`[Hydrate] Buscando orçamentos para a empresa ${companyId}...`);
     
-    const { data: budgets, error: budgetsError } = await fetchResilient('budgets', companyId, 'created_at');
+    const { data: budgets, error: budgetsError } = await fetchResilient('budgets', companyId, 'created_at', 'id, company_id, client_name, contact_name, contact_phone, work_location, work_number, work_postal_code, client_nif, services_selected, items, expenses, total_amount, project_files, status, created_at, payments, observations, include_iva, iva_percentage, validity, payment_method');
       
     if (budgetsError) {
       console.error("[Hydrate] Erro ao buscar orçamentos:", budgetsError);
@@ -662,7 +666,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 3. Hidratar Mensagens de Suporte
     console.log(`[Hydrate] Buscando mensagens para a empresa ${companyId}...`);
-    const { data: messages, error: messagesError } = await fetchResilient('messages', companyId);
+    const { data: messages, error: messagesError } = await fetchResilient('messages', companyId, undefined, 'id, company_id, sender_role, content, translated_content, created_at, read');
     
     if (messagesError) {
       console.error("[Hydrate] Erro ao buscar mensagens:", messagesError);
@@ -695,7 +699,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 4. Hidratar Pedidos da Loja
     console.log(`[Hydrate] Buscando pedidos da loja para a empresa ${companyId}...`);
-    const { data: storeOrders, error: ordersError } = await fetchResilient('store_orders', companyId);
+    const { data: storeOrders, error: ordersError } = await fetchResilient('store_orders', companyId, undefined, 'id, company_id, product_id, product_name, quantity, notes, needs_customization, uploaded_image, status, created_at');
 
     if (ordersError) {
       console.error("[Hydrate] Erro ao buscar pedidos:", ordersError);
@@ -726,15 +730,19 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       fetchedOrders = mergedOrders;
     }
 
-    // 5. Hidratar Produtos
-    const { data: products } = await supabase.from('products').select('*');
-    if (products) {
-      safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+    // 5. Hidratar Produtos (apenas se necessário)
+    const now = new Date().getTime();
+    if (!lastFetch['products'] || (now - lastFetch['products'] > CACHE_TTL)) {
+      const { data: products } = await supabase.from('products').select('id, name, code, category, description, image, price, active, created_at').eq('active', true);
+      if (products) {
+        lastFetch['products'] = now;
+        safeSetItem(STORAGE_KEY_PRODUCTS, JSON.stringify(products));
+      }
     }
 
     // 6. Hidratar Transações
     console.log(`[Hydrate] Buscando transações para a empresa ${companyId}...`);
-    const { data: transactions } = await fetchResilient('transactions', companyId);
+    const { data: transactions } = await fetchResilient('transactions', companyId, undefined, 'id, company_id, company_name, plan_type, amount, iva_amount, total_amount, coupon_used, date');
     
     if (transactions) {
       const localTransStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
@@ -743,10 +751,13 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       safeSetItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify([...otherTrans, ...transactions]));
     }
 
-    // 7. Hidratar Cupons
-    const { data: coupons } = await supabase.from('coupons').select('*');
-    if (coupons) {
-      safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
+    // 7. Hidratar Cupons (apenas se necessário)
+    if (!lastFetch['coupons'] || (now - lastFetch['coupons'] > CACHE_TTL)) {
+      const { data: coupons } = await supabase.from('coupons').select('id, code, discount_percentage, active, created_at');
+      if (coupons) {
+        lastFetch['coupons'] = now;
+        safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));
+      }
     }
     
     return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };

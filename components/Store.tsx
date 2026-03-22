@@ -25,9 +25,9 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const loadProducts = async () => {
-    console.log("Store: Iniciando carregamento de produtos...");
-    const data = await getProducts();
+  const loadProducts = async (force = false) => {
+    console.log(`Store: Iniciando carregamento de produtos (force: ${force})...`);
+    const data = await getProducts(force);
     console.log("Store: Produtos recebidos de getProducts():", data);
     // Temporariamente removendo o filtro de active para garantir que apareça
     setProducts(data);
@@ -109,44 +109,9 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
     }
   };
 
-  const isTestUser = 
-    companyId === 'innova' || 
-    companyId?.toLowerCase().includes('innova') || 
-    companyName?.toLowerCase().includes('innova') ||
-    companyEmail?.toLowerCase().includes('innova') ||
-    companyEmail === 'izarelleBraga@gmail.com' ||
-    companyEmail === 'c@c.com';
-
   return (
     <div className="relative min-h-[600px]">
-      {/* Overlay EM BREVE - Oculto para o usuário de teste innova */}
-      {!isTestUser && (
-        <div className="absolute inset-0 z-50 flex items-start justify-center p-6 pt-20 md:pt-32">
-          <motion.div 
-            initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
-            animate={{ opacity: 1, scale: 1, rotate: -2 }}
-            className="bg-slate-50/90 backdrop-blur-xl p-10 md:p-16 rounded-[4rem] border border-slate-200 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] text-center space-y-6 max-w-lg w-full"
-          >
-            <div className="w-24 h-24 bg-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/20 rotate-3">
-              <ShoppingBag size={48} />
-            </div>
-            <div className="space-y-2">
-              <h2 className="text-4xl md:text-6xl font-black italic uppercase tracking-tighter text-slate-900 leading-none">
-                {t.comingSoon}<br/>
-                <span className="text-amber-500">{t.store}!</span>
-              </h2>
-              <p className="text-slate-500 font-bold uppercase tracking-[0.2em] text-[10px]">
-                {t.comingSoonDesc}
-              </p>
-            </div>
-            <div className="pt-4">
-              <div className="h-1 w-12 bg-slate-200 mx-auto rounded-full" />
-            </div>
-          </motion.div>
-        </div>
-      )}
-
-      <div className={`max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700 ${!isTestUser ? 'blur-2xl pointer-events-none select-none opacity-50' : ''}`}>
+      <div className="max-w-7xl mx-auto space-y-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
       
       <div className="space-y-6">
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6">
@@ -197,7 +162,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
             {t.noProductsDesc}
           </p>
           <button 
-            onClick={loadProducts}
+            onClick={() => loadProducts(true)}
             className="px-8 py-4 bg-slate-900 text-white rounded-2xl font-black hover:bg-slate-800 transition-all flex items-center gap-3"
           >
             <Package size={20} />
