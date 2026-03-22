@@ -185,6 +185,7 @@ export interface Product {
   category: string;
   description: string;
   image: string;
+  additionalImages?: string[];
   price?: number;
   active: boolean;
   createdAt?: string;

@@ -28,6 +28,7 @@ import {
   UserPlus,
   Ban,
   BarChart3,
+  Plus,
   Crown,
   CreditCard,
   Download,
@@ -101,6 +102,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [productCategory, setProductCategory] = useState('Branding');
   const [productDescription, setProductDescription] = useState('');
   const [productImage, setProductImage] = useState<string | null>(null);
+  const [additionalProductImages, setAdditionalProductImages] = useState<string[]>([]);
   
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
@@ -627,6 +629,30 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   };
 
+  const handleAdditionalImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (files) {
+      const remainingSlots = 5 - additionalProductImages.length;
+      const filesToProcess = Array.from(files).slice(0, remainingSlots);
+      
+      filesToProcess.forEach((file: any) => {
+        if (file.size > 500000) {
+          alert(`A imagem ${file.name} é muito grande! Máximo 500KB.`);
+          return;
+        }
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setAdditionalProductImages(prev => [...prev, reader.result as string].slice(0, 5));
+        };
+        reader.readAsDataURL(file);
+      });
+    }
+  };
+
+  const removeAdditionalImage = (index: number) => {
+    setAdditionalProductImages(prev => prev.filter((_, i) => i !== index));
+  };
+
   const handleSaveProduct = async (e: React.FormEvent) => {
     e.preventDefault();
     
@@ -637,6 +663,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       category: productCategory,
       description: productDescription,
       image: productImage || 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
+      additionalImages: additionalProductImages,
       active: true,
       createdAt: editingProduct?.createdAt || new Date().toISOString()
     };
@@ -675,6 +702,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setProductCategory('Branding');
     setProductDescription('');
     setProductImage(null);
+    setAdditionalProductImages([]);
     
     // Refresh from cloud in background with delay to allow sync to complete
     setTimeout(() => {
@@ -689,6 +717,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setProductCategory(product.category);
     setProductDescription(product.description);
     setProductImage(product.image);
+    setAdditionalProductImages(product.additionalImages || []);
     setActiveTab('products');
   };
 
@@ -1136,18 +1165,43 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Foto do Produto</label>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Foto Principal</label>
                   <label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-6 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-40">
                     {productImage ? (
                       <img src={productImage} className="absolute inset-0 w-full h-full object-cover opacity-60" />
                     ) : (
                       <div className="flex flex-col items-center">
                         <Upload size={24} className="text-slate-400 mb-2" />
-                        <span className="text-[10px] font-black uppercase">Upload Foto</span>
+                        <span className="text-[10px] font-black uppercase">Upload Foto Principal</span>
                       </div>
                     )}
                     <input type="file" className="hidden" accept="image/*" onChange={handleProductImageUpload} />
                   </label>
+                </div>
+
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Fotos Adicionais (Máx 5)</label>
+                  <div className="grid grid-cols-3 gap-3 mb-3">
+                    {additionalProductImages.map((img, idx) => (
+                      <div key={idx} className="relative aspect-square rounded-xl overflow-hidden group">
+                        <img src={img} className="w-full h-full object-cover" />
+                        <button 
+                          type="button"
+                          onClick={() => removeAdditionalImage(idx)}
+                          className="absolute inset-0 bg-red-500/80 text-white opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"
+                        >
+                          <Trash2 size={16} />
+                        </button>
+                      </div>
+                    ))}
+                    {additionalProductImages.length < 5 && (
+                      <label className="aspect-square border-2 border-dashed border-white/10 rounded-xl flex flex-col items-center justify-center gap-2 cursor-pointer hover:bg-white/5 transition-all">
+                        <Plus size={20} className="text-slate-400" />
+                        <span className="text-[8px] font-black uppercase">Add</span>
+                        <input type="file" className="hidden" accept="image/*" multiple onChange={handleAdditionalImageUpload} />
+                      </label>
+                    )}
+                  </div>
                 </div>
                 <div className="flex gap-3">
                   <button type="submit" className="flex-1 py-5 bg-amber-500 text-slate-950 rounded-[1.5rem] font-black text-lg hover:bg-amber-400 uppercase">

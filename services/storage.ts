@@ -319,9 +319,10 @@ export const getProducts = async (): Promise<Product[]> => {
     
     if (data && data.length > 0) {
       console.log("getProducts: Sucesso! Atualizando localStorage com", data.length, "produtos.");
-      const sorted = data.sort((a, b) => {
-        const dateA = a.created_at ? new Date(a.created_at).getTime() : 0;
-        const dateB = b.created_at ? new Date(b.created_at).getTime() : 0;
+      const mapped = data.map(mapProductFromSupabase);
+      const sorted = mapped.sort((a, b) => {
+        const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+        const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
         return dateB - dateA;
       });
       localStorage.setItem(STORAGE_KEY_PRODUCTS, JSON.stringify(sorted));
@@ -432,6 +433,27 @@ export const mapOrderFromSupabase = (o: any): StoreOrder => {
   if (o.uploaded_image && !o.uploadedImage) mapped.uploadedImage = o.uploaded_image;
   if (o.created_at && !o.createdAt) mapped.createdAt = o.created_at;
   return mapped as StoreOrder;
+};
+
+export const mapProductFromSupabase = (p: any): Product => {
+  const mapped: any = { ...p };
+  if (p.additional_images && !p.additionalImages) mapped.additionalImages = p.additional_images;
+  if (p.created_at && !p.createdAt) mapped.createdAt = p.created_at;
+  
+  // Ensure additionalImages is an array
+  if (mapped.additionalImages && typeof mapped.additionalImages === 'string') {
+    try {
+      mapped.additionalImages = JSON.parse(mapped.additionalImages);
+    } catch (e) {
+      mapped.additionalImages = [];
+    }
+  }
+  
+  if (!mapped.additionalImages) {
+    mapped.additionalImages = [];
+  }
+  
+  return mapped as Product;
 };
 
 export const mapCustomOrderFromSupabase = (c: any): CustomOrderRequest => {

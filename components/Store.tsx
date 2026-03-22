@@ -202,7 +202,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 lg:gap-8">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-2 xl:grid-cols-3 gap-8 lg:gap-12">
           {products.map((product, index) => (
             <motion.div
               key={product.id}
@@ -211,7 +211,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               transition={{ delay: index * 0.05 }}
               className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
             >
-            <div className="relative aspect-[4/5] overflow-hidden">
+            <div className="relative aspect-square overflow-hidden">
               <img 
                 src={product.image} 
                 alt={product.name}
@@ -244,9 +244,6 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                   <span className="text-[10px] font-black">4.9</span>
                 </div>
               </div>
-              <p className="text-sm text-slate-500 font-medium leading-relaxed flex-1">
-                {product.description}
-              </p>
               <div className="pt-4 border-t border-slate-50 flex items-center justify-between">
                 <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <Package size={14} />
@@ -341,8 +338,15 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                       <img src={selectedProduct.image} alt={selectedProduct.name} className="w-full h-full object-cover" />
                     </div>
                     <div>
-                      <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900">{selectedProduct.name}</h3>
-                      <p className="text-slate-500 text-sm font-medium">{selectedProduct.category}</p>
+                      <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900 leading-tight">{selectedProduct.name}</h3>
+                      <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest mb-3">{selectedProduct.category}</p>
+                      {selectedProduct.description && (
+                        <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
+                          <p className="text-slate-600 text-[11px] font-medium leading-relaxed">
+                            {selectedProduct.description}
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
