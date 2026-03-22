@@ -198,6 +198,7 @@ export interface StoreOrder {
   productName: string;
   quantity: number;
   notes: string;
+  needsCustomization?: boolean;
   uploadedImage?: string;
   status: 'pending' | 'processing' | 'completed';
   createdAt?: string;

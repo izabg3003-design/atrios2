@@ -340,6 +340,10 @@ export interface Translation {
   orderSentDesc: string;
   processing: string;
   processingDesc: string;
+  yes: string;
+  no: string;
+  needsCustomization: string;
+  needsCustomizationDesc: string;
   observationsDescription: string;
   observationsDescriptionPlaceholder: string;
   masterStoreTab: string;
@@ -799,6 +803,10 @@ const enUS: Translation = {
   orderSentDesc: "We will contact you soon with the quote for",
   processing: "Processing...",
   processingDesc: "We are preparing your quote request.",
+  yes: "Yes",
+  no: "No",
+  needsCustomization: "Needs customization?",
+  needsCustomizationDesc: "Select if you want to add your logo to the product.",
   observationsDescription: "Observations / Description",
   observationsDescriptionPlaceholder: "Ex: Size XL, color blue, specific details...",
   masterStoreTab: "Store",
@@ -1283,6 +1291,10 @@ const ptPT: Translation = {
   orderSentDesc: "Entraremos em contacto em breve com o orçamento para",
   processing: "Processando...",
   processingDesc: "Estamos a preparar o seu pedido de orçamento.",
+  yes: "Sim",
+  no: "Não",
+  needsCustomization: "Precisa de personalização?",
+  needsCustomizationDesc: "Selecione se deseja adicionar o seu logótipo ao produto.",
   observationsDescription: "Observações / Descrição",
   observationsDescriptionPlaceholder: "Ex: Tamanho XL, cor azul, detalhes específicos...",
   masterStoreTab: "Loja",
@@ -1786,6 +1798,10 @@ const frFR: Translation = {
   orderSentDesc: "Nous vous contacterons bientôt avec le devis pour",
   processing: "Traitement...",
   processingDesc: "Nous préparons votre demande de devis.",
+  yes: "Oui",
+  no: "Non",
+  needsCustomization: "Besoin de personnalisation ?",
+  needsCustomizationDesc: "Sélectionnez si vous souhaitez ajouter votre logo au produit.",
   observationsDescription: "Observations / Description",
   observationsDescriptionPlaceholder: "Ex : Taille XL, couleur bleue, détails spécifiques...",
   masterStoreTab: "Boutique",
@@ -2244,6 +2260,10 @@ const itIT: Translation = {
   orderSentDesc: "Ti contatteremo presto con il preventivo per",
   processing: "Elaborazione...",
   processingDesc: "Stiamo preparando la tua richiesta di preventivo.",
+  yes: "Sì",
+  no: "No",
+  needsCustomization: "Hai bisogno di personalizzazione?",
+  needsCustomizationDesc: "Seleziona se desideri aggiungere il tuo logo al prodotto.",
   observationsDescription: "Osservazioni / Descrizione",
   observationsDescriptionPlaceholder: "Es: Taglia XL, colore blu, dettagli specifici...",
   masterStoreTab: "Negozio",
@@ -2702,6 +2722,10 @@ const esES: Translation = {
   orderSentDesc: "Nos pondremos en contacto pronto con el presupuesto para",
   processing: "Procesando...",
   processingDesc: "Estamos preparando su solicitud de presupuesto.",
+  yes: "Sí",
+  no: "No",
+  needsCustomization: "¿Necesita personalización?",
+  needsCustomizationDesc: "Seleccione si desea añadir su logotipo al producto.",
   observationsDescription: "Observaciones / Descripción",
   observationsDescriptionPlaceholder: "Ej: Talla XL, color azul, detalles específicos...",
   masterStoreTab: "Tienda",
@@ -3184,6 +3208,10 @@ const ruRU: Translation = {
   orderSentDesc: "Мы свяжемся с вами в ближайшее время с предложением для",
   processing: "Обработка...",
   processingDesc: "Мы готовим ваш запрос цены.",
+  yes: "Да",
+  no: "Нет",
+  needsCustomization: "Нужна персонализация?",
+  needsCustomizationDesc: "Выберите, если вы хотите добавить свой логотип к товару.",
   observationsDescription: "Примечания / Описание",
   observationsDescriptionPlaceholder: "Пример: размер XL, синий цвет, особые детали...",
   masterStoreTab: "Магазин",
@@ -3642,6 +3670,10 @@ const hiIN: Translation = {
   orderSentDesc: "हम जल्द ही आपसे कोटेशन के साथ संपर्क करेंगे",
   processing: "प्रसंस्करण...",
   processingDesc: "हम आपका कोटेशन अनुरोध तैयार कर रहे हैं।",
+  yes: "हाँ",
+  no: "नहीं",
+  needsCustomization: "अनुकूलन की आवश्यकता है?",
+  needsCustomizationDesc: "चुनें कि क्या आप उत्पाद में अपना लोगो जोड़ना चाहते हैं।",
   observationsDescription: "अवलोकन / विवरण",
   observationsDescriptionPlaceholder: "उदा: आकार XL, नीला रंग, विशिष्ट विवरण...",
   masterStoreTab: "स्टोर",
@@ -4098,6 +4130,10 @@ const bnBD: Translation = {
   orderSentDesc: "আমরা শীঘ্রই আপনার সাথে উদ্ধৃতি নিয়ে যোগাযোগ করব",
   processing: "প্রক্রিয়াকরণ...",
   processingDesc: "আমরা আপনার উদ্ধৃতি অনুরোধ প্রস্তুত করছি।",
+  yes: "হ্যাঁ",
+  no: "না",
+  needsCustomization: "কাস্টমাইজেশন প্রয়োজন?",
+  needsCustomizationDesc: "আপনি যদি পণ্যটিতে আপনার লোগো যোগ করতে চান তবে নির্বাচন করুন।",
   observationsDescription: "পর্যবেক্ষণ / বিবরণ",
   observationsDescriptionPlaceholder: "উদাঃ সাইজ XL, নীল রঙ, নির্দিষ্ট বিবরণ...",
   masterStoreTab: "স্টোর",

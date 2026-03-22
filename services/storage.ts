@@ -474,6 +474,7 @@ export const mapOrderFromSupabase = (o: any): StoreOrder => {
   if (o.product_id && !o.productId) mapped.productId = o.product_id;
   if (o.product_name && !o.productName) mapped.productName = o.product_name;
   if (o.uploaded_image && !o.uploadedImage) mapped.uploadedImage = o.uploaded_image;
+  if (o.needs_customization !== undefined && o.needsCustomization === undefined) mapped.needsCustomization = o.needs_customization;
   if (o.created_at && !o.createdAt) mapped.createdAt = o.created_at;
   return mapped as StoreOrder;
 };

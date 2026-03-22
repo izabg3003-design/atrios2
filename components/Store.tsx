@@ -19,6 +19,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
   const [selectedProduct, setSelectedProduct] = useState<Product | null>(null);
   const [quantity, setQuantity] = useState(10);
   const [notes, setNotes] = useState('');
+  const [needsCustomization, setNeedsCustomization] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [uploadedImage, setUploadedImage] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
     setSelectedProduct(product);
     setQuantity(10); // Reset to default
     setUploadedImage(null);
+    setNeedsCustomization(false);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -79,7 +81,8 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
       productName: selectedProduct.name,
       quantity,
       notes: notes || undefined,
-      uploadedImage: uploadedImage || undefined,
+      needsCustomization,
+      uploadedImage: (needsCustomization && uploadedImage) ? uploadedImage : undefined,
       status: 'pending',
       createdAt: new Date().toISOString()
     };
@@ -122,7 +125,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
           <motion.div 
             initial={{ opacity: 0, scale: 0.9, rotate: -5 }}
             animate={{ opacity: 1, scale: 1, rotate: -2 }}
-            className="bg-white/90 backdrop-blur-xl p-10 md:p-16 rounded-[4rem] border border-white shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] text-center space-y-6 max-w-lg w-full"
+            className="bg-slate-50/90 backdrop-blur-xl p-10 md:p-16 rounded-[4rem] border border-slate-200 shadow-[0_32px_64px_-12px_rgba(0,0,0,0.1)] text-center space-y-6 max-w-lg w-full"
           >
             <div className="w-24 h-24 bg-amber-500 text-white rounded-3xl flex items-center justify-center mx-auto shadow-2xl shadow-amber-500/20 rotate-3">
               <ShoppingBag size={48} />
@@ -185,7 +188,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
       </div>
 
       {products.length === 0 ? (
-        <div className="flex flex-col items-center justify-center py-20 bg-white rounded-[3rem] border-2 border-dashed border-slate-100 p-12 text-center">
+        <div className="flex flex-col items-center justify-center py-20 bg-slate-50/50 rounded-[3rem] border-2 border-dashed border-slate-100 p-12 text-center">
           <div className="w-20 h-20 bg-slate-50 text-slate-300 rounded-3xl flex items-center justify-center mb-6">
             <Package size={40} />
           </div>
@@ -209,7 +212,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
-              className="group bg-white rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
+              className="group bg-slate-50/50 rounded-[2.5rem] border border-slate-100 overflow-hidden hover:shadow-2xl hover:shadow-slate-200/50 transition-all duration-500 flex flex-col"
             >
             <div className="relative aspect-square overflow-hidden bg-slate-50">
               <img 
@@ -219,14 +222,14 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                 referrerPolicy="no-referrer"
               />
               <div className="absolute top-4 left-4">
-                <span className="px-4 py-1.5 bg-white/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-sm">
+                <span className="px-4 py-1.5 bg-slate-50/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-sm">
                   {product.category}
                 </span>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
                 <button 
                   onClick={() => handleRequestQuote(product)}
-                  className="w-full py-4 bg-white text-slate-900 rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500 hover:text-white transition-all transform translate-y-4 group-hover:translate-y-0 duration-500"
+                  className="w-full py-4 bg-slate-900 text-white rounded-2xl font-black uppercase tracking-widest text-xs hover:bg-amber-500 transition-all transform translate-y-4 group-hover:translate-y-0 duration-500"
                 >
                   {t.requestQuote}
                 </button>
@@ -281,7 +284,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
           { icon: MessageSquare, title: t.dedicatedSupport, desc: t.dedicatedSupportDesc }
         ].map((feature, i) => (
           <div key={i} className="bg-slate-50 p-8 rounded-[2rem] border border-slate-100 flex flex-col items-center text-center space-y-4">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-100">
+            <div className="w-16 h-16 bg-slate-100 rounded-2xl flex items-center justify-center text-slate-900 shadow-sm border border-slate-200">
               <feature.icon size={32} />
             </div>
             <h4 className="text-lg font-black uppercase italic tracking-tight">{feature.title}</h4>
@@ -302,7 +305,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}
-              className="bg-white rounded-[3rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden relative"
+              className="bg-slate-50 rounded-[3rem] p-8 md:p-12 max-w-2xl w-full shadow-2xl border border-slate-100 overflow-hidden relative"
             >
               <button 
                 onClick={() => setSelectedProduct(null)}
@@ -376,33 +379,57 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     </div>
 
                     <div className="space-y-4">
-                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.uploadLogo}</label>
+                      <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.needsCustomization}</label>
                       <div 
-                        onClick={() => fileInputRef.current?.click()}
-                        className={`h-16 rounded-2xl border-2 border-dashed transition-all flex items-center justify-center gap-3 cursor-pointer overflow-hidden relative ${uploadedImage ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-amber-500 hover:bg-amber-50'}`}
+                        onClick={() => setNeedsCustomization(!needsCustomization)}
+                        className={`h-16 rounded-2xl border-2 transition-all flex items-center px-6 gap-4 cursor-pointer ${needsCustomization ? 'border-amber-500 bg-amber-50' : 'border-slate-100 bg-slate-50 hover:border-slate-200'}`}
                       >
-                        {uploadedImage ? (
-                          <>
-                            <img src={uploadedImage} alt="Logo" className="absolute inset-0 w-full h-full object-cover opacity-20" />
-                            <Check size={20} className="text-emerald-600" />
-                            <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Logo OK</span>
-                          </>
-                        ) : (
-                          <>
-                            <Upload size={20} className="text-slate-400" />
-                            <span className="text-xs font-black text-slate-400 uppercase tracking-widest">Upload</span>
-                          </>
-                        )}
-                        <input 
-                          type="file" 
-                          ref={fileInputRef}
-                          onChange={handleImageUpload}
-                          accept="image/*"
-                          className="hidden"
-                        />
+                        <div className={`w-6 h-6 rounded-lg border-2 flex items-center justify-center transition-all ${needsCustomization ? 'bg-amber-500 border-amber-500 text-white' : 'border-slate-300 bg-white'}`}>
+                          {needsCustomization && <Check size={16} strokeWidth={4} />}
+                        </div>
+                        <span className={`text-xs font-black uppercase tracking-widest ${needsCustomization ? 'text-amber-900' : 'text-slate-500'}`}>
+                          {needsCustomization ? t.yes : t.no}
+                        </span>
                       </div>
                     </div>
                   </div>
+
+                  <AnimatePresence>
+                    {needsCustomization && (
+                      <motion.div 
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="space-y-4 overflow-hidden"
+                      >
+                        <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.uploadLogo}</label>
+                        <div 
+                          onClick={() => fileInputRef.current?.click()}
+                          className={`h-24 rounded-2xl border-2 border-dashed transition-all flex flex-col items-center justify-center gap-2 cursor-pointer overflow-hidden relative ${uploadedImage ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:border-amber-500 hover:bg-amber-50'}`}
+                        >
+                          {uploadedImage ? (
+                            <>
+                              <img src={uploadedImage} alt="Logo" className="absolute inset-0 w-full h-full object-contain opacity-20 p-4" />
+                              <Check size={24} className="text-emerald-600" />
+                              <span className="text-xs font-black text-emerald-600 uppercase tracking-widest">Logo OK</span>
+                            </>
+                          ) : (
+                            <>
+                              <Upload size={24} className="text-slate-400" />
+                              <span className="text-xs font-black text-slate-400 uppercase tracking-widest">{t.uploadLogo}</span>
+                            </>
+                          )}
+                          <input 
+                            type="file" 
+                            ref={fileInputRef}
+                            onChange={handleImageUpload}
+                            accept="image/*"
+                            className="hidden"
+                          />
+                        </div>
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
 
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.observationsDescription}</label>

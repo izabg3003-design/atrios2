@@ -1023,6 +1023,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     <th className="px-8 py-6">{t.masterTableIdCompany}</th>
                     <th className="px-8 py-6">Produto</th>
                     <th className="px-8 py-6">Qtd</th>
+                    <th className="px-8 py-6">Personalização</th>
                     <th className="px-8 py-6">Imagem</th>
                     <th className="px-8 py-6">Status</th>
                     <th className="px-8 py-6">Observações</th>
@@ -1050,6 +1051,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         </td>
                         <td className="px-8 py-6 font-black text-amber-500">
                           {order.quantity}
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className={`text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border ${
+                            order.needsCustomization ? 'border-emerald-500/50 text-emerald-500' : 'border-slate-500/50 text-slate-500'
+                          }`}>
+                            {order.needsCustomization ? t.yes : t.no}
+                          </span>
                         </td>
                         <td className="px-8 py-6">
                           {order.uploadedImage ? (
