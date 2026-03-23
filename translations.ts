@@ -427,6 +427,10 @@ export interface Translation {
   landingPreviewApproved: string;
   landingPreviewProfit: string;
   landingPreviewProfitGrowth: string;
+  landingAboutTitle: string;
+  landingAboutDesc: string;
+  landingCreatedBy: string;
+  landingContactEmail: string;
   supportGreeting: string;
   subscriptionExpiryAlert: string;
   projectFilesLabel: string;
@@ -915,6 +919,10 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   landingPreviewApproved: "Estimate Approved",
   landingPreviewProfit: "Estimated Profit",
   landingPreviewProfitGrowth: "+32% this month",
+  landingAboutTitle: "About AtriosBuild",
+  landingAboutDesc: "AtriosBuild was created to simplify estimate management for construction professionals. We are a platform focused on transparency and efficiency.",
+  landingCreatedBy: "Created by",
+  landingContactEmail: "Contact Email",
   supportGreeting: "Any questions? We're here to help!",
   subscriptionExpiryAlert: "Attention! Your subscription expires in {{days}} days.",
   projectFilesLabel: "Project Files",
@@ -1403,6 +1411,10 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   landingPreviewApproved: "Orçamento Aprovado",
   landingPreviewProfit: "Lucro Estimado",
   landingPreviewProfitGrowth: "+32% este mês",
+  landingAboutTitle: "Sobre o AtriosBuild",
+  landingAboutDesc: "O AtriosBuild foi criado para simplificar a gestão de orçamentos para profissionais da construção. Somos uma plataforma focada em transparência e eficiência.",
+  landingCreatedBy: "Criado por",
+  landingContactEmail: "Email de Contacto",
   supportGreeting: "Tens alguma dúvida? Estamos aqui para ajudar!",
   subscriptionExpiryAlert: "Atenção! A sua assinatura expira em {{days}} dias.",
   projectFilesLabel: "Arquivos do Projeto",
@@ -1884,6 +1896,10 @@ const frFR: Translation = {
   landingPreviewApproved: "Devis Approuvé",
   landingPreviewProfit: "Bénéfice Estimé",
   landingPreviewProfitGrowth: "+32% ce mois-ci",
+  landingAboutTitle: "À propos d'AtriosBuild",
+  landingAboutDesc: "AtriosBuild a été créé para simplifier la gestion des devis pour les professionnels de la construction. Nous sommes une plateforme axée sur la transparence et l'efficacité.",
+  landingCreatedBy: "Créé par",
+  landingContactEmail: "Email de Contact",
   supportGreeting: "Bonjour ! Avez-vous des questions ? Nous sommes prêts à vous ajudar.",
   subscriptionExpiryAlert: "Attention ! Votre abonnement expire dans {{days}} jours.",
   projectFilesLabel: "Fichiers du Projet",
@@ -2346,6 +2362,10 @@ const itIT: Translation = {
   landingPreviewApproved: "Preventivo Approvato",
   landingPreviewProfit: "Utile Stimato",
   landingPreviewProfitGrowth: "+32% questo mese",
+  landingAboutTitle: "Informazioni su AtriosBuild",
+  landingAboutDesc: "AtriosBuild è stato creato per semplificare la gestione dei preventivi per i professionisti dell'edilizia. Siamo una piattaforma focalizzata sulla trasparenza e l'efficienza.",
+  landingCreatedBy: "Creato da",
+  landingContactEmail: "Email di Contatto",
   supportGreeting: "Ciao! Hai domande? Siamo pronti ad aiutarti.",
   subscriptionExpiryAlert: "Attenzione! Il tuo abbonamento scade tra {{days}} giorni.",
   projectFilesLabel: "File del Progetto",
@@ -2834,6 +2854,10 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   landingPreviewApproved: "Presupuesto Aprobado",
   landingPreviewProfit: "Beneficio Estimado",
   landingPreviewProfitGrowth: "+32% este mes",
+  landingAboutTitle: "Sobre AtriosBuild",
+  landingAboutDesc: "AtriosBuild fue creado para simplificar la gestión de presupuestos para profesionales de la construcción. Somos una plataforma enfocada en la transparencia y la eficiencia.",
+  landingCreatedBy: "Creado por",
+  landingContactEmail: "Email de Contacto",
   supportGreeting: "¡Hola! ¿Tiene alguna pregunta? Estamos listos para ayudar.",
   subscriptionExpiryAlert: "¡Atención! Tu suscripción caduca en {{days}} días.",
   projectFilesLabel: "Archivos del Proyecto",
@@ -3294,6 +3318,10 @@ const ruRU: Translation = {
   landingPreviewApproved: "Смета одобрена",
   landingPreviewProfit: "Ожидаемая прибыль",
   landingPreviewProfitGrowth: "+32% в этом месяце",
+  landingAboutTitle: "Об AtriosBuild",
+  landingAboutDesc: "AtriosBuild был создан для упрощения управления сметами для строителей. Мы — платформа, ориентированная на прозрачность и эффективность.",
+  landingCreatedBy: "Создано",
+  landingContactEmail: "Контактный адрес электронной почты",
   supportGreeting: "Здравствуйте! У вас есть вопросы? Мы готовы помочь.",
   subscriptionExpiryAlert: "Внимание! Ваша подписка истекает через {{days}} дней.",
   projectFilesLabel: "Файлы проекта",
@@ -3756,6 +3784,10 @@ const hiIN: Translation = {
   landingPreviewApproved: "अनुमान स्वीकृत",
   landingPreviewProfit: "अनुमानित लाभ",
   landingPreviewProfitGrowth: "इस महीने +32%",
+  landingAboutTitle: "AtriosBuild के बारे में",
+  landingAboutDesc: "AtriosBuild को निर्माण पेशेवरों के लिए अनुमान प्रबंधन को सरल बनाने के लिए बनाया गया था। हम पारदर्शिता और दक्षता पर केंद्रित एक मंच हैं।",
+  landingCreatedBy: "द्वारा बनाया गया",
+  landingContactEmail: "संपर्क ईमेल",
   supportGreeting: "नमस्ते! क्या आपके पास कोई प्रश्न हैं? हम मदद के लिए तैयार हैं।",
   subscriptionExpiryAlert: "ध्यान दें! आपकी सदस्यता {{days}} दिनों में समाप्त हो जाएगी।",
   projectFilesLabel: "परियोजना फ़ाइलें",
@@ -4216,6 +4248,10 @@ const bnBD: Translation = {
   landingPreviewApproved: "এস্টিমেট অনুমোদিত",
   landingPreviewProfit: "আনুমানিক লাভ",
   landingPreviewProfitGrowth: "এই মাসে +৩২%",
+  landingAboutTitle: "AtriosBuild সম্পর্কে",
+  landingAboutDesc: "নির্মাণ পেশাদারদের জন্য এস্টিমেট ম্যানেজমেন্ট সহজ করার জন্য AtriosBuild তৈরি করা হয়েছিল। আমরা স্বচ্ছতা এবং দক্ষতার উপর দৃষ্টি নিবদ্ধ করা একটি প্ল্যাটফর্ম।",
+  landingCreatedBy: "তৈরি করেছেন",
+  landingContactEmail: "যোগাযোগের ইমেল",
   supportGreeting: "হ্যালো! আপনার কি কোন প্রশ্ন আছে? আমরা সাহায্য করতে প্রস্তুত।",
   subscriptionExpiryAlert: "মনোযোগ! আপনার সাবস্ক্রিপশন {{days}} দিনের মধ্যে শেষ হবে।",
   projectFilesLabel: "প্রকল্প ফাইল",

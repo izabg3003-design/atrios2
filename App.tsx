@@ -623,7 +623,6 @@ const App: React.FC = () => {
     saveSession(currentUser?.id || null, view, activeTab, currencyCode);
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const initData = async () => {
@@ -1813,37 +1812,6 @@ const App: React.FC = () => {
     return () => window.removeEventListener('resize', handleResize);
   }, []);
 
-  const handleSync = async () => {
-    if (!currentUser?.id || isSyncing) return;
-    
-    setIsSyncing(true);
-    try {
-      console.log("[Sync] Iniciando sincronização manual...");
-      const { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages } = await hydrateLocalData(currentUser.id);
-      
-      // Atualiza estados locais com os dados novos vindos da nuvem
-      setBudgets(fetchedBudgets);
-      setOrders(fetchedOrders);
-      setMessages(fetchedMessages);
-      
-      // Track sync event
-      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
-        ReactGA.event({
-          category: 'User',
-          action: 'Manual Sync',
-          label: currentUser.email
-        });
-      }
-      
-      alert("Dados sincronizados com sucesso!");
-    } catch (error) {
-      console.error("[Sync] Erro na sincronização manual:", error);
-      alert("Falha ao sincronizar dados. Verifique sua conexão.");
-    } finally {
-      setIsSyncing(false);
-    }
-  };
-
   const Selectors = ({ dark = true }: { dark?: boolean }) => {
     const isMobile = windowWidth < 640;
     return (
@@ -1880,20 +1848,6 @@ const App: React.FC = () => {
             <option value="bn-BD" className="text-slate-900">🇧🇩 {isMobile ? 'BN' : 'BN - বাংলাদেশ (Bengali)'}</option>
           </select>
         </div>
-        
-        {currentUser && (
-          <button
-            onClick={handleSync}
-            disabled={isSyncing}
-            className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20 hover:bg-white/20' : 'bg-slate-100 border-slate-200 hover:bg-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm transition-all disabled:opacity-50`}
-            title="Sincronizar agora"
-          >
-            <RefreshCw size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px] ${isSyncing ? 'animate-spin' : ''}`} />
-            <span className={`text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} tracking-tight`}>
-              {isSyncing ? '...' : 'SYNC'}
-            </span>
-          </button>
-        )}
       </div>
     );
   };
@@ -2243,6 +2197,41 @@ const App: React.FC = () => {
             </div>
           </section>
 
+          {/* About Us Section */}
+          <section className="py-24 sm:py-32 bg-white">
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="bg-slate-50 rounded-[3rem] p-8 sm:p-20 border border-slate-100 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-[100px] rounded-full -mr-32 -mt-32" />
+                <div className="relative z-10 flex flex-col lg:flex-row items-center gap-12 lg:gap-20">
+                  <div className="flex-1 text-left">
+                    <span className="text-amber-600 font-black text-[10px] uppercase tracking-[0.3em] mb-4 block">{t.landingAboutTitle}</span>
+                    <h2 className="text-3xl sm:text-5xl font-black tracking-tighter text-slate-900 mb-6 leading-tight">
+                      {t.landingAboutTitle}
+                    </h2>
+                    <p className="text-lg text-slate-500 font-medium leading-relaxed mb-8">
+                      {t.landingAboutDesc}
+                    </p>
+                    <div className="flex flex-col sm:flex-row gap-8">
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.landingCreatedBy}</p>
+                        <p className="text-xl font-black text-slate-900">Atrios Software</p>
+                      </div>
+                      <div>
+                        <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.landingContactEmail}</p>
+                        <a href="mailto:support@atriosbuild.pt" className="text-xl font-black text-amber-600 hover:text-amber-500 transition-colors">support@atriosbuild.pt</a>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="w-full lg:w-1/3 flex justify-center">
+                    <div className="w-48 h-48 bg-white p-4 rounded-[2.5rem] shadow-2xl flex items-center justify-center border border-slate-100">
+                      <Construction size={80} className="text-amber-500" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
           {/* CTA Section */}
           <section className="py-20 sm:py-32">
             <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -2273,21 +2262,28 @@ const App: React.FC = () => {
 
           {/* Footer */}
           <footer className="py-12 border-t border-slate-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-8">
-              <div className="flex items-center gap-3">
-                <div className="bg-slate-100 p-2 rounded-lg">
-                  <Construction className="text-slate-400 w-5 h-5" />
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-8 mb-8">
+                <div className="flex items-center gap-3">
+                  <div className="bg-slate-100 p-2 rounded-lg">
+                    <Construction className="text-slate-400 w-5 h-5" />
+                  </div>
+                  <span className="text-lg font-black tracking-tighter italic text-slate-400">{t.appName}</span>
                 </div>
-                <span className="text-lg font-black tracking-tighter italic text-slate-400">{t.appName}</span>
+                <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                  <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
+                  <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
+                  <a href="mailto:support@atriosbuild.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                </div>
               </div>
-              <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
-                <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
-                <a href="mailto:support@atriosbuild.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+              <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-50">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                  © {new Date().getFullYear()} {t.appName}. {t.landingFooterRights}
+                </p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
+                  {t.landingCreatedBy} <span className="text-slate-400">Atrios Software</span>
+                </p>
               </div>
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-300">
-                © {new Date().getFullYear()} {t.appName}. {t.landingFooterRights}
-              </p>
             </div>
           </footer>
         </div>

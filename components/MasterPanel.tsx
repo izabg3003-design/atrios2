@@ -892,17 +892,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               </button>
             ))}
 
-            <button 
-              onClick={loadData}
-              disabled={isSyncing}
-              className={`px-4 py-2 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all flex items-center gap-2 ${
-                isSyncing ? 'bg-white/5 text-slate-500' : 'bg-indigo-500/10 text-indigo-400 hover:bg-indigo-500/20'
-              }`}
-            >
-              <Zap size={14} className={isSyncing ? 'animate-spin' : ''} />
-              {isSyncing ? 'Sincronizando...' : 'Sincronizar Agora'}
-            </button>
-
             <button onClick={onLogout} className="px-6 py-2.5 hover:bg-red-500/20 text-red-400 rounded-xl transition-all font-black text-xs uppercase flex items-center gap-2">
               <ArrowLeft size={16} /> {t.logout}
             </button>
