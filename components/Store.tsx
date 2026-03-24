@@ -169,10 +169,16 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                 className="w-full h-full object-contain p-4 group-hover:scale-110 transition-transform duration-700"
                 referrerPolicy="no-referrer"
               />
-              <div className="absolute top-4 left-4">
+              <div className="absolute top-4 left-4 right-4 flex justify-between items-start">
                 <span className="px-4 py-1.5 bg-slate-50/90 backdrop-blur-md rounded-full text-[10px] font-black uppercase tracking-widest text-slate-900 shadow-sm">
                   {product.category}
                 </span>
+                <button 
+                  onClick={() => handleRequestQuote(product)}
+                  className="md:hidden px-4 py-1.5 bg-amber-500 text-slate-900 rounded-full text-[10px] font-black uppercase tracking-widest shadow-lg active:scale-95 transition-all"
+                >
+                  {t.requestQuote}
+                </button>
               </div>
               <div className="absolute inset-0 bg-gradient-to-t from-slate-900/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500 flex items-end p-8">
                 <button 
@@ -200,12 +206,20 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                   <Package size={14} />
                   <span>{t.stockOk}</span>
                 </div>
-                <button 
-                  onClick={() => handleRequestQuote(product)}
-                  className="text-slate-900 hover:text-amber-500 transition-colors"
-                >
-                  <Info size={20} />
-                </button>
+                <div className="flex items-center gap-3">
+                  <button 
+                    onClick={() => handleRequestQuote(product)}
+                    className="md:hidden px-4 py-2 bg-slate-900 text-white rounded-xl text-[10px] font-black uppercase tracking-widest shadow-sm active:scale-95 transition-all"
+                  >
+                    {t.requestQuote}
+                  </button>
+                  <button 
+                    onClick={() => handleRequestQuote(product)}
+                    className="text-slate-900 hover:text-amber-500 transition-colors"
+                  >
+                    <Info size={20} />
+                  </button>
+                </div>
               </div>
             </div>
           </motion.div>
