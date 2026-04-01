@@ -196,9 +196,13 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{product.category}</span>
                   <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{product.name}</h3>
                   {product.price != null && (
-                    <div className="text-lg font-black text-slate-900 italic mt-1">
+                    <motion.div 
+                      animate={{ scale: [1, 1.05, 1] }}
+                      transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+                      className="text-2xl font-black text-amber-600 italic mt-2 bg-amber-50 px-4 py-1 rounded-xl w-fit shadow-sm border border-amber-100"
+                    >
                       {product.price.toLocaleString(locale === 'pt-BR' ? 'pt-BR' : 'pt-PT', { style: 'currency', currency: locale === 'pt-BR' ? 'BRL' : 'EUR' })}
-                    </div>
+                    </motion.div>
                   )}
                 </div>
                 <div className="flex items-center gap-1 text-amber-500">
@@ -357,7 +361,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                   <div className="space-y-4">
                     <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">{t.observationsDescription}</label>
                     <textarea 
-                      value={notes}
+                      value={notes || ''}
                       onChange={(e) => setNotes(e.target.value)}
                       placeholder={t.observationsDescriptionPlaceholder}
                       className="w-full bg-slate-50 border border-slate-100 rounded-2xl px-6 py-4 text-sm font-medium outline-none focus:border-amber-500 transition-all min-h-[100px] resize-none"

@@ -400,33 +400,33 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.clientName}</label>
-              <input type="text" value={clientName} onChange={e => setClientName(e.target.value)} disabled={isLocked} placeholder={t.clientPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={clientName || ''} onChange={e => setClientName(e.target.value)} disabled={isLocked} placeholder={t.clientPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.contactName}</label>
-              <input type="text" value={contactName} onChange={e => setContactName(e.target.value)} disabled={isLocked} placeholder={t.contactPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={contactName || ''} onChange={e => setContactName(e.target.value)} disabled={isLocked} placeholder={t.contactPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.phone}</label>
-              <input type="tel" value={contactPhone} onChange={e => setContactPhone(e.target.value)} disabled={isLocked} placeholder={t.phonePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="tel" value={contactPhone || ''} onChange={e => setContactPhone(e.target.value)} disabled={isLocked} placeholder={t.phonePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1">{t.clientNif}</label>
-              <input type="text" value={clientNif} onChange={e => setClientNif(e.target.value)} disabled={isLocked} placeholder={t.nifPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={clientNif || ''} onChange={e => setClientNif(e.target.value)} disabled={isLocked} placeholder={t.nifPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
           </div>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6 pt-2">
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><MapPin size={12} /> {t.workLocation}</label>
-              <input type="text" value={workLocation} onChange={e => setWorkLocation(e.target.value)} disabled={isLocked} placeholder={t.locationPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={workLocation || ''} onChange={e => setWorkLocation(e.target.value)} disabled={isLocked} placeholder={t.locationPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
             <div className="space-y-1 sm:space-y-2">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Hash size={12} /> {t.workNumber}</label>
-              <input type="text" value={workNumber} onChange={e => setWorkNumber(e.target.value)} disabled={isLocked} placeholder={t.numberPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={workNumber || ''} onChange={e => setWorkNumber(e.target.value)} disabled={isLocked} placeholder={t.numberPlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
             <div className="space-y-1 sm:space-y-2 sm:col-span-2 lg:col-span-1">
               <label className="text-[10px] sm:text-xs font-bold text-slate-500 ml-1 flex items-center gap-1"><Mail size={12} /> {t.workPostalCode}</label>
-              <input type="text" value={workPostalCode} onChange={e => setWorkPostalCode(e.target.value)} disabled={isLocked} placeholder={t.postalCodePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
+              <input type="text" value={workPostalCode || ''} onChange={e => setWorkPostalCode(e.target.value)} disabled={isLocked} placeholder={t.postalCodePlaceholder} className="w-full px-4 sm:px-5 py-3 sm:py-3.5 rounded-xl sm:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm disabled:opacity-50" />
             </div>
           </div>
         </section>
@@ -564,7 +564,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     {items.map((item) => (
                       <tr key={item.id} className="hover:bg-slate-50/50 transition-colors">
                         <td className="p-5">
-                          <input type="text" value={item.description} onChange={e => updateItem(item.id, 'description', e.target.value)} disabled={isLocked} className="w-full bg-transparent outline-none font-bold text-slate-900 disabled:opacity-50" placeholder={t.descriptionPlaceholder} />
+                          <input type="text" value={item.description || ''} onChange={e => updateItem(item.id, 'description', e.target.value)} disabled={isLocked} className="w-full bg-transparent outline-none font-bold text-slate-900 disabled:opacity-50" placeholder={t.descriptionPlaceholder} />
                         </td>
                         <td className="p-5">
                           <input type="number" value={item.quantity === 0 ? '' : item.quantity} onChange={e => updateItem(item.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} disabled={isLocked} placeholder="0" className="w-full bg-transparent outline-none font-black text-slate-900 disabled:opacity-50" />
@@ -584,7 +584,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                           </div>
                         </td>
                         <td className="p-5">
-                          <input type="text" value={item.unit} onChange={e => updateItem(item.id, 'unit', e.target.value)} disabled={isLocked} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" placeholder={t.unitDefault} />
+                          <input type="text" value={item.unit || ''} onChange={e => updateItem(item.id, 'unit', e.target.value)} disabled={isLocked} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" placeholder={t.unitDefault} />
                         </td>
                         <td className="p-5 font-black text-slate-900 text-right whitespace-nowrap text-lg">
                           {formatValue(item.total)}
@@ -617,7 +617,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
                       <input 
                         type="text" 
-                        value={item.description} 
+                        value={item.description || ''} 
                         onChange={e => updateItem(item.id, 'description', e.target.value)} 
                         disabled={isLocked}
                         className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm disabled:opacity-50" 
@@ -641,7 +641,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                         <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.unit}</label>
                         <input 
                           type="text" 
-                          value={item.unit} 
+                          value={item.unit || ''} 
                           onChange={e => updateItem(item.id, 'unit', e.target.value)} 
                           disabled={isLocked}
                           className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm disabled:opacity-50" 
@@ -697,7 +697,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     </h4>
                     <input 
                       type="text" 
-                      value={validity} 
+                      value={validity || ''} 
                       onChange={e => setValidity(e.target.value)} 
                       disabled={isLocked}
                       placeholder={t.validityPlaceholder}
@@ -710,7 +710,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     </h4>
                     <input 
                       type="text" 
-                      value={paymentMethod} 
+                      value={paymentMethod || ''} 
                       onChange={e => setPaymentMethod(e.target.value)} 
                       disabled={isLocked}
                       placeholder={t.paymentMethodPlaceholder}
@@ -723,7 +723,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     <MessageSquare size={16} /> {t.observationsLabel}
                   </h4>
                   <textarea 
-                    value={observations} 
+                    value={observations || ''} 
                     onChange={e => setObservations(e.target.value)} 
                     disabled={isLocked}
                     placeholder={t.observationsPlaceholder}
@@ -762,10 +762,10 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                  {expenses.map((expense) => (
                    <tr key={expense.id} className="hover:bg-slate-50/50 transition-colors">
                      <td className="p-5">
-                       <input type="text" value={expense.description} onChange={e => updateExpense(expense.id, 'description', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-900 disabled:opacity-50" placeholder={t.expenseDescription} />
+                       <input type="text" value={expense.description || ''} onChange={e => updateExpense(expense.id, 'description', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-900 disabled:opacity-50" placeholder={t.expenseDescription} />
                      </td>
                      <td className="p-5">
-                       <input type="date" value={expense.date} onChange={e => updateExpense(expense.id, 'date', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
+                       <input type="date" value={expense.date || ''} onChange={e => updateExpense(expense.id, 'date', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
                      </td>
                      <td className="p-5">
                        <input type="number" value={expense.quantity === 0 ? '' : expense.quantity} onChange={e => updateExpense(expense.id, 'quantity', e.target.value === '' ? 0 : Number(e.target.value))} disabled={isExpenseLocked(expense.id)} placeholder="0" className="w-full bg-transparent outline-none font-black text-slate-900 text-center disabled:opacity-50" />
@@ -785,7 +785,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                        </div>
                      </td>
                      <td className="p-5">
-                       <input type="text" value={expense.unit} onChange={e => updateExpense(expense.id, 'unit', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" placeholder={t.unitDefault} />
+                       <input type="text" value={expense.unit || ''} onChange={e => updateExpense(expense.id, 'unit', e.target.value)} disabled={isExpenseLocked(expense.id)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" placeholder={t.unitDefault} />
                      </td>
                      <td className="p-5 font-black text-slate-900 text-right whitespace-nowrap text-lg">
                        {formatValue(expense.amount)}
@@ -818,7 +818,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.description}</label>
                     <input 
                       type="text" 
-                      value={expense.description} 
+                      value={expense.description || ''} 
                       onChange={e => updateExpense(expense.id, 'description', e.target.value)} 
                       disabled={isExpenseLocked(expense.id)}
                       className="w-full bg-transparent outline-none font-bold text-slate-900 text-sm disabled:opacity-50" 
@@ -831,7 +831,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                       <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">{t.date}</label>
                       <input 
                         type="date" 
-                        value={expense.date} 
+                        value={expense.date || ''} 
                         onChange={e => updateExpense(expense.id, 'date', e.target.value)} 
                         disabled={isExpenseLocked(expense.id)}
                         className="w-full bg-slate-50 px-3 py-2 rounded-lg outline-none font-bold text-slate-500 text-sm disabled:opacity-50" 
@@ -922,7 +922,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                    {payments.map((payment) => (
                      <tr key={payment.id} className="hover:bg-slate-50/50 transition-colors">
                        <td className="p-5">
-                         <input type="date" value={payment.date} onChange={e => updatePayment(payment.id, 'date', e.target.value)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
+                         <input type="date" value={payment.date || ''} onChange={e => updatePayment(payment.id, 'date', e.target.value)} className="w-full bg-transparent outline-none font-bold text-slate-500 disabled:opacity-50" />
                        </td>
                        <td className="p-5">
                          <div className="flex items-center gap-1">
