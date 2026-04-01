@@ -1396,7 +1396,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           </div>
                           <div className="flex justify-between items-start">
                             <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{p.name}</h3>
-                            {p.price !== undefined && (
+                            {p.price != null && (
                               <span className="text-lg font-black text-amber-500 italic">
                                 {p.price.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
                               </span>
