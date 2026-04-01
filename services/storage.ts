@@ -1,5 +1,5 @@
 import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
-import { syncToCloud, supabase } from './supabase';
+import { syncToCloud, supabase, safeFetch } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
 const STORAGE_KEY_BUDGETS = 'atrios_budgets';
@@ -543,7 +543,7 @@ const fetchResilient = async (table: string, companyId: string, orderCol?: strin
         query = query.order(orderCol, { ascending: false });
       }
       
-      const { data, error, status } = await query;
+      const { data, error, status } = await safeFetch<any[]>(query) as any;
       
       if (!error) {
         return { data, error: null };
@@ -591,11 +591,11 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
   try {
     // 1. Hidratar Empresa (Garante Plano Premium/Free correto)
-    let { data: companyData, error: companyError } = await supabase.from('companies').select('*').eq('id', companyId).single();
+    let { data: companyData, error: companyError } = await safeFetch<any>(supabase.from('companies').select('*').eq('id', companyId).single());
     
     // Fallback para company_id se id falhar
     if (companyError && (companyError.code === 'PGRST204' || companyError.message?.includes('column'))) {
-      const { data: fallbackData, error: fallbackError } = await supabase.from('companies').select('*').eq('company_id', companyId).single();
+      const { data: fallbackData, error: fallbackError } = await safeFetch<any>(supabase.from('companies').select('*').eq('company_id', companyId).single());
       if (!fallbackError) {
         companyData = fallbackData;
         companyError = null;
@@ -750,7 +750,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     // 5. Hidratar Produtos (apenas se necessário)
     const now = new Date().getTime();
     if (!lastFetch['products'] || (now - lastFetch['products'] > CACHE_TTL)) {
-      const { data: products, error: prodError } = await supabase.from('products').select('*');
+      const { data: products, error: prodError } = await safeFetch<any[]>(supabase.from('products').select('*'));
       if (prodError) {
         console.error("[Hydrate] Erro ao buscar produtos:", prodError);
       }
@@ -773,7 +773,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 7. Hidratar Cupons (apenas se necessário)
     if (!lastFetch['coupons'] || (now - lastFetch['coupons'] > CACHE_TTL)) {
-      const { data: coupons } = await supabase.from('coupons').select('id, code, discount_percentage, active, created_at');
+      const { data: coupons } = await safeFetch<any[]>(supabase.from('coupons').select('id, code, discount_percentage, active, created_at'));
       if (coupons) {
         lastFetch['coupons'] = now;
         safeSetItem(STORAGE_KEY_COUPONS, JSON.stringify(coupons));

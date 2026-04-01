@@ -878,7 +878,7 @@ Data is processed solely to provide the service, manage subscriptions, and compl
 We share data with Stripe (payment processing) and Supabase (secure data storage). We do not sell your data to third parties.
 
 5. YOUR RIGHTS
-Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at support@atriosbuild.pt to exercise these rights.`,
+Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at atriossoftware@gmail.com to exercise these rights.`,
   budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
   forgotPassword: "Forgot Password?",
   resetPasswordTitle: "Reset Password",
@@ -1370,7 +1370,7 @@ Os dados são processados exclusivamente para fornecer o serviço, gerir subscri
 Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazenamento seguro de dados). Não vendemos os seus dados a terceiros.
 
 5. OS SEUS DIREITOS
-Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em support@atriosbuild.pt para exercer estes direitos.`,
+Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em atriossoftware@gmail.com para exercer estes direitos.`,
   budgetLimitReached: "Limite de orçamentos atingido no plano gratuito! Atualize para um plano pago para continuar a criar orçamentos profissionais.",
   forgotPassword: "Esqueceu-se da palavra-passe?",
   resetPasswordTitle: "Recuperar Palavra-passe",
@@ -2813,7 +2813,7 @@ Los datos se procesan exclusivamente para proporcionar el servicio, gestionar su
 Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento seguro de datos). No vendemos sus datos a terceros.
 
 5. SUS DERECHOS
-Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en support@atriosbuild.pt para ejercer estos derechos.`,
+Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en atriossoftware@gmail.com para ejercer estos derechos.`,
   budgetLimitReached: "Límite de presupuestos alcanzado en el plan gratuito! Actualiza a Premium para continuar.",
   forgotPassword: "¿Olvidó su contraseña?",
   resetPasswordTitle: "Recuperar Contraseña",

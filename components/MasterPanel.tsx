@@ -74,7 +74,7 @@ import {
   mapCustomOrderFromSupabase,
   safeSetItem
 } from '../services/storage';
-import { supabase, testTableAccess } from '../services/supabase';
+import { supabase, testTableAccess, safeFetch } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -147,12 +147,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       setActiveNotifications(getGlobalNotifications());
     
     // Buscar empresas diretamente do Supabase para garantir que todos os usuários apareçam
-    const { data: cloudCompanies } = await supabase
+    const { data: cloudCompanies, error: companiesError } = await safeFetch<Company[]>(supabase
       .from('companies')
       .select('*')
-      .neq('email', 'jeferson.goes36@gmail.com');
+      .neq('email', 'atriossoftware@gmail.com'));
     
-    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => c.email !== 'jeferson.goes36@gmail.com');
+    if (companiesError) {
+      console.warn("MasterPanel: Falha ao buscar empresas (Cloud). Usando cache local.", companiesError.message);
+    }
+    
+    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => c.email !== 'atriossoftware@gmail.com');
     
     // Atualizar localStorage com os dados da nuvem
     if (cloudCompanies) {
@@ -168,7 +172,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     prevUnlockCount.current = unlockCount;
 
     // Buscar mensagens do Supabase
-    const { data: cloudMessages } = await supabase.from('messages').select('*');
+    const { data: cloudMessages, error: messagesError } = await safeFetch<any[]>(supabase.from('messages').select('*'));
+    
+    if (messagesError) {
+      console.warn("MasterPanel: Falha ao buscar mensagens (Cloud).", messagesError.message);
+    }
     const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
     if (cloudMessages) {
       safeSetItem('atrios_messages', JSON.stringify(mappedMessages));
@@ -186,12 +194,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Buscar pedidos da loja
     console.log("MasterPanel: Buscando pedidos da loja no Supabase...");
-    const { data: cloudOrders, error: ordersError } = await supabase.from('store_orders').select('*');
+    const { data: cloudOrders, error: ordersError } = await safeFetch<any[]>(supabase.from('store_orders').select('*'));
     const mappedOrders = cloudOrders ? cloudOrders.map(mapOrderFromSupabase) : [];
     
     // Buscar orçamentos personalizados
     console.log("MasterPanel: Buscando orçamentos personalizados no Supabase...");
-    const { data: cloudCustomOrders, error: customOrdersError } = await supabase.from('custom_order_requests').select('*');
+    const { data: cloudCustomOrders, error: customOrdersError } = await safeFetch<any[]>(supabase.from('custom_order_requests').select('*'));
     const mappedCustomOrders = cloudCustomOrders ? cloudCustomOrders.map(mapCustomOrderFromSupabase) : [];
 
     if (ordersError) {
@@ -223,7 +231,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
 
     // Buscar produtos da loja
-    const { data: cloudProducts, error: productsError } = await supabase.from('products').select('*');
+    const { data: cloudProducts, error: productsError } = await safeFetch<any[]>(supabase.from('products').select('*'));
     if (productsError) {
       console.error("Erro ao buscar produtos:", productsError.message);
     }
@@ -328,7 +336,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         (payload) => {
           console.log('Master company change detected:', payload.eventType, payload);
           const updatedCompany = (payload['new'] || payload['old']) as Company;
-          if (!updatedCompany || updatedCompany.email === 'jeferson.goes36@gmail.com') return;
+          if (!updatedCompany || updatedCompany.email === 'atriossoftware@gmail.com') return;
           
           const companies = getStoredCompanies();
           let changed = false;
@@ -358,7 +366,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           
           if (changed) {
             safeSetItem('atrios_companies', JSON.stringify(companies));
-            setCompanies(companies.filter(c => c.email !== 'jeferson.goes36@gmail.com'));
+            setCompanies(companies.filter(c => c.email !== 'atriossoftware@gmail.com'));
           }
         }
       )

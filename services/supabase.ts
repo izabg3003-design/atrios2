@@ -1,9 +1,38 @@
 import { createClient } from '@supabase/supabase-js';
 
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://raglyqukrlxwcmlhzebd.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhZ2x5cXVrcmx4d2NtbGh6ZWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MTcxMDQsImV4cCI6MjA4Njk5MzEwNH0.fuckSJxctgYkF5ipioPYo31b_Kqwo905f64F-_Fjpc0';
+const supabaseUrl = (import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_URL !== 'undefined') 
+  ? import.meta.env.VITE_SUPABASE_URL 
+  : 'https://raglyqukrlxwcmlhzebd.supabase.co';
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY && import.meta.env.VITE_SUPABASE_ANON_KEY !== 'undefined')
+  ? import.meta.env.VITE_SUPABASE_ANON_KEY
+  : 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhZ2x5cXVrcmx4d2NtbGh6ZWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MTcxMDQsImV4cCI6MjA4Njk5MzEwNH0.fuckSJxctgYkF5ipioPYo31b_Kqwo905f64F-_Fjpc0';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  auth: {
+    persistSession: true,
+    autoRefreshToken: true,
+    detectSessionInUrl: true
+  }
+});
+
+// Helper para chamadas seguras ao Supabase (evita TypeError: Failed to fetch de quebrar o app)
+export const safeFetch = async <T>(query: any): Promise<{ data: T | null, error: any }> => {
+  try {
+    const result = await query;
+    return result;
+  } catch (err: any) {
+    console.error("Supabase SafeFetch Error:", err);
+    return { 
+      data: null, 
+      error: { 
+        message: err.message || "Erro de conexão com o servidor", 
+        details: err.toString(),
+        isFetchError: true 
+      } 
+    };
+  }
+};
 
 // Helper para sincronização silenciosa (background sync)
 export const testTableAccess = async (tableName: string) => {
@@ -77,7 +106,7 @@ export interface SyncResult {
     
     // 6. Função recursiva para tentar upsert e remover colunas inexistentes
     const performUpsert = async (payload: any): Promise<SyncResult> => {
-      const { error } = await supabase.from(table).upsert(payload);
+      const { error } = await safeFetch<any>(supabase.from(table).upsert(payload));
       
       if (!error) return { success: true };
 

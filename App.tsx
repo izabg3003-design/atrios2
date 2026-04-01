@@ -69,7 +69,7 @@ import {
   generateShortId,
   safeSetItem
 } from './services/storage';
-import { supabase } from './services/supabase';
+import { supabase, safeFetch } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
 import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
@@ -1331,20 +1331,24 @@ const App: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'jeferson.goes36@gmail.com' && password === 'izalivjeh') {
+    if (email === 'atriossoftware@gmail.com' && password === 'izalivjeh') {
       setView('master');
       return;
     }
     
     // 1. SEMPRE buscar no Supabase para garantir que a conta ainda existe e não está bloqueada
-    const { data: companyData, error: loginError } = await supabase
+    const { data: companyData, error: loginError } = await safeFetch<any>(supabase
       .from('companies')
       .select('*')
       .eq('email', email)
       .eq('password', password)
-      .single();
+      .single());
 
     if (loginError || !companyData) {
+      if (loginError?.isFetchError) {
+        alert("Erro de conexão com o servidor. Por favor, verifique a sua internet ou tente novamente mais tarde.");
+        return;
+      }
       // Se não encontrou no Supabase, mas existe localmente, removemos o local pois foi excluído na nuvem
       const localCompanies = getStoredCompanies();
       const existsLocally = localCompanies.some(c => c.email === email);
@@ -2218,7 +2222,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.landingContactEmail}</p>
-                        <a href="mailto:support@atriosbuild.pt" className="text-xl font-black text-amber-600 hover:text-amber-500 transition-colors">support@atriosbuild.pt</a>
+                        <a href="mailto:atriossoftware@gmail.com" className="text-xl font-black text-amber-600 hover:text-amber-500 transition-colors">atriossoftware@gmail.com</a>
                       </div>
                     </div>
                   </div>
@@ -2273,7 +2277,7 @@ const App: React.FC = () => {
                 <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
                   <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                   <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
-                  <a href="mailto:support@atriosbuild.pt" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                  <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-50">
@@ -2372,9 +2376,9 @@ const App: React.FC = () => {
               <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
               <div className="pt-6 border-t border-slate-100">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t.orContactSupport}</p>
-                <a href="mailto:support@atriosbuild.pt" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
+                <a href="mailto:atriossoftware@gmail.com" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
                    <Mail size={12} className="text-amber-500" />
-                   support@atriosbuild.pt
+                   atriossoftware@gmail.com
                 </a>
               </div>
             </div>
