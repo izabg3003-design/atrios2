@@ -1331,7 +1331,7 @@ const App: React.FC = () => {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (email === 'atriossoftware@gmail.com' && password === 'izalivjeh') {
+    if ((email === 'atriossoftware@gmail.com' || email === 'jeferson.goes36@gmail.com') && password === 'izalivjeh') {
       setView('master');
       return;
     }

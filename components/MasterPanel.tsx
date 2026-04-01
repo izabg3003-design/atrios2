@@ -151,13 +151,14 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const { data: cloudCompanies, error: companiesError } = await safeFetch<Company[]>(supabase
       .from('companies')
       .select('*')
-      .neq('email', 'atriossoftware@gmail.com'));
+      .not('email', 'in', '("atriossoftware@gmail.com", "jeferson.goes36@gmail.com")'));
     
     if (companiesError) {
       console.warn("MasterPanel: Falha ao buscar empresas (Cloud). Usando cache local.", companiesError.message);
     }
     
-    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => c.email !== 'atriossoftware@gmail.com');
+    const masterEmails = ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'];
+    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => !masterEmails.includes(c.email));
     
     // Atualizar localStorage com os dados da nuvem
     if (cloudCompanies) {
@@ -337,7 +338,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         (payload) => {
           console.log('Master company change detected:', payload.eventType, payload);
           const updatedCompany = (payload['new'] || payload['old']) as Company;
-          if (!updatedCompany || updatedCompany.email === 'atriossoftware@gmail.com') return;
+          if (!updatedCompany || ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'].includes(updatedCompany.email)) return;
           
           const companies = getStoredCompanies();
           let changed = false;
@@ -367,7 +368,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           
           if (changed) {
             safeSetItem('atrios_companies', JSON.stringify(companies));
-            setCompanies(companies.filter(c => c.email !== 'atriossoftware@gmail.com'));
+            const masterEmails = ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'];
+            setCompanies(companies.filter(c => !masterEmails.includes(c.email)));
           }
         }
       )
