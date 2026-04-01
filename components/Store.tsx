@@ -195,6 +195,11 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                 <div className="space-y-1">
                   <span className="text-[10px] font-black uppercase tracking-widest text-amber-500">{product.category}</span>
                   <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{product.name}</h3>
+                  {product.price !== undefined && (
+                    <div className="text-lg font-black text-slate-900 italic mt-1">
+                      {product.price.toLocaleString(locale === 'pt-BR' ? 'pt-BR' : 'pt-PT', { style: 'currency', currency: locale === 'pt-BR' ? 'BRL' : 'EUR' })}
+                    </div>
+                  )}
                 </div>
                 <div className="flex items-center gap-1 text-amber-500">
                   <Star size={12} fill="currentColor" />
@@ -305,7 +310,14 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
                     </div>
                     <div>
                       <h3 className="text-2xl font-black uppercase italic tracking-tighter text-slate-900 leading-tight">{selectedProduct.name}</h3>
-                      <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest mb-3">{selectedProduct.category}</p>
+                      <div className="flex items-center gap-3 mb-3">
+                        <p className="text-amber-500 text-[10px] font-black uppercase tracking-widest">{selectedProduct.category}</p>
+                        {selectedProduct.price !== undefined && (
+                          <span className="text-sm font-black text-slate-900 italic bg-slate-100 px-2 py-0.5 rounded-lg">
+                            {selectedProduct.price.toLocaleString(locale === 'pt-BR' ? 'pt-BR' : 'pt-PT', { style: 'currency', currency: locale === 'pt-BR' ? 'BRL' : 'EUR' })}
+                          </span>
+                        )}
+                      </div>
                       {selectedProduct.description && (
                         <div className="bg-slate-50 p-4 rounded-2xl border border-slate-100">
                           <p className="text-slate-600 text-[11px] font-medium leading-relaxed">

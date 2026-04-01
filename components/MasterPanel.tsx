@@ -103,6 +103,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [productCode, setProductCode] = useState('');
   const [productCategory, setProductCategory] = useState('Branding');
   const [productDescription, setProductDescription] = useState('');
+  const [productPrice, setProductPrice] = useState<number | ''>('');
   const [productImage, setProductImage] = useState<string | null>(null);
   const [additionalProductImages, setAdditionalProductImages] = useState<string[]>([]);
   
@@ -679,6 +680,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       name: productName,
       category: productCategory,
       description: productDescription,
+      price: productPrice === '' ? undefined : Number(productPrice),
       image: productImage || 'https://images.unsplash.com/photo-1589939705384-5185137a7f0f?auto=format&fit=crop&q=80&w=800',
       additionalImages: additionalProductImages,
       active: true,
@@ -716,6 +718,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setEditingProduct(null);
     setProductName('');
     setProductCode('');
+    setProductPrice('');
     setProductCategory('Branding');
     setProductDescription('');
     setProductImage(null);
@@ -731,6 +734,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setEditingProduct(product);
     setProductName(product.name);
     setProductCode(product.code);
+    setProductPrice(product.price !== undefined ? product.price : '');
     setProductCategory(product.category);
     setProductDescription(product.description);
     setProductImage(product.image);
@@ -1166,6 +1170,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   />
                 </div>
                 <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Preço (Opcional)</label>
+                  <input 
+                    type="number" 
+                    step="0.01"
+                    value={productPrice} 
+                    onChange={e => setProductPrice(e.target.value === '' ? '' : Number(e.target.value))} 
+                    placeholder="EX: 19.90" 
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none" 
+                  />
+                </div>
+                <div>
                   <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-3">Categoria</label>
                   <select 
                     value={productCategory} 
@@ -1315,6 +1330,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         
                         msg += "SQL PARA CRIAR TABELAS (se não existirem):\n\n";
                         msg += "CREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                        msg += "SQL PARA ADICIONAR COLUNA DE PREÇO (se a tabela já existir):\n";
+                        msg += "ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC;\n\n";
                         msg += "CREATE TABLE store_orders (\n  id TEXT PRIMARY KEY,\n  \"companyId\" TEXT,\n  \"productId\" TEXT,\n  \"productName\" TEXT,\n  quantity INTEGER,\n  notes TEXT,\n  \"uploadedImage\" TEXT,\n  status TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
                         msg += "SQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON products FOR ALL USING (true) WITH CHECK (true);\n\nALTER TABLE store_orders ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON store_orders FOR ALL USING (true) WITH CHECK (true);";
                         
@@ -1377,7 +1394,14 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                               )}
                             </div>
                           </div>
-                          <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{p.name}</h3>
+                          <div className="flex justify-between items-start">
+                            <h3 className="text-xl font-black text-slate-900 leading-tight uppercase italic">{p.name}</h3>
+                            {p.price !== undefined && (
+                              <span className="text-lg font-black text-amber-500 italic">
+                                {p.price.toLocaleString('pt-PT', { style: 'currency', currency: 'EUR' })}
+                              </span>
+                            )}
+                          </div>
                         </div>
                         <p className="text-sm text-slate-500 font-medium leading-relaxed flex-1">
                           {p.description}
