@@ -43,7 +43,7 @@ import {
   FREE_PAYMENT_LIMIT 
 } from '../constants';
 import { Locale, translations, Translation } from '../translations';
-import { generateShortId, saveBudget } from '../services/storage';
+import { generateShortId, saveBudget, getStoredBudgets } from '../services/storage';
 import { v4 as uuidv4 } from 'uuid';
 
 interface BudgetFormProps {
@@ -98,13 +98,39 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
       const parsed = stored ? JSON.parse(stored) : [];
       const defaultIds = SERVICE_CATEGORIES.map(c => c.id.toLowerCase());
       const parsedIds = parsed.map((c: any) => c.id.toLowerCase());
+      
+      // Extract from current initialData if editing
       if (initialData?.servicesSelected) {
         initialData.servicesSelected.forEach(sId => {
           if (!defaultIds.includes(sId.toLowerCase()) && !parsedIds.includes(sId.toLowerCase())) {
             parsed.push({ id: sId, name: sId });
+            parsedIds.push(sId.toLowerCase());
           }
         });
       }
+
+      // Also scan all local company budgets (hydrated from Supabase) to find any custom services
+      if (company?.id) {
+        const companyBudgets = getStoredBudgets(company.id);
+        companyBudgets.forEach(b => {
+          if (b.servicesSelected) {
+            b.servicesSelected.forEach(sId => {
+              if (!defaultIds.includes(sId.toLowerCase()) && !parsedIds.includes(sId.toLowerCase())) {
+                parsed.push({ id: sId, name: sId });
+                parsedIds.push(sId.toLowerCase());
+              }
+            });
+          }
+        });
+      }
+
+      // Save to localStorage to keep local cache updated
+      try {
+        localStorage.setItem('atrios_custom_service_categories', JSON.stringify(parsed));
+      } catch (e) {
+        console.error(e);
+      }
+      
       return parsed;
     } catch {
       return [];

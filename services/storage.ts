@@ -628,7 +628,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 1.5 Hidratar Pedidos Personalizados
     console.log(`[Hydrate] Buscando pedidos personalizados para a empresa ${companyId}...`);
-    const { data: customOrders, error: customOrdersError } = await fetchResilient('custom_order_requests', companyId, undefined, 'id, company_id, item_id, item_name, quantity, description, image_url, status, created_at');
+    const { data: customOrders, error: customOrdersError } = await fetchResilient('custom_order_requests', companyId, undefined, '*');
     
     if (customOrdersError) {
       console.error("[Hydrate] Erro ao buscar pedidos personalizados:", customOrdersError);
@@ -645,7 +645,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     // 2. Hidratar Orçamentos (Histórico completo de despesas e pagamentos)
     console.log(`[Hydrate] Buscando orçamentos para a empresa ${companyId}...`);
     
-    const { data: budgets, error: budgetsError } = await fetchResilient('budgets', companyId, 'created_at', 'id, company_id, client_name, contact_name, contact_phone, work_location, work_number, work_postal_code, client_nif, services_selected, items, expenses, total_amount, project_files, status, created_at, payments, observations, include_iva, iva_percentage, validity, payment_method');
+    const { data: budgets, error: budgetsError } = await fetchResilient('budgets', companyId, 'created_at', '*');
       
     if (budgetsError) {
       console.error("[Hydrate] Erro ao buscar orçamentos:", budgetsError);
@@ -683,7 +683,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 3. Hidratar Mensagens de Suporte
     console.log(`[Hydrate] Buscando mensagens para a empresa ${companyId}...`);
-    const { data: messages, error: messagesError } = await fetchResilient('messages', companyId, undefined, 'id, company_id, sender_role, content, translated_content, created_at, read');
+    const { data: messages, error: messagesError } = await fetchResilient('messages', companyId, undefined, '*');
     
     if (messagesError) {
       console.error("[Hydrate] Erro ao buscar mensagens:", messagesError);
@@ -716,7 +716,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 4. Hidratar Pedidos da Loja
     console.log(`[Hydrate] Buscando pedidos da loja para a empresa ${companyId}...`);
-    const { data: storeOrders, error: ordersError } = await fetchResilient('store_orders', companyId, undefined, 'id, company_id, product_id, product_name, quantity, notes, needs_customization, uploaded_image, status, created_at');
+    const { data: storeOrders, error: ordersError } = await fetchResilient('store_orders', companyId, undefined, '*');
 
     if (ordersError) {
       console.error("[Hydrate] Erro ao buscar pedidos:", ordersError);
@@ -762,7 +762,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     // 6. Hidratar Transações
     console.log(`[Hydrate] Buscando transações para a empresa ${companyId}...`);
-    const { data: transactions } = await fetchResilient('transactions', companyId, undefined, 'id, company_id, company_name, plan_type, amount, iva_amount, total_amount, coupon_used, date');
+    const { data: transactions } = await fetchResilient('transactions', companyId, undefined, '*');
     
     if (transactions) {
       const localTransStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
