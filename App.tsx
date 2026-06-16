@@ -42,7 +42,9 @@ import {
   ShoppingBag,
   Palette,
   RefreshCw,
-  Trash2
+  Trash2,
+  Facebook,
+  Twitter
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -2274,10 +2276,20 @@ const App: React.FC = () => {
                   </div>
                   <span className="text-lg font-black tracking-tighter italic text-slate-400">{t.appName}</span>
                 </div>
-                <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
-                  <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
-                  <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
-                  <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
+                    <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
+                    <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
+                    <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                  </div>
+                  <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
+                    <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                      <Facebook size={18} />
+                    </a>
+                    <a href="https://x.com/Atrios_Software" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
+                      <Twitter size={18} />
+                    </a>
+                  </div>
                 </div>
               </div>
               <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-8 border-t border-slate-50">
@@ -2314,9 +2326,19 @@ const App: React.FC = () => {
               </div>
               <button type="submit" className="w-full py-4 sm:py-5 bg-slate-900 text-white rounded-xl sm:rounded-2xl font-black text-base sm:text-lg hover:bg-slate-800 transition-all shadow-2xl active:scale-95">{t.loginBtn}</button>
             </form>
-            <div className="text-center space-y-4">
+            <div className="text-center space-y-6">
               <p className="text-slate-400 font-bold text-xs sm:text-sm">{t.noAccount} <button onClick={() => setView('signup')} className="text-amber-600 hover:text-amber-700 underline decoration-2 underline-offset-4">{t.registerHere}</button></p>
-              <button onClick={() => setView('landing')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+              <div className="flex flex-col gap-4">
+                <button onClick={() => setView('landing')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+                <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-50">
+                  <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                    <Facebook size={18} />
+                  </a>
+                  <a href="https://x.com/Atrios_Software" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
+                    <Twitter size={18} />
+                  </a>
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -2349,6 +2371,16 @@ const App: React.FC = () => {
             <div className="text-center space-y-6">
               <p className="text-slate-400 font-bold text-xs sm:text-sm">{t.haveAccount} <button onClick={() => setView('login')} className="text-amber-600 hover:text-amber-700 underline decoration-2 underline-offset-4">{t.loginBtn}</button></p>
               <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+              
+              <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-50">
+                <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                  <Facebook size={18} />
+                </a>
+                <a href="https://x.com/Atrios_Software" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
+                  <Twitter size={18} />
+                </a>
+              </div>
+
               <div className="flex flex-wrap items-center justify-center gap-4 sm:gap-6 text-[9px] sm:text-[10px] font-black uppercase tracking-widest text-slate-300 pt-2 border-t border-slate-50">
                 <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                 <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
@@ -2374,6 +2406,16 @@ const App: React.FC = () => {
             </form>
             <div className="text-center space-y-6">
               <button onClick={() => setView('login')} className="text-slate-400 font-black uppercase tracking-widest text-[9px] sm:text-[10px] hover:text-slate-900 transition-colors">{t.backToLogin}</button>
+              
+              <div className="flex items-center justify-center gap-4 pt-4 border-t border-slate-50">
+                <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
+                  <Facebook size={18} />
+                </a>
+                <a href="https://x.com/Atrios_Software" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-slate-900 transition-colors">
+                  <Twitter size={18} />
+                </a>
+              </div>
+
               <div className="pt-6 border-t border-slate-100">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t.orContactSupport}</p>
                 <a href="mailto:atriossoftware@gmail.com" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">

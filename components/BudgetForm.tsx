@@ -92,6 +92,40 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   const [payments, setPayments] = useState<PaymentRecord[]>(initialData?.payments || []);
   const [projectFiles, setProjectFiles] = useState<{ name: string; url: string; id: string }[]>(initialData?.projectFiles || []);
 
+  const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>(() => {
+    try {
+      const stored = localStorage.getItem('atrios_custom_service_categories');
+      const parsed = stored ? JSON.parse(stored) : [];
+      const defaultIds = SERVICE_CATEGORIES.map(c => c.id.toLowerCase());
+      const parsedIds = parsed.map((c: any) => c.id.toLowerCase());
+      if (initialData?.servicesSelected) {
+        initialData.servicesSelected.forEach(sId => {
+          if (!defaultIds.includes(sId.toLowerCase()) && !parsedIds.includes(sId.toLowerCase())) {
+            parsed.push({ id: sId, name: sId });
+          }
+        });
+      }
+      return parsed;
+    } catch {
+      return [];
+    }
+  });
+  const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  const allCategories = useMemo(() => {
+    const list = [...SERVICE_CATEGORIES];
+    customCategories.forEach(custom => {
+      if (!list.some(item => item.id.toLowerCase() === custom.id.toLowerCase())) {
+        list.push({
+          id: custom.id,
+          icon: <Briefcase size={18} />
+        });
+      }
+    });
+    return list;
+  }, [customCategories]);
+
   const isPremium = company.plan !== PlanType.FREE;
   const isLocked = !isPremium && !!initialData;
   const isExpenseLocked = (id: string) => isLocked && !!initialData?.expenses?.find(e => e.id === id);
@@ -262,8 +296,43 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
   };
 
   const getTranslatedServiceLabel = (id: string) => {
+    const custom = customCategories.find(c => c.id.toLowerCase() === id.toLowerCase());
+    if (custom) return custom.name;
     const key = `service_${id}` as keyof Translation;
     return t[key] || id;
+  };
+
+  const handleAddCustomCategory = (e?: React.FormEvent) => {
+    if (e) e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    
+    const cleanName = newCategoryName.trim();
+    const id = cleanName;
+    
+    const defaultIds = SERVICE_CATEGORIES.map(c => c.id.toLowerCase());
+    const customIds = customCategories.map(c => c.id.toLowerCase());
+    
+    if (defaultIds.includes(id.toLowerCase()) || customIds.includes(id.toLowerCase())) {
+      alert("Esta categoria de serviço já existe!");
+      return;
+    }
+
+    const updated = [...customCategories, { id, name: cleanName }];
+    setCustomCategories(updated);
+    try {
+      localStorage.setItem('atrios_custom_service_categories', JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    if (canAddService(id)) {
+      setSelectedServices(prev => [...prev, id]);
+    } else {
+      alert("Limite de categorias de serviços atingido no plano gratuito!");
+    }
+
+    setNewCategoryName('');
+    setShowAddCategoryModal(false);
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -495,7 +564,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
             <section className="space-y-6">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1"><Briefcase size={16} /> {t.servicesIncluded}</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
-                {SERVICE_CATEGORIES.map(category => (
+                {allCategories.map(category => (
                   <button 
                     key={category.id} 
                     type="button" 
@@ -513,6 +582,18 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                     <span className="text-[9px] font-black uppercase">{getTranslatedServiceLabel(category.id)}</span>
                   </button>
                 ))}
+                {!isLocked && (
+                  <button 
+                    type="button" 
+                    onClick={() => setShowAddCategoryModal(true)}
+                    className="flex flex-col items-center justify-center p-4 rounded-[1.5rem] border-2 border-dashed border-slate-200 bg-slate-50/50 text-slate-400 hover:border-amber-500 hover:text-amber-500 hover:bg-white transition-all cursor-pointer h-full min-h-[90px] group"
+                  >
+                    <div className="mb-2 bg-slate-100 group-hover:bg-amber-50 p-2 rounded-full text-slate-500 group-hover:text-amber-500 transition-colors">
+                      <Plus size={18} />
+                    </div>
+                    <span className="text-[9px] font-black uppercase tracking-wider text-slate-500 group-hover:text-amber-500 transition-colors">Nova Categoria</span>
+                  </button>
+                )}
               </div>
             </section>
 
@@ -1051,6 +1132,62 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
           </div>
         </div>
       </form>
+
+      {showAddCategoryModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4 bg-slate-900/40 backdrop-blur-sm animate-in fade-in duration-200" onClick={() => setShowAddCategoryModal(false)}>
+          <div 
+            className="w-full max-w-md bg-white rounded-[2.5rem] p-8 shadow-2xl border border-slate-100 space-y-6 animate-in zoom-in-95 duration-200"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="flex items-center justify-between">
+              <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight italic flex items-center gap-2">
+                <Plus className="text-amber-500" size={20} />
+                Nova Categoria
+              </h3>
+              <button 
+                type="button" 
+                onClick={() => setShowAddCategoryModal(false)}
+                className="p-1.5 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-900 transition-colors"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <form onSubmit={handleAddCustomCategory} className="space-y-4">
+              <div className="space-y-2">
+                <label className="text-[10px] font-black text-slate-400 uppercase tracking-widest ml-1">
+                  Nome da nova categoria de serviço
+                </label>
+                <input 
+                  type="text" 
+                  required
+                  autoFocus
+                  value={newCategoryName} 
+                  onChange={e => setNewCategoryName(e.target.value)} 
+                  className="w-full px-5 py-4 rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none focus:border-slate-900 transition-all font-bold text-sm text-slate-800" 
+                  placeholder="Ex: Jardinagem, Serralharia, etc." 
+                />
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button 
+                  type="button" 
+                  onClick={() => setShowAddCategoryModal(false)}
+                  className="flex-1 py-4 rounded-2xl border-2 border-slate-200 bg-white font-black text-slate-500 hover:bg-slate-50 transition-all text-xs uppercase tracking-widest"
+                >
+                  Cancelar
+                </button>
+                <button 
+                  type="submit"
+                  className="flex-1 py-4 rounded-2xl bg-slate-900 text-white font-black hover:bg-slate-800 transition-all text-xs uppercase tracking-widest shadow-lg shadow-slate-900/10"
+                >
+                  Adicionar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
