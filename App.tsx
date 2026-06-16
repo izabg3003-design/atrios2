@@ -775,235 +775,165 @@ const App: React.FC = () => {
     const currencyInfo = CURRENCIES[currencyCode];
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
+    const margin = 15;
     const usableWidth = pageWidth - (margin * 2);
 
-    // Helper for footer
+    // Dynamic Footer on Every Page
     const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(8).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
-      const footerText = `Documento processado em nuvem via ÁTRIOS - Segurança e Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.setFontSize(7.5).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      const footerText = `Documento processado na nuvem via ÁTRIOS - Segurança e Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 8, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
     };
 
-    // --- HEADER ---
-    if (company.pdfTemplate === 'modern_v2') {
-      // Modern V2 Header: Colored Sidebar/Top Bar and cleaner layout
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(0, 0, pageWidth, 45, 'F');
+    // 1. TOP BRAND ACCENT BAR
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.rect(0, 0, pageWidth, 4.5, 'F');
 
-      // Logo in Header
-      if (company.logo && company.logo.length > 50) {
-        try {
-          const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(company.logo, format, margin, 10, 25, 25, undefined, 'FAST');
-        } catch (err) {}
-      }
-
-      // Company Name in Header
-      doc.setFontSize(22).setFont('helvetica', 'bold').setTextColor(255, 255, 255);
-      doc.text(normalizeForPdf(company.name.toUpperCase()), margin + (company.logo ? 30 : 0), 28);
-      
-      doc.setFontSize(10).setFont('helvetica', 'normal').setTextColor(255, 255, 255, 0.9);
-      doc.text(normalizeForPdf(company.email), margin + (company.logo ? 30 : 0), 36);
-
-      // Budget Info (Floating Box)
-      doc.setFillColor(255, 255, 255);
-      doc.roundedRect(pageWidth - margin - 65, 15, 65, 50, 2, 2, 'FD');
-      doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      
-      doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), pageWidth - margin - 60, 25);
-      
-      doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(`#${budget.id.toUpperCase()}`, pageWidth - margin - 60, 33);
-      
-      doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, pageWidth - margin - 60, 42);
-      if (budget.validity) {
-        doc.text(`${normalizeForPdf(pdfT.estimateValidity)}:`, pageWidth - margin - 60, 48);
-        doc.setFont('helvetica', 'bold').text(normalizeForPdf(budget.validity), pageWidth - margin - 60, 53);
-      }
-
-      // QR Code inside the box (Bottom right of box)
-      if (company.qrCode && company.qrCode.length > 50) {
-        try {
-          const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(company.qrCode, qrFormat, pageWidth - margin - 22, 40, 18, 18, undefined, 'FAST');
-        } catch (err) {}
-      }
-
-      // Client Info Section (Left)
-      let currentY = 75;
-      doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), margin, currentY);
-      
-      doc.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.setLineWidth(0.5);
-      doc.line(margin, currentY + 2, margin + 20, currentY + 2);
-
-      currentY += 10;
-      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(budget.clientName), margin, currentY);
-      
-      currentY += 5;
-      doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
-      doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin, currentY);
-      currentY += 4;
-      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin, currentY);
-      if (budget.clientNif) {
-        currentY += 4;
-        doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin, currentY);
-      }
-
-      // Work Location (Right of Client Info)
-      let workY = 75;
-      doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(normalizeForPdf(pdfT.workLocation.toUpperCase()), 110, workY);
-      doc.line(110, workY + 2, 110 + 20, workY + 2);
-
-      workY += 10;
-      doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
-      const workAddress = `${normalizeForPdf(budget.workLocation)}, ${normalizeForPdf(budget.workNumber)}`;
-      const splitWork = doc.splitTextToSize(workAddress, 80);
-      doc.text(splitWork, 110, workY);
-      workY += (splitWork.length * 4);
-      doc.text(normalizeForPdf(budget.workPostalCode), 110, workY);
-
-      // Services (Below Work Location)
-      if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-        workY += 10;
-        doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-        doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 110, workY);
-        
-        workY += 5;
-        let serviceX = 110;
-        budget.servicesSelected.forEach((serviceId) => {
-          const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
-          doc.setFontSize(7).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          doc.text(`• ${label}`, serviceX, workY);
-          serviceX += doc.getTextWidth(`• ${label}`) + 5;
-          if (serviceX > 190) {
-            serviceX = 110;
-            workY += 4;
-          }
-        });
-      }
-
-      // Final Y for table start
-      const finalHeaderY = Math.max(currentY, workY);
-      (doc as any).modernV2TableStartY = finalHeaderY + 15;
-
-    } else {
-      // Original Header Logic
-      // Top Accent Bar
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(0, 0, pageWidth, 5, 'F');
-
-      // Logo
-      if (company.logo && company.logo.length > 50) {
-        try {
-          const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(company.logo, format, margin, 15, 45, 45, undefined, 'FAST');
-        } catch (err) {}
-      }
-
-      // Company Info
-      doc.setFontSize(18).setFont('helvetica', 'bold').setTextColor(15, 23, 42); // Slate-900
-      const companyName = normalizeForPdf(company.name.toUpperCase());
-      const splitCompanyName = doc.splitTextToSize(companyName, 43); // Max width before box at 115
-      doc.text(splitCompanyName, 70, 25);
-      
-      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      let companyY = 25 + (splitCompanyName.length > 1 ? (splitCompanyName.length * 7) : 7); 
-      if (company.nif) { doc.text(`NIF: ${normalizeForPdf(company.nif)}`, 70, companyY); companyY += 5; }
-      doc.text(normalizeForPdf(company.email), 70, companyY); companyY += 5;
-      if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 70, companyY); companyY += 5; }
-      if (company.address) {
-        const splitAddress = doc.splitTextToSize(normalizeForPdf(company.address), 60);
-        doc.text(splitAddress, 70, companyY);
-      }
-
-      // Budget Info Box (Right Side)
-      doc.setFillColor(248, 250, 252); // Slate-50
-      doc.roundedRect(115, 15, 75, 42, 3, 3, 'F');
-      
-      // QR Code inside the box (Right side of box)
-      if (company.qrCode && company.qrCode.length > 50) {
-        try {
-          const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          doc.addImage(company.qrCode, qrFormat, 165, 20, 20, 20, undefined, 'FAST');
-          doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), 175, 42, { align: 'center' });
-        } catch (err) {}
-      }
-
-      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), 120, 25);
-      
-      doc.setFontSize(11).setFont('helvetica', 'black').setTextColor(15, 23, 42);
-      doc.text(`#${budget.id.toUpperCase()}`, 120, 32);
-      
-      doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, 120, 38);
-      if (budget.validity) doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, 120, 43);
-
-      // --- CLIENT & SERVICES SECTION ---
-      doc.setDrawColor(241, 245, 249).line(margin, 65, pageWidth - margin, 65);
-
-      // Client Identification
-      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), margin, 75);
-      
-      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
-      let clientY = 82;
-      doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, margin, clientY); clientY += 5;
-      doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin, clientY); clientY += 5;
-      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin, clientY); clientY += 5;
-      if (budget.clientNif) { doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin, clientY); clientY += 5; }
-      doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, margin, clientY); clientY += 5;
-      doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, margin, clientY); clientY += 5;
-      doc.text(`${normalizeForPdf(pdfT.workPostalCode)}: ${normalizeForPdf(budget.workPostalCode)}`, margin, clientY);
-
-      // Services Included (Right Side)
-      if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-        doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-        doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 110, 75);
-        
-        let serviceY = 82;
-        let iconX = 110;
-        budget.servicesSelected.forEach((serviceId) => {
-          const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
-          const textWidth = doc.getTextWidth(label);
-          
-          doc.setFillColor(248, 250, 252);
-          doc.roundedRect(iconX, serviceY - 6, textWidth + 14, 9, 2, 2, 'F');
-          
-          doc.setLineWidth(0.4);
-          // Simplified icon drawing logic for PDF
-          if (serviceId === 'eletricista') doc.setDrawColor(245, 158, 11);
-          else if (serviceId === 'pintura') doc.setDrawColor(59, 130, 246);
-          else if (serviceId === 'canalizador') doc.setDrawColor(71, 85, 105);
-          else if (serviceId === 'capoto') doc.setDrawColor(16, 185, 129);
-          else if (serviceId === 'carpinteiro') doc.setDrawColor(120, 53, 15);
-          else doc.setDrawColor(148, 163, 184);
-          
-          doc.circle(iconX + 4, serviceY - 2, 1.5, 'S');
-          
-          doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
-          doc.text(label, iconX + 9, serviceY);
-          
-          iconX += textWidth + 20;
-          if (iconX > 180) {
-            iconX = 110;
-            serviceY += 12;
-          }
-        });
-      }
+    // 2. HEADER: COMPANY IDENTITY (LEFT)
+    let companyX = margin;
+    if (company.logo && company.logo.length > 50) {
+      try {
+        const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(company.logo, format, margin, 12, 24, 20, undefined, 'FAST');
+        companyX = margin + 28;
+      } catch (err) {}
     }
 
-    // --- ITEMS TABLE ---
+    doc.setFont('helvetica', 'bold').setFontSize(15).setTextColor(15, 23, 42);
+    const companyNameClean = normalizeForPdf(company.name.toUpperCase());
+    doc.text(companyNameClean, companyX, 17);
+
+    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
+    let companyY = 21.5;
+    if (company.nif) {
+      doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
+      companyY += 3.8;
+    }
+    doc.text(normalizeForPdf(company.email), companyX, companyY);
+    companyY += 3.8;
+    if (company.phone) {
+      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
+      companyY += 3.8;
+    }
+    if (company.address) {
+      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), 85 - (companyX - margin));
+      doc.text(splitAddr, companyX, companyY);
+    }
+
+    // 3. HEADER: BUDGET INFO CARD (RIGHT)
+    const cardX = 135;
+    const cardW = 60;
+    const cardH = 36;
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
+    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'S');
+
+    // Left thick vertical indicator
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.rect(cardX, 12, 1.5, cardH, 'F');
+
+    // Box content
+    doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), cardX + 5, 18);
+
+    doc.setFont('text', 'bold').setFontSize(11).setTextColor(15, 23, 42);
+    doc.text(`#${budget.id.toUpperCase()}`, cardX + 5, 24.5);
+
+    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, cardX + 5, 31);
+    if (budget.validity) {
+      doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, cardX + 5, 36.5);
+    }
+
+    // Embed QR code cleanly as integral UI element
+    if (company.qrCode && company.qrCode.length > 50) {
+      try {
+        const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(company.qrCode, qrFormat, cardX + 41, 14, 15, 15, undefined, 'FAST');
+        doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 48.5, 31.5, { align: 'center' });
+      } catch (err) {}
+    }
+
+    // 4. SIDE-BY-SIDE PANELS (CLIENTS & PROJECT DETAILS)
+    const panelY = 54;
+    const panelW = 87;
+    const panelH = 46;
+
+    // --- LEFT CARD: CLIENT SPECIFICATIONS ---
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'F');
+    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
+    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'S');
+
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), margin + 5, panelY + 6);
+    doc.setDrawColor(226, 232, 240).line(margin + 5, panelY + 8, margin + panelW - 5, panelY + 8);
+
+    doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(budget.clientName), margin + 5, panelY + 14);
+
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(71, 85, 105);
+    let clientRowY = panelY + 20;
+    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin + 5, clientRowY);
+    clientRowY += 4.5;
+    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin + 5, clientRowY);
+    clientRowY += 4.5;
+    if (budget.clientNif) {
+      doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin + 5, clientRowY);
+    }
+
+    // --- RIGHT CARD: PROJECT DETAILS & SERVICES ---
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'F');
+    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
+    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'S');
+
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.workLocation.toUpperCase()), 113, panelY + 6);
+    doc.setDrawColor(226, 232, 240).line(113, panelY + 8, 108 + panelW - 5, panelY + 8);
+
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(15, 23, 42);
+    const workLocAddress = `${normalizeForPdf(budget.workLocation)}, ${normalizeForPdf(budget.workNumber)}`;
+    const splitWorkLoc = doc.splitTextToSize(workLocAddress, 77);
+    doc.text(splitWorkLoc, 113, panelY + 14);
+
+    let siteRowY = panelY + 14 + (splitWorkLoc.length * 4);
+    doc.setFontSize(8).setTextColor(71, 85, 105).text(normalizeForPdf(budget.workPostalCode), 113, siteRowY);
+
+    // Beautiful Responsive Pill Badges for Services
+    if (budget.servicesSelected && budget.servicesSelected.length > 0) {
+      let pillX = 113;
+      let pillY = siteRowY + 6;
+      doc.setFont('helvetica', 'bold').setFontSize(6.5);
+      
+      budget.servicesSelected.forEach((serviceId) => {
+        const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
+        const textWidth = doc.getTextWidth(label);
+        const pillW = textWidth + 6;
+        
+        // Wrap inline pills if they exceed card width
+        if (pillX + pillW > 108 + panelW - 4) {
+          pillX = 113;
+          pillY += 5.5;
+        }
+        
+        if (pillY < panelY + panelH - 2) {
+          doc.setFillColor(241, 245, 249);
+          doc.roundedRect(pillX, pillY - 4.2, pillW, 5.5, 1, 1, 'F');
+          
+          doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+          doc.text(label, pillX + 3, pillY - 0.4);
+          
+          pillX += pillW + 2.5;
+        }
+      });
+    }
+
+    // 5. ITEMIZED SERVICES TABLE
     autoTable(doc, {
-      startY: company.pdfTemplate === 'modern_v2' ? ((doc as any).modernV2TableStartY || 110) : 120,
+      startY: panelY + panelH + 7,
       head: [[
         normalizeForPdf(pdfT.description), 
         normalizeForPdf(pdfT.quantity), 
@@ -1018,25 +948,33 @@ const App: React.FC = () => {
         normalizeForPdf(i.unit), 
         `${(i.total * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`
       ]),
-      theme: company.pdfTemplate === 'modern_v2' ? 'grid' : 'striped',
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        font: 'helvetica',
+        cellPadding: 3.5,
+      },
       headStyles: { 
         fillColor: colors.primary as any, 
+        textColor: [255, 255, 255],
         fontStyle: 'bold', 
-        fontSize: 9, 
+        fontSize: 8.5, 
         halign: 'center',
-        cellPadding: 4
+        valign: 'middle'
       },
       bodyStyles: { 
-        fontSize: 8, 
         textColor: [71, 85, 105],
-        cellPadding: 4
+        lineColor: [241, 245, 249],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
       },
       columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { halign: 'center', cellWidth: 20 },
-        2: { halign: 'right', cellWidth: 30 },
-        3: { halign: 'center', cellWidth: 20 },
-        4: { halign: 'right', cellWidth: 30 }
+        0: { cellWidth: 'auto', halign: 'left' },
+        1: { halign: 'center', cellWidth: 15 },
+        2: { halign: 'right', cellWidth: 25 },
+        3: { halign: 'center', cellWidth: 15 },
+        4: { halign: 'right', cellWidth: 25 }
       },
       margin: { left: margin, right: margin },
       didDrawPage: (data) => {
@@ -1044,99 +982,90 @@ const App: React.FC = () => {
       }
     });
 
-    // --- TOTALS ---
-    const finalY = (doc as any).lastAutoTable.finalY;
-    let sumY = finalY + 15;
-    if (sumY + 60 > pageHeight) { doc.addPage(); sumY = 30; }
+    // 6. TOTALS & LOWER MEMORANDUM SECTION
+    const finalY = (doc as any).lastAutoTable.finalY || 120;
+    let sumY = finalY + 12;
+    // Safe multi-page checks before writing the final aggregated boxes
+    if (sumY + 45 > pageHeight) { 
+      doc.addPage(); 
+      sumY = 25; 
+    }
 
     const subTotal = budget.items.reduce((s, i) => s + i.total, 0);
     const ivaVal = budget.includeIva ? (subTotal * budget.ivaPercentage) / 100 : 0;
     const grandTotal = subTotal + ivaVal;
 
-    if (company.pdfTemplate === 'modern_v2') {
-      // Modern V2 Totals: Side-by-side or more integrated
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2], 0.05);
-      doc.roundedRect(margin, sumY - 10, usableWidth, 45, 2, 2, 'F');
+    // --- LEFT COLUMN: ADMINISTRATIVE SPECS & REMARKS (x=15, width=110) ---
+    let leftY = sumY;
 
-      let totalX = margin + 10;
-      let labelY = sumY;
-
-      // Subtotal
-      doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(normalizeForPdf(pdfT.subtotal), totalX, labelY);
-      doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(`${(subTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, totalX, labelY + 6);
-
-      totalX += 50;
-      // IVA
-      if (budget.includeIva) {
-        doc.setFontSize(8).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-        doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, totalX, labelY);
-        doc.setFontSize(10).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-        doc.text(`${(ivaVal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, totalX, labelY + 6);
-        totalX += 50;
-      }
-
-      // Grand Total
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.roundedRect(pageWidth - margin - 60, sumY - 5, 55, 35, 2, 2, 'F');
-      
-      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(255, 255, 255);
-      doc.text(normalizeForPdf(pdfT.total.toUpperCase()), pageWidth - margin - 55, sumY + 10);
-      doc.setFontSize(14).setFont('helvetica', 'bold').setTextColor(255, 255, 255);
-      doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, pageWidth - margin - 55, sumY + 22);
-
-      sumY += 35;
-    } else {
-      // Original Totals Box
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(110, sumY - 10, 80, 40, 3, 3, 'F');
-
-      doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-      doc.text(normalizeForPdf(pdfT.subtotal), 115, sumY);
-      doc.text(`${(subTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY, { align: 'right' });
-      sumY += 7;
-
-      if (budget.includeIva) {
-        doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, 115, sumY);
-        doc.text(`${(ivaVal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY, { align: 'right' });
-        sumY += 7;
-      }
-
-      doc.setDrawColor(226, 232, 240).line(115, sumY - 2, 185, sumY - 2);
-      doc.setFontSize(12).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.total.toUpperCase()), 115, sumY + 5);
-      doc.setTextColor(colors.accent[0], colors.accent[1], colors.accent[2]);
-      doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 185, sumY + 5, { align: 'right' });
-      sumY += 15;
-    }
-
-    // Payment Method
-    if (budget.paymentMethod) {
-      let pmY = sumY;
-      if (pmY + 20 > pageHeight) { doc.addPage(); pmY = 30; }
-      doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), margin, pmY);
-      doc.setFont('helvetica', 'normal').setTextColor(71, 85, 105);
-      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 80);
-      doc.text(pmLines, margin, pmY + 5);
-    }
-
-    // Observations
     if (budget.observations) {
-      let obsY = sumY + 25;
-      if (obsY + 30 > pageHeight) { doc.addPage(); obsY = 30; }
-      doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), margin, obsY);
-      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
-      const lines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth);
-      doc.text(lines, margin, obsY + 7);
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(15, leftY - 4, 110, 22, 1.5, 1.5, 'F');
+      
+      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.rect(15, leftY - 4, 1.2, 22, 'F');
+      
+      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 19, leftY);
+      
+      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
+      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), 101);
+      doc.text(obsLines, 19, leftY + 4.5);
+      
+      leftY += 25;
     }
 
-    // Final Save
+    if (budget.paymentMethod) {
+      if (leftY + 15 > pageHeight) {
+        doc.addPage();
+        leftY = 25;
+      }
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(15, leftY - 4, 110, 18, 1.5, 1.5, 'F');
+      
+      doc.setFillColor(100, 116, 139);
+      doc.rect(15, leftY - 4, 1.2, 18, 'F');
+      
+      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), 19, leftY);
+      
+      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(71, 85, 105);
+      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 101);
+      doc.text(pmLines, 19, leftY + 4.5);
+    }
+
+    // --- RIGHT COLUMN: CONCISE TOTALS (x=135, width=60) ---
+    let rightY = sumY;
+
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.subtotal), 135, rightY);
+    doc.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(15, 23, 42);
+    doc.text(`${(subTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 195, rightY, { align: 'right' });
+    
+    rightY += 5.5;
+
+    if (budget.includeIva) {
+      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
+      doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, 135, rightY);
+      doc.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(15, 23, 42);
+      doc.text(`${(ivaVal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 195, rightY, { align: 'right' });
+      rightY += 5.5;
+    }
+
+    // Massive Executive Total Badge
+    doc.setFillColor(15, 23, 42); // Black/Slate-900 Elegant Badge
+    doc.roundedRect(135, rightY, 60, 14, 1.5, 1.5, 'F');
+    
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(255, 255, 255);
+    doc.text(normalizeForPdf(pdfT.total.toUpperCase()), 141, rightY + 5.5);
+    
+    doc.setFont('helvetica', 'bold').setFontSize(12.5).setTextColor(255, 255, 255);
+    doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 189, rightY + 9.2, { align: 'right' });
+
+    // 7. SAVE THE CORRESPONDING DOCUMENT
     doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     
-    // Track PDF export event
+    // Tracking Event Context
     if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
       ReactGA.event({
         category: 'Export',
@@ -1167,115 +1096,195 @@ const App: React.FC = () => {
     const colors = getPdfColors(company.pdfTemplate);
     const pageHeight = doc.internal.pageSize.getHeight();
     const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 20;
+    const margin = 15;
     const usableWidth = pageWidth - (margin * 2);
 
     const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(8).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
-      const footerText = `Ordem de Serviço - ÁTRIOS | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 10, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 10, { align: 'right' });
+      doc.setFontSize(7.5).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      const footerText = `Ordem de Serviço - ÁTRIOS | Segurança & Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
+      doc.text(footerText, pageWidth / 2, pageHeight - 8, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
     };
 
-    // --- HEADER ---
+    // 1. TOP ACCENT BAR
     doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]); 
-    doc.rect(0, 0, pageWidth, 5, 'F');
+    doc.rect(0, 0, pageWidth, 4.5, 'F');
 
-    // Logo
+    // 2. HEADER: COMPANY IDENTITY (LEFT)
+    let companyX = margin;
     if (company.logo && company.logo.length > 50) {
       try {
         const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 15, 35, 35, undefined, 'FAST');
+        doc.addImage(company.logo, format, margin, 12, 24, 20, undefined, 'FAST');
+        companyX = margin + 28;
       } catch (err) {}
     }
 
-    // Company Info
-    doc.setFontSize(16).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-    const companyName = normalizeForPdf(company.name.toUpperCase());
-    const splitCompanyName = doc.splitTextToSize(companyName, 58); // Max width before box at 125
-    doc.text(splitCompanyName, 65, 25);
-    
-    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    let companyY = 25 + (splitCompanyName.length > 1 ? (splitCompanyName.length * 7) : 7);
-    if (company.phone) { doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, 65, companyY); companyY += 5; }
-    doc.text(normalizeForPdf(company.email), 65, companyY);
+    doc.setFont('helvetica', 'bold').setFontSize(15).setTextColor(15, 23, 42);
+    const companyNameClean = normalizeForPdf(company.name.toUpperCase());
+    doc.text(companyNameClean, companyX, 17);
 
-    // OS Info Box
+    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
+    let companyY = 21.5;
+    if (company.nif) {
+      doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
+      companyY += 3.8;
+    }
+    doc.text(normalizeForPdf(company.email), companyX, companyY);
+    companyY += 3.8;
+    if (company.phone) {
+      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
+      companyY += 3.8;
+    }
+    if (company.address) {
+      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), 85 - (companyX - margin));
+      doc.text(splitAddr, companyX, companyY);
+    }
+
+    // 3. HEADER: OS DETAILS CARD (RIGHT)
+    const cardX = 135;
+    const cardW = 60;
+    const cardH = 36;
     doc.setFillColor(248, 250, 252);
-    doc.roundedRect(125, 15, 65, 35, 3, 3, 'F');
-    
-    doc.setFontSize(9).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(pdfT.serviceOrderTitle), 130, 25);
-    
-    doc.setFontSize(11).setFont('helvetica', 'black').setTextColor(15, 23, 42);
-    doc.text(`#OS-${budget.id.toUpperCase()}`, 130, 32);
-    
-    doc.setFontSize(7).setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date().toLocaleDateString(locale)}`, 130, 38);
+    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
+    doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
+    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'S');
 
-    // --- CLIENT CONTACT INFO ---
-    doc.setDrawColor(241, 245, 249).line(margin, 60, pageWidth - margin, 60);
-    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(pdfT.contactInfoLabel.toUpperCase()), margin, 70);
-    
-    doc.setFontSize(9).setFont('helvetica', 'normal').setTextColor(71, 85, 105);
-    let clientY = 78;
-    doc.text(`${normalizeForPdf(pdfT.clientName)}: ${normalizeForPdf(budget.clientName)}`, margin, clientY); clientY += 6;
-    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin, clientY); clientY += 6;
-    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin, clientY); clientY += 6;
-    doc.text(`${normalizeForPdf(pdfT.workLocation)}: ${normalizeForPdf(budget.workLocation)}`, margin, clientY); clientY += 6;
-    doc.text(`${normalizeForPdf(pdfT.workNumber)}: ${normalizeForPdf(budget.workNumber)}`, margin, clientY);
+    // Left thick vertical indicator
+    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.rect(cardX, 12, 1.5, cardH, 'F');
 
-    // --- SERVICES SELECTED ---
+    // Box content
+    doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+    doc.text(normalizeForPdf(pdfT.serviceOrderTitle.toUpperCase()), cardX + 5, 18);
+
+    doc.setFont('text', 'bold').setFontSize(11).setTextColor(15, 23, 42);
+    doc.text(`#OS-${budget.id.toUpperCase()}`, cardX + 5, 24.5);
+
+    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date().toLocaleDateString(locale)}`, cardX + 5, 31);
+
+    // Embed QR code cleanly as integral UI element
+    if (company.qrCode && company.qrCode.length > 50) {
+      try {
+        const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+        doc.addImage(company.qrCode, qrFormat, cardX + 41, 14, 15, 15, undefined, 'FAST');
+        doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 48.5, 31.5, { align: 'center' });
+      } catch (err) {}
+    }
+
+    // 4. SIDE-BY-SIDE PANELS (CLIENT CONTACT & SITE LOCATION)
+    const panelY = 54;
+    const panelW = 87;
+    const panelH = 46;
+
+    // --- LEFT CARD: CLIENT SPECS ---
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'F');
+    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
+    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'S');
+
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.contactInfoLabel.toUpperCase()), margin + 5, panelY + 6);
+    doc.setDrawColor(226, 232, 240).line(margin + 5, panelY + 8, margin + panelW - 5, panelY + 8);
+
+    doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(15, 23, 42);
+    doc.text(normalizeForPdf(budget.clientName), margin + 5, panelY + 14);
+
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(71, 85, 105);
+    let clientRowY = panelY + 20;
+    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin + 5, clientRowY);
+    clientRowY += 4.5;
+    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin + 5, clientRowY);
+    clientRowY += 4.5;
+    if (budget.clientNif) {
+      doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin + 5, clientRowY);
+    }
+
+    // --- RIGHT CARD: WORK SITE SPECIFICATIONS ---
+    doc.setFillColor(248, 250, 252);
+    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'F');
+    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
+    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'S');
+
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
+    doc.text(normalizeForPdf(pdfT.workLocation.toUpperCase()), 113, panelY + 6);
+    doc.setDrawColor(226, 232, 240).line(113, panelY + 8, 108 + panelW - 5, panelY + 8);
+
+    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(15, 23, 42);
+    const workLocAddress = `${normalizeForPdf(budget.workLocation)}, ${normalizeForPdf(budget.workNumber)}`;
+    const splitWorkLoc = doc.splitTextToSize(workLocAddress, 77);
+    doc.text(splitWorkLoc, 113, panelY + 14);
+
+    let siteRowY = panelY + 14 + (splitWorkLoc.length * 4);
+    doc.setFontSize(8).setTextColor(71, 85, 105).text(normalizeForPdf(budget.workPostalCode), 113, siteRowY);
+
+    // Elegant inline services pill badges
     if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-      let serviceY = 78;
-      let iconX = 110;
-      doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.servicesIncluded.toUpperCase()), 110, 70);
+      let pillX = 113;
+      let pillY = siteRowY + 6;
+      doc.setFont('helvetica', 'bold').setFontSize(6.5);
       
       budget.servicesSelected.forEach((serviceId) => {
         const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
         const textWidth = doc.getTextWidth(label);
+        const pillW = textWidth + 6;
         
-        doc.setFillColor(248, 250, 252);
-        doc.roundedRect(iconX, serviceY - 6, textWidth + 14, 9, 2, 2, 'F');
+        if (pillX + pillW > 108 + panelW - 4) {
+          pillX = 113;
+          pillY += 5.5;
+        }
         
-        doc.setLineWidth(0.4);
-        if (serviceId === 'eletricista') doc.setDrawColor(245, 158, 11);
-        else if (serviceId === 'pintura') doc.setDrawColor(59, 130, 246);
-        else if (serviceId === 'canalizador') doc.setDrawColor(71, 85, 105);
-        else if (serviceId === 'capoto') doc.setDrawColor(16, 185, 129);
-        else if (serviceId === 'carpinteiro') doc.setDrawColor(120, 53, 15);
-        else doc.setDrawColor(148, 163, 184);
-        
-        doc.circle(iconX + 4, serviceY - 2, 1.5, 'S');
-        
-        doc.setFontSize(8).setFont('helvetica', 'bold').setTextColor(71, 85, 105);
-        doc.text(label, iconX + 9, serviceY);
-        
-        iconX += textWidth + 20;
-        if (iconX > 180) {
-          iconX = 110;
-          serviceY += 12;
+        if (pillY < panelY + panelH - 2) {
+          doc.setFillColor(241, 245, 249);
+          doc.roundedRect(pillX, pillY - 4.2, pillW, 5.5, 1, 1, 'F');
+          
+          doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+          doc.text(label, pillX + 3, pillY - 0.4);
+          
+          pillX += pillW + 2.5;
         }
       });
     }
 
-    // --- SERVICE DETAILS ---
-    doc.setFontSize(11).setFont('helvetica', 'bold').setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(pdfT.serviceDetailsLabel.toUpperCase()), margin, 115);
-
+    // 5. MATERIALS/TASKS DETAILED LIST TABLE
     autoTable(doc, {
-      startY: 122,
-      head: [[normalizeForPdf(pdfT.description), normalizeForPdf(pdfT.quantity), normalizeForPdf(pdfT.unit)]],
-      body: budget.items.map(i => [normalizeForPdf(i.description), i.quantity, normalizeForPdf(i.unit)]),
-      theme: 'striped',
-      headStyles: { fillColor: colors.primary as any, fontStyle: 'bold', fontSize: 9, halign: 'center' },
-      bodyStyles: { fontSize: 8, textColor: [71, 85, 105] },
+      startY: panelY + panelH + 7,
+      head: [[
+        normalizeForPdf(pdfT.description), 
+        normalizeForPdf(pdfT.quantity), 
+        normalizeForPdf(pdfT.unit)
+      ]],
+      body: budget.items.map(i => [
+        normalizeForPdf(i.description), 
+        i.quantity, 
+        normalizeForPdf(i.unit)
+      ]),
+      theme: 'grid',
+      styles: {
+        fontSize: 8,
+        font: 'helvetica',
+        cellPadding: 3.5,
+      },
+      headStyles: { 
+        fillColor: colors.primary as any, 
+        textColor: [255, 255, 255],
+        fontStyle: 'bold', 
+        fontSize: 8.5, 
+        halign: 'center',
+        valign: 'middle'
+      },
+      bodyStyles: { 
+        textColor: [71, 85, 105],
+        lineColor: [241, 245, 249],
+      },
+      alternateRowStyles: {
+        fillColor: [248, 250, 252],
+      },
       columnStyles: {
-        0: { cellWidth: 'auto' },
-        1: { halign: 'center', cellWidth: 30 },
-        2: { halign: 'center', cellWidth: 30 }
+        0: { cellWidth: 'auto', halign: 'left' },
+        1: { halign: 'center', cellWidth: 20 },
+        2: { halign: 'center', cellWidth: 25 }
       },
       margin: { left: margin, right: margin },
       didDrawPage: (data) => {
@@ -1283,31 +1292,49 @@ const App: React.FC = () => {
       }
     });
 
-    // --- OBSERVATIONS ---
+    // 6. TECHNICAL OBSERVATIONS & REMARKS
+    const finalY = (doc as any).lastAutoTable.finalY || 120;
+    let obsY = finalY + 12;
+
     if (budget.observations) {
-      const finalY = (doc as any).lastAutoTable.finalY;
-      let obsY = finalY + 15;
-      if (obsY + 40 > pageHeight) { doc.addPage(); obsY = 30; }
+      if (obsY + 28 > pageHeight) {
+        doc.addPage();
+        obsY = 25;
+      }
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(15, obsY - 4, usableWidth, 22, 1.5, 1.5, 'F');
       
-      doc.setFont('helvetica', 'bold').setFontSize(10).setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), margin, obsY);
-      doc.setFont('helvetica', 'normal').setFontSize(9).setTextColor(71, 85, 105);
-      const lines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth);
-      doc.text(lines, margin, obsY + 7);
+      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.rect(15, obsY - 4, 1.2, 22, 'F');
+      
+      doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 20, obsY);
+      
+      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
+      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth - 10);
+      doc.text(obsLines, 20, obsY + 5);
+      
+      obsY += 26;
     }
 
-    // --- SIGNATURE FIELD ---
-    const lastY = (doc as any).lastAutoTable.finalY + 40;
-    let sigY = lastY;
-    if (sigY + 30 > pageHeight) { doc.addPage(); sigY = 40; }
+    // 7. SIGNATURE FIELD (Ultra-Elegant Bottom Side-By-Side Divider Cards)
+    let sigY = obsY + 14;
+    if (sigY + 36 > pageHeight) { 
+      doc.addPage(); 
+      sigY = 35; 
+    }
     
-    doc.setDrawColor(203, 213, 225).setLineWidth(0.5);
-    doc.line(margin, sigY, margin + 70, sigY);
-    doc.line(pageWidth - margin - 70, sigY, pageWidth - margin, sigY);
+    doc.setDrawColor(226, 232, 240).setLineWidth(0.4);
+    doc.line(margin + 5, sigY, margin + 70, sigY);
+    doc.line(pageWidth - margin - 70, sigY, pageWidth - margin - 5, sigY);
     
-    doc.setFontSize(8).setTextColor(148, 163, 184);
-    doc.text("Assinatura do Técnico", margin + 35, sigY + 5, { align: 'center' });
-    doc.text("Assinatura do Cliente", pageWidth - margin - 35, sigY + 5, { align: 'center' });
+    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
+    doc.text("ASSINATURA DO TÉCNICO", margin + 37.5, sigY + 5, { align: 'center' });
+    doc.text("ASSINATURA DO CLIENTE", pageWidth - margin - 37.5, sigY + 5, { align: 'center' });
+
+    doc.setFont('helvetica', 'normal').setFontSize(6).setTextColor(148, 163, 184);
+    doc.text("Declaro a realização conforme os padrões técnicos", margin + 37.5, sigY + 8.5, { align: 'center' });
+    doc.text("Declaro a conformidade e recebimento dos serviços", pageWidth - margin - 37.5, sigY + 8.5, { align: 'center' });
 
     doc.save(`OS_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     
