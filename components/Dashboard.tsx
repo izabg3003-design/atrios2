@@ -81,9 +81,17 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
   }, [budgets, currencyInfo, locale, t]);
 
   const pieData = useMemo(() => {
-    const approved = budgets.filter(b => b.status === BudgetStatus.APPROVED || b.status === BudgetStatus.COMPLETED).length;
-    const pending = budgets.filter(b => b.status === BudgetStatus.PENDING).length;
-    const rejected = budgets.filter(b => b.status === BudgetStatus.REJECTED).length;
+    const approvedVal = budgets
+      .filter(b => b.status === BudgetStatus.APPROVED || b.status === BudgetStatus.COMPLETED)
+      .reduce((sum, b) => sum + (b.totalAmount || 0), 0) * currencyInfo.rate;
+
+    const pendingVal = budgets
+      .filter(b => b.status === BudgetStatus.PENDING)
+      .reduce((sum, b) => sum + (b.totalAmount || 0), 0) * currencyInfo.rate;
+
+    const rejectedVal = budgets
+      .filter(b => b.status === BudgetStatus.REJECTED)
+      .reduce((sum, b) => sum + (b.totalAmount || 0), 0) * currencyInfo.rate;
 
     if (budgets.length === 0) {
       return [
@@ -94,11 +102,79 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
     }
 
     return [
-      { name: t.statusApproved, value: approved, color: '#10b981' },
-      { name: t.statusPending, value: pending, color: '#f59e0b' },
-      { name: t.statusRejected, value: rejected, color: '#ef4444' },
+      { name: t.statusApproved, value: approvedVal, color: '#10b981' },
+      { name: t.statusPending, value: pendingVal, color: '#f59e0b' },
+      { name: t.statusRejected, value: rejectedVal, color: '#ef4444' },
     ];
-  }, [budgets, t]);
+  }, [budgets, currencyInfo, t]);
+
+  const { totalBudgetVolume, rejectionRate, approvalRate, totalBudgetsCount } = useMemo(() => {
+    const totalVolume = budgets.reduce((sum, b) => sum + (b.totalAmount || 0), 0) * currencyInfo.rate;
+    const totalCount = budgets.length;
+    const rejectedCount = budgets.filter(b => b.status === BudgetStatus.REJECTED).length;
+    const approvedCount = budgets.filter(b => b.status === BudgetStatus.APPROVED || b.status === BudgetStatus.COMPLETED).length;
+    const rRate = totalCount > 0 ? (rejectedCount / totalCount) * 100 : 0;
+    const aRate = totalCount > 0 ? (approvedCount / totalCount) * 100 : 0;
+
+    return {
+      totalBudgetVolume: totalVolume,
+      rejectionRate: rRate,
+      approvalRate: aRate,
+      totalBudgetsCount: totalCount,
+    };
+  }, [budgets, currencyInfo]);
+
+  const localT = {
+    en: {
+      totalVolume: "Total Generated Volume",
+      rejectionRate: "Rejection Rate",
+      approvalRate: "Approval Rate",
+      totalEstimates: "Total Estimates"
+    },
+    pt: {
+      totalVolume: "Volume Total Gerado",
+      rejectionRate: "Taxa de Rejeição",
+      approvalRate: "Taxa de Aprovação",
+      totalEstimates: "Total de Orçamentos"
+    },
+    es: {
+      totalVolume: "Volumen Total Generado",
+      rejectionRate: "Tasa de Rechazo",
+      approvalRate: "Tasa de Aprobación",
+      totalEstimates: "Total de Presupuestos"
+    },
+    fr: {
+      totalVolume: "Volume Total Généré",
+      rejectionRate: "Taux de Rejet",
+      approvalRate: "Taux d'Approbation",
+      totalEstimates: "Total des Devis"
+    },
+    it: {
+      totalVolume: "Volume Totale Generato",
+      rejectionRate: "Tasso di Rifiuto",
+      approvalRate: "Tasso di Approvazione",
+      totalEstimates: "Totale Preventivi"
+    },
+    ru: {
+      totalVolume: "Общий объем",
+      rejectionRate: "Доля отказов",
+      approvalRate: "Доля одобрений",
+      totalEstimates: "Всего смет"
+    },
+    hi: {
+      totalVolume: "कुल मात्रा",
+      rejectionRate: "अस्वीकृति दर",
+      approvalRate: "स्वीकृति दर",
+      totalEstimates: "कुल अनुमान"
+    },
+    bn: {
+      totalVolume: "মোট ভলিউম",
+      rejectionRate: "প্রত্যাখ্যানের হার",
+      approvalRate: "অনুমোদনের হার",
+      totalEstimates: "মোট হিসাব"
+    }
+  };
+  const dLocal = localT[locale] || localT.en;
 
   return (
     <div className="space-y-6 lg:space-y-8 animate-in fade-in duration-700">
@@ -155,6 +231,28 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
               <TrendingUp size={18} className="text-blue-500 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
               {t.volumeChartTitle}
             </h3>
+
+            <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-slate-50 p-3 sm:p-4 rounded-2xl mb-6">
+              <div>
+                <p className="text-[7.5px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight truncate">{dLocal.totalVolume}</p>
+                <p className="text-xs sm:text-sm lg:text-base font-black text-slate-800 tracking-tight truncate mt-0.5">
+                  {totalBudgetVolume.toLocaleString(locale, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 })}
+                </p>
+              </div>
+              <div className="border-x border-slate-200 px-2 sm:px-4">
+                <p className="text-[7.5px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight truncate">{dLocal.rejectionRate}</p>
+                <p className="text-xs sm:text-sm lg:text-base font-black text-rose-500 tracking-tight truncate mt-0.5">
+                  {rejectionRate.toFixed(1)}%
+                </p>
+              </div>
+              <div className="pl-1 sm:pl-2">
+                <p className="text-[7.5px] sm:text-[9px] font-black text-slate-400 uppercase tracking-tight truncate">{dLocal.approvalRate}</p>
+                <p className="text-xs sm:text-sm lg:text-base font-black text-emerald-600 tracking-tight truncate mt-0.5">
+                  {approvalRate.toFixed(1)}%
+                </p>
+              </div>
+            </div>
+
             <div className="h-[200px] sm:h-[250px] lg:h-[300px]">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
@@ -200,17 +298,24 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
                     ))}
                   </Pie>
                   <Tooltip 
+                    formatter={(value: any) => [value.toLocaleString(locale, { style: 'currency', currency: currencyCode }), ""]}
                     contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)', padding: '8px', fontWeight: 'bold', fontSize: '10px'}}
                   />
                 </PieChart>
               </ResponsiveContainer>
-              <div className="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-8 mt-4">
-                {pieData.map(d => (
-                  <div key={d.name} className="flex items-center gap-2 lg:gap-3">
-                    <div className="w-2 h-2 rounded-full" style={{backgroundColor: d.color}}></div>
-                    <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{d.name}</span>
-                  </div>
-                ))}
+              <div className="flex flex-wrap justify-center gap-3 sm:gap-4 lg:gap-6 mt-4">
+                {pieData.map(d => {
+                  const totalValue = pieData.reduce((acc, curr) => acc + curr.value, 0);
+                  const percentage = totalValue > 0 ? ((d.value / totalValue) * 100).toFixed(0) : '0';
+                  return (
+                    <div key={d.name} className="flex items-center gap-2">
+                      <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{backgroundColor: d.color}}></div>
+                      <span className="text-[8px] sm:text-[10px] font-extrabold text-slate-500 uppercase tracking-tight">
+                        {d.name}: <span className="text-slate-800">{d.value.toLocaleString(locale, { style: 'currency', currency: currencyCode, maximumFractionDigits: 0 })}</span> ({percentage}%)
+                      </span>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>

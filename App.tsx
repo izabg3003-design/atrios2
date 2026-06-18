@@ -87,6 +87,43 @@ import WelcomeScreen from './components/WelcomeScreen';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
+const triggerPushNotificationSubmit = (title: string, body: string) => {
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported by this browser.');
+    return;
+  }
+  
+  if (Notification.permission === 'granted') {
+    const options = {
+      body,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [200, 100, 200],
+      tag: 'atrios-client-push',
+      renotify: true
+    };
+    
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.showNotification(title, options);
+      }).catch((e) => {
+        console.error('SW ready failed, fallback to standard Notification', e);
+        try {
+          new Notification(title, options);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      try {
+        new Notification(title, options);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+};
+
 const getPdfColors = (template: string = 'default') => {
   switch (template) {
     case 'blue_modern':
@@ -486,6 +523,10 @@ const App: React.FC = () => {
                 if (newMessage.senderRole === 'master' && !newMessage.read && payload.eventType === 'INSERT') {
                   setShowNewMessageAlert(true);
                   setTimeout(() => setShowNewMessageAlert(false), 8000);
+                  triggerPushNotificationSubmit(
+                    "Nova Mensagem do Suporte 💬",
+                    newMessage.content
+                  );
                 }
               } else {
                 if (JSON.stringify(allMsgs[idx]) !== JSON.stringify(newMessage)) {
@@ -824,7 +865,7 @@ const App: React.FC = () => {
     // 3. HEADER: BUDGET INFO CARD (RIGHT)
     const cardX = 135;
     const cardW = 60;
-    const cardH = 36;
+    const cardH = 40;
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
     doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
@@ -836,7 +877,10 @@ const App: React.FC = () => {
 
     // Box content
     doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text(normalizeForPdf(pdfT.budgetSingle.toUpperCase()), cardX + 5, 18);
+    const pdfDocTitle = (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED)
+      ? pdfT.orderSingle
+      : pdfT.budgetSingle;
+    doc.text(normalizeForPdf(pdfDocTitle.toUpperCase()), cardX + 5, 18);
 
     doc.setFont('text', 'bold').setFontSize(11).setTextColor(15, 23, 42);
     doc.text(`#${budget.id.toUpperCase()}`, cardX + 5, 24.5);
@@ -847,12 +891,28 @@ const App: React.FC = () => {
       doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, cardX + 5, 36.5);
     }
 
+    // Status Field
+    const statusY = budget.validity ? 42 : 36.5;
+    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.statusLabel)}:`, cardX + 5, statusY);
+    
+    const statusText = normalizeForPdf(getTranslatedStatus(budget.status));
+    if (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED) {
+      doc.setFont('helvetica', 'bold').setTextColor(16, 185, 129);
+    } else if (budget.status === BudgetStatus.REJECTED) {
+      doc.setFont('helvetica', 'bold').setTextColor(239, 68, 68);
+    } else {
+      doc.setFont('helvetica', 'bold').setTextColor(245, 158, 11);
+    }
+    doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
+    doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+
     // Embed QR code cleanly as integral UI element
     if (company.qrCode && company.qrCode.length > 50) {
       try {
         const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.qrCode, qrFormat, cardX + 41, 14, 15, 15, undefined, 'FAST');
-        doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 48.5, 31.5, { align: 'center' });
+        doc.addImage(company.qrCode, qrFormat, cardX + 38, 16.5, 14, 14, undefined, 'FAST');
+        doc.setFontSize(5.5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 45, 33.5, { align: 'center' });
       } catch (err) {}
     }
 
@@ -999,39 +1059,20 @@ const App: React.FC = () => {
     let leftY = sumY;
 
     if (budget.observations) {
+      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), 101);
+      const obsHeight = (obsLines.length * 4.5) + 10;
+      
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, leftY - 4, 110, 22, 1.5, 1.5, 'F');
+      doc.roundedRect(15, leftY - 4, 110, obsHeight, 1.5, 1.5, 'F');
       
       doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(15, leftY - 4, 1.2, 22, 'F');
+      doc.rect(15, leftY - 4, 1.2, obsHeight, 'F');
       
-      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+      doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 19, leftY);
       
       doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
-      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), 101);
       doc.text(obsLines, 19, leftY + 4.5);
-      
-      leftY += 25;
-    }
-
-    if (budget.paymentMethod) {
-      if (leftY + 15 > pageHeight) {
-        doc.addPage();
-        leftY = 25;
-      }
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, leftY - 4, 110, 18, 1.5, 1.5, 'F');
-      
-      doc.setFillColor(100, 116, 139);
-      doc.rect(15, leftY - 4, 1.2, 18, 'F');
-      
-      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), 19, leftY);
-      
-      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(71, 85, 105);
-      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 101);
-      doc.text(pmLines, 19, leftY + 4.5);
     }
 
     // --- RIGHT COLUMN: CONCISE TOTALS (x=135, width=60) ---
@@ -1062,8 +1103,30 @@ const App: React.FC = () => {
     doc.setFont('helvetica', 'bold').setFontSize(12.5).setTextColor(255, 255, 255);
     doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 189, rightY + 9.2, { align: 'right' });
 
+    rightY += 14;
+
+    if (budget.paymentMethod) {
+      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 52);
+      const pmHeight = (pmLines.length * 4.5) + 10;
+      const pmY = rightY + 6;
+      
+      doc.setFillColor(248, 250, 252);
+      doc.roundedRect(135, pmY - 4, 60, pmHeight, 1.5, 1.5, 'F');
+      
+      doc.setFillColor(100, 116, 139);
+      doc.rect(135, pmY - 4, 1.2, pmHeight, 'F');
+      
+      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(15, 23, 42);
+      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), 139, pmY);
+      
+      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(71, 85, 105);
+      doc.text(pmLines, 139, pmY + 4.5);
+    }
+
     // 7. SAVE THE CORRESPONDING DOCUMENT
-    doc.save(`Atrios_Budget_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
+    const isApproved = budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED;
+    const fileNamePrefix = isApproved ? 'Atrios_Pedido' : 'Atrios_Orcamento';
+    doc.save(`${fileNamePrefix}_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     
     // Tracking Event Context
     if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
@@ -1144,7 +1207,7 @@ const App: React.FC = () => {
     // 3. HEADER: OS DETAILS CARD (RIGHT)
     const cardX = 135;
     const cardW = 60;
-    const cardH = 36;
+    const cardH = 40;
     doc.setFillColor(248, 250, 252);
     doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
     doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
@@ -1164,12 +1227,28 @@ const App: React.FC = () => {
     doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
     doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date().toLocaleDateString(locale)}`, cardX + 5, 31);
 
+    // Status Field
+    const statusY = 36.5;
+    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
+    doc.text(`${normalizeForPdf(pdfT.statusLabel)}:`, cardX + 5, statusY);
+    
+    const statusText = normalizeForPdf(getTranslatedStatus(budget.status));
+    if (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED) {
+      doc.setFont('helvetica', 'bold').setTextColor(16, 185, 129);
+    } else if (budget.status === BudgetStatus.REJECTED) {
+      doc.setFont('helvetica', 'bold').setTextColor(239, 68, 68);
+    } else {
+      doc.setFont('helvetica', 'bold').setTextColor(245, 158, 11);
+    }
+    doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
+    doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
+
     // Embed QR code cleanly as integral UI element
     if (company.qrCode && company.qrCode.length > 50) {
       try {
         const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.qrCode, qrFormat, cardX + 41, 14, 15, 15, undefined, 'FAST');
-        doc.setFontSize(5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 48.5, 31.5, { align: 'center' });
+        doc.addImage(company.qrCode, qrFormat, cardX + 38, 16.5, 14, 14, undefined, 'FAST');
+        doc.setFontSize(5.5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 45, 33.5, { align: 'center' });
       } catch (err) {}
     }
 
@@ -1297,24 +1376,26 @@ const App: React.FC = () => {
     let obsY = finalY + 12;
 
     if (budget.observations) {
-      if (obsY + 28 > pageHeight) {
+      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth - 10);
+      const obsHeight = (obsLines.length * 4.5) + 10;
+      
+      if (obsY + obsHeight + 6 > pageHeight) {
         doc.addPage();
         obsY = 25;
       }
       doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, obsY - 4, usableWidth, 22, 1.5, 1.5, 'F');
+      doc.roundedRect(15, obsY - 4, usableWidth, obsHeight, 1.5, 1.5, 'F');
       
       doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(15, obsY - 4, 1.2, 22, 'F');
+      doc.rect(15, obsY - 4, 1.2, obsHeight, 'F');
       
       doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
       doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 20, obsY);
       
       doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
-      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth - 10);
       doc.text(obsLines, 20, obsY + 5);
       
-      obsY += 26;
+      obsY += obsHeight + 6;
     }
 
     // 7. SIGNATURE FIELD (Ultra-Elegant Bottom Side-By-Side Divider Cards)
@@ -2251,7 +2332,7 @@ const App: React.FC = () => {
                       </div>
                       <div>
                         <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-2">{t.landingContactEmail}</p>
-                        <a href="mailto:atriossoftware@gmail.com" className="text-xl font-black text-amber-600 hover:text-amber-500 transition-colors">atriossoftware@gmail.com</a>
+                        <a href="mailto:software.atrios@gmail.com" className="text-xl font-black text-amber-600 hover:text-amber-500 transition-colors">software.atrios@gmail.com</a>
                       </div>
                     </div>
                   </div>
@@ -2307,7 +2388,7 @@ const App: React.FC = () => {
                   <div className="flex items-center gap-8 text-[10px] font-black uppercase tracking-widest text-slate-400">
                     <button onClick={() => setShowLegalModal('terms')} className="hover:text-slate-900 transition-colors">{t.termsOfService}</button>
                     <button onClick={() => setShowLegalModal('privacy')} className="hover:text-slate-900 transition-colors">{t.privacyPolicy}</button>
-                    <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
+                    <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900 transition-colors">{t.landingFooterSupport}</a>
                   </div>
                   <div className="flex items-center gap-4 border-l border-slate-100 pl-6">
                     <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="text-slate-400 hover:text-blue-600 transition-colors">
@@ -2445,9 +2526,9 @@ const App: React.FC = () => {
 
               <div className="pt-6 border-t border-slate-100">
                 <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3">{t.orContactSupport}</p>
-                <a href="mailto:atriossoftware@gmail.com" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
+                <a href="mailto:software.atrios@gmail.com" className="inline-flex items-center gap-2 px-4 py-2 bg-slate-50 border border-slate-100 rounded-xl text-[10px] font-black uppercase tracking-widest text-slate-600 hover:bg-slate-100 transition-all">
                    <Mail size={12} className="text-amber-500" />
-                   atriossoftware@gmail.com
+                   software.atrios@gmail.com
                 </a>
               </div>
             </div>

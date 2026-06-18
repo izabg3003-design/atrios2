@@ -5,6 +5,7 @@ export interface Translation {
   dashboard: string;
   budgets: string;
   budgetSingle: string;
+  orderSingle: string;
   clients: string;
   settings: string;
   logout: string;
@@ -472,6 +473,7 @@ const enUS: Translation = {
   dashboard: "Dashboard",
   budgets: "Estimates",
   budgetSingle: "Estimate",
+  orderSingle: "Order",
   clients: "Clients",
   settings: "Settings",
   logout: "Logout",
@@ -878,7 +880,7 @@ Data is processed solely to provide the service, manage subscriptions, and compl
 We share data with Stripe (payment processing) and Supabase (secure data storage). We do not sell your data to third parties.
 
 5. YOUR RIGHTS
-Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at atriossoftware@gmail.com to exercise these rights.`,
+Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at software.atrios@gmail.com to exercise these rights.`,
   budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
   forgotPassword: "Forgot Password?",
   resetPasswordTitle: "Reset Password",
@@ -964,6 +966,7 @@ const ptPT: Translation = {
   dashboard: "Painel de Bordo",
   budgets: "Orçamentos",
   budgetSingle: "Orçamento",
+  orderSingle: "Pedido",
   clients: "Clientes",
   settings: "Definições",
   logout: "Sair",
@@ -1370,7 +1373,7 @@ Os dados são processados exclusivamente para fornecer o serviço, gerir subscri
 Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazenamento seguro de dados). Não vendemos os seus dados a terceiros.
 
 5. OS SEUS DIREITOS
-Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em atriossoftware@gmail.com para exercer estes direitos.`,
+Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em software.atrios@gmail.com para exercer estes direitos.`,
   budgetLimitReached: "Limite de orçamentos atingido no plano gratuito! Atualize para um plano pago para continuar a criar orçamentos profissionais.",
   forgotPassword: "Esqueceu-se da palavra-passe?",
   resetPasswordTitle: "Recuperar Palavra-passe",
@@ -1475,6 +1478,7 @@ const frFR: Translation = {
   dashboard: "Tableau de Bord",
   budgets: "Devis",
   budgetSingle: "Devis",
+  orderSingle: "Commande",
   clients: "Clients",
   settings: "Paramètres",
   logout: "Déconnexion",
@@ -1941,6 +1945,7 @@ const itIT: Translation = {
   dashboard: "Dashboard",
   budgets: "Preventivi",
   budgetSingle: "Preventivo",
+  orderSingle: "Ordine",
   clients: "Clienti",
   settings: "Impostazioni",
   logout: "Esci",
@@ -2407,6 +2412,7 @@ const esES: Translation = {
   dashboard: "Panel",
   budgets: "Presupuestos",
   budgetSingle: "Presupuesto",
+  orderSingle: "Pedido",
   clients: "Clientes",
   settings: "Ajustes",
   logout: "Salir",
@@ -2813,7 +2819,7 @@ Los datos se procesan exclusivamente para proporcionar el servicio, gestionar su
 Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento seguro de datos). No vendemos sus datos a terceros.
 
 5. SUS DERECHOS
-Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en atriossoftware@gmail.com para ejercer estos derechos.`,
+Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en software.atrios@gmail.com para ejercer estos derechos.`,
   budgetLimitReached: "Límite de presupuestos alcanzado en el plan gratuito! Actualiza a Premium para continuar.",
   forgotPassword: "¿Olvidó su contraseña?",
   resetPasswordTitle: "Recuperar Contraseña",
@@ -2897,6 +2903,7 @@ const ruRU: Translation = {
   dashboard: "Панель",
   budgets: "Сметы",
   budgetSingle: "Смета",
+  orderSingle: "Заказ",
   clients: "Клиенты",
   settings: "Настройки",
   logout: "Выход",
@@ -3363,6 +3370,7 @@ const hiIN: Translation = {
   dashboard: "डैशबोर्ड",
   budgets: "अनुमान",
   budgetSingle: "अनुमान",
+  orderSingle: "ऑर्डर",
   clients: "ग्राहक",
   settings: "सेटिंग्स",
   logout: "लॉगआउट",
@@ -3827,6 +3835,7 @@ const bnBD: Translation = {
   dashboard: "ড্যাশবোর্ড",
   budgets: "হিসাব",
   budgetSingle: "হিসাব",
+  orderSingle: "অর্ডার",
   clients: "ক্লায়েন্ট",
   settings: "সেটিংস",
   logout: "লগআউট",

@@ -18,6 +18,29 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
   const [newMessage, setNewMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  const [notifyPermission, setNotifyPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+
+  const requestPermission = async () => {
+    if (!('Notification' in window)) return;
+    const res = await Notification.requestPermission();
+    setNotifyPermission(res);
+    if (res === 'granted') {
+      const options = {
+        body: "Notificações do suporte ativadas! Você será avisado quando respondermos. 📞",
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        vibrate: [250, 150, 250]
+      };
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then(reg => reg.showNotification("Átrios Suporte", options));
+      } else {
+        new Notification("Átrios Suporte", options);
+      }
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -69,6 +92,29 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 lg:p-6 space-y-4 no-scrollbar bg-slate-50/50">
+        {notifyPermission === 'default' && (
+          <div className="bg-amber-500/10 border border-amber-500/10 p-4 rounded-2xl flex items-start gap-4 animate-in fade-in slide-in-from-top-4 duration-300">
+            <div className="w-10 h-10 rounded-xl overflow-hidden bg-white flex items-center justify-center p-1 shrink-0 shadow-sm border border-slate-100">
+              <img src="/favicon.svg" alt="Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            </div>
+            <div className="flex-1">
+              <p className="text-[11px] font-black text-slate-800 leading-tight">
+                Receber Alertas com Logo 🏗️
+              </p>
+              <p className="text-[10px] text-slate-500 mt-1 leading-snug">
+                Ative as notificações para receber avisos do suporte em tempo real com logotipo.
+              </p>
+              <button 
+                type="button"
+                onClick={requestPermission}
+                className="mt-2.5 px-3 py-1.5 bg-slate-900 hover:bg-slate-800 text-white font-black text-[9px] uppercase tracking-wider rounded-lg transition-all active:scale-95 shadow-sm"
+              >
+                Ativar Alertas
+              </button>
+            </div>
+          </div>
+        )}
+
         {companyMessages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center space-y-4">
              <div className="w-16 h-16 bg-slate-100 text-slate-300 rounded-3xl flex items-center justify-center">

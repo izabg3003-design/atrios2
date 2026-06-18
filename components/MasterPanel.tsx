@@ -34,6 +34,7 @@ import {
   Download,
   Globe,
   ShoppingBag,
+  Smartphone,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -78,6 +79,43 @@ import { supabase, testTableAccess, safeFetch } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
+const triggerPushNotificationSubmit = (title: string, body: string) => {
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported by this browser.');
+    return;
+  }
+  
+  if (Notification.permission === 'granted') {
+    const options = {
+      body,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [200, 100, 200],
+      tag: 'atrios-master-push',
+      renotify: true
+    };
+    
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.showNotification(title, options);
+      }).catch((e) => {
+        console.error('SW ready failed, fallback to standard Notification', e);
+        try {
+          new Notification(title, options);
+        } catch (err) {
+          console.error(err);
+        }
+      });
+    } else {
+      try {
+        new Notification(title, options);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+  }
+};
+
 interface MasterPanelProps {
   onLogout: () => void;
   locale: Locale;
@@ -110,6 +148,38 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
   
+  const [pushPermission, setPushPermission] = useState<NotificationPermission>(
+    'Notification' in window ? Notification.permission : 'denied'
+  );
+
+  const requestPushPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('O seu telemóvel ou navegador não suporta notificações nativas.');
+      return;
+    }
+    const perm = await Notification.requestPermission();
+    setPushPermission(perm);
+    if (perm === 'granted') {
+      triggerPushNotificationSubmit(
+        "Átrios App",
+        "Perfeito! Notificações com o logo oficial da Átrios ativadas com sucesso. 🎉"
+      );
+    } else if (perm === 'denied') {
+      alert('As notificações foram negadas. Se desejar receber avisos de cadastro, por favor ative-as nas definições de segurança do seu telemóvel ou navegador.');
+    }
+  };
+
+  const testPushNotification = () => {
+    if (pushPermission !== 'granted') {
+      requestPushPermission();
+      return;
+    }
+    triggerPushNotificationSubmit(
+      "Teste de Notificação 🏗️",
+      "Esta é uma demonstração de como as notificações com o logotipo oficial do Átrios aparecem no seu telemóvel!"
+    );
+  };
+
   const prevUnlockCount = useRef(0);
   const prevUnreadCount = useRef(0);
   const companiesRef = useRef<Company[]>([]);
@@ -300,6 +370,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
                   setLastMessageAlert({ name: sender.name, content: newMessage.content });
                 }
+                const senderName = sender ? sender.name : "Cliente";
+                triggerPushNotificationSubmit(
+                  `Mensagem de ${senderName} 💬`,
+                  newMessage.content
+                );
               }
             } else {
               if (JSON.stringify(allMsgs[existingIdx]) !== JSON.stringify(newMessage)) {
@@ -349,6 +424,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               const old = companies[idx];
               if (!old.unlockRequested && updatedCompany.unlockRequested) {
                 setLastUnlockAlert(updatedCompany.name);
+                triggerPushNotificationSubmit(
+                  "Acesso Solicitado 🔑",
+                  `A empresa ${updatedCompany.name} solicitou o desbloqueio da sua conta.`
+                );
               }
               if (JSON.stringify(old) !== JSON.stringify(updatedCompany)) {
                 companies[idx] = updatedCompany;
@@ -357,6 +436,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             } else {
               companies.push(updatedCompany);
               changed = true;
+              if (payload.eventType === 'INSERT') {
+                triggerPushNotificationSubmit(
+                  "Novo Cadastro de Usuário! 👤",
+                  `A empresa "${updatedCompany.name}" acabou de se registar no Átrios App!`
+                );
+              }
             }
           } else if (payload.eventType === 'DELETE') {
             const idx = companies.findIndex(c => c.id === updatedCompany.id);
@@ -1139,7 +1224,113 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         )}
 
         {activeTab === 'notifications' && (
-          <div className="space-y-10 animate-in fade-in"><div className="flex justify-center"><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl"><h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2><div className="space-y-6"><label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">{imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}<input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} /></label><div className="grid grid-cols-2 gap-3">{['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (<button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>))}</div><button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button></div></div></div><div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8"><h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2><div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">{activeNotifications.length === 0 ? (<div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>) : (activeNotifications.map(n => (<div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative"><div className="aspect-video w-full relative"><img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" /><div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center"><button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button></div></div><div className="p-4 flex justify-between items-center bg-white/5"><span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span><span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.createdAt).toLocaleDateString(locale)}</span></div></div>)))}</div></div></div>
+          <div className="space-y-10 animate-in fade-in">
+            <div className="flex justify-center">
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl">
+                <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase"><Bell size={28} /> {t.newAdBanner}</h2>
+                <div className="space-y-6">
+                  <label className="relative border-4 border-dashed border-white/10 rounded-[2rem] p-10 flex flex-col items-center justify-center gap-4 cursor-pointer hover:bg-white/5 transition-all overflow-hidden h-64">
+                    {imagePreview ? <img src={imagePreview} className="absolute inset-0 w-full h-full object-cover opacity-60" /> : <div className="flex flex-col items-center"><Upload size={32} className="text-slate-400 mb-2" /><span className="text-xs font-black uppercase">{t.masterUploadClick}</span></div>}
+                    <input type="file" className="hidden" accept="image/*" onChange={handleImageUpload} />
+                  </label>
+                  <div className="grid grid-cols-2 gap-3">
+                    {['all', 'free', 'premium_monthly', 'premium_annual', 'all_premium', 'monthly_purchase', 'annual_purchase'].map(aud => (
+                      <button key={aud} onClick={() => setTargetAudience(aud as AudienceType)} className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border ${targetAudience === aud ? 'bg-amber-50 border-amber-500 text-slate-950' : 'bg-white/5 border-white/10 text-slate-400'}`}>{getAudienceLabel(aud as AudienceType)}</button>
+                    ))}
+                  </div>
+                  <button onClick={saveConfig} className="w-full py-5 bg-emerald-600 text-white rounded-[1.5rem] font-black text-lg hover:bg-emerald-500 shadow-xl flex items-center justify-center gap-3 uppercase"><CheckCircle size={22} /> {t.masterSaveActivate}</button>
+                </div>
+              </div>
+            </div>
+
+            {/* Seção de Notificações Push no Telemóvel */}
+            <div className="flex justify-center mt-10">
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8 w-full max-w-2xl relative overflow-hidden group">
+                <div className="absolute -top-24 -right-24 w-48 h-48 bg-amber-500/10 blur-[80px] rounded-full group-hover:bg-amber-500/20 transition-all duration-700" />
+                
+                <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
+                  <Smartphone size={28} /> Notificações no Telemóvel
+                </h2>
+                
+                <div className="space-y-6">
+                  <div className="bg-white/5 p-6 rounded-2xl border border-white/5 flex items-center gap-4">
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white flex items-center justify-center p-1.5 shrink-0 shadow-lg border border-white/10">
+                      <img src="/favicon.svg" alt="App Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    </div>
+                    <div>
+                      <h3 className="font-extrabold text-sm text-slate-200">Alertas em Tempo Real com Logotipo</h3>
+                      <p className="text-xs text-slate-400 mt-1">
+                        Receba notificações diretamente na tela de bloqueio do seu telemóvel quando houver novos cadastros e mensagens de suporte com o logotipo oficial do Átrios.
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between py-4 border-y border-white/5">
+                    <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Estado das Permissões</span>
+                    <span className={`px-4 py-1.5 rounded-full text-[10px] font-black uppercase tracking-tight ${
+                      pushPermission === 'granted' ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20' : 
+                      pushPermission === 'denied' ? 'bg-rose-500/10 text-rose-400 border border-rose-500/20' : 
+                      'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                    }`}>
+                      {pushPermission === 'granted' ? 'Ativo ✅' : 
+                       pushPermission === 'denied' ? 'Bloqueado ⚠️' : 
+                       'Não Configurado 🔔'}
+                    </span>
+                  </div>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button
+                      onClick={requestPushPermission}
+                      className="py-4 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase hover:bg-amber-400 flex items-center justify-center gap-2 tracking-widest transition-all shadow-lg active:scale-95"
+                    >
+                      <Smartphone size={16} /> Ativar no Telemóvel
+                    </button>
+                    <button
+                      onClick={testPushNotification}
+                      disabled={pushPermission !== 'granted'}
+                      className={`py-4 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 tracking-widest transition-all ${
+                        pushPermission === 'granted' 
+                          ? 'bg-white/10 border border-white/10 text-white hover:bg-white/15 cursor-pointer' 
+                          : 'bg-white/5 border border-transparent text-slate-600 cursor-not-allowed'
+                      }`}
+                    >
+                      <Zap size={16} /> Testar Notificação
+                    </button>
+                  </div>
+
+                  {pushPermission !== 'granted' && (
+                    <p className="text-[10px] text-slate-500 text-center uppercase font-bold mt-2">
+                      Nota: Certifique-se de que instalou o aplicativo (PWA) no seu telemóvel para receber notificações em segundo plano!
+                    </p>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8">
+              <h2 className="text-2xl font-black italic flex items-center gap-3 text-blue-400 uppercase"><Bell size={28} /> {t.activeBanners}</h2>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {activeNotifications.length === 0 ? (
+                  <div className="col-span-full py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">{t.noActiveBanners}</div>
+                ) : (
+                  activeNotifications.map(n => (
+                    <div key={n.id} className="bg-white/5 border border-white/10 rounded-[2rem] overflow-hidden group relative">
+                      <div className="aspect-video w-full relative">
+                        <img src={n.imageUrl} className="w-full h-full object-cover" alt="Banner" />
+                        <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                          <button onClick={() => removeNotification(n.id)} className="p-4 bg-red-500 text-white rounded-full hover:scale-110 transition-transform"><Trash2 size={24} /></button>
+                        </div>
+                      </div>
+                      <div className="p-4 flex justify-between items-center bg-white/5">
+                        <span className="text-[10px] font-black uppercase text-amber-500">{getAudienceLabel(n.targetAudience)}</span>
+                        <span className="text-[10px] font-black uppercase text-slate-500">{new Date(n.createdAt).toLocaleDateString(locale)}</span>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
         )}
 
         {activeTab === 'products' && (
