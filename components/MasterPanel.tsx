@@ -228,11 +228,39 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
     
     const masterEmails = ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'];
-    const allCompanies = cloudCompanies || getStoredCompanies().filter(c => !masterEmails.includes(c.email));
+    let allCompanies = cloudCompanies || getStoredCompanies().filter(c => !masterEmails.includes(c.email));
+    
+    // Check for expired subscriptions and downgrade them automatically in background
+    const nowTime = Date.now();
+    let updatedAny = false;
+    
+    const checkedCompanies = await Promise.all(allCompanies.map(async (company) => {
+      if (company.plan !== PlanType.FREE && company.subscriptionExpiresAt) {
+        const expiryDate = new Date(company.subscriptionExpiresAt);
+        if (expiryDate.getTime() < nowTime) {
+          console.log(`[MasterPanel] Auto-downgrade for ${company.name} (Expired ${company.subscriptionExpiresAt})`);
+          const updated = {
+            ...company,
+            plan: PlanType.FREE,
+            subscriptionExpiresAt: undefined,
+            canEditSensitiveData: false,
+            unlockRequested: false
+          };
+          await saveCompany(updated);
+          updatedAny = true;
+          return updated;
+        }
+      }
+      return company;
+    }));
+    
+    if (updatedAny) {
+      allCompanies = checkedCompanies;
+    }
     
     // Atualizar localStorage com os dados da nuvem
     if (cloudCompanies) {
-      safeSetItem('atrios_companies', JSON.stringify(cloudCompanies));
+      safeSetItem('atrios_companies', JSON.stringify(allCompanies));
     }
 
     // Alertas de Desbloqueio

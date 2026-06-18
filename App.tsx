@@ -210,6 +210,22 @@ const App: React.FC = () => {
     if (currentUser && currentUser.subscriptionExpiresAt && currentUser.plan !== PlanType.FREE) {
       const expiryDate = new Date(currentUser.subscriptionExpiresAt);
       const today = new Date();
+      
+      if (expiryDate.getTime() < today.getTime()) {
+        const updated = {
+          ...currentUser,
+          plan: PlanType.FREE,
+          subscriptionExpiresAt: undefined,
+          canEditSensitiveData: false,
+          unlockRequested: false
+        };
+        saveCompany(updated);
+        setCurrentUser(updated);
+        currentUserRef.current = updated;
+        alert("A sua subscrição mensal ou anual expirou. A sua conta foi revertida para o plano Grátis.");
+        return;
+      }
+
       const diffTime = expiryDate.getTime() - today.getTime();
       const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
       
