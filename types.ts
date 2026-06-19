@@ -160,6 +160,14 @@ export interface GlobalNotification {
   createdAt: string;
 }
 
+export interface PushNotification {
+  id: string;
+  title: string;
+  body: string;
+  targetAudience: AudienceType;
+  createdAt: string;
+}
+
 export interface CustomOrderItem {
   id: string;
   name: string;

@@ -49,7 +49,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification } from '../types';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -124,10 +124,23 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
+  
+  // Custom Push notifications composer states
+  const [pushTitle, setPushTitle] = useState('');
+  const [pushBody, setPushBody] = useState('');
+  const [pushAudience, setPushAudience] = useState<AudienceType>('all');
+  const [pushHistory, setPushHistory] = useState<PushNotification[]>(() => {
+    try {
+      const stored = localStorage.getItem('atrios_push_history');
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -648,6 +661,57 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setActiveNotifications(updated);
   };
 
+  const handleSendPush = () => {
+    if (!pushTitle.trim() || !pushBody.trim()) {
+      alert(locale === 'pt' ? 'Por favor, preencha o título e a mensagem!' : 'Please fill in both title and message!');
+      return;
+    }
+    
+    const newPush: PushNotification = {
+      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      title: pushTitle,
+      body: pushBody,
+      targetAudience: pushAudience,
+      createdAt: new Date().toISOString()
+    };
+    
+    // Broadcast real-time to online users!
+    const channel = supabase.channel('global-push-notifications');
+    channel.subscribe((status) => {
+      if (status === 'SUBSCRIBED') {
+        channel.send({
+          type: 'broadcast',
+          event: 'push',
+          payload: newPush
+        }).then(() => {
+          console.log('[MasterPanel] Real-time push broadcast sent.');
+          try {
+            supabase.removeChannel(channel);
+          } catch (e) {
+            console.error(e);
+          }
+        });
+      }
+    });
+
+    const updated = [newPush, ...pushHistory];
+    setPushHistory(updated);
+    safeSetItem('atrios_push_history', JSON.stringify(updated));
+    
+    setPushTitle('');
+    setPushBody('');
+    
+    alert(locale === 'pt' ? 'Notificação enviada com sucesso em tempo real com logotipo!' : 'Push notification successfully sent in real-time with logo!');
+  };
+
+  const handleTestLocalPush = () => {
+    if (!pushTitle.trim() || !pushBody.trim()) {
+      alert(locale === 'pt' ? 'Por favor, insira o título de teste e a mensagem!' : 'Please enter active title and message to test!');
+      return;
+    }
+    triggerPushNotificationSubmit(pushTitle, pushBody);
+  };
+
   const toggleUnlock = async (company: Company) => {
     const updated = { ...company, canEditSensitiveData: !company.canEditSensitiveData, unlockRequested: false };
     await saveCompany(updated);
@@ -1011,6 +1075,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'products', label: 'Produtos', icon: Package },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
+              { id: 'push', label: locale === 'pt' ? 'Disparar Push' : 'Send Push', icon: Smartphone },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                 <tab.icon size={16} /> {tab.label}
@@ -1356,6 +1421,170 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'push' && (
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in">
+            <div className="lg:col-span-2 space-y-10">
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8">
+                <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
+                  <Smartphone size={28} /> Disparar Alertas em Massa (Push)
+                </h2>
+                <div className="space-y-6">
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Título da Notificação</label>
+                    <input 
+                      type="text" 
+                      value={pushTitle} 
+                      onChange={e => setPushTitle(e.target.value)} 
+                      placeholder="Ex: Nova funcionalidade disponível! 🚀" 
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Corpo da Mensagem</label>
+                    <textarea 
+                      value={pushBody} 
+                      onChange={e => setPushBody(e.target.value)} 
+                      placeholder="Ex: Atualize o aplicativo PWA nos seus dispositivos para desfrutar da nova funcionalidade de orçamentos."
+                      rows={3}
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600 resize-none animate-in duration-300" 
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Público-Alvo das Notificações</label>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                      {[
+                        { id: 'all', label: 'Todos o Clientes' },
+                        { id: 'free', label: 'Plano Grátis' },
+                        { id: 'all_premium', label: 'Todos Premium' },
+                        { id: 'premium_monthly', label: 'Premium Mensal' }
+                      ].map(aud => (
+                        <button
+                          key={aud.id}
+                          type="button"
+                          onClick={() => setPushAudience(aud.id as AudienceType)}
+                          className={`px-4 py-3 rounded-xl font-black text-[10px] uppercase border transition-all ${
+                            pushAudience === aud.id 
+                              ? 'bg-amber-500 border-amber-500 text-slate-950 shadow-md shadow-amber-500/10' 
+                              : 'bg-white/5 border-white/10 text-slate-400 hover:bg-white/10'
+                          }`}
+                        >
+                          {aud.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <button 
+                      type="button"
+                      onClick={handleTestLocalPush}
+                      className="py-4.5 bg-white/10 hover:bg-white/15 border border-white/10 text-white rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 flex items-center justify-center gap-2"
+                    >
+                      <Zap size={16} /> {locale === 'pt' ? 'Testar no meu Ecrã' : 'Test on My Screen'}
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={handleSendPush}
+                      className="py-4.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2"
+                    >
+                      <Smartphone size={16} /> Disparar para os Telemóveis
+                    </button>
+                  </div>
+                </div>
+              </div>
+
+              {/* Histórico de Disparos */}
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-6">
+                <h3 className="text-xl font-black italic text-slate-300 uppercase flex items-center gap-2">
+                  <Bell size={20} /> Histórico de Campanhas Enviadas nesta Sessão
+                </h3>
+                
+                {pushHistory.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
+                    Nenhuma mensagem disparada recentemente.
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {pushHistory.map(hist => (
+                      <div key={hist.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                        <div>
+                          <p className="font-extrabold text-white text-sm">{hist.title}</p>
+                          <p className="text-slate-400 text-xs mt-1 leading-snug">{hist.body}</p>
+                        </div>
+                        <div className="flex sm:flex-col items-end gap-2 shrink-0">
+                          <span className="text-[9px] font-black px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase rounded-md">
+                            {getAudienceLabel(hist.targetAudience)}
+                          </span>
+                          <span className="text-[8px] font-bold text-slate-500 uppercase">
+                            {new Date(hist.createdAt).toLocaleTimeString(locale)} - {new Date(hist.createdAt).toLocaleDateString(locale)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+
+            {/* Simulador Phone Preview */}
+            <div className="lg:col-span-1">
+              <div className="bg-slate-900 border border-white/10 rounded-[4rem] p-6 shadow-2xl relative overflow-hidden h-[600px] flex flex-col">
+                {/* Speaker e Camera do Telemóvel */}
+                <div className="absolute top-4 left-1/2 -translate-x-1/2 w-32 h-6 bg-black rounded-full z-20 flex items-center justify-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-slate-800" />
+                  <div className="w-12 h-1 bg-slate-800 rounded-full" />
+                </div>
+
+                {/* Ecrã de Fundo */}
+                <div className="flex-1 rounded-[3rem] bg-gradient-to-b from-indigo-950 via-slate-950 to-slate-950 relative overflow-hidden p-6 flex flex-col justify-between pt-12">
+                  {/* Lockscreen Header Info */}
+                  <div className="text-center space-y-1">
+                    <p className="text-xs text-white/50 uppercase font-bold tracking-widest">{new Date().toLocaleDateString(locale, { weekday: 'long', day: 'numeric', month: 'long' })}</p>
+                    <p className="text-4xl font-extrabold text-white tracking-tighter">
+                      {new Date().toLocaleTimeString(locale, { hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+
+                  {/* Simulator Push Notification Notification Card */}
+                  <div className="flex-1 flex items-center justify-center">
+                    {(pushTitle || pushBody) ? (
+                      <div className="w-full bg-slate-900/90 border border-white/10 backdrop-blur-md rounded-2xl p-4 space-y-3 shadow-2xl animate-bounce">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-2">
+                            <div className="w-6 h-6 rounded-lg bg-white overflow-hidden p-0.5 border border-white/10 flex items-center justify-center shrink-0">
+                              <img src="/favicon.svg" alt="App Icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                            </div>
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-sans">Átrios App</span>
+                          </div>
+                          <span className="text-[9px] font-bold text-slate-500 uppercase">Agora mesmo</span>
+                        </div>
+                        <div>
+                          <p className="font-extrabold text-white text-xs tracking-tight line-clamp-1">{pushTitle || 'Título da Notificação'}</p>
+                          <p className="text-[10px] text-slate-400 mt-0.5 leading-snug break-words line-clamp-3">{pushBody || 'Digite ao lado para testar...'}</p>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="text-center p-6 space-y-2 border border-dashed border-white/5 rounded-2xl w-full">
+                        <p className="text-xs text-slate-500 uppercase font-black">Telemóvel do Cliente</p>
+                        <p className="text-[10px] text-slate-600 font-medium">Insira o texto para testar a entrega no telemóvel.</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Lockscreen Swipe hint */}
+                  <div className="text-center py-2 border-t border-white/5 shrink-0">
+                    <p className="text-[8px] font-black text-slate-500 uppercase tracking-wider animate-pulse">
+                      🔒 Deslize para abrir o aplicativo
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
           </div>

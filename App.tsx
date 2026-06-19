@@ -223,6 +223,11 @@ const App: React.FC = () => {
         setCurrentUser(updated);
         currentUserRef.current = updated;
         alert("A sua subscrição mensal ou anual expirou. A sua conta foi revertida para o plano Grátis.");
+        
+        triggerPushNotificationSubmit(
+          "Sua Assinatura Expirou ❌",
+          "A sua assinatura expirou e a sua conta foi revertida para o plano Grátis."
+        );
         return;
       }
 
@@ -233,8 +238,22 @@ const App: React.FC = () => {
 
       if (currentUser.plan === PlanType.PREMIUM_MONTHLY && diffDays <= 5 && diffDays > 0) {
         setShowExpiryAlert(true);
+        if (!sessionStorage.getItem('notified_expiry_push')) {
+          triggerPushNotificationSubmit(
+            "Aviso de Assinatura ⏳",
+            `A sua assinatura mensal expira em ${diffDays} dias! Renove para não perder o acesso.`
+          );
+          sessionStorage.setItem('notified_expiry_push', 'true');
+        }
       } else if (currentUser.plan === PlanType.PREMIUM_ANNUAL && diffDays <= 30 && diffDays > 0) {
         setShowExpiryAlert(true);
+        if (!sessionStorage.getItem('notified_expiry_push')) {
+          triggerPushNotificationSubmit(
+            "Aviso de Assinatura ⏳",
+            `A sua assinatura anual expira em ${diffDays} dias! Renove para não perder o acesso.`
+          );
+          sessionStorage.setItem('notified_expiry_push', 'true');
+        }
       } else {
         setShowExpiryAlert(false);
       }
@@ -288,6 +307,37 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser && view === 'app') {
       currentUserRef.current = currentUser;
+
+      // Subscrição para Notificações Push Globais enviadas pelo Master
+      const pushChannel = supabase
+        .channel('global-push-notifications')
+        .on(
+          'broadcast',
+          { event: 'push' },
+          (payload) => {
+            console.log('Received broadcast push notification:', payload);
+            if (!payload || !payload.payload) return;
+            
+            const { title, body, targetAudience } = payload.payload;
+            const currentU = currentUserRef.current;
+            if (!currentU) return;
+            
+            // Check if user matches targetAudience
+            const isMatch = 
+              targetAudience === 'all' ||
+              (targetAudience === 'free' && currentU.plan === PlanType.FREE) ||
+              (targetAudience === 'all_premium' && currentU.plan !== PlanType.FREE) ||
+              (targetAudience === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) ||
+              (targetAudience === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL);
+              
+            if (isMatch) {
+              console.log('Push matched user plan. Displaying notification:', title, body);
+              triggerPushNotificationSubmit(title, body);
+            }
+          }
+        )
+        .subscribe();
+
       // Subscrição para Produtos (Store Products)
       const productsChannel = supabase
         .channel('user-products')
@@ -341,6 +391,17 @@ const App: React.FC = () => {
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
               setShowUnlockAlert(true);
               setTimeout(() => setShowUnlockAlert(false), 8000);
+              triggerPushNotificationSubmit(
+                "Acesso Liberado! 🔑",
+                "O suporte aprovou a sua solicitação. O seu painel de dados sensíveis foi desbloqueado com sucesso."
+              );
+            }
+
+            if (currentUserRef.current && currentUserRef.current.plan !== updated.plan && updated.plan !== PlanType.FREE) {
+              triggerPushNotificationSubmit(
+                "Parabéns pelo Upgrade! 🎉",
+                `A sua conta foi de imediato atualizada para o plano ${updated.plan === PlanType.PREMIUM_ANNUAL ? 'Premium Anual' : 'Premium Mensal'}!`
+              );
             }
             
             // Atualizar localStorage e estado
@@ -598,6 +659,11 @@ const App: React.FC = () => {
         supabase.removeChannel(budgetChannel);
         supabase.removeChannel(ordersChannel);
         supabase.removeChannel(msgChannel);
+        try {
+          supabase.removeChannel(pushChannel);
+        } catch (e) {
+          console.error(e);
+        }
         clearInterval(fallback);
       };
     }

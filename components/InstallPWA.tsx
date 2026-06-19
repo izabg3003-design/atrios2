@@ -50,12 +50,69 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       showPrompt();
     }
 
-    const installedHandler = () => {
+    const installedHandler = async () => {
       setIsVisible(false);
       setDeferredPrompt(null);
+      
+      // Quando instalado, disparar notificação push local de sucesso com o logotipo!
+      if ('Notification' in window) {
+        try {
+          let permission = Notification.permission;
+          if (permission === 'default') {
+            permission = await Notification.requestPermission();
+          }
+          
+          if (permission === 'granted') {
+            const options = {
+              body: "O Átrios foi adicionado ao seu Ecrã Principal! 📱✨ Já pode aceder sem usar o navegador.",
+              icon: '/favicon.svg',
+              badge: '/favicon.svg',
+              vibrate: [200, 100, 200, 100, 300],
+              tag: 'atrios-installed-alert',
+              renotify: true
+            };
+            
+            if ('serviceWorker' in navigator) {
+              const reg = await navigator.serviceWorker.ready;
+              reg.showNotification("Muitos Parabéns! 🎉", options);
+            } else {
+              new Notification("Muitos Parabéns! 🎉", options);
+            }
+          }
+        } catch (e) {
+          console.error('[PWA Install] Failed to trigger notification', e);
+        }
+      }
     };
 
     window.addEventListener('appinstalled', installedHandler);
+
+    // Detetar se o utilizador abriu o app a partir do Ecrã Principal (Standalone PWA)
+    if (isStandalone) {
+      const alreadyNotified = sessionStorage.getItem('atrios_standalone_welcome_notified');
+      if (!alreadyNotified) {
+        sessionStorage.setItem('atrios_standalone_welcome_notified', 'true');
+        
+        // Se abriu a partir do ecrã principal, enviar de imediato uma notificação push de boas-vindas
+        if ('Notification' in window && Notification.permission === 'granted') {
+          const options = {
+            body: "A desfrutar do Átrios diretamente no seu telemóvel com rapidez e segurança! 🚀",
+            icon: '/favicon.svg',
+            badge: '/favicon.svg',
+            vibrate: [150, 50, 150]
+          };
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then(reg => {
+              reg.showNotification("Bem-vindo ao Átrios! 📱", options);
+            }).catch(() => {
+              new Notification("Bem-vindo ao Átrios! 📱", options);
+            });
+          } else {
+            new Notification("Bem-vindo ao Átrios! 📱", options);
+          }
+        }
+      }
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
