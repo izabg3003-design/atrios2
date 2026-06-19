@@ -694,6 +694,26 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       }
     });
 
+    // Enviar broadcast offline/background PWA Push (para que chegue com o app completamente fechado!)
+    fetch('/api/push/send-broadcast', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        title: pushTitle,
+        body: pushBody,
+        targetAudience: pushAudience
+      })
+    })
+    .then(res => res.json())
+    .then(data => {
+      console.log('[MasterPanel] Offline PWA background push broadcast dispatched:', data);
+    })
+    .catch(err => {
+      console.error('[MasterPanel] Error dispatching offline PWA push:', err);
+    });
+
     const updated = [newPush, ...pushHistory];
     setPushHistory(updated);
     safeSetItem('atrios_push_history', JSON.stringify(updated));

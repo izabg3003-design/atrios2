@@ -17,11 +17,38 @@ import { createClient } from "@supabase/supabase-js";
 import dotenv from "dotenv";
 import path from "path";
 import { fileURLToPath } from "url";
+import webPush from "web-push";
+import fs from "fs";
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// Carregar ou gerar chaves VAPID estáveis e persistentes para PWA Offline Push
+let vapidKeys: { publicKey: string; privateKey: string };
+const vapidFilePath = path.join(__dirname, "vapid_keys.json");
+
+if (fs.existsSync(vapidFilePath)) {
+  try {
+    vapidKeys = JSON.parse(fs.readFileSync(vapidFilePath, "utf8"));
+    console.log("[PWA Push] Loaded stable, existing VAPID keys successfully.");
+  } catch (e) {
+    console.error("[PWA Push] Error reading vapid_keys.json, generating new keys...", e);
+    vapidKeys = webPush.generateVAPIDKeys();
+    fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys), "utf8");
+  }
+} else {
+  vapidKeys = webPush.generateVAPIDKeys();
+  fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys), "utf8");
+  console.log("[PWA Push] Created a fresh sets of VAPID keys and persisted to disk.");
+}
+
+webPush.setVapidDetails(
+  "mailto:suporte@atrios.app",
+  vapidKeys.publicKey,
+  vapidKeys.privateKey
+);
 
 console.log("Starting server with environment check:");
 console.log("- STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Present" : "Missing");
@@ -152,6 +179,137 @@ async function startServer() {
         appUrl: process.env.APP_URL,
         nodeEnv: process.env.NODE_ENV
       }
+    });
+  });
+
+  // 1. Obter chave pública VAPID do Átrios para subscrever no browser
+  app.get("/api/push/public-key", (req, res) => {
+    res.json({ publicKey: vapidKeys.publicKey });
+  });
+
+  // 2. Subscrever um dispositivo de utilizador no browser
+  app.post("/api/push/subscribe", (req, res) => {
+    const { subscription, companyId, plan } = req.body;
+    if (!subscription || !subscription.endpoint) {
+      return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
+    }
+
+    const subFile = path.join(__dirname, "push_subscriptions.json");
+    let subscriptions: any[] = [];
+    if (fs.existsSync(subFile)) {
+      try {
+        subscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+      } catch (e) {
+        console.error("Error reading subscriptions file", e);
+      }
+    }
+
+    // Evitar duplicados pelo endpoint da subscrição
+    const existingIndex = subscriptions.findIndex(sub => sub.subscription.endpoint === subscription.endpoint);
+    
+    const newRecord = {
+      subscription,
+      companyId: companyId || "guest",
+      plan: plan || "free",
+      createdAt: new Date().toISOString()
+    };
+
+    if (existingIndex > -1) {
+      subscriptions[existingIndex] = newRecord;
+    } else {
+      subscriptions.push(newRecord);
+    }
+
+    try {
+      fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
+      console.log(`[PWA Push] Registered subscription for User: ${companyId}, Plan: ${plan}`);
+      res.json({ success: true });
+    } catch (dbErr: any) {
+      console.error("Failed to write subscriptions to disk", dbErr);
+      res.status(500).json({ error: "Failed to persist subscription" });
+    }
+  });
+
+  // 3. Enviar notificação push em segundo plano offline (mesmo fechado)
+  app.post("/api/push/send-broadcast", async (req, res) => {
+    const { title, body, targetAudience } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ error: "Missing required fields: title and body" });
+    }
+
+    console.log(`[PWA Push Broadcast] Sending: "${title}" | Audience: ${targetAudience}`);
+
+    const subFile = path.join(__dirname, "push_subscriptions.json");
+    let subscriptions: any[] = [];
+    if (fs.existsSync(subFile)) {
+      try {
+        subscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+      } catch (e) {
+        console.error("Error reading subscriptions", e);
+      }
+    }
+
+    if (subscriptions.length === 0) {
+      return res.json({ success: true, sentCount: 0, msg: "No registered devices yet." });
+    }
+
+    // Filtrar subscrições que batem com o público-alvo
+    const filtered = subscriptions.filter(sub => {
+      if (!targetAudience || targetAudience === 'all') return true;
+      if (targetAudience === 'free' && sub.plan === 'free') return true;
+      if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
+      if (targetAudience === 'premium_monthly' && sub.plan === 'premium_monthly') return true;
+      if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
+      return false;
+    });
+
+    console.log(`[PWA Push] Launching message to ${filtered.length} of ${subscriptions.length} active device subscriptions.`);
+
+    let successCount = 0;
+    let failureCount = 0;
+    const deadEndpoints: string[] = [];
+
+    const payload = JSON.stringify({
+      title,
+      body,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      tag: 'atrios-global-push',
+      vibrate: [200, 100, 200, 100, 300]
+    });
+
+    const sendPromises = filtered.map(async (sub) => {
+      try {
+        await webPush.sendNotification(sub.subscription, payload);
+        successCount++;
+      } catch (err: any) {
+        console.error(`[PWA Push Send Error] ${sub.subscription.endpoint}:`, err.message);
+        failureCount++;
+        if (err.statusCode === 410 || err.statusCode === 404) {
+          deadEndpoints.push(sub.subscription.endpoint);
+        }
+      }
+    });
+
+    await Promise.all(sendPromises);
+
+    // Pruning/Remoção de subscrições expiradas ou antigas (ex: app desinstalado)
+    if (deadEndpoints.length > 0) {
+      console.log(`[PWA Push] Pruning ${deadEndpoints.length} dead endpoints.`);
+      const activeSubs = subscriptions.filter(sub => !deadEndpoints.includes(sub.subscription.endpoint));
+      try {
+        fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
+      } catch (dbErr) {
+        console.error("Failed to prune dead subscriptions", dbErr);
+      }
+    }
+
+    res.json({
+      success: true,
+      sentCount: filtered.length,
+      successCount,
+      failureCount,
+      prunedCount: deadEndpoints.length
     });
   });
 

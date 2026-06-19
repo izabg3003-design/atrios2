@@ -142,6 +142,79 @@ const getPdfColors = (template: string = 'default') => {
   }
 };
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - base64String.length % 4) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const registerWebPushSubscription = async (companyId: string, plan: string) => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
+    console.warn('Web Push is not fully supported on this device/browser');
+    return;
+  }
+
+  try {
+    const permission = await Notification.requestPermission();
+    if (permission !== 'granted') {
+      console.warn('Notification permission was not granted by user');
+      return;
+    }
+
+    const reg = await navigator.serviceWorker.ready;
+    
+    // Obter chave pública VAPID do backend do Átrios
+    const keyRes = await fetch('/api/push/public-key');
+    if (!keyRes.ok) {
+      throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
+    }
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) {
+      throw new Error('VAPID public key received from server is empty');
+    }
+
+    const convertedKey = urlBase64ToUint8Array(publicKey);
+    
+    // Subscrever no pushManager do browser
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    });
+
+    console.log('[PWA Subscription] Browser success:', subscription);
+
+    // Enviar subscrição para sincronizar com o nosso Express Server
+    const saveRes = await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        subscription,
+        companyId,
+        plan
+      })
+    });
+
+    if (saveRes.ok) {
+      console.log('[PWA Subscription] Synced with server successfully.');
+    } else {
+      console.error('[PWA Subscription] Server sync failed status:', saveRes.status);
+    }
+  } catch (err) {
+    console.error('[PWA Subscription] Error initiating offline Web Push:', err);
+  }
+};
+
 const App: React.FC = () => {
   const session = useMemo(() => getSession(), []);
   const [locale, setLocale] = useState<Locale>(() => {
@@ -794,6 +867,12 @@ const App: React.FC = () => {
   useEffect(() => {
     saveSession(currentUser?.id || null, view, activeTab, currencyCode);
   }, [currentUser?.id, view, activeTab, currencyCode]);
+
+  useEffect(() => {
+    if (currentUser?.id) {
+      registerWebPushSubscription(currentUser.id, currentUser.plan);
+    }
+  }, [currentUser?.id, currentUser?.plan]);
 
 
   useEffect(() => {
