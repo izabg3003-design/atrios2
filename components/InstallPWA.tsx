@@ -36,6 +36,11 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       e.preventDefault();
       // Guardar o evento para ser usado depois
       setDeferredPrompt(e);
+      // Guardar no window para o botão da página inicial usar
+      (window as any).deferredPrompt = e;
+      if (typeof (window as any).onPwaPromptAvailable === 'function') {
+        (window as any).onPwaPromptAvailable(e);
+      }
       // Mostrar o balão após o tempo definido
       showPrompt();
     };

@@ -44,7 +44,8 @@ import {
   RefreshCw,
   Trash2,
   Facebook,
-  Twitter
+  Twitter,
+  Smartphone
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -164,6 +165,52 @@ const App: React.FC = () => {
     }
     return null;
   });
+
+  const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+
+  useEffect(() => {
+    const handler = (e: any) => {
+      e.preventDefault();
+      setPwaPrompt(e);
+      (window as any).deferredPrompt = e;
+    };
+    window.addEventListener('beforeinstallprompt', handler);
+
+    if ((window as any).deferredPrompt) {
+      setPwaPrompt((window as any).deferredPrompt);
+    }
+
+    (window as any).onPwaPromptAvailable = (prompt: any) => {
+      setPwaPrompt(prompt);
+    };
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      delete (window as any).onPwaPromptAvailable;
+    };
+  }, []);
+
+  const handlePwaDownload = async () => {
+    const promptEvent = pwaPrompt || (window as any).deferredPrompt;
+    if (promptEvent) {
+      promptEvent.prompt();
+      const { outcome } = await promptEvent.userChoice;
+      console.log(`User choice PWA download: ${outcome}`);
+      setPwaPrompt(null);
+      (window as any).deferredPrompt = null;
+    } else {
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+      if (isIOS) {
+        alert(locale.startsWith('pt') 
+          ? 'Para instalar no iOS: Toque no ícone de partilha (quadrado com seta no navegador Safari) e selecione "Adicionar ao Ecrã Principal". 📱' 
+          : 'To install on iOS: Tap the share button (square with arrow in Safari browser) and select "Add to Home Screen". 📱');
+      } else {
+        alert(locale.startsWith('pt')
+          ? 'O aplicativo já está instalado ou o seu navegador não suporta a instalação automática direta. Procure por "Instalar" ou "Adicionar ao Ecrã Principal" no menu do seu navegador. 💡'
+          : 'The app is already installed or your browser does not support automatic install prompts. Look for "Install" or "Add to Home Screen" in your browser menu. 💡');
+      }
+    }
+  };
 
   useEffect(() => {
     if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
@@ -2145,6 +2192,13 @@ const App: React.FC = () => {
               <div className="flex items-center gap-2 sm:gap-8">
                 <div className="scale-90 sm:scale-100"><Selectors dark={false} /></div>
                 <div className="flex items-center gap-2 sm:gap-4">
+                  <button
+                    onClick={handlePwaDownload}
+                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-black text-[9px] sm:text-xs transition-all active:scale-95 uppercase tracking-widest shrink-0"
+                  >
+                    <Smartphone size={13} className="animate-bounce" />
+                    <span>{locale.startsWith('pt') ? 'Baixar App' : 'Get App'}</span>
+                  </button>
                   <button 
                     onClick={() => setView('login')} 
                     className="hidden sm:block text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-widest"
@@ -2186,15 +2240,22 @@ const App: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6">
                   <button 
                     onClick={() => setView('signup')} 
-                    className="w-full sm:w-auto px-10 py-5 bg-amber-500 text-white rounded-2xl font-black text-lg hover:bg-amber-400 transition-all shadow-2xl shadow-amber-500/20 active:scale-95"
+                    className="w-full sm:w-auto px-10 py-5 bg-amber-500 text-white rounded-2xl font-black text-lg hover:bg-amber-400 transition-all shadow-2xl shadow-amber-500/20 active:scale-95 uppercase tracking-wider"
                   >
                     {t.heroCta}
                   </button>
                   <button 
                     onClick={() => setView('login')} 
-                    className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 border-2 border-slate-100 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all active:scale-95"
+                    className="w-full sm:w-auto px-10 py-5 bg-white text-slate-900 border-2 border-slate-100 rounded-2xl font-black text-lg hover:bg-slate-50 transition-all active:scale-95 uppercase tracking-wider"
                   >
                     {t.heroSecondary}
+                  </button>
+                  <button 
+                    onClick={handlePwaDownload} 
+                    className="w-full sm:w-auto px-10 py-5 bg-emerald-500 text-slate-950 rounded-2xl font-black text-lg hover:bg-emerald-400 transition-all active:scale-95 flex items-center justify-center gap-3 shadow-2xl shadow-emerald-500/10 group uppercase tracking-wider cursor-pointer"
+                  >
+                    <Smartphone size={22} className="group-hover:scale-110 transition-transform animate-pulse" />
+                    <span>{locale.startsWith('pt') ? 'Baixar o Aplicativo' : 'Download App'}</span>
                   </button>
                 </div>
               </motion.div>
