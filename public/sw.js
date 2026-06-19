@@ -29,3 +29,50 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// Listener para receber eventos Push diretamente do sistema operativo / browser (mesmo com o app fechado)
+self.addEventListener('push', (event) => {
+  console.log('SW: Recebida notificação Push em segundo plano!');
+  
+  let data = {
+    title: 'Átrios Software',
+    body: 'Tem uma nova atualização em segundo plano.',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      data = {
+        title: parsed.title || data.title,
+        body: parsed.body || data.body,
+        icon: parsed.icon || data.icon || '/favicon.svg',
+        badge: parsed.badge || data.badge || '/favicon.svg',
+        vibrate: parsed.vibrate || [200, 100, 200, 100, 300],
+        tag: parsed.tag || 'atrios-bg-push'
+      };
+    } catch (e) {
+      // Se for formato de texto plano
+      data.body = event.data.text();
+    }
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    vibrate: data.vibrate || [200, 100, 200, 100, 300],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    },
+    tag: data.tag || 'atrios-bg-push',
+    renotify: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
+
