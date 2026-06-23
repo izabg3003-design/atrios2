@@ -878,9 +878,9 @@ const App: React.FC = () => {
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
   useEffect(() => {
-    const companyId = currentUser?.id || "guest";
-    const plan = currentUser?.plan || "free";
-    registerWebPushSubscription(companyId, plan);
+    if (currentUser?.id) {
+      registerWebPushSubscription(currentUser.id, currentUser.plan);
+    }
   }, [currentUser?.id, currentUser?.plan]);
 
 
