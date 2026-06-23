@@ -80,39 +80,43 @@ import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (!('Notification' in window)) {
-    console.warn('Notifications not supported by this browser.');
-    return;
-  }
-  
-  if (Notification.permission === 'granted') {
-    const options = {
-      body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      vibrate: [200, 100, 200],
-      tag: 'atrios-master-push',
-      renotify: true
-    };
+  try {
+    if (!('Notification' in window)) {
+      console.warn('Notifications not supported by this browser.');
+      return;
+    }
     
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.showNotification(title, options);
-      }).catch((e) => {
-        console.error('SW ready failed, fallback to standard Notification', e);
+    if (Notification.permission === 'granted') {
+      const options = {
+        body,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        vibrate: [200, 100, 200],
+        tag: 'atrios-master-push',
+        renotify: true
+      };
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, options);
+        }).catch((e) => {
+          console.error('SW ready failed, fallback to standard Notification', e);
+          try {
+            new Notification(title, options);
+          } catch (err) {
+            console.error(err);
+          }
+        });
+      } else {
         try {
           new Notification(title, options);
         } catch (err) {
           console.error(err);
         }
-      });
-    } else {
-      try {
-        new Notification(title, options);
-      } catch (err) {
-        console.error(err);
       }
     }
+  } catch (err) {
+    console.error('Error in triggerPushNotificationSubmit in MasterPanel:', err);
   }
 };
 
@@ -141,6 +145,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       return [];
     }
   });
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduledPushes, setScheduledPushes] = useState<any[]>([]);
+
+  const loadScheduledPushes = () => {
+    fetch('/api/push/scheduled')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setScheduledPushes(data.scheduled || []);
+        }
+      })
+      .catch(err => {
+        console.error('Error loading scheduled pushes:', err);
+      });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'push') {
+      loadScheduledPushes();
+    }
+  }, [activeTab]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -666,6 +692,43 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       alert(locale === 'pt' ? 'Por favor, preencha o título e a mensagem!' : 'Please fill in both title and message!');
       return;
     }
+
+    if (isScheduled) {
+      if (!scheduledTime) {
+        alert(locale === 'pt' ? 'Por favor, defina a data e a hora do agendamento!' : 'Please set the date and time for the schedule!');
+        return;
+      }
+
+      fetch('/api/push/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: pushTitle,
+          body: pushBody,
+          targetAudience: pushAudience,
+          scheduledTime: scheduledTime
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(locale === 'pt' ? 'Notificação agendada com sucesso!' : 'Push notification scheduled successfully!');
+          loadScheduledPushes();
+          setPushTitle('');
+          setPushBody('');
+          setScheduledTime('');
+        } else {
+          alert(locale === 'pt' ? 'Erro ao agendar notificação.' : 'Failed to schedule push notification.');
+        }
+      })
+      .catch(err => {
+        console.error('Error scheduling push:', err);
+        alert(locale === 'pt' ? 'Erro de rede ao agendar.' : 'Network error scheduling push.');
+      });
+      return;
+    }
     
     const newPush: PushNotification = {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -722,6 +785,35 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setPushBody('');
     
     alert(locale === 'pt' ? 'Notificação enviada com sucesso em tempo real com logotipo!' : 'Push notification successfully sent in real-time with logo!');
+  };
+
+  const handleDeletePushHistory = (id: string) => {
+    if (confirm(locale === 'pt' ? 'Tem a certeza que deseja excluir esta notificação do histórico?' : 'Are you sure you want to delete this notification from history?')) {
+      const updated = pushHistory.filter(h => h.id !== id);
+      setPushHistory(updated);
+      safeSetItem('atrios_push_history', JSON.stringify(updated));
+    }
+  };
+
+  const handleCancelScheduledPush = (id: string) => {
+    if (confirm(locale === 'pt' ? 'Tem a certeza que deseja cancelar este agendamento?' : 'Are you sure you want to cancel this scheduled push?')) {
+      fetch(`/api/push/scheduled/${id}`, {
+        method: 'DELETE'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(locale === 'pt' ? 'Agendamento cancelado com sucesso!' : 'Scheduled push cancelled successfully!');
+          loadScheduledPushes();
+        } else {
+          alert(locale === 'pt' ? 'Erro ao cancelar agendamento.' : 'Failed to cancel schedule.');
+        }
+      })
+      .catch(err => {
+        console.error('Error deleting schedule:', err);
+        alert(locale === 'pt' ? 'Erro de rede ao cancelar agendamento.' : 'Network error cancelling schedule.');
+      });
+    }
   };
 
   const handleTestLocalPush = () => {
@@ -1501,6 +1593,37 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </div>
                   </div>
 
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-black text-slate-200 uppercase tracking-wider">Agendar Notificação?</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Programe um dia e horário específicos para disparo automático</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsScheduled(!isScheduled)}
+                        className={`w-12 h-6 rounded-full p-1 transition-all flex items-center ${
+                          isScheduled ? 'bg-amber-500 justify-end' : 'bg-slate-700 justify-start'
+                        }`}
+                      >
+                        <div className="w-4 h-4 bg-slate-950 rounded-full" />
+                      </button>
+                    </div>
+
+                    {isScheduled && (
+                      <div className="space-y-3 pt-4 border-t border-white/10 animate-in fade-in duration-200">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Data e Hora de Disparo</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledTime}
+                          onChange={e => setScheduledTime(e.target.value)}
+                          min={new Date().toISOString().slice(0, 16)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-sm font-black outline-none text-white focus:border-amber-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button 
                       type="button"
@@ -1514,7 +1637,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       onClick={handleSendPush}
                       className="py-4.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2"
                     >
-                      <Smartphone size={16} /> Disparar para os Telemóveis
+                      <Smartphone size={16} /> {isScheduled ? 'Confirmar Agendamento' : 'Disparar para os Telemóveis'}
                     </button>
                   </div>
                 </div>
@@ -1531,19 +1654,71 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     Nenhuma mensagem disparada recentemente.
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {pushHistory.map(hist => (
-                      <div key={hist.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div key={hist.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative group">
                         <div>
                           <p className="font-extrabold text-white text-sm">{hist.title}</p>
                           <p className="text-slate-400 text-xs mt-1 leading-snug">{hist.body}</p>
                         </div>
-                        <div className="flex sm:flex-col items-end gap-2 shrink-0">
-                          <span className="text-[9px] font-black px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase rounded-md">
-                            {getAudienceLabel(hist.targetAudience)}
-                          </span>
-                          <span className="text-[8px] font-bold text-slate-500 uppercase">
+                        <div className="flex sm:flex-col items-end gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase rounded-md">
+                              {getAudienceLabel(hist.targetAudience)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePushHistory(hist.id)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-all"
+                              title="Excluir do Histórico"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          <span className="text-[8px] font-bold text-slate-500 uppercase self-end mt-1">
                             {new Date(hist.createdAt).toLocaleTimeString(locale)} - {new Date(hist.createdAt).toLocaleDateString(locale)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Agendamentos Ativos */}
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-6">
+                <h3 className="text-xl font-black italic text-blue-400 uppercase flex items-center gap-2">
+                  <Calendar size={20} /> Agendamentos de Push Ativos
+                </h3>
+                
+                {scheduledPushes.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
+                    Nenhum agendamento ativo no momento.
+                  </div>
+                ) : (
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    {scheduledPushes.map(sched => (
+                      <div key={sched.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative group">
+                        <div>
+                          <p className="font-extrabold text-white text-sm">{sched.title}</p>
+                          <p className="text-slate-400 text-xs mt-1 leading-snug">{sched.body}</p>
+                        </div>
+                        <div className="flex sm:flex-col items-end gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase rounded-md">
+                              {getAudienceLabel(sched.targetAudience)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelScheduledPush(sched.id)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-all"
+                              title="Cancelar Agendamento"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          <span className="text-[8px] font-bold text-amber-500 uppercase self-end mt-1">
+                            Disparo: {new Date(sched.scheduledTime).toLocaleString(locale)}
                           </span>
                         </div>
                       </div>
