@@ -230,8 +230,15 @@ async function startServer() {
     }
   });
 
-  // Helper to trigger push broadcast
-  const sendPushBroadcast = async (title: string, body: string, targetAudience: string) => {
+  // 3. Enviar notificação push em segundo plano offline (mesmo fechado)
+  app.post("/api/push/send-broadcast", async (req, res) => {
+    const { title, body, targetAudience } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ error: "Missing required fields: title and body" });
+    }
+
+    console.log(`[PWA Push Broadcast] Sending: "${title}" | Audience: ${targetAudience}`);
+
     const subFile = path.join(__dirname, "push_subscriptions.json");
     let subscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
@@ -243,9 +250,10 @@ async function startServer() {
     }
 
     if (subscriptions.length === 0) {
-      return { successCount: 0, failureCount: 0, totalCount: 0 };
+      return res.json({ success: true, sentCount: 0, msg: "No registered devices yet." });
     }
 
+    // Filtrar subscrições que batem com o público-alvo
     const filtered = subscriptions.filter(sub => {
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
@@ -254,6 +262,8 @@ async function startServer() {
       if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
       return false;
     });
+
+    console.log(`[PWA Push] Launching message to ${filtered.length} of ${subscriptions.length} active device subscriptions.`);
 
     let successCount = 0;
     let failureCount = 0;
@@ -283,6 +293,7 @@ async function startServer() {
 
     await Promise.all(sendPromises);
 
+    // Pruning/Remoção de subscrições expiradas ou antigas (ex: app desinstalado)
     if (deadEndpoints.length > 0) {
       console.log(`[PWA Push] Pruning ${deadEndpoints.length} dead endpoints.`);
       const activeSubs = subscriptions.filter(sub => !deadEndpoints.includes(sub.subscription.endpoint));
@@ -293,146 +304,14 @@ async function startServer() {
       }
     }
 
-    return { successCount, failureCount, totalCount: filtered.length };
-  };
-
-  // 3. Enviar notificação push em segundo plano offline (mesmo fechado)
-  app.post("/api/push/send-broadcast", async (req, res) => {
-    const { title, body, targetAudience } = req.body;
-    if (!title || !body) {
-      return res.status(400).json({ error: "Missing required fields: title and body" });
-    }
-
-    console.log(`[PWA Push Broadcast] Sending: "${title}" | Audience: ${targetAudience}`);
-    
-    try {
-      const result = await sendPushBroadcast(title, body, targetAudience || 'all');
-      res.json({
-        success: true,
-        sentCount: result.totalCount,
-        successCount: result.successCount,
-        failureCount: result.failureCount
-      });
-    } catch (err: any) {
-      console.error("[PWA Broadcast Error]", err);
-      res.status(500).json({ error: "Internal broadcast error", details: err.message });
-    }
+    res.json({
+      success: true,
+      sentCount: filtered.length,
+      successCount,
+      failureCount,
+      prunedCount: deadEndpoints.length
+    });
   });
-
-  // 4. Obter lista de agendamentos
-  app.get("/api/push/scheduled", (req, res) => {
-    const schedFile = path.join(__dirname, "scheduled_push.json");
-    let scheduledList: any[] = [];
-    if (fs.existsSync(schedFile)) {
-      try {
-        scheduledList = JSON.parse(fs.readFileSync(schedFile, "utf8"));
-      } catch (e) {
-        console.error("Failed to parse scheduled push list", e);
-      }
-    }
-    res.json({ success: true, scheduled: scheduledList });
-  });
-
-  // 5. Agendar uma nova notificação push
-  app.post("/api/push/schedule", (req, res) => {
-    const { title, body, targetAudience, scheduledTime } = req.body;
-    if (!title || !body || !scheduledTime) {
-      return res.status(400).json({ error: "Missing required fields: title, body, or scheduledTime" });
-    }
-
-    const schedFile = path.join(__dirname, "scheduled_push.json");
-    let scheduledList: any[] = [];
-    if (fs.existsSync(schedFile)) {
-      try {
-        scheduledList = JSON.parse(fs.readFileSync(schedFile, "utf8"));
-      } catch (e) {
-        console.error("Failed to parse scheduled push list", e);
-      }
-    }
-
-    const newSchedule = {
-      id: "SCHED_" + Math.random().toString(36).substr(2, 9).toUpperCase(),
-      title,
-      body,
-      targetAudience: targetAudience || 'all',
-      scheduledTime, // Formato string ISO ou YYYY-MM-DDTHH:mm
-      createdAt: new Date().toISOString()
-    };
-
-    scheduledList.push(newSchedule);
-
-    try {
-      fs.writeFileSync(schedFile, JSON.stringify(scheduledList, null, 2), "utf8");
-      console.log(`[PWA Push Scheduler] Push scheduled at ${scheduledTime}: "${title}"`);
-      res.json({ success: true, scheduled: newSchedule });
-    } catch (err: any) {
-      console.error("Failed to persist scheduled push", err);
-      res.status(500).json({ error: "Failed to save scheduled push" });
-    }
-  });
-
-  // 6. Cancelar/Eliminar um agendamento
-  app.delete("/api/push/scheduled/:id", (req, res) => {
-    const { id } = req.params;
-    const schedFile = path.join(__dirname, "scheduled_push.json");
-    let scheduledList: any[] = [];
-    if (fs.existsSync(schedFile)) {
-      try {
-        scheduledList = JSON.parse(fs.readFileSync(schedFile, "utf8"));
-      } catch (e) {
-        console.error("Failed to parse scheduled push list", e);
-      }
-    }
-
-    const filtered = scheduledList.filter(item => item.id !== id);
-
-    try {
-      fs.writeFileSync(schedFile, JSON.stringify(filtered, null, 2), "utf8");
-      console.log(`[PWA Push Scheduler] Cancelled scheduled push with ID: ${id}`);
-      res.json({ success: true });
-    } catch (err: any) {
-      console.error("Failed to update scheduled list after delete", err);
-      res.status(500).json({ error: "Failed to delete scheduled push" });
-    }
-  });
-
-  // Background scheduler interval (executa a cada 30 segundos)
-  setInterval(async () => {
-    const schedFile = path.join(__dirname, "scheduled_push.json");
-    if (!fs.existsSync(schedFile)) return;
-
-    let scheduledList: any[] = [];
-    try {
-      scheduledList = JSON.parse(fs.readFileSync(schedFile, "utf8"));
-    } catch (e) {
-      return;
-    }
-
-    if (scheduledList.length === 0) return;
-
-    const now = new Date();
-    const readyToPublish = scheduledList.filter(item => new Date(item.scheduledTime) <= now);
-    const remaining = scheduledList.filter(item => new Date(item.scheduledTime) > now);
-
-    if (readyToPublish.length > 0) {
-      console.log(`[PWA Scheduler Background Worker] Delivering ${readyToPublish.length} due scheduled pushes...`);
-      for (const item of readyToPublish) {
-        try {
-          console.log(`[PWA Scheduler] Delivering ID: ${item.id} - Title: "${item.title}"`);
-          const result = await sendPushBroadcast(item.title, item.body, item.targetAudience);
-          console.log(`[PWA Scheduler] Delivered with results: success ${result.successCount}, failure ${result.failureCount}`);
-        } catch (err) {
-          console.error(`[PWA Scheduler Error] Failed for scheduled push ${item.id}:`, err);
-        }
-      }
-
-      try {
-        fs.writeFileSync(schedFile, JSON.stringify(remaining, null, 2), "utf8");
-      } catch (e) {
-        console.error("Failed to write updated scheduled file", e);
-      }
-    }
-  }, 30000);
 
   // Keep-alive function to prevent Render from sleeping
   const startKeepAlive = () => {

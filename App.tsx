@@ -89,43 +89,39 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  try {
-    if (!('Notification' in window)) {
-      console.warn('Notifications not supported by this browser.');
-      return;
-    }
+  if (!('Notification' in window)) {
+    console.warn('Notifications not supported by this browser.');
+    return;
+  }
+  
+  if (Notification.permission === 'granted') {
+    const options = {
+      body,
+      icon: '/favicon.svg',
+      badge: '/favicon.svg',
+      vibrate: [200, 100, 200],
+      tag: 'atrios-client-push',
+      renotify: true
+    };
     
-    if (Notification.permission === 'granted') {
-      const options = {
-        body,
-        icon: '/favicon.svg',
-        badge: '/favicon.svg',
-        vibrate: [200, 100, 200],
-        tag: 'atrios-client-push',
-        renotify: true
-      };
-      
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.showNotification(title, options);
-        }).catch((e) => {
-          console.error('SW ready failed, fallback to standard Notification', e);
-          try {
-            new Notification(title, options);
-          } catch (err) {
-            console.error(err);
-          }
-        });
-      } else {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.ready.then((reg) => {
+        reg.showNotification(title, options);
+      }).catch((e) => {
+        console.error('SW ready failed, fallback to standard Notification', e);
         try {
           new Notification(title, options);
         } catch (err) {
           console.error(err);
         }
+      });
+    } else {
+      try {
+        new Notification(title, options);
+      } catch (err) {
+        console.error(err);
       }
     }
-  } catch (err) {
-    console.error('Error in triggerPushNotificationSubmit:', err);
   }
 };
 
@@ -162,13 +158,8 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 const registerWebPushSubscription = async (companyId: string, plan: string) => {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
     console.warn('Web Push is not fully supported on this device/browser');
-    return;
-  }
-
-  if (typeof Notification.requestPermission !== 'function') {
-    console.warn('Notification.requestPermission is not a function');
     return;
   }
 
