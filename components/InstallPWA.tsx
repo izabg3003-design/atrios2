@@ -12,15 +12,21 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
   const [hasDismissed, setHasDismissed] = useState(false);
 
   useEffect(() => {
-    // Registrar Service Worker
+    // Registrar Service Worker de forma robusta (evita que fique preso se o evento load já tiver ocorrido)
     if ('serviceWorker' in navigator) {
-      window.addEventListener('load', () => {
+      const registerSW = () => {
         navigator.serviceWorker.register('/sw.js').then(registration => {
           console.log('SW registrado com sucesso:', registration.scope);
         }).catch(err => {
           console.log('SW falhou:', err);
         });
-      });
+      };
+
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        registerSW();
+      } else {
+        window.addEventListener('load', registerSW);
+      }
     }
 
     const delay = view === 'landing' ? 5000 : 10000;
