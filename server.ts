@@ -52,7 +52,12 @@ webPush.setVapidDetails(
 );
 
 function getStoredFirebaseConfig() {
-  const configPath = path.join(__dirname, "firebase_config.json");
+  const paths = [
+    path.join(process.cwd(), "firebase_config.json"),
+    path.join(__dirname, "firebase_config.json"),
+    path.join(__dirname, "..", "firebase_config.json")
+  ];
+
   let config: any = {};
 
   if (process.env.VITE_FIREBASE_API_KEY) {
@@ -66,11 +71,19 @@ function getStoredFirebaseConfig() {
       measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
       vapidKey: process.env.VITE_FIREBASE_FCM_VAPID_KEY
     };
-  } else if (fs.existsSync(configPath)) {
-    try {
-      config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-    } catch (e) {
-      console.error("Erro ao ler firebase_config.json na inicialização:", e);
+  } else {
+    for (const configPath of paths) {
+      if (fs.existsSync(configPath)) {
+        try {
+          config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+          if (config && config.apiKey) {
+            console.log(`[PWA FCM] Carregado firebase_config.json com sucesso a partir de: ${configPath}`);
+            break;
+          }
+        } catch (e) {
+          console.error(`Erro ao ler firebase_config.json de ${configPath}:`, e);
+        }
+      }
     }
   }
   return config;
@@ -141,16 +154,25 @@ self.addEventListener('notificationclick', (event) => {
 });
 `;
 
-  const swPath = path.join(process.cwd(), "public", "firebase-messaging-sw.js");
-  try {
-    const publicDir = path.dirname(swPath);
-    if (!fs.existsSync(publicDir)) {
-      fs.mkdirSync(publicDir, { recursive: true });
+  const swPaths = [
+    path.join(process.cwd(), "public", "firebase-messaging-sw.js"),
+    path.join(process.cwd(), "dist", "firebase-messaging-sw.js"),
+    path.join(__dirname, "firebase-messaging-sw.js"),
+    path.join(__dirname, "..", "public", "firebase-messaging-sw.js"),
+    path.join(__dirname, "public", "firebase-messaging-sw.js")
+  ];
+
+  for (const swPath of swPaths) {
+    try {
+      const swDir = path.dirname(swPath);
+      if (!fs.existsSync(swDir)) {
+        fs.mkdirSync(swDir, { recursive: true });
+      }
+      fs.writeFileSync(swPath, swContent, "utf8");
+      console.log(`[PWA FCM] Ficheiro Service Worker gravado com sucesso em: ${swPath}`);
+    } catch (err) {
+      // Ignorar silenciosamente caminhos inexistentes/inválidos para evitar crash
     }
-    fs.writeFileSync(swPath, swContent, "utf8");
-    console.log("[PWA FCM] Ficheiro firebase-messaging-sw.js gerado com credenciais com sucesso!");
-  } catch (err) {
-    console.error("[PWA FCM] Erro ao gravar firebase-messaging-sw.js:", err);
   }
 }
 
@@ -331,9 +353,24 @@ async function startServer() {
     }
 
     try {
-      const configPath = path.join(__dirname, "firebase_config.json");
-      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
-      console.log("[PWA FCM] Cliente Firebase Config atualizada com sucesso!");
+      const pathsToSave = [
+        path.join(process.cwd(), "firebase_config.json"),
+        path.join(__dirname, "firebase_config.json"),
+        path.join(__dirname, "..", "firebase_config.json")
+      ];
+
+      for (const configPath of pathsToSave) {
+        try {
+          const configDir = path.dirname(configPath);
+          if (!fs.existsSync(configDir)) {
+            fs.mkdirSync(configDir, { recursive: true });
+          }
+          fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+          console.log(`[PWA FCM] Cliente Firebase Config gravada em: ${configPath}`);
+        } catch (writeErr) {
+          // Ignorar se algum caminho for inválido
+        }
+      }
       
       // Gerar automaticamente o Service Worker síncrono para FCM
       generateFirebaseSW(config);
