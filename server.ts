@@ -51,6 +51,109 @@ webPush.setVapidDetails(
   vapidKeys.privateKey
 );
 
+function getStoredFirebaseConfig() {
+  const configPath = path.join(__dirname, "firebase_config.json");
+  let config: any = {};
+
+  if (process.env.VITE_FIREBASE_API_KEY) {
+    config = {
+      apiKey: process.env.VITE_FIREBASE_API_KEY,
+      authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+      projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+      storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+      messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+      appId: process.env.VITE_FIREBASE_APP_ID,
+      measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
+      vapidKey: process.env.VITE_FIREBASE_FCM_VAPID_KEY
+    };
+  } else if (fs.existsSync(configPath)) {
+    try {
+      config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+    } catch (e) {
+      console.error("Erro ao ler firebase_config.json na inicialização:", e);
+    }
+  }
+  return config;
+}
+
+function generateFirebaseSW(config: any) {
+  const swContent = `// Service Worker para Firebase Cloud Messaging (FCM) - Gerado Automaticamente
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
+importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
+
+const firebaseConfig = {
+  apiKey: ${JSON.stringify(config.apiKey || "")},
+  authDomain: ${JSON.stringify(config.authDomain || "")},
+  projectId: ${JSON.stringify(config.projectId || "")},
+  storageBucket: ${JSON.stringify(config.storageBucket || "")},
+  messagingSenderId: ${JSON.stringify(config.messagingSenderId || "")},
+  appId: ${JSON.stringify(config.appId || "")}
+};
+
+if (firebaseConfig.apiKey) {
+  firebase.initializeApp(firebaseConfig);
+  const messaging = firebase.messaging();
+  
+  messaging.onBackgroundMessage((payload) => {
+    console.log('[FCM SW] Mensagem recebida em segundo plano:', payload);
+    
+    const notificationTitle = payload.notification?.title || payload.data?.title || 'Átrios';
+    const notificationOptions = {
+      body: payload.notification?.body || payload.data?.body || '',
+      icon: payload.notification?.icon || payload.data?.icon || '/favicon.svg',
+      badge: '/favicon.svg',
+      data: payload.data,
+      tag: 'atrios-global-push',
+      renotify: true
+    };
+
+    self.registration.showNotification(notificationTitle, notificationOptions);
+  });
+  console.log('[FCM SW] Firebase inicializado com sucesso no Service Worker!');
+} else {
+  console.warn('[FCM SW] Service worker ativo mas sem credenciais Firebase configuradas.');
+}
+
+// Inicializar ao carregar ou receber eventos
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+
+self.addEventListener('activate', (event) => {
+  event.waitUntil(self.clients.claim());
+});
+
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  
+  event.waitUntil(
+    self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clientList) => {
+      for (const client of clientList) {
+        if (client.url && 'focus' in client) {
+          return client.focus();
+        }
+      }
+      if (self.clients.openWindow) {
+        return self.clients.openWindow('/');
+      }
+    })
+  );
+});
+`;
+
+  const swPath = path.join(process.cwd(), "public", "firebase-messaging-sw.js");
+  try {
+    const publicDir = path.dirname(swPath);
+    if (!fs.existsSync(publicDir)) {
+      fs.mkdirSync(publicDir, { recursive: true });
+    }
+    fs.writeFileSync(swPath, swContent, "utf8");
+    console.log("[PWA FCM] Ficheiro firebase-messaging-sw.js gerado com credenciais com sucesso!");
+  } catch (err) {
+    console.error("[PWA FCM] Erro ao gravar firebase-messaging-sw.js:", err);
+  }
+}
+
 console.log("Starting server with environment check:");
 console.log("- STRIPE_SECRET_KEY:", process.env.STRIPE_SECRET_KEY ? "Present" : "Missing");
 console.log("- STRIPE_MONTHLY_PRICE_ID:", process.env.STRIPE_MONTHLY_PRICE_ID ? "Present" : "Missing");
@@ -66,6 +169,9 @@ const supabase = createClient(
 
 async function startServer() {
   try {
+    // Gerar o Service Worker do Firebase FCM de forma síncrona no arranque do servidor se já houver credenciais
+    generateFirebaseSW(getStoredFirebaseConfig());
+
     const app = express();
     const PORT = process.env.PORT || 3000;
 
@@ -228,6 +334,10 @@ async function startServer() {
       const configPath = path.join(__dirname, "firebase_config.json");
       fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
       console.log("[PWA FCM] Cliente Firebase Config atualizada com sucesso!");
+      
+      // Gerar automaticamente o Service Worker síncrono para FCM
+      generateFirebaseSW(config);
+      
       res.json({ success: true });
     } catch (e: any) {
       console.error("Falha ao guardar firebase_config.json:", e);
