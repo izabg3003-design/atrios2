@@ -19,6 +19,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import webPush from "web-push";
 import fs from "fs";
+import { sendFCMBroadcast, getFirebaseAdmin } from "./services/firebase-admin-server";
 
 dotenv.config();
 
@@ -182,12 +183,78 @@ async function startServer() {
     });
   });
 
-  // 1. Obter chave pública VAPID do Átrios para subscrever no browser
+  // 1. Obter chave pública VAPID do Átrios para subscrever no browser (Web-Push standard)
   app.get("/api/push/public-key", (req, res) => {
     res.json({ publicKey: vapidKeys.publicKey });
   });
 
-  // 2. Subscrever um dispositivo de utilizador no browser
+  // 1.1 Obter configuração do Firebase para o Cliente (FCM)
+  app.get("/api/push/firebase-config", (req, res) => {
+    const configPath = path.join(__dirname, "firebase_config.json");
+    let config: any = {};
+
+    // Prioridade 1: Variáveis de Ambiente
+    if (process.env.VITE_FIREBASE_API_KEY) {
+      config = {
+        apiKey: process.env.VITE_FIREBASE_API_KEY,
+        authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
+        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
+        messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+        appId: process.env.VITE_FIREBASE_APP_ID,
+        measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
+        vapidKey: process.env.VITE_FIREBASE_FCM_VAPID_KEY
+      };
+    } else if (fs.existsSync(configPath)) {
+      // Prioridade 2: Ficheiro local persistido via Admin Panel
+      try {
+        config = JSON.parse(fs.readFileSync(configPath, "utf8"));
+      } catch (e) {
+        console.error("Erro ao ler firebase_config.json:", e);
+      }
+    }
+
+    res.json(config);
+  });
+
+  // 1.2 Salvar configuração do Firebase Cliente (Admin Panel)
+  app.post("/api/push/save-firebase-config", (req, res) => {
+    const { config } = req.body;
+    if (!config || !config.apiKey) {
+      return res.status(400).json({ error: "Configuração do Firebase inválida" });
+    }
+
+    try {
+      const configPath = path.join(__dirname, "firebase_config.json");
+      fs.writeFileSync(configPath, JSON.stringify(config, null, 2), "utf8");
+      console.log("[PWA FCM] Cliente Firebase Config atualizada com sucesso!");
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("Falha ao guardar firebase_config.json:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 1.3 Salvar Service Account do Firebase Admin (Admin Panel)
+  app.post("/api/push/save-firebase-service-account", (req, res) => {
+    const { serviceAccountJson } = req.body;
+    if (!serviceAccountJson) {
+      return res.status(400).json({ error: "JSON do Service Account vazio" });
+    }
+
+    try {
+      const parsed = typeof serviceAccountJson === 'string' ? JSON.parse(serviceAccountJson) : serviceAccountJson;
+      const saPath = path.join(process.cwd(), "firebase_service_account.json");
+      fs.writeFileSync(saPath, JSON.stringify(parsed, null, 2), "utf8");
+      console.log("[PWA FCM] Firebase Service Account atualizado com sucesso!");
+      res.json({ success: true, msg: "Ficheiro firebase_service_account.json gravado. Recarregando SDK..." });
+    } catch (e: any) {
+      console.error("Falha ao salvar firebase_service_account.json:", e);
+      res.status(500).json({ error: "JSON inválido ou falha de escrita: " + e.message });
+    }
+  });
+
+  // 2. Subscrever um dispositivo de utilizador no browser (Web-Push standard)
   app.post("/api/push/subscribe", (req, res) => {
     const { subscription, companyId, plan } = req.body;
     if (!subscription || !subscription.endpoint) {
@@ -204,7 +271,6 @@ async function startServer() {
       }
     }
 
-    // Evitar duplicados pelo endpoint da subscrição
     const existingIndex = subscriptions.findIndex(sub => sub.subscription.endpoint === subscription.endpoint);
     
     const newRecord = {
@@ -230,15 +296,57 @@ async function startServer() {
     }
   });
 
-  // 3. Enviar notificação push em segundo plano offline (mesmo fechado)
+  // 2.1 Subscrever Token FCM (Firebase Cloud Messaging)
+  app.post("/api/push/subscribe-fcm", (req, res) => {
+    const { token, companyId, plan } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Token do FCM ausente" });
+    }
+
+    const tokenFile = path.join(__dirname, "fcm_tokens.json");
+    let tokensList: any[] = [];
+    if (fs.existsSync(tokenFile)) {
+      try {
+        tokensList = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+      } catch (e) {
+        console.error("Erro ao ler fcm_tokens.json:", e);
+      }
+    }
+
+    const existingIndex = tokensList.findIndex(t => t.token === token);
+    const newRecord = {
+      token,
+      companyId: companyId || "guest",
+      plan: plan || "free",
+      updatedAt: new Date().toISOString()
+    };
+
+    if (existingIndex > -1) {
+      tokensList[existingIndex] = newRecord;
+    } else {
+      tokensList.push(newRecord);
+    }
+
+    try {
+      fs.writeFileSync(tokenFile, JSON.stringify(tokensList, null, 2), "utf8");
+      console.log(`[PWA FCM] Registado Token para User: ${companyId}, Plano: ${plan}`);
+      res.json({ success: true });
+    } catch (e: any) {
+      console.error("Falha ao salvar token FCM:", e);
+      res.status(500).json({ error: e.message });
+    }
+  });
+
+  // 3. Enviar notificação push em segundo plano offline híbrido (Web-Push + FCM)
   app.post("/api/push/send-broadcast", async (req, res) => {
     const { title, body, targetAudience } = req.body;
     if (!title || !body) {
       return res.status(400).json({ error: "Missing required fields: title and body" });
     }
 
-    console.log(`[PWA Push Broadcast] Sending: "${title}" | Audience: ${targetAudience}`);
+    console.log(`[Push Broadcast] Disparando: "${title}" | Alvo: ${targetAudience}`);
 
+    // --- PARTE A: WEB-PUSH STANDARD ---
     const subFile = path.join(__dirname, "push_subscriptions.json");
     let subscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
@@ -249,12 +357,7 @@ async function startServer() {
       }
     }
 
-    if (subscriptions.length === 0) {
-      return res.json({ success: true, sentCount: 0, msg: "No registered devices yet." });
-    }
-
-    // Filtrar subscrições que batem com o público-alvo
-    const filtered = subscriptions.filter(sub => {
+    const filteredSubs = subscriptions.filter(sub => {
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -263,53 +366,118 @@ async function startServer() {
       return false;
     });
 
-    console.log(`[PWA Push] Launching message to ${filtered.length} of ${subscriptions.length} active device subscriptions.`);
+    let webPushSuccess = 0;
+    let webPushFailure = 0;
+    const deadWebPushEndpoints: string[] = [];
 
-    let successCount = 0;
-    let failureCount = 0;
-    const deadEndpoints: string[] = [];
+    if (filteredSubs.length > 0) {
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        tag: 'atrios-global-push',
+        vibrate: [200, 100, 200, 100, 300]
+      });
 
-    const payload = JSON.stringify({
-      title,
-      body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      tag: 'atrios-global-push',
-      vibrate: [200, 100, 200, 100, 300]
-    });
+      const sendPromises = filteredSubs.map(async (sub) => {
+        try {
+          await webPush.sendNotification(sub.subscription, payload);
+          webPushSuccess++;
+        } catch (err: any) {
+          console.error(`[WebPush Send Error] ${sub.subscription.endpoint}:`, err.message);
+          webPushFailure++;
+          if (err.statusCode === 410 || err.statusCode === 404) {
+            deadWebPushEndpoints.push(sub.subscription.endpoint);
+          }
+        }
+      });
 
-    const sendPromises = filtered.map(async (sub) => {
-      try {
-        await webPush.sendNotification(sub.subscription, payload);
-        successCount++;
-      } catch (err: any) {
-        console.error(`[PWA Push Send Error] ${sub.subscription.endpoint}:`, err.message);
-        failureCount++;
-        if (err.statusCode === 410 || err.statusCode === 404) {
-          deadEndpoints.push(sub.subscription.endpoint);
+      await Promise.all(sendPromises);
+
+      // Limpar endpoints mortos
+      if (deadWebPushEndpoints.length > 0) {
+        const activeSubs = subscriptions.filter(sub => !deadWebPushEndpoints.includes(sub.subscription.endpoint));
+        try {
+          fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
+        } catch (e) {
+          console.error("Erro ao limpar subscrições web-push mortas", e);
         }
       }
+    }
+
+    // --- PARTE B: FIREBASE CLOUD MESSAGING (FCM) ---
+    const tokenFile = path.join(__dirname, "fcm_tokens.json");
+    let fcmTokensList: any[] = [];
+    if (fs.existsSync(tokenFile)) {
+      try {
+        fcmTokensList = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+      } catch (e) {
+        console.error("Erro ao ler fcm_tokens.json:", e);
+      }
+    }
+
+    const filteredFCM = fcmTokensList.filter(tokenRecord => {
+      if (!targetAudience || targetAudience === 'all') return true;
+      if (targetAudience === 'free' && tokenRecord.plan === 'free') return true;
+      if (targetAudience === 'all_premium' && tokenRecord.plan !== 'free') return true;
+      if (targetAudience === 'premium_monthly' && tokenRecord.plan === 'premium_monthly') return true;
+      if (targetAudience === 'premium_annual' && tokenRecord.plan === 'premium_annual') return true;
+      return false;
     });
 
-    await Promise.all(sendPromises);
+    let fcmSuccess = 0;
+    let fcmFailure = 0;
+    let fcmIsActive = false;
+    let fcmResult: any = null;
 
-    // Pruning/Remoção de subscrições expiradas ou antigas (ex: app desinstalado)
-    if (deadEndpoints.length > 0) {
-      console.log(`[PWA Push] Pruning ${deadEndpoints.length} dead endpoints.`);
-      const activeSubs = subscriptions.filter(sub => !deadEndpoints.includes(sub.subscription.endpoint));
-      try {
-        fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
-      } catch (dbErr) {
-        console.error("Failed to prune dead subscriptions", dbErr);
+    if (filteredFCM.length > 0) {
+      const adminSDK = getFirebaseAdmin();
+      if (adminSDK) {
+        fcmIsActive = true;
+        const tokensToNotify = filteredFCM.map(r => r.token);
+        
+        fcmResult = await sendFCMBroadcast(title, body, tokensToNotify, {
+          targetAudience
+        });
+
+        if (fcmResult && fcmResult.success) {
+          fcmSuccess = fcmResult.successCount || 0;
+          fcmFailure = fcmResult.failureCount || 0;
+
+          // Limpar tokens do FCM que falharam (estão inativos/rejeitados)
+          if (fcmResult.failedTokens && fcmResult.failedTokens.length > 0) {
+            const deadTokens: string[] = fcmResult.failedTokens;
+            console.log(`[FCM] Limpando ${deadTokens.length} tokens inválidos/mortos do Firebase.`);
+            const activeFCM = fcmTokensList.filter(t => !deadTokens.includes(t.token));
+            try {
+              fs.writeFileSync(tokenFile, JSON.stringify(activeFCM, null, 2), "utf8");
+            } catch (e) {
+              console.error("Erro ao limpar tokens FCM mortos", e);
+            }
+          }
+        }
+      } else {
+        console.log("[FCM] Firebase Admin não inicializado ou sem credenciais. Ignorando envio via FCM.");
       }
     }
 
     res.json({
       success: true,
-      sentCount: filtered.length,
-      successCount,
-      failureCount,
-      prunedCount: deadEndpoints.length
+      webPush: {
+        totalTarget: filteredSubs.length,
+        successCount: webPushSuccess,
+        failureCount: webPushFailure,
+        prunedCount: deadWebPushEndpoints.length
+      },
+      fcm: {
+        active: fcmIsActive,
+        totalTarget: filteredFCM.length,
+        successCount: fcmSuccess,
+        failureCount: fcmFailure,
+        prunedCount: (fcmResult && fcmResult.failedTokens) ? fcmResult.failedTokens.length : 0
+      },
+      msg: `Broadcast enviado com sucesso. WebPush: ${webPushSuccess} | FCM: ${fcmSuccess}`
     });
   });
 

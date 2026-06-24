@@ -35,6 +35,8 @@ import {
   Globe,
   ShoppingBag,
   Smartphone,
+  ChevronDown,
+  ChevronUp,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -161,6 +163,94 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
   
+  // Estados para Firebase Cloud Messaging (FCM)
+  const [fcmApiKey, setFcmApiKey] = useState('');
+  const [fcmAuthDomain, setFcmAuthDomain] = useState('');
+  const [fcmProjectId, setFcmProjectId] = useState('');
+  const [fcmStorageBucket, setFcmStorageBucket] = useState('');
+  const [fcmMessagingSenderId, setFcmMessagingSenderId] = useState('');
+  const [fcmAppId, setFcmAppId] = useState('');
+  const [fcmVapidKey, setFcmVapidKey] = useState('');
+  const [fcmServiceAccount, setFcmServiceAccount] = useState('');
+  const [isFCMExpanded, setIsFCMExpanded] = useState(false);
+  const [isSavingFCMConfig, setIsSavingFCMConfig] = useState(false);
+  const [isSavingFCMSA, setIsSavingFCMSA] = useState(false);
+
+  // Carregar configurações de Firebase do backend
+  useEffect(() => {
+    fetch('/api/push/firebase-config')
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setFcmApiKey(data.apiKey || '');
+          setFcmAuthDomain(data.authDomain || '');
+          setFcmProjectId(data.projectId || '');
+          setFcmStorageBucket(data.storageBucket || '');
+          setFcmMessagingSenderId(data.messagingSenderId || '');
+          setFcmAppId(data.appId || '');
+          setFcmVapidKey(data.vapidKey || '');
+        }
+      })
+      .catch(err => console.error('Erro ao ler config do Firebase:', err));
+  }, []);
+
+  const handleSaveFCMConfig = async () => {
+    setIsSavingFCMConfig(true);
+    try {
+      const res = await fetch('/api/push/save-firebase-config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          config: {
+            apiKey: fcmApiKey,
+            authDomain: fcmAuthDomain,
+            projectId: fcmProjectId,
+            storageBucket: fcmStorageBucket,
+            messagingSenderId: fcmMessagingSenderId,
+            appId: fcmAppId,
+            vapidKey: fcmVapidKey
+          }
+        })
+      });
+      if (res.ok) {
+        alert('Configuração do Cliente Firebase salva com sucesso!');
+      } else {
+        const data = await res.json();
+        alert('Erro ao salvar config do Firebase: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e: any) {
+      alert('Falha de ligação ao servidor: ' + e.message);
+    } finally {
+      setIsSavingFCMConfig(false);
+    }
+  };
+
+  const handleSaveFCMSA = async () => {
+    if (!fcmServiceAccount.trim()) {
+      alert('Por favor, cole o JSON completo do seu Service Account.');
+      return;
+    }
+    setIsSavingFCMSA(true);
+    try {
+      const res = await fetch('/api/push/save-firebase-service-account', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serviceAccountJson: fcmServiceAccount })
+      });
+      if (res.ok) {
+        alert('Service Account do Firebase Admin guardado com sucesso no servidor!');
+        setFcmServiceAccount('');
+      } else {
+        const data = await res.json();
+        alert('Erro ao salvar Service Account: ' + (data.error || 'Erro desconhecido'));
+      }
+    } catch (e: any) {
+      alert('Falha de ligação ao servidor: ' + e.message);
+    } finally {
+      setIsSavingFCMSA(false);
+    }
+  };
+
   const [pushPermission, setPushPermission] = useState<NotificationPermission>(
     'Notification' in window ? Notification.permission : 'denied'
   );
@@ -709,9 +799,32 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     .then(res => res.json())
     .then(data => {
       console.log('[MasterPanel] Offline PWA background push broadcast dispatched:', data);
+      
+      const webPushSent = data.webPush ? data.webPush.successCount : 0;
+      const fcmSent = data.fcm ? data.fcm.successCount : 0;
+      const fcmActive = data.fcm && data.fcm.active;
+
+      let msg = 'Notificação disparada com sucesso em tempo real!';
+      if (locale === 'pt') {
+        msg += `\n\nResultados Offline:\n- WebPush PWA: ${webPushSent} entregas.`;
+        if (fcmActive) {
+          msg += `\n- Firebase (FCM): ${fcmSent} entregas.`;
+        } else {
+          msg += `\n- Firebase (FCM): Não configurado ou sem dispositivos activos.`;
+        }
+      } else {
+        msg += `\n\nOffline Results:\n- WebPush PWA: ${webPushSent} deliveries.`;
+        if (fcmActive) {
+          msg += `\n- Firebase (FCM): ${fcmSent} deliveries.`;
+        } else {
+          msg += `\n- Firebase (FCM): Not configured or no active devices.`;
+        }
+      }
+      alert(msg);
     })
     .catch(err => {
       console.error('[MasterPanel] Error dispatching offline PWA push:', err);
+      alert(locale === 'pt' ? 'Erro ao enviar notificação offline.' : 'Error sending offline notification.');
     });
 
     const updated = [newPush, ...pushHistory];
@@ -720,8 +833,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     
     setPushTitle('');
     setPushBody('');
-    
-    alert(locale === 'pt' ? 'Notificação enviada com sucesso em tempo real com logotipo!' : 'Push notification successfully sent in real-time with logo!');
   };
 
   const handleTestLocalPush = () => {
@@ -1548,6 +1659,173 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         </div>
                       </div>
                     ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Painel de Configuração do Firebase Cloud Messaging (FCM) */}
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-6">
+                <button 
+                  type="button"
+                  onClick={() => setIsFCMExpanded(!isFCMExpanded)}
+                  className="w-full flex items-center justify-between text-left focus:outline-none"
+                >
+                  <div className="flex items-center gap-3">
+                    <Settings className="text-amber-500" size={24} />
+                    <div>
+                      <h3 className="text-lg font-black italic text-slate-200 uppercase tracking-tight">
+                        ⚙️ Configurar Firebase Push (FCM)
+                      </h3>
+                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide mt-1">
+                        Habilite notificações nativas super rápidas e em segundo plano
+                      </p>
+                    </div>
+                  </div>
+                  {isFCMExpanded ? <ChevronUp className="text-slate-400" size={20} /> : <ChevronDown className="text-slate-400" size={20} />}
+                </button>
+
+                {isFCMExpanded && (
+                  <div className="pt-6 border-t border-white/5 space-y-8 animate-in slide-in-from-top-4 duration-300">
+                    <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-2xl text-[11px] leading-relaxed text-slate-400">
+                      <p className="font-black text-amber-500 uppercase mb-2">💡 Informações de visualização do AI Studio:</p>
+                      <p className="mb-2">
+                        Por motivos de segurança dos navegadores, as notificações de segundo plano (PWA / FCM) 
+                        <strong> NÃO chegam quando testa a aplicação dentro do frame de visualização do AI Studio</strong>.
+                      </p>
+                      <p className="font-bold text-white">
+                        Para testar e receber notificações push no telemóvel ou computador:
+                      </p>
+                      <ol className="list-decimal pl-5 mt-1 space-y-1">
+                        <li>Abra a sua aplicação numa <strong>nova aba autónoma</strong> (fora do AI Studio).</li>
+                        <li>Permita o acesso a notificações no navegador quando solicitado.</li>
+                        <li>Realize o login com a conta do utilizador e depois envie a campanha a partir deste painel administrativo!</li>
+                      </ol>
+                    </div>
+
+                    {/* Bloco 1: Configuração do Cliente Firebase */}
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest border-l-2 border-amber-500 pl-2">
+                        1. Credenciais do Aplicativo Web (Client SDK)
+                      </h4>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Firebase API Key</label>
+                          <input 
+                            type="password" 
+                            value={fcmApiKey}
+                            onChange={e => setFcmApiKey(e.target.value)}
+                            placeholder="AIzaSy..."
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-extrabold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Auth Domain</label>
+                          <input 
+                            type="text" 
+                            value={fcmAuthDomain}
+                            onChange={e => setFcmAuthDomain(e.target.value)}
+                            placeholder="projeto-id.firebaseapp.com"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Project ID</label>
+                          <input 
+                            type="text" 
+                            value={fcmProjectId}
+                            onChange={e => setFcmProjectId(e.target.value)}
+                            placeholder="projeto-id"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Storage Bucket</label>
+                          <input 
+                            type="text" 
+                            value={fcmStorageBucket}
+                            onChange={e => setFcmStorageBucket(e.target.value)}
+                            placeholder="projeto-id.appspot.com"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Messaging Sender ID</label>
+                          <input 
+                            type="text" 
+                            value={fcmMessagingSenderId}
+                            onChange={e => setFcmMessagingSenderId(e.target.value)}
+                            placeholder="1234567890"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">App ID</label>
+                          <input 
+                            type="text" 
+                            value={fcmAppId}
+                            onChange={e => setFcmAppId(e.target.value)}
+                            placeholder="1:123456:web:abcd"
+                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                          />
+                        </div>
+                      </div>
+
+                      <div>
+                        <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">
+                          Chave VAPID Web Push (FCM Certificate)
+                        </label>
+                        <input 
+                          type="text" 
+                          value={fcmVapidKey}
+                          onChange={e => setFcmVapidKey(e.target.value)}
+                          placeholder="Obtenha em Configurações do Projeto > Cloud Messaging > Web Push"
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
+                        />
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={handleSaveFCMConfig}
+                        disabled={isSavingFCMConfig}
+                        className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all disabled:opacity-50"
+                      >
+                        {isSavingFCMConfig ? 'A Guardar...' : 'Salvar Configuração do Cliente'}
+                      </button>
+                    </div>
+
+                    {/* Bloco 2: Configuração do Servidor Firebase Admin */}
+                    <div className="space-y-4 pt-4 border-t border-white/5">
+                      <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest border-l-2 border-amber-500 pl-2">
+                        2. Conta de Serviço do Servidor (Admin SDK)
+                      </h4>
+                      <p className="text-[10px] text-slate-400 leading-relaxed">
+                        Para disparar notificações em segundo plano para utilizadores com o aplicativo fechado, cole o conteúdo do ficheiro JSON da sua <strong>Chave Privada da Conta de Serviço</strong>.
+                      </p>
+                      <div className="bg-slate-950/40 p-3 rounded-lg border border-white/5 text-[9px] text-slate-500 leading-normal">
+                        <strong>Como obter:</strong> Vá à consola do Firebase &gt; Configurações do Projeto &gt; Contas de Serviço &gt; clique em <strong>Gerar nova chave privada</strong>. Abra o ficheiro obtido e cole o conteúdo completo aqui.
+                      </div>
+
+                      <div>
+                        <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">JSON da Conta de Serviço (Service Account)</label>
+                        <textarea 
+                          value={fcmServiceAccount}
+                          onChange={e => setFcmServiceAccount(e.target.value)}
+                          placeholder='{ "type": "service_account", "project_id": "...", "private_key": "...", ... }'
+                          rows={6}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-mono outline-none placeholder:text-slate-700 resize-none"
+                        />
+                      </div>
+
+                      <button 
+                        type="button"
+                        onClick={handleSaveFCMSA}
+                        disabled={isSavingFCMSA}
+                        className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all disabled:opacity-50"
+                      >
+                        {isSavingFCMSA ? 'A Configurar Servidor...' : 'Salvar Service Account do Servidor'}
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>

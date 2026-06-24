@@ -74,6 +74,7 @@ import {
 } from './services/storage';
 import { supabase, safeFetch } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
+import { registerFirebaseFCM } from './services/firebase-client';
 import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
@@ -889,6 +890,7 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser?.id) {
       registerWebPushSubscription(currentUser.id, currentUser.plan);
+      registerFirebaseFCM(currentUser.id, currentUser.plan);
     }
   }, [currentUser?.id, currentUser?.plan]);
 
