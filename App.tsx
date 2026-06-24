@@ -869,6 +869,24 @@ const App: React.FC = () => {
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
   useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      const registerSW = () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+          console.log('[App] SW registrado com sucesso:', registration.scope);
+        }).catch(err => {
+          console.error('[App] SW falhou:', err);
+        });
+      };
+      if (document.readyState === 'complete' || document.readyState === 'interactive') {
+        registerSW();
+      } else {
+        window.addEventListener('load', registerSW);
+        return () => window.removeEventListener('load', registerSW);
+      }
+    }
+  }, []);
+
+  useEffect(() => {
     if (currentUser?.id) {
       registerWebPushSubscription(currentUser.id, currentUser.plan);
     }
