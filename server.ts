@@ -90,10 +90,13 @@ function getStoredFirebaseConfig() {
 }
 
 function generateFirebaseSW(config: any) {
-  const swContent = `// Service Worker para Firebase Cloud Messaging (FCM) - Gerado Automaticamente
+  const swContent = `// Service Worker para Átrios - Suporte a PWA, WebPush PWA e Firebase FCM (Unificado)
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
+const CACHE_NAME = 'atrios-cache-v1';
+
+// 1. Inicialização Dinâmica do Firebase FCM
 const firebaseConfig = {
   apiKey: ${JSON.stringify(config.apiKey || "")},
   authDomain: ${JSON.stringify(config.authDomain || "")},
@@ -104,38 +107,49 @@ const firebaseConfig = {
 };
 
 if (firebaseConfig.apiKey) {
-  firebase.initializeApp(firebaseConfig);
-  const messaging = firebase.messaging();
-  
-  messaging.onBackgroundMessage((payload) => {
-    console.log('[FCM SW] Mensagem recebida em segundo plano:', payload);
+  try {
+    firebase.initializeApp(firebaseConfig);
+    const messaging = firebase.messaging();
     
-    const notificationTitle = payload.notification?.title || payload.data?.title || 'Átrios';
-    const notificationOptions = {
-      body: payload.notification?.body || payload.data?.body || '',
-      icon: payload.notification?.icon || payload.data?.icon || '/favicon.svg',
-      badge: '/favicon.svg',
-      data: payload.data,
-      tag: 'atrios-global-push',
-      renotify: true
-    };
+    messaging.onBackgroundMessage((payload) => {
+      console.log('[FCM SW] Mensagem recebida em segundo plano:', payload);
+      
+      const notificationTitle = payload.notification?.title || payload.data?.title || 'Átrios';
+      const notificationOptions = {
+        body: payload.notification?.body || payload.data?.body || '',
+        icon: payload.notification?.icon || payload.data?.icon || '/favicon.svg',
+        badge: '/favicon.svg',
+        data: payload.data,
+        tag: 'atrios-global-push',
+        renotify: true
+      };
 
-    self.registration.showNotification(notificationTitle, notificationOptions);
-  });
-  console.log('[FCM SW] Firebase inicializado com sucesso no Service Worker!');
+      self.registration.showNotification(notificationTitle, notificationOptions);
+    });
+    console.log('[FCM SW] Firebase inicializado com sucesso no Service Worker!');
+  } catch (err) {
+    console.error('[FCM SW] Erro ao inicializar Firebase no SW:', err);
+  }
 } else {
   console.warn('[FCM SW] Service worker ativo mas sem credenciais Firebase configuradas.');
 }
 
-// Inicializar ao carregar ou receber eventos
+// 2. Eventos PWA e Caching Standard
 self.addEventListener('install', (event) => {
+  console.log('SW: Instalado');
   self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
+  console.log('SW: Ativado');
   event.waitUntil(self.clients.claim());
 });
 
+self.addEventListener('fetch', (event) => {
+  event.respondWith(fetch(event.request));
+});
+
+// 3. Manipulador de clique na notificação (Comum para FCM e WebPush)
 self.addEventListener('notificationclick', (event) => {
   event.notification.close();
   
@@ -152,26 +166,89 @@ self.addEventListener('notificationclick', (event) => {
     })
   );
 });
+
+// 4. Receção de Push Standard (WebPush PWA - VAPID direto)
+// Filtrar para ignorar se for uma mensagem FCM (o FCM SDK trata as mensagens dele de forma autónoma)
+self.addEventListener('push', (event) => {
+  console.log('SW: Evento Push recebido em segundo plano!');
+  
+  let isFcmMessage = false;
+  let data = {
+    title: 'Átrios Software',
+    body: 'Tem uma nova atualização em segundo plano.',
+    icon: '/favicon.svg',
+    badge: '/favicon.svg'
+  };
+
+  if (event.data) {
+    try {
+      const parsed = event.data.json();
+      
+      // Detetar se é uma mensagem do FCM para evitar notificações duplicadas ou conflito
+      if (parsed && (parsed.from || parsed.collapse_key || parsed.notification || parsed.data?.['gcm.message_id'] || parsed['gcm.message_id'] || parsed.googleId || parsed['google.c.sender.id'])) {
+        isFcmMessage = true;
+      }
+
+      data = {
+        title: parsed.title || data.title,
+        body: parsed.body || data.body,
+        icon: parsed.icon || data.icon || '/favicon.svg',
+        badge: parsed.badge || data.badge || '/favicon.svg',
+        vibrate: parsed.vibrate || [200, 100, 200, 100, 300],
+        tag: parsed.tag || 'atrios-bg-push'
+      };
+    } catch (e) {
+      // Se for formato de texto plano
+      data.body = event.data.text();
+    }
+  }
+
+  if (isFcmMessage) {
+    console.log('SW: Mensagem FCM detetada no evento push, delegando ao SDK do Firebase.');
+    return;
+  }
+
+  const options = {
+    body: data.body,
+    icon: data.icon,
+    badge: data.badge,
+    vibrate: data.vibrate || [200, 100, 200, 100, 300],
+    data: {
+      dateOfArrival: Date.now(),
+      primaryKey: 1
+    },
+    tag: data.tag || 'atrios-bg-push',
+    renotify: true
+  };
+
+  event.waitUntil(
+    self.registration.showNotification(data.title, options)
+  );
+});
 `;
 
-  const swPaths = [
-    path.join(process.cwd(), "public", "firebase-messaging-sw.js"),
-    path.join(process.cwd(), "dist", "firebase-messaging-sw.js"),
-    path.join(__dirname, "firebase-messaging-sw.js"),
-    path.join(__dirname, "..", "public", "firebase-messaging-sw.js"),
-    path.join(__dirname, "public", "firebase-messaging-sw.js")
+  const fileNames = ["firebase-messaging-sw.js", "sw.js"];
+  const baseDirs = [
+    path.join(process.cwd(), "public"),
+    path.join(process.cwd(), "dist"),
+    __dirname,
+    path.join(__dirname, "..", "public"),
+    path.join(__dirname, "public")
   ];
 
-  for (const swPath of swPaths) {
-    try {
-      const swDir = path.dirname(swPath);
-      if (!fs.existsSync(swDir)) {
-        fs.mkdirSync(swDir, { recursive: true });
+  for (const dir of baseDirs) {
+    for (const name of fileNames) {
+      const swPath = path.join(dir, name);
+      try {
+        const swDir = path.dirname(swPath);
+        if (!fs.existsSync(swDir)) {
+          fs.mkdirSync(swDir, { recursive: true });
+        }
+        fs.writeFileSync(swPath, swContent, "utf8");
+        console.log(`[PWA FCM] Ficheiro Service Worker gravado com sucesso em: ${swPath}`);
+      } catch (err) {
+        // Ignorar silenciosamente caminhos inexistentes/inválidos para evitar crash
       }
-      fs.writeFileSync(swPath, swContent, "utf8");
-      console.log(`[PWA FCM] Ficheiro Service Worker gravado com sucesso em: ${swPath}`);
-    } catch (err) {
-      // Ignorar silenciosamente caminhos inexistentes/inválidos para evitar crash
     }
   }
 }

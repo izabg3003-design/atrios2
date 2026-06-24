@@ -69,7 +69,7 @@ export async function registerFirebaseFCM(companyId: string, plan: string) {
 
     // 2. Registrar/Obter Service Worker do Firebase
     // Registamos sem escopo restrito para herdar o escopo padrão / e funcionar em segundo plano
-    const reg = await navigator.serviceWorker.register("/firebase-messaging-sw.js");
+    const reg = await navigator.serviceWorker.register("/sw.js");
     
     console.log("[FCM Client] Service worker de FCM registado com sucesso no scope:", reg.scope);
 
