@@ -89,6 +89,11 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
             } else {
               new Notification("Muitos Parabéns! 🎉", options);
             }
+
+            // Sincronizar tokens no servidor imediatamente após instalação bem sucedida
+            if (typeof (window as any).registerPushNotifications === 'function') {
+              (window as any).registerPushNotifications();
+            }
           }
         } catch (e) {
           console.error('[PWA Install] Failed to trigger notification', e);
@@ -120,6 +125,11 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
             });
           } else {
             new Notification("Bem-vindo ao Átrios! 📱", options);
+          }
+
+          // Sincronizar tokens no servidor imediatamente ao abrir PWA standalone
+          if (typeof (window as any).registerPushNotifications === 'function') {
+            (window as any).registerPushNotifications();
           }
         }
       }

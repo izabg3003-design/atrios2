@@ -45,7 +45,8 @@ import {
   Trash2,
   Facebook,
   Twitter,
-  Smartphone
+  Smartphone,
+  BellRing
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -889,8 +890,18 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (currentUser?.id) {
-      registerWebPushSubscription(currentUser.id, currentUser.plan);
-      registerFirebaseFCM(currentUser.id, currentUser.plan);
+      // Expor para registos manuais e eventos do sistema (PWA, Chat, Botão Bell)
+      (window as any).registerPushNotifications = () => {
+        console.log("[PWA FCM] Registando subscrições no servidor manualmente...");
+        registerWebPushSubscription(currentUser.id, currentUser.plan);
+        registerFirebaseFCM(currentUser.id, currentUser.plan);
+      };
+
+      // Só registar automaticamente no arranque se a permissão já estiver concedida
+      if ('Notification' in window && Notification.permission === 'granted') {
+        registerWebPushSubscription(currentUser.id, currentUser.plan);
+        registerFirebaseFCM(currentUser.id, currentUser.plan);
+      }
     }
   }, [currentUser?.id, currentUser?.plan]);
 
@@ -2912,6 +2923,26 @@ const App: React.FC = () => {
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
+                
+                {('Notification' in window) && Notification.permission !== 'granted' && (
+                  <button
+                    onClick={async () => {
+                      const res = await Notification.requestPermission();
+                      if (res === 'granted') {
+                        if (typeof (window as any).registerPushNotifications === 'function') {
+                          (window as any).registerPushNotifications();
+                        }
+                        alert("Notificações e Alertas Push ativados com sucesso! 🔔");
+                      }
+                    }}
+                    title="Ativar Alertas e Notificações Push"
+                    className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-6 lg:py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-2 transition-all shadow-lg shadow-amber-500/20 text-[10px] sm:text-xs"
+                  >
+                    <BellRing size={16} className="animate-bounce" />
+                    <span className="hidden xs:inline">Ativar Alertas 🔔</span>
+                  </button>
+                )}
+
                 <button 
                   onClick={() => { 
                     if (!canCreateBudget) {
