@@ -476,6 +476,8 @@ async function startServer() {
       return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
     }
 
+    const normalizedPlan = (plan || "free").trim().toLowerCase();
+
     // A. Guardar no Supabase se configurado
     let savedToSupabase = false;
     try {
@@ -486,7 +488,7 @@ async function startServer() {
             endpoint: subscription.endpoint,
             subscription: subscription,
             company_id: companyId || "guest",
-            plan: plan || "free",
+            plan: normalizedPlan,
             created_at: new Date().toISOString()
           });
         if (!error) {
@@ -503,7 +505,7 @@ async function startServer() {
     // A2. Guardar no Firestore
     let savedToFirestore = false;
     try {
-      savedToFirestore = await saveSubscriptionToFirestore(subscription, companyId, plan);
+      savedToFirestore = await saveSubscriptionToFirestore(subscription, companyId, normalizedPlan);
     } catch (e: any) {
       console.error("[PWA Push] Erro ao guardar no Firestore:", e.message);
     }
@@ -524,7 +526,7 @@ async function startServer() {
     const newRecord = {
       subscription,
       companyId: companyId || "guest",
-      plan: plan || "free",
+      plan: normalizedPlan,
       createdAt: new Date().toISOString()
     };
 
@@ -536,7 +538,7 @@ async function startServer() {
 
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
-      console.log(`[PWA Push] Registered subscription local backup for User: ${companyId}, Plan: ${plan}`);
+      console.log(`[PWA Push] Registered subscription local backup for User: ${companyId}, Plan: ${normalizedPlan}`);
       res.json({ success: true, savedToSupabase, savedToFirestore });
     } catch (dbErr: any) {
       console.error("Failed to write subscriptions to disk", dbErr);
@@ -551,6 +553,8 @@ async function startServer() {
       return res.status(400).json({ error: "Token do FCM ausente" });
     }
 
+    const normalizedPlan = (plan || "free").trim().toLowerCase();
+
     // A. Guardar no Supabase se configurado
     let savedToSupabase = false;
     try {
@@ -560,7 +564,7 @@ async function startServer() {
           .upsert({
             token: token,
             company_id: companyId || "guest",
-            plan: plan || "free",
+            plan: normalizedPlan,
             updated_at: new Date().toISOString()
           });
         if (!error) {
@@ -577,7 +581,7 @@ async function startServer() {
     // A2. Guardar no Firestore
     let savedToFirestore = false;
     try {
-      savedToFirestore = await saveFCMTokenToFirestore(token, companyId, plan);
+      savedToFirestore = await saveFCMTokenToFirestore(token, companyId, normalizedPlan);
     } catch (e: any) {
       console.error("[PWA FCM] Erro ao guardar token no Firestore:", e.message);
     }
@@ -597,7 +601,7 @@ async function startServer() {
     const newRecord = {
       token,
       companyId: companyId || "guest",
-      plan: plan || "free",
+      plan: normalizedPlan,
       updatedAt: new Date().toISOString()
     };
 
@@ -609,7 +613,7 @@ async function startServer() {
 
     try {
       fs.writeFileSync(tokenFile, JSON.stringify(tokensList, null, 2), "utf8");
-      console.log(`[PWA FCM] Registado Token local backup para User: ${companyId}, Plano: ${plan}`);
+      console.log(`[PWA FCM] Registado Token local backup para User: ${companyId}, Plano: ${normalizedPlan}`);
       res.json({ success: true, savedToSupabase, savedToFirestore });
     } catch (e: any) {
       console.error("Falha ao salvar token FCM local:", e);
@@ -629,288 +633,300 @@ async function startServer() {
 
   // 3. Enviar notificação push em segundo plano offline híbrido (Web-Push + FCM)
   app.post("/api/push/send-broadcast", async (req, res) => {
-    const { title, body, targetAudience } = req.body;
-    if (!title || !body) {
-      return res.status(400).json({ error: "Missing required fields: title and body" });
-    }
-
-    console.log(`[Push Broadcast] Disparando: "${title}" | Alvo: ${targetAudience}`);
-
-    // --- PARTE A: WEB-PUSH STANDARD ---
-    let subscriptions: any[] = [];
-    
-    // Tentar carregar do Supabase primeiro
     try {
-      if (process.env.SUPABASE_URL) {
-        const { data, error } = await supabase
-          .from("push_subscriptions")
-          .select("*");
-        if (!error && data) {
-          subscriptions = data.map((row: any) => ({
-            subscription: typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription,
-            companyId: row.company_id || "guest",
-            plan: row.plan || "free",
-            createdAt: row.created_at
-          }));
-          console.log(`[Push Broadcast] Carregadas ${subscriptions.length} subscrições Web-Push do Supabase.`);
-        } else {
-          console.warn("[Push Broadcast] Falha ao carregar subscrições do Supabase, usando locais:", error?.message);
-        }
+      const { title, body, targetAudience } = req.body;
+      if (!title || !body) {
+        return res.status(400).json({ error: "Missing required fields: title and body" });
       }
-    } catch (e: any) {
-      console.error("[Push Broadcast] Erro ao carregar subscrições do Supabase:", e.message);
-    }
 
-    // Tentar carregar do Firestore
-    try {
-      const firestoreSubs = await getSubscriptionsFromFirestore();
-      firestoreSubs.forEach(fsSub => {
-        if (!subscriptions.some(s => s.subscription?.endpoint === fsSub.subscription?.endpoint)) {
-          subscriptions.push({
-            subscription: fsSub.subscription,
-            companyId: fsSub.companyId || "guest",
-            plan: fsSub.plan || "free",
-            createdAt: fsSub.createdAt
-          });
-        }
-      });
-      console.log(`[Push Broadcast] Carregadas subscrições Web-Push do Firestore. Total atual: ${subscriptions.length}`);
-    } catch (e: any) {
-      console.error("[Push Broadcast] Erro ao carregar subscrições do Firestore:", e.message);
-    }
+      console.log(`[Push Broadcast] Disparando: "${title}" | Alvo: ${targetAudience}`);
 
-    // Unir com locais (evitar duplicados por endpoint)
-    const subFile = path.join(__dirname, "push_subscriptions.json");
-    let localSubscriptions: any[] = [];
-    if (fs.existsSync(subFile)) {
+      // --- PARTE A: WEB-PUSH STANDARD ---
+      let subscriptions: any[] = [];
+      
+      // Tentar carregar do Supabase primeiro
       try {
-        localSubscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
-        localSubscriptions.forEach(localSub => {
-          if (!subscriptions.some(s => s.subscription?.endpoint === localSub.subscription?.endpoint)) {
-            subscriptions.push(localSub);
+        if (process.env.SUPABASE_URL) {
+          const { data, error } = await supabase
+            .from("push_subscriptions")
+            .select("*");
+          if (!error && data) {
+            subscriptions = data.map((row: any) => ({
+              subscription: typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription,
+              companyId: row.company_id || "guest",
+              plan: row.plan || "free",
+              createdAt: row.created_at
+            }));
+            console.log(`[Push Broadcast] Carregadas ${subscriptions.length} subscrições Web-Push do Supabase.`);
+          } else {
+            console.warn("[Push Broadcast] Falha ao carregar subscrições do Supabase, usando locais:", error?.message);
+          }
+        }
+      } catch (e: any) {
+        console.error("[Push Broadcast] Erro ao carregar subscrições do Supabase:", e.message);
+      }
+
+      // Tentar carregar do Firestore
+      try {
+        const firestoreSubs = await getSubscriptionsFromFirestore();
+        firestoreSubs.forEach(fsSub => {
+          if (!subscriptions.some(s => s.subscription?.endpoint === fsSub.subscription?.endpoint)) {
+            subscriptions.push({
+              subscription: fsSub.subscription,
+              companyId: fsSub.companyId || "guest",
+              plan: fsSub.plan || "free",
+              createdAt: fsSub.createdAt
+            });
           }
         });
-      } catch (e) {
-        console.error("Error reading local subscriptions", e);
+        console.log(`[Push Broadcast] Carregadas subscrições Web-Push do Firestore. Total atual: ${subscriptions.length}`);
+      } catch (e: any) {
+        console.error("[Push Broadcast] Erro ao carregar subscrições do Firestore:", e.message);
       }
-    }
 
-    const filteredSubs = subscriptions.filter(sub => {
-      if (!targetAudience || targetAudience === 'all') return true;
-      if (targetAudience === 'free' && sub.plan === 'free') return true;
-      if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
-      if (targetAudience === 'premium_monthly' && sub.plan === 'premium_monthly') return true;
-      if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
-      return false;
-    });
-
-    let webPushSuccess = 0;
-    let webPushFailure = 0;
-    const deadWebPushEndpoints: string[] = [];
-
-    if (filteredSubs.length > 0) {
-      const payload = JSON.stringify({
-        title,
-        body,
-        icon: '/favicon.svg',
-        badge: '/favicon.svg',
-        tag: 'atrios-global-push',
-        vibrate: [200, 100, 200, 100, 300]
-      });
-
-      const sendPromises = filteredSubs.map(async (sub) => {
+      // Unir com locais (evitar duplicados por endpoint)
+      const subFile = path.join(__dirname, "push_subscriptions.json");
+      let localSubscriptions: any[] = [];
+      if (fs.existsSync(subFile)) {
         try {
-          if (sub.subscription && sub.subscription.endpoint) {
-            await webPush.sendNotification(sub.subscription, payload);
-            webPushSuccess++;
-          }
-        } catch (err: any) {
-          console.error(`[WebPush Send Error] ${sub.subscription?.endpoint}:`, err.message);
-          webPushFailure++;
-          if (sub.subscription?.endpoint && (err.statusCode === 410 || err.statusCode === 404)) {
-            deadWebPushEndpoints.push(sub.subscription.endpoint);
-          }
-        }
-      });
-
-      await Promise.all(sendPromises);
-
-      // Limpar endpoints mortos localmente
-      if (deadWebPushEndpoints.length > 0) {
-        const activeSubs = localSubscriptions.filter(sub => !deadWebPushEndpoints.includes(sub.subscription?.endpoint));
-        try {
-          fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
+          localSubscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+          localSubscriptions.forEach(localSub => {
+            if (!subscriptions.some(s => s.subscription?.endpoint === localSub.subscription?.endpoint)) {
+              subscriptions.push(localSub);
+            }
+          });
         } catch (e) {
-          console.error("Erro ao limpar subscrições web-push locais mortas", e);
-        }
-
-        // Limpar também no Firestore
-        for (const endpoint of deadWebPushEndpoints) {
-          try {
-            await removeSubscriptionFromFirestore(endpoint);
-          } catch (e: any) {
-            console.error("Erro ao remover subscrição morta do Firestore:", e.message);
-          }
-        }
-
-        // Limpar também no Supabase
-        try {
-          if (process.env.SUPABASE_URL) {
-            await supabase
-              .from("push_subscriptions")
-              .delete()
-              .in("endpoint", deadWebPushEndpoints);
-            console.log(`[Push Broadcast] Removidos ${deadWebPushEndpoints.length} endpoints mortos do Supabase.`);
-          }
-        } catch (e: any) {
-          console.error("Erro ao remover endpoints mortos do Supabase:", e.message);
+          console.error("Error reading local subscriptions", e);
         }
       }
-    }
 
-    // --- PARTE B: FIREBASE CLOUD MESSAGING (FCM) ---
-    let fcmTokensList: any[] = [];
-
-    // Tentar carregar do Supabase primeiro
-    try {
-      if (process.env.SUPABASE_URL) {
-        const { data, error } = await supabase
-          .from("fcm_tokens")
-          .select("*");
-        if (!error && data) {
-          fcmTokensList = data.map((row: any) => ({
-            token: row.token,
-            companyId: row.company_id || "guest",
-            plan: row.plan || "free",
-            updatedAt: row.updated_at
-          }));
-          console.log(`[Push Broadcast] Carregados ${fcmTokensList.length} tokens FCM do Supabase.`);
-        } else {
-          console.warn("[Push Broadcast] Falha ao carregar tokens FCM do Supabase, usando locais:", error?.message);
-        }
-      }
-    } catch (e: any) {
-      console.error("[Push Broadcast] Erro ao carregar tokens FCM do Supabase:", e.message);
-    }
-
-    // Tentar carregar do Firestore
-    try {
-      const firestoreTokens = await getFCMTokensFromFirestore();
-      firestoreTokens.forEach(fsTok => {
-        if (!fcmTokensList.some(t => t.token === fsTok.token)) {
-          fcmTokensList.push({
-            token: fsTok.token,
-            companyId: fsTok.companyId || "guest",
-            plan: fsTok.plan || "free",
-            updatedAt: fsTok.updatedAt
-          });
-        }
+      const filteredSubs = subscriptions.filter(sub => {
+        const plan = (sub.plan || "").trim().toLowerCase();
+        const audience = (targetAudience || "").trim().toLowerCase();
+        if (!audience || audience === 'all') return true;
+        if (audience === 'free' && plan === 'free') return true;
+        if (audience === 'all_premium' && plan !== 'free') return true;
+        if (audience === 'premium_monthly' && plan === 'premium_monthly') return true;
+        if (audience === 'premium_annual' && plan === 'premium_annual') return true;
+        return false;
       });
-      console.log(`[Push Broadcast] Carregados tokens FCM do Firestore. Total atual: ${fcmTokensList.length}`);
-    } catch (e: any) {
-      console.error("[Push Broadcast] Erro ao carregar tokens FCM do Firestore:", e.message);
-    }
 
-    // Unir com locais (evitar duplicados por token)
-    const tokenFile = path.join(__dirname, "fcm_tokens.json");
-    let localTokens: any[] = [];
-    if (fs.existsSync(tokenFile)) {
-      try {
-        localTokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
-        localTokens.forEach(localTok => {
-          if (!fcmTokensList.some(t => t.token === localTok.token)) {
-            fcmTokensList.push(localTok);
+      let webPushSuccess = 0;
+      let webPushFailure = 0;
+      const deadWebPushEndpoints: string[] = [];
+
+      if (filteredSubs.length > 0) {
+        const payload = JSON.stringify({
+          title,
+          body,
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
+          tag: 'atrios-global-push',
+          vibrate: [200, 100, 200, 100, 300]
+        });
+
+        const sendPromises = filteredSubs.map(async (sub) => {
+          try {
+            if (sub.subscription && sub.subscription.endpoint) {
+              await webPush.sendNotification(sub.subscription, payload);
+              webPushSuccess++;
+            }
+          } catch (err: any) {
+            console.error(`[WebPush Send Error] ${sub.subscription?.endpoint}:`, err.message);
+            webPushFailure++;
+            if (sub.subscription?.endpoint && (err.statusCode === 410 || err.statusCode === 404)) {
+              deadWebPushEndpoints.push(sub.subscription.endpoint);
+            }
           }
         });
-      } catch (e) {
-        console.error("Erro ao ler fcm_tokens.json local:", e);
-      }
-    }
 
-    const filteredFCM = fcmTokensList.filter(tokenRecord => {
-      if (!targetAudience || targetAudience === 'all') return true;
-      if (targetAudience === 'free' && tokenRecord.plan === 'free') return true;
-      if (targetAudience === 'all_premium' && tokenRecord.plan !== 'free') return true;
-      if (targetAudience === 'premium_monthly' && tokenRecord.plan === 'premium_monthly') return true;
-      if (targetAudience === 'premium_annual' && tokenRecord.plan === 'premium_annual') return true;
-      return false;
-    });
+        await Promise.all(sendPromises);
 
-    let fcmSuccess = 0;
-    let fcmFailure = 0;
-    let fcmIsActive = false;
-    let fcmResult: any = null;
+        // Limpar endpoints mortos localmente
+        if (deadWebPushEndpoints.length > 0) {
+          const activeSubs = localSubscriptions.filter(sub => !deadWebPushEndpoints.includes(sub.subscription?.endpoint));
+          try {
+            fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
+          } catch (e) {
+            console.error("Erro ao limpar subscrições web-push locais mortas", e);
+          }
 
-    if (filteredFCM.length > 0) {
-      const adminSDK = getFirebaseAdmin();
-      if (adminSDK) {
-        fcmIsActive = true;
-        const tokensToNotify = filteredFCM.map(r => r.token);
-        
-        fcmResult = await sendFCMBroadcast(title, body, tokensToNotify, {
-          targetAudience
-        });
-
-        if (fcmResult && fcmResult.success) {
-          fcmSuccess = fcmResult.successCount || 0;
-          fcmFailure = fcmResult.failureCount || 0;
-
-          // Limpar tokens do FCM que falharam (estão inativos/rejeitados)
-          if (fcmResult.failedTokens && fcmResult.failedTokens.length > 0) {
-            const deadTokens: string[] = fcmResult.failedTokens;
-            console.log(`[FCM] Limpando ${deadTokens.length} tokens inválidos/mortos do Firebase.`);
-            const activeFCM = fcmTokensList.filter(t => !deadTokens.includes(t.token));
+          // Limpar também no Firestore
+          for (const endpoint of deadWebPushEndpoints) {
             try {
-              fs.writeFileSync(tokenFile, JSON.stringify(activeFCM, null, 2), "utf8");
-            } catch (e) {
-              console.error("Erro ao limpar tokens FCM mortos", e);
-            }
-
-            // Limpar também do Firestore
-            for (const tok of deadTokens) {
-              try {
-                await removeFCMTokenFromFirestore(tok);
-              } catch (e: any) {
-                console.error("Erro ao remover token morto do Firestore:", e.message);
-              }
-            }
-
-            // Limpar também no Supabase
-            try {
-              if (process.env.SUPABASE_URL) {
-                await supabase
-                  .from("fcm_tokens")
-                  .delete()
-                  .in("token", deadTokens);
-                console.log(`[FCM Broadcast] Removidos ${deadTokens.length} tokens mortos do Supabase.`);
-              }
+              await removeSubscriptionFromFirestore(endpoint);
             } catch (e: any) {
-              console.error("Erro ao remover tokens mortos do Supabase:", e.message);
+              console.error("Erro ao remover subscrição morta do Firestore:", e.message);
             }
+          }
+
+          // Limpar também no Supabase
+          try {
+            if (process.env.SUPABASE_URL) {
+              await supabase
+                .from("push_subscriptions")
+                .delete()
+                .in("endpoint", deadWebPushEndpoints);
+              console.log(`[Push Broadcast] Removidos ${deadWebPushEndpoints.length} endpoints mortos do Supabase.`);
+            }
+          } catch (e: any) {
+            console.error("Erro ao remover endpoints mortos do Supabase:", e.message);
           }
         }
-      } else {
-        console.log("[FCM] Firebase Admin não inicializado ou sem credenciais. Ignorando envio via FCM.");
       }
-    }
 
-    res.json({
-      success: true,
-      webPush: {
-        totalTarget: filteredSubs.length,
-        successCount: webPushSuccess,
-        failureCount: webPushFailure,
-        prunedCount: deadWebPushEndpoints.length
-      },
-      fcm: {
-        active: fcmIsActive,
-        totalTarget: filteredFCM.length,
-        successCount: fcmSuccess,
-        failureCount: fcmFailure,
-        prunedCount: (fcmResult && fcmResult.failedTokens) ? fcmResult.failedTokens.length : 0
-      },
-      msg: `Broadcast enviado com sucesso. WebPush: ${webPushSuccess} | FCM: ${fcmSuccess}`
-    });
+      // --- PARTE B: FIREBASE CLOUD MESSAGING (FCM) ---
+      let fcmTokensList: any[] = [];
+
+      // Tentar carregar do Supabase primeiro
+      try {
+        if (process.env.SUPABASE_URL) {
+          const { data, error } = await supabase
+            .from("fcm_tokens")
+            .select("*");
+          if (!error && data) {
+            fcmTokensList = data.map((row: any) => ({
+              token: row.token,
+              companyId: row.company_id || "guest",
+              plan: row.plan || "free",
+              updatedAt: row.updated_at
+            }));
+            console.log(`[Push Broadcast] Carregados ${fcmTokensList.length} tokens FCM do Supabase.`);
+          } else {
+            console.warn("[Push Broadcast] Falha ao carregar tokens FCM do Supabase, usando locais:", error?.message);
+          }
+        }
+      } catch (e: any) {
+        console.error("[Push Broadcast] Erro ao carregar tokens FCM do Supabase:", e.message);
+      }
+
+      // Tentar carregar do Firestore
+      try {
+        const firestoreTokens = await getFCMTokensFromFirestore();
+        firestoreTokens.forEach(fsTok => {
+          if (!fcmTokensList.some(t => t.token === fsTok.token)) {
+            fcmTokensList.push({
+              token: fsTok.token,
+              companyId: fsTok.companyId || "guest",
+              plan: fsTok.plan || "free",
+              updatedAt: fsTok.updatedAt
+            });
+          }
+        });
+        console.log(`[Push Broadcast] Carregados tokens FCM do Firestore. Total atual: ${fcmTokensList.length}`);
+      } catch (e: any) {
+        console.error("[Push Broadcast] Erro ao carregar tokens FCM do Firestore:", e.message);
+      }
+
+      // Unir com locais (evitar duplicados por token)
+      const tokenFile = path.join(__dirname, "fcm_tokens.json");
+      let localTokens: any[] = [];
+      if (fs.existsSync(tokenFile)) {
+        try {
+          localTokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+          localTokens.forEach(localTok => {
+            if (!fcmTokensList.some(t => t.token === localTok.token)) {
+              fcmTokensList.push(localTok);
+            }
+          });
+        } catch (e) {
+          console.error("Erro ao ler fcm_tokens.json local:", e);
+        }
+      }
+
+      const filteredFCM = fcmTokensList.filter(tokenRecord => {
+        const plan = (tokenRecord.plan || "").trim().toLowerCase();
+        const audience = (targetAudience || "").trim().toLowerCase();
+        if (!audience || audience === 'all') return true;
+        if (audience === 'free' && plan === 'free') return true;
+        if (audience === 'all_premium' && plan !== 'free') return true;
+        if (audience === 'premium_monthly' && plan === 'premium_monthly') return true;
+        if (audience === 'premium_annual' && plan === 'premium_annual') return true;
+        return false;
+      });
+
+      let fcmSuccess = 0;
+      let fcmFailure = 0;
+      let fcmIsActive = false;
+      let fcmResult: any = null;
+
+      if (filteredFCM.length > 0) {
+        const adminSDK = getFirebaseAdmin();
+        if (adminSDK) {
+          fcmIsActive = true;
+          const tokensToNotify = filteredFCM.map(r => r.token);
+          
+          fcmResult = await sendFCMBroadcast(title, body, tokensToNotify, {
+            targetAudience
+          });
+
+          if (fcmResult && fcmResult.success) {
+            fcmSuccess = fcmResult.successCount || 0;
+            fcmFailure = fcmResult.failureCount || 0;
+
+            // Limpar tokens do FCM que falharam (estão inativos/rejeitados)
+            if (fcmResult.failedTokens && fcmResult.failedTokens.length > 0) {
+              const deadTokens: string[] = fcmResult.failedTokens;
+              console.log(`[FCM] Limpando ${deadTokens.length} tokens inválidos/mortos do Firebase.`);
+              const activeFCM = fcmTokensList.filter(t => !deadTokens.includes(t.token));
+              try {
+                fs.writeFileSync(tokenFile, JSON.stringify(activeFCM, null, 2), "utf8");
+              } catch (e) {
+                console.error("Erro ao limpar tokens FCM mortos", e);
+              }
+
+              // Limpar também do Firestore
+              for (const tok of deadTokens) {
+                try {
+                  await removeFCMTokenFromFirestore(tok);
+                } catch (e: any) {
+                  console.error("Erro ao remover token morto do Firestore:", e.message);
+                }
+              }
+
+              // Limpar também no Supabase
+              try {
+                if (process.env.SUPABASE_URL) {
+                  await supabase
+                    .from("fcm_tokens")
+                    .delete()
+                    .in("token", deadTokens);
+                  console.log(`[FCM Broadcast] Removidos ${deadTokens.length} tokens mortos do Supabase.`);
+                }
+              } catch (e: any) {
+                console.error("Erro ao remover tokens mortos do Supabase:", e.message);
+              }
+            }
+          }
+        } else {
+          console.log("[FCM] Firebase Admin não inicializado ou sem credenciais. Ignorando envio via FCM.");
+        }
+      }
+
+      return res.json({
+        success: true,
+        webPush: {
+          totalTarget: filteredSubs.length,
+          successCount: webPushSuccess,
+          failureCount: webPushFailure,
+          prunedCount: deadWebPushEndpoints.length
+        },
+        fcm: {
+          active: fcmIsActive,
+          totalTarget: filteredFCM.length,
+          successCount: fcmSuccess,
+          failureCount: fcmFailure,
+          prunedCount: (fcmResult && fcmResult.failedTokens) ? fcmResult.failedTokens.length : 0
+        },
+        msg: `Broadcast enviado com sucesso. WebPush: ${webPushSuccess} | FCM: ${fcmSuccess}`
+      });
+    } catch (routeErr: any) {
+      console.error("[Push Broadcast] Erro fatal na rota de send-broadcast:", routeErr);
+      return res.status(500).json({
+        success: false,
+        error: routeErr.message || "Erro fatal interno ao enviar broadcast"
+      });
+    }
   });
 
   // Keep-alive function to prevent Render from sleeping
