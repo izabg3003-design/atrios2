@@ -470,12 +470,37 @@ async function startServer() {
   });
 
   // 2. Subscrever um dispositivo de utilizador no browser (Web-Push standard)
-  app.post("/api/push/subscribe", (req, res) => {
+  app.post("/api/push/subscribe", async (req, res) => {
     const { subscription, companyId, plan } = req.body;
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
     }
 
+    // A. Guardar no Supabase se configurado
+    let savedToSupabase = false;
+    try {
+      if (process.env.SUPABASE_URL) {
+        const { error } = await supabase
+          .from("push_subscriptions")
+          .upsert({
+            endpoint: subscription.endpoint,
+            subscription: subscription,
+            company_id: companyId || "guest",
+            plan: plan || "free",
+            created_at: new Date().toISOString()
+          });
+        if (!error) {
+          console.log(`[PWA Push] Sincronizado com sucesso no Supabase para User: ${companyId}`);
+          savedToSupabase = true;
+        } else {
+          console.warn("[PWA Push] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local:", error.message);
+        }
+      }
+    } catch (e: any) {
+      console.error("[PWA Push] Erro na ligação ao Supabase, usando fallback local:", e.message);
+    }
+
+    // B. Guardar localmente como Backup/Fallback
     const subFile = path.join(__dirname, "push_subscriptions.json");
     let subscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
@@ -503,8 +528,8 @@ async function startServer() {
 
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
-      console.log(`[PWA Push] Registered subscription for User: ${companyId}, Plan: ${plan}`);
-      res.json({ success: true });
+      console.log(`[PWA Push] Registered subscription local backup for User: ${companyId}, Plan: ${plan}`);
+      res.json({ success: true, savedToSupabase });
     } catch (dbErr: any) {
       console.error("Failed to write subscriptions to disk", dbErr);
       res.status(500).json({ error: "Failed to persist subscription" });
@@ -512,12 +537,36 @@ async function startServer() {
   });
 
   // 2.1 Subscrever Token FCM (Firebase Cloud Messaging)
-  app.post("/api/push/subscribe-fcm", (req, res) => {
+  app.post("/api/push/subscribe-fcm", async (req, res) => {
     const { token, companyId, plan } = req.body;
     if (!token) {
       return res.status(400).json({ error: "Token do FCM ausente" });
     }
 
+    // A. Guardar no Supabase se configurado
+    let savedToSupabase = false;
+    try {
+      if (process.env.SUPABASE_URL) {
+        const { error } = await supabase
+          .from("fcm_tokens")
+          .upsert({
+            token: token,
+            company_id: companyId || "guest",
+            plan: plan || "free",
+            updated_at: new Date().toISOString()
+          });
+        if (!error) {
+          console.log(`[PWA FCM] Sincronizado com sucesso no Supabase para User: ${companyId}`);
+          savedToSupabase = true;
+        } else {
+          console.warn("[PWA FCM] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local:", error.message);
+        }
+      }
+    } catch (e: any) {
+      console.error("[PWA FCM] Erro na ligação ao Supabase, usando fallback local:", e.message);
+    }
+
+    // B. Guardar localmente como Backup/Fallback
     const tokenFile = path.join(__dirname, "fcm_tokens.json");
     let tokensList: any[] = [];
     if (fs.existsSync(tokenFile)) {
@@ -544,10 +593,10 @@ async function startServer() {
 
     try {
       fs.writeFileSync(tokenFile, JSON.stringify(tokensList, null, 2), "utf8");
-      console.log(`[PWA FCM] Registado Token para User: ${companyId}, Plano: ${plan}`);
-      res.json({ success: true });
+      console.log(`[PWA FCM] Registado Token local backup para User: ${companyId}, Plano: ${plan}`);
+      res.json({ success: true, savedToSupabase });
     } catch (e: any) {
-      console.error("Falha ao salvar token FCM:", e);
+      console.error("Falha ao salvar token FCM local:", e);
       res.status(500).json({ error: e.message });
     }
   });
@@ -562,13 +611,43 @@ async function startServer() {
     console.log(`[Push Broadcast] Disparando: "${title}" | Alvo: ${targetAudience}`);
 
     // --- PARTE A: WEB-PUSH STANDARD ---
-    const subFile = path.join(__dirname, "push_subscriptions.json");
     let subscriptions: any[] = [];
+    
+    // Tentar carregar do Supabase primeiro
+    try {
+      if (process.env.SUPABASE_URL) {
+        const { data, error } = await supabase
+          .from("push_subscriptions")
+          .select("*");
+        if (!error && data) {
+          subscriptions = data.map((row: any) => ({
+            subscription: typeof row.subscription === 'string' ? JSON.parse(row.subscription) : row.subscription,
+            companyId: row.company_id || "guest",
+            plan: row.plan || "free",
+            createdAt: row.created_at
+          }));
+          console.log(`[Push Broadcast] Carregadas ${subscriptions.length} subscrições Web-Push do Supabase.`);
+        } else {
+          console.warn("[Push Broadcast] Falha ao carregar subscrições do Supabase, usando locais:", error?.message);
+        }
+      }
+    } catch (e: any) {
+      console.error("[Push Broadcast] Erro ao carregar subscrições do Supabase:", e.message);
+    }
+
+    // Unir com locais (evitar duplicados por endpoint)
+    const subFile = path.join(__dirname, "push_subscriptions.json");
+    let localSubscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
       try {
-        subscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+        localSubscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+        localSubscriptions.forEach(localSub => {
+          if (!subscriptions.some(s => s.subscription?.endpoint === localSub.subscription?.endpoint)) {
+            subscriptions.push(localSub);
+          }
+        });
       } catch (e) {
-        console.error("Error reading subscriptions", e);
+        console.error("Error reading local subscriptions", e);
       }
     }
 
@@ -597,12 +676,14 @@ async function startServer() {
 
       const sendPromises = filteredSubs.map(async (sub) => {
         try {
-          await webPush.sendNotification(sub.subscription, payload);
-          webPushSuccess++;
+          if (sub.subscription && sub.subscription.endpoint) {
+            await webPush.sendNotification(sub.subscription, payload);
+            webPushSuccess++;
+          }
         } catch (err: any) {
-          console.error(`[WebPush Send Error] ${sub.subscription.endpoint}:`, err.message);
+          console.error(`[WebPush Send Error] ${sub.subscription?.endpoint}:`, err.message);
           webPushFailure++;
-          if (err.statusCode === 410 || err.statusCode === 404) {
+          if (sub.subscription?.endpoint && (err.statusCode === 410 || err.statusCode === 404)) {
             deadWebPushEndpoints.push(sub.subscription.endpoint);
           }
         }
@@ -610,25 +691,68 @@ async function startServer() {
 
       await Promise.all(sendPromises);
 
-      // Limpar endpoints mortos
+      // Limpar endpoints mortos localmente
       if (deadWebPushEndpoints.length > 0) {
-        const activeSubs = subscriptions.filter(sub => !deadWebPushEndpoints.includes(sub.subscription.endpoint));
+        const activeSubs = localSubscriptions.filter(sub => !deadWebPushEndpoints.includes(sub.subscription?.endpoint));
         try {
           fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
         } catch (e) {
-          console.error("Erro ao limpar subscrições web-push mortas", e);
+          console.error("Erro ao limpar subscrições web-push locais mortas", e);
+        }
+
+        // Limpar também no Supabase
+        try {
+          if (process.env.SUPABASE_URL) {
+            await supabase
+              .from("push_subscriptions")
+              .delete()
+              .in("endpoint", deadWebPushEndpoints);
+            console.log(`[Push Broadcast] Removidos ${deadWebPushEndpoints.length} endpoints mortos do Supabase.`);
+          }
+        } catch (e: any) {
+          console.error("Erro ao remover endpoints mortos do Supabase:", e.message);
         }
       }
     }
 
     // --- PARTE B: FIREBASE CLOUD MESSAGING (FCM) ---
-    const tokenFile = path.join(__dirname, "fcm_tokens.json");
     let fcmTokensList: any[] = [];
+
+    // Tentar carregar do Supabase primeiro
+    try {
+      if (process.env.SUPABASE_URL) {
+        const { data, error } = await supabase
+          .from("fcm_tokens")
+          .select("*");
+        if (!error && data) {
+          fcmTokensList = data.map((row: any) => ({
+            token: row.token,
+            companyId: row.company_id || "guest",
+            plan: row.plan || "free",
+            updatedAt: row.updated_at
+          }));
+          console.log(`[Push Broadcast] Carregados ${fcmTokensList.length} tokens FCM do Supabase.`);
+        } else {
+          console.warn("[Push Broadcast] Falha ao carregar tokens FCM do Supabase, usando locais:", error?.message);
+        }
+      }
+    } catch (e: any) {
+      console.error("[Push Broadcast] Erro ao carregar tokens FCM do Supabase:", e.message);
+    }
+
+    // Unir com locais (evitar duplicados por token)
+    const tokenFile = path.join(__dirname, "fcm_tokens.json");
+    let localTokens: any[] = [];
     if (fs.existsSync(tokenFile)) {
       try {
-        fcmTokensList = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+        localTokens = JSON.parse(fs.readFileSync(tokenFile, "utf8"));
+        localTokens.forEach(localTok => {
+          if (!fcmTokensList.some(t => t.token === localTok.token)) {
+            fcmTokensList.push(localTok);
+          }
+        });
       } catch (e) {
-        console.error("Erro ao ler fcm_tokens.json:", e);
+        console.error("Erro ao ler fcm_tokens.json local:", e);
       }
     }
 
