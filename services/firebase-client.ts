@@ -46,8 +46,25 @@ export async function getFirebaseMessaging() {
 
 // Requisitar permissão e obter Token do FCM para o browser atual
 export async function registerFirebaseFCM(companyId: string, plan: string) {
+  const logDiag = (msg: string) => {
+    if (typeof window !== "undefined" && (window as any).addPushDiagnostic) {
+      (window as any).addPushDiagnostic(msg);
+    } else {
+      console.log(msg);
+    }
+  };
+
+  const logErr = (msg: string, err: any) => {
+    if (typeof window !== "undefined" && (window as any).addPushError) {
+      (window as any).addPushError(msg, err);
+    } else {
+      console.error(msg, err);
+    }
+  };
+
+  logDiag(`[FCM Client] Iniciar registo FCM para: ${companyId} (Plano: ${plan})`);
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) {
-    console.warn("[FCM Client] Notificações push não suportadas neste browser.");
+    logErr("Notificações push não suportadas neste browser.", new Error("SW/PushManager ausente"));
     return null;
   }
 
@@ -55,37 +72,43 @@ export async function registerFirebaseFCM(companyId: string, plan: string) {
   const messaging = await getFirebaseMessaging();
 
   if (!config || !messaging) {
-    console.log("[FCM Client] Ignorando registo FCM: Firebase não configurado.");
+    logDiag("[FCM Client] Ignorando registo FCM: Firebase não configurado no cliente.");
     return null;
   }
 
   try {
     // 1. Pedir permissão
     const permission = await Notification.requestPermission();
+    logDiag(`[FCM Client] Permissão de notificação atual: ${permission}`);
     if (permission !== "granted") {
-      console.warn("[FCM Client] Permissão de notificação negada pelo utilizador.");
+      logErr("Permissão de notificação negada pelo utilizador para FCM.", new Error("permission !== granted"));
       return null;
     }
 
     // 2. Registrar/Obter Service Worker do Firebase
-    // Registamos sem escopo restrito para herdar o escopo padrão / e funcionar em segundo plano
-    const reg = await navigator.serviceWorker.register("/sw.js");
+    logDiag("[FCM Client] Obtendo Service Worker registado...");
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      logDiag("[FCM Client] Nenhum SW registado, registando /sw.js...");
+      reg = await navigator.serviceWorker.register("/sw.js");
+    }
     
-    console.log("[FCM Client] Service worker de FCM registado com sucesso no scope:", reg.scope);
-
-    // Esperar que o SW esteja pronto
-    await navigator.serviceWorker.ready;
+    logDiag("[FCM Client] A aguardar que o Service Worker fique pronto...");
+    reg = await navigator.serviceWorker.ready;
+    logDiag(`[FCM Client] Service worker pronto no escopo: ${reg.scope}`);
 
     // 3. Obter token do FCM
+    logDiag(`[FCM Client] Solicitando token ao servidor do Firebase (Vapid Key: ${config.vapidKey ? "Configurada" : "Ausente"})...`);
     const token = await getToken(messaging, {
       serviceWorkerRegistration: reg,
       vapidKey: config.vapidKey || undefined
     });
 
     if (token) {
-      console.log("[FCM Client] Token FCM obtido com sucesso:", token);
+      logDiag(`[FCM Client] Token FCM obtido do Firebase com sucesso! Token: ${token.substring(0, 15)}...`);
 
       // 4. Enviar para o nosso Express Server para sincronização
+      logDiag("[FCM Client] Enviando token de FCM para o nosso servidor...");
       const saveRes = await fetch("/api/push/subscribe-fcm", {
         method: "POST",
         headers: {
@@ -98,8 +121,9 @@ export async function registerFirebaseFCM(companyId: string, plan: string) {
         })
       });
 
+      const resData = await saveRes.json();
       if (saveRes.ok) {
-        console.log("[FCM Client] Token sincronizado com o servidor com sucesso!");
+        logDiag(`[FCM Client] Token FCM sincronizado com o servidor com sucesso! Supabase: ${resData.savedToSupabase}`);
         
         // Registrar listener de mensagens em primeiro plano (quando o app estiver aberto)
         onMessage(messaging, (payload) => {
@@ -117,13 +141,13 @@ export async function registerFirebaseFCM(companyId: string, plan: string) {
         
         return token;
       } else {
-        console.error("[FCM Client] Falha ao sincronizar token com servidor:", saveRes.statusText);
+        throw new Error(`Servidor rejeitou token FCM com status ${saveRes.status}`);
       }
     } else {
-      console.warn("[FCM Client] Nenhum token retornado pelo Firebase.");
+      throw new Error("Nenhum token foi retornado pelo Firebase");
     }
   } catch (err) {
-    console.error("[FCM Client] Erro ao registrar FCM:", err);
+    logErr("Falha geral no processo de Firebase FCM", err);
   }
 
   return null;

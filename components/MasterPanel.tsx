@@ -37,6 +37,7 @@ import {
   Smartphone,
   ChevronDown,
   ChevronUp,
+  RefreshCw,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -255,6 +256,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     'Notification' in window ? Notification.permission : 'denied'
   );
 
+  const [diagnostics, setDiagnostics] = useState<{ log: string; isError: boolean }[]>(() => 
+    typeof window !== 'undefined' ? (window as any).pushDiagnostics || [] : []
+  );
+
+  useEffect(() => {
+    const handleUpdate = () => {
+      setDiagnostics([...(typeof window !== 'undefined' ? (window as any).pushDiagnostics || [] : [])]);
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('push_diagnostic_updated', handleUpdate);
+      handleUpdate();
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('push_diagnostic_updated', handleUpdate);
+      }
+    };
+  }, []);
+
   const requestPushPermission = async () => {
     if (!('Notification' in window)) {
       alert('O seu telemóvel ou navegador não suporta notificações nativas.');
@@ -267,8 +287,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         "Átrios App",
         "Perfeito! Notificações com o logo oficial da Átrios ativadas com sucesso. 🎉"
       );
+      
+      // Sincronizar com o servidor imediatamente
+      if (typeof (window as any).registerPushNotifications === 'function') {
+        console.log('[MasterPanel] Ativando subscrições no servidor...');
+        (window as any).registerPushNotifications();
+      }
     } else if (perm === 'denied') {
       alert('As notificações foram negadas. Se desejar receber avisos de cadastro, por favor ative-as nas definições de segurança do seu telemóvel ou navegador.');
+    }
+  };
+
+  const syncDevicePush = async () => {
+    if (typeof (window as any).registerPushNotifications === 'function') {
+      alert("Iniciando a sincronização com o servidor... Por favor consulte a consola do browser (F12) para ver o progresso detalhado. 🔄");
+      try {
+        await (window as any).registerPushNotifications();
+        alert("Comando de sincronização disparado! Os tokens do seu browser foram registados localmente e na base de dados Supabase com sucesso. 🔔");
+      } catch (e: any) {
+        alert("Erro ao sincronizar: " + e.message);
+      }
+    } else {
+      alert("Função de registo de push não disponível no contexto atual do app. Tem a sessão iniciada?");
     }
   };
 
@@ -1522,11 +1562,51 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </button>
                   </div>
 
+                  {pushPermission === 'granted' && (
+                    <button
+                      onClick={syncDevicePush}
+                      className="w-full py-4 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 tracking-widest transition-all"
+                    >
+                      <RefreshCw size={16} /> Sincronizar este Dispositivo no Servidor 🔄
+                    </button>
+                  )}
+
                   {pushPermission !== 'granted' && (
                     <p className="text-[10px] text-slate-500 text-center uppercase font-bold mt-2">
                       Nota: Certifique-se de que instalou o aplicativo (PWA) no seu telemóvel para receber notificações em segundo plano!
                     </p>
                   )}
+
+                  {/* Painel de Diagnóstico do Push */}
+                  <div className="mt-6 border border-white/10 bg-slate-950/80 rounded-2xl p-5 font-mono text-[10px] sm:text-xs text-emerald-400 space-y-3">
+                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
+                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Logs de Registo em Tempo Real
+                      </span>
+                      <button 
+                        onClick={() => {
+                          if (typeof window !== 'undefined') {
+                            (window as any).pushDiagnostics = [];
+                            setDiagnostics([]);
+                          }
+                        }}
+                        className="text-[9px] font-bold text-slate-500 hover:text-slate-300 uppercase bg-white/5 px-2.5 py-1 rounded"
+                      >
+                        Limpar
+                      </button>
+                    </div>
+                    <div className="max-h-48 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                      {diagnostics.length === 0 ? (
+                        <p className="text-slate-500 italic">Nenhum log registado. Clique em "Ativar no Telemóvel" ou "Sincronizar" para testar a ligação.</p>
+                      ) : (
+                        diagnostics.map((d, idx) => (
+                          <div key={idx} className={d.isError ? "text-rose-400 font-bold" : "text-slate-300"}>
+                            {d.log}
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

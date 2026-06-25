@@ -159,42 +159,85 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+const addPushDiagnostic = (msg: string, isError = false) => {
+  const log = `[${new Date().toLocaleTimeString()}] ${msg}`;
+  console.log(log);
+  if (typeof window !== 'undefined') {
+    if (!(window as any).pushDiagnostics) (window as any).pushDiagnostics = [];
+    (window as any).pushDiagnostics.push({ log, isError });
+    window.dispatchEvent(new CustomEvent('push_diagnostic_updated'));
+  }
+};
+
+const addPushError = (msg: string, err: any) => {
+  const errMsg = err?.message || String(err);
+  const log = `[${new Date().toLocaleTimeString()}] ❌ ${msg}: ${errMsg}`;
+  console.error(log, err);
+  if (typeof window !== 'undefined') {
+    if (!(window as any).pushDiagnostics) (window as any).pushDiagnostics = [];
+    (window as any).pushDiagnostics.push({ log, isError: true });
+    window.dispatchEvent(new CustomEvent('push_diagnostic_updated'));
+    
+    fetch('/api/push/log-client-error', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: msg, error: errMsg })
+    }).catch(() => {});
+  }
+};
+
+if (typeof window !== 'undefined') {
+  (window as any).addPushDiagnostic = addPushDiagnostic;
+  (window as any).addPushError = addPushError;
+}
+
 const registerWebPushSubscription = async (companyId: string, plan: string) => {
+  addPushDiagnostic(`[PWA WebPush] Iniciar registo para: ${companyId} (Plano: ${plan})`);
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    console.warn('Web Push is not fully supported on this device/browser');
+    addPushError('Web Push não é totalmente suportado neste dispositivo/browser', new Error('serviceWorker/PushManager ausente'));
     return;
   }
 
   try {
     const permission = await Notification.requestPermission();
+    addPushDiagnostic(`Permissão de notificação atual: ${permission}`);
     if (permission !== 'granted') {
-      console.warn('Notification permission was not granted by user');
+      addPushError('Permissão de notificação negada pelo utilizador', new Error('permission !== granted'));
       return;
     }
 
-    const reg = await navigator.serviceWorker.ready;
-    
-    // Obter chave pública VAPID do backend do Átrios
+    // Tentar obter registo atual de forma robusta
+    let reg = await navigator.serviceWorker.getRegistration();
+    if (!reg) {
+      addPushDiagnostic('Nenhum registo de SW encontrado, registando /sw.js...');
+      reg = await navigator.serviceWorker.register('/sw.js');
+    }
+
+    addPushDiagnostic('A aguardar que o Service Worker fique pronto (active)...');
+    reg = await navigator.serviceWorker.ready;
+    addPushDiagnostic(`Service Worker pronto no escopo: ${reg.scope}`);
+
+    addPushDiagnostic('A obter chave pública VAPID do servidor...');
     const keyRes = await fetch('/api/push/public-key');
     if (!keyRes.ok) {
-      throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
+      throw new Error(`Erro ao obter chave pública: ${keyRes.statusText}`);
     }
     const { publicKey } = await keyRes.json();
+    addPushDiagnostic(`Chave pública recebida: ${publicKey ? "Sim (Válida)" : "Não (Ausente)"}`);
     if (!publicKey) {
-      throw new Error('VAPID public key received from server is empty');
+      throw new Error('Chave pública VAPID recebida do servidor está vazia');
     }
 
     const convertedKey = urlBase64ToUint8Array(publicKey);
     
-    // Subscrever no pushManager do browser
+    addPushDiagnostic('A solicitar subscrição no pushManager do browser...');
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: convertedKey
     });
 
-    console.log('[PWA Subscription] Browser success:', subscription);
+    addPushDiagnostic('Inscrição no browser obtida com sucesso! A enviar para o servidor...');
 
-    // Enviar subscrição para sincronizar com o nosso Express Server
     const saveRes = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: {
@@ -207,13 +250,14 @@ const registerWebPushSubscription = async (companyId: string, plan: string) => {
       })
     });
 
+    const resData = await saveRes.json();
     if (saveRes.ok) {
-      console.log('[PWA Subscription] Synced with server successfully.');
+      addPushDiagnostic(`Web Push sincronizado no servidor com sucesso! Supabase: ${resData.savedToSupabase}`);
     } else {
-      console.error('[PWA Subscription] Server sync failed status:', saveRes.status);
+      throw new Error(`Servidor rejeitou subscrição com status ${saveRes.status}`);
     }
   } catch (err) {
-    console.error('[PWA Subscription] Error initiating offline Web Push:', err);
+    addPushError('Falha geral no processo de Web Push', err);
   }
 };
 

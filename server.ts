@@ -601,6 +601,16 @@ async function startServer() {
     }
   });
 
+  // 2.2 Endpoint para registar erros do cliente (Diagnóstico)
+  app.post("/api/push/log-client-error", express.json(), (req, res) => {
+    const { message, error } = req.body;
+    console.error("\n========================================");
+    console.error(`[CLIENT PUSH ERROR] ${message}`);
+    console.error(`Detalhes:`, error);
+    console.error("========================================\n");
+    res.json({ received: true });
+  });
+
   // 3. Enviar notificação push em segundo plano offline híbrido (Web-Push + FCM)
   app.post("/api/push/send-broadcast", async (req, res) => {
     const { title, body, targetAudience } = req.body;
