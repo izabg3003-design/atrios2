@@ -60,7 +60,10 @@ function getStoredFirebaseConfig() {
 
   let config: any = {};
 
-  if (process.env.VITE_FIREBASE_API_KEY) {
+  console.log("[PWA FCM] Carregando configuração do Firebase...");
+  console.log("[PWA FCM] VITE_FIREBASE_API_KEY de ambiente:", process.env.VITE_FIREBASE_API_KEY ? "Definido" : "Não definido");
+
+  if (process.env.VITE_FIREBASE_API_KEY && process.env.VITE_FIREBASE_API_KEY !== "undefined" && process.env.VITE_FIREBASE_API_KEY.trim() !== "") {
     config = {
       apiKey: process.env.VITE_FIREBASE_API_KEY,
       authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
@@ -71,12 +74,17 @@ function getStoredFirebaseConfig() {
       measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
       vapidKey: process.env.VITE_FIREBASE_FCM_VAPID_KEY
     };
+    console.log("[PWA FCM] Usando variáveis de ambiente para configuração do Firebase.");
   } else {
     for (const configPath of paths) {
+      console.log(`[PWA FCM] Testando caminho: ${configPath} (Existe: ${fs.existsSync(configPath)})`);
       if (fs.existsSync(configPath)) {
         try {
-          config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-          if (config && config.apiKey) {
+          const raw = fs.readFileSync(configPath, "utf8");
+          console.log(`[PWA FCM] Conteúdo bruto lido de ${configPath}:`, raw);
+          const parsed = JSON.parse(raw);
+          if (parsed && parsed.apiKey) {
+            config = parsed;
             console.log(`[PWA FCM] Carregado firebase_config.json com sucesso a partir de: ${configPath}`);
             break;
           }
@@ -86,6 +94,7 @@ function getStoredFirebaseConfig() {
       }
     }
   }
+  console.log("[PWA FCM] Configuração final resolvida:", JSON.stringify(config, null, 2));
   return config;
 }
 
