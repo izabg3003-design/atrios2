@@ -130,7 +130,10 @@ if (firebaseConfig.apiKey) {
         badge: '/favicon.svg',
         data: payload.data,
         tag: 'atrios-global-push',
-        renotify: true
+        renotify: true,
+        sound: 'default',
+        vibrate: [200, 100, 200, 100, 300],
+        requireInteraction: true
       };
 
       self.registration.showNotification(notificationTitle, notificationOptions);
@@ -227,7 +230,9 @@ self.addEventListener('push', (event) => {
       primaryKey: 1
     },
     tag: data.tag || 'atrios-bg-push',
-    renotify: true
+    renotify: true,
+    sound: 'default',
+    requireInteraction: true
   };
 
   event.waitUntil(
