@@ -39,11 +39,6 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
       } else {
         new Notification("Átrios Suporte", options);
       }
-
-      // Sincronizar tokens no servidor imediatamente
-      if (typeof (window as any).registerPushNotifications === 'function') {
-        (window as any).registerPushNotifications();
-      }
     }
   };
 

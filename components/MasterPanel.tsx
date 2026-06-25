@@ -35,9 +35,6 @@ import {
   Globe,
   ShoppingBag,
   Smartphone,
-  ChevronDown,
-  ChevronUp,
-  RefreshCw,
   PieChart as PieChartIcon
 } from 'lucide-react';
 import { 
@@ -83,39 +80,43 @@ import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (!('Notification' in window)) {
-    console.warn('Notifications not supported by this browser.');
-    return;
-  }
-  
-  if (Notification.permission === 'granted') {
-    const options = {
-      body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      vibrate: [200, 100, 200],
-      tag: 'atrios-master-push',
-      renotify: true
-    };
+  try {
+    if (!('Notification' in window)) {
+      console.warn('Notifications not supported by this browser.');
+      return;
+    }
     
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.showNotification(title, options);
-      }).catch((e) => {
-        console.error('SW ready failed, fallback to standard Notification', e);
+    if (Notification.permission === 'granted') {
+      const options = {
+        body,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        vibrate: [200, 100, 200],
+        tag: 'atrios-master-push',
+        renotify: true
+      };
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, options);
+        }).catch((e) => {
+          console.error('SW ready failed, fallback to standard Notification', e);
+          try {
+            new Notification(title, options);
+          } catch (err) {
+            console.error(err);
+          }
+        });
+      } else {
         try {
           new Notification(title, options);
         } catch (err) {
           console.error(err);
         }
-      });
-    } else {
-      try {
-        new Notification(title, options);
-      } catch (err) {
-        console.error(err);
       }
     }
+  } catch (err) {
+    console.error('Error in triggerPushNotificationSubmit in MasterPanel:', err);
   }
 };
 
@@ -144,6 +145,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       return [];
     }
   });
+  const [isScheduled, setIsScheduled] = useState(false);
+  const [scheduledTime, setScheduledTime] = useState('');
+  const [scheduledPushes, setScheduledPushes] = useState<any[]>([]);
+
+  const loadScheduledPushes = () => {
+    fetch('/api/push/scheduled')
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          setScheduledPushes(data.scheduled || []);
+        }
+      })
+      .catch(err => {
+        console.error('Error loading scheduled pushes:', err);
+      });
+  };
+
+  useEffect(() => {
+    if (activeTab === 'push') {
+      loadScheduledPushes();
+    }
+  }, [activeTab]);
   const [companies, setCompanies] = useState<Company[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
@@ -164,116 +187,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [lastMessageAlert, setLastMessageAlert] = useState<{name: string, content: string} | null>(null);
   const [lastUnlockAlert, setLastUnlockAlert] = useState<string | null>(null);
   
-  // Estados para Firebase Cloud Messaging (FCM)
-  const [fcmApiKey, setFcmApiKey] = useState('');
-  const [fcmAuthDomain, setFcmAuthDomain] = useState('');
-  const [fcmProjectId, setFcmProjectId] = useState('');
-  const [fcmStorageBucket, setFcmStorageBucket] = useState('');
-  const [fcmMessagingSenderId, setFcmMessagingSenderId] = useState('');
-  const [fcmAppId, setFcmAppId] = useState('');
-  const [fcmVapidKey, setFcmVapidKey] = useState('');
-  const [fcmServiceAccount, setFcmServiceAccount] = useState('');
-  const [isFCMExpanded, setIsFCMExpanded] = useState(false);
-  const [isSavingFCMConfig, setIsSavingFCMConfig] = useState(false);
-  const [isSavingFCMSA, setIsSavingFCMSA] = useState(false);
-
-  // Carregar configurações de Firebase do backend
-  useEffect(() => {
-    fetch('/api/push/firebase-config')
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
-          setFcmApiKey(data.apiKey || '');
-          setFcmAuthDomain(data.authDomain || '');
-          setFcmProjectId(data.projectId || '');
-          setFcmStorageBucket(data.storageBucket || '');
-          setFcmMessagingSenderId(data.messagingSenderId || '');
-          setFcmAppId(data.appId || '');
-          setFcmVapidKey(data.vapidKey || '');
-        }
-      })
-      .catch(err => console.error('Erro ao ler config do Firebase:', err));
-  }, []);
-
-  const handleSaveFCMConfig = async () => {
-    setIsSavingFCMConfig(true);
-    try {
-      const res = await fetch('/api/push/save-firebase-config', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          config: {
-            apiKey: fcmApiKey,
-            authDomain: fcmAuthDomain,
-            projectId: fcmProjectId,
-            storageBucket: fcmStorageBucket,
-            messagingSenderId: fcmMessagingSenderId,
-            appId: fcmAppId,
-            vapidKey: fcmVapidKey
-          }
-        })
-      });
-      if (res.ok) {
-        alert('Configuração do Cliente Firebase salva com sucesso!');
-      } else {
-        const data = await res.json();
-        alert('Erro ao salvar config do Firebase: ' + (data.error || 'Erro desconhecido'));
-      }
-    } catch (e: any) {
-      alert('Falha de ligação ao servidor: ' + e.message);
-    } finally {
-      setIsSavingFCMConfig(false);
-    }
-  };
-
-  const handleSaveFCMSA = async () => {
-    if (!fcmServiceAccount.trim()) {
-      alert('Por favor, cole o JSON completo do seu Service Account.');
-      return;
-    }
-    setIsSavingFCMSA(true);
-    try {
-      const res = await fetch('/api/push/save-firebase-service-account', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ serviceAccountJson: fcmServiceAccount })
-      });
-      if (res.ok) {
-        alert('Service Account do Firebase Admin guardado com sucesso no servidor!');
-        setFcmServiceAccount('');
-      } else {
-        const data = await res.json();
-        alert('Erro ao salvar Service Account: ' + (data.error || 'Erro desconhecido'));
-      }
-    } catch (e: any) {
-      alert('Falha de ligação ao servidor: ' + e.message);
-    } finally {
-      setIsSavingFCMSA(false);
-    }
-  };
-
   const [pushPermission, setPushPermission] = useState<NotificationPermission>(
     'Notification' in window ? Notification.permission : 'denied'
   );
-
-  const [diagnostics, setDiagnostics] = useState<{ log: string; isError: boolean }[]>(() => 
-    typeof window !== 'undefined' ? (window as any).pushDiagnostics || [] : []
-  );
-
-  useEffect(() => {
-    const handleUpdate = () => {
-      setDiagnostics([...(typeof window !== 'undefined' ? (window as any).pushDiagnostics || [] : [])]);
-    };
-    if (typeof window !== 'undefined') {
-      window.addEventListener('push_diagnostic_updated', handleUpdate);
-      handleUpdate();
-    }
-    return () => {
-      if (typeof window !== 'undefined') {
-        window.removeEventListener('push_diagnostic_updated', handleUpdate);
-      }
-    };
-  }, []);
 
   const requestPushPermission = async () => {
     if (!('Notification' in window)) {
@@ -287,28 +203,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         "Átrios App",
         "Perfeito! Notificações com o logo oficial da Átrios ativadas com sucesso. 🎉"
       );
-      
-      // Sincronizar com o servidor imediatamente
-      if (typeof (window as any).registerPushNotifications === 'function') {
-        console.log('[MasterPanel] Ativando subscrições no servidor...');
-        (window as any).registerPushNotifications();
-      }
     } else if (perm === 'denied') {
       alert('As notificações foram negadas. Se desejar receber avisos de cadastro, por favor ative-as nas definições de segurança do seu telemóvel ou navegador.');
-    }
-  };
-
-  const syncDevicePush = async () => {
-    if (typeof (window as any).registerPushNotifications === 'function') {
-      alert("Iniciando a sincronização com o servidor... Por favor consulte a consola do browser (F12) para ver o progresso detalhado. 🔄");
-      try {
-        await (window as any).registerPushNotifications();
-        alert("Comando de sincronização disparado! Os tokens do seu browser foram registados localmente e na base de dados Supabase com sucesso. 🔔");
-      } catch (e: any) {
-        alert("Erro ao sincronizar: " + e.message);
-      }
-    } else {
-      alert("Função de registo de push não disponível no contexto atual do app. Tem a sessão iniciada?");
     }
   };
 
@@ -796,6 +692,43 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       alert(locale === 'pt' ? 'Por favor, preencha o título e a mensagem!' : 'Please fill in both title and message!');
       return;
     }
+
+    if (isScheduled) {
+      if (!scheduledTime) {
+        alert(locale === 'pt' ? 'Por favor, defina a data e a hora do agendamento!' : 'Please set the date and time for the schedule!');
+        return;
+      }
+
+      fetch('/api/push/schedule', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          title: pushTitle,
+          body: pushBody,
+          targetAudience: pushAudience,
+          scheduledTime: scheduledTime
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(locale === 'pt' ? 'Notificação agendada com sucesso!' : 'Push notification scheduled successfully!');
+          loadScheduledPushes();
+          setPushTitle('');
+          setPushBody('');
+          setScheduledTime('');
+        } else {
+          alert(locale === 'pt' ? 'Erro ao agendar notificação.' : 'Failed to schedule push notification.');
+        }
+      })
+      .catch(err => {
+        console.error('Error scheduling push:', err);
+        alert(locale === 'pt' ? 'Erro de rede ao agendar.' : 'Network error scheduling push.');
+      });
+      return;
+    }
     
     const newPush: PushNotification = {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),
@@ -839,32 +772,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     .then(res => res.json())
     .then(data => {
       console.log('[MasterPanel] Offline PWA background push broadcast dispatched:', data);
-      
-      const webPushSent = data.webPush ? data.webPush.successCount : 0;
-      const fcmSent = data.fcm ? data.fcm.successCount : 0;
-      const fcmActive = data.fcm && data.fcm.active;
-
-      let msg = 'Notificação disparada com sucesso em tempo real!';
-      if (locale === 'pt') {
-        msg += `\n\nResultados Offline:\n- WebPush PWA: ${webPushSent} entregas.`;
-        if (fcmActive) {
-          msg += `\n- Firebase (FCM): ${fcmSent} entregas.`;
-        } else {
-          msg += `\n- Firebase (FCM): Não configurado ou sem dispositivos activos.`;
-        }
-      } else {
-        msg += `\n\nOffline Results:\n- WebPush PWA: ${webPushSent} deliveries.`;
-        if (fcmActive) {
-          msg += `\n- Firebase (FCM): ${fcmSent} deliveries.`;
-        } else {
-          msg += `\n- Firebase (FCM): Not configured or no active devices.`;
-        }
-      }
-      alert(msg);
     })
     .catch(err => {
       console.error('[MasterPanel] Error dispatching offline PWA push:', err);
-      alert(locale === 'pt' ? 'Erro ao enviar notificação offline.' : 'Error sending offline notification.');
     });
 
     const updated = [newPush, ...pushHistory];
@@ -873,6 +783,37 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     
     setPushTitle('');
     setPushBody('');
+    
+    alert(locale === 'pt' ? 'Notificação enviada com sucesso em tempo real com logotipo!' : 'Push notification successfully sent in real-time with logo!');
+  };
+
+  const handleDeletePushHistory = (id: string) => {
+    if (confirm(locale === 'pt' ? 'Tem a certeza que deseja excluir esta notificação do histórico?' : 'Are you sure you want to delete this notification from history?')) {
+      const updated = pushHistory.filter(h => h.id !== id);
+      setPushHistory(updated);
+      safeSetItem('atrios_push_history', JSON.stringify(updated));
+    }
+  };
+
+  const handleCancelScheduledPush = (id: string) => {
+    if (confirm(locale === 'pt' ? 'Tem a certeza que deseja cancelar este agendamento?' : 'Are you sure you want to cancel this scheduled push?')) {
+      fetch(`/api/push/scheduled/${id}`, {
+        method: 'DELETE'
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.success) {
+          alert(locale === 'pt' ? 'Agendamento cancelado com sucesso!' : 'Scheduled push cancelled successfully!');
+          loadScheduledPushes();
+        } else {
+          alert(locale === 'pt' ? 'Erro ao cancelar agendamento.' : 'Failed to cancel schedule.');
+        }
+      })
+      .catch(err => {
+        console.error('Error deleting schedule:', err);
+        alert(locale === 'pt' ? 'Erro de rede ao cancelar agendamento.' : 'Network error cancelling schedule.');
+      });
+    }
   };
 
   const handleTestLocalPush = () => {
@@ -1562,51 +1503,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </button>
                   </div>
 
-                  {pushPermission === 'granted' && (
-                    <button
-                      onClick={syncDevicePush}
-                      className="w-full py-4 bg-emerald-500/10 border border-emerald-500/30 hover:bg-emerald-500/20 text-emerald-400 rounded-2xl font-black text-xs uppercase flex items-center justify-center gap-2 tracking-widest transition-all"
-                    >
-                      <RefreshCw size={16} /> Sincronizar este Dispositivo no Servidor 🔄
-                    </button>
-                  )}
-
                   {pushPermission !== 'granted' && (
                     <p className="text-[10px] text-slate-500 text-center uppercase font-bold mt-2">
                       Nota: Certifique-se de que instalou o aplicativo (PWA) no seu telemóvel para receber notificações em segundo plano!
                     </p>
                   )}
-
-                  {/* Painel de Diagnóstico do Push */}
-                  <div className="mt-6 border border-white/10 bg-slate-950/80 rounded-2xl p-5 font-mono text-[10px] sm:text-xs text-emerald-400 space-y-3">
-                    <div className="flex items-center justify-between border-b border-white/5 pb-2">
-                      <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider flex items-center gap-2">
-                        <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" /> Logs de Registo em Tempo Real
-                      </span>
-                      <button 
-                        onClick={() => {
-                          if (typeof window !== 'undefined') {
-                            (window as any).pushDiagnostics = [];
-                            setDiagnostics([]);
-                          }
-                        }}
-                        className="text-[9px] font-bold text-slate-500 hover:text-slate-300 uppercase bg-white/5 px-2.5 py-1 rounded"
-                      >
-                        Limpar
-                      </button>
-                    </div>
-                    <div className="max-h-48 overflow-y-auto space-y-1.5 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
-                      {diagnostics.length === 0 ? (
-                        <p className="text-slate-500 italic">Nenhum log registado. Clique em "Ativar no Telemóvel" ou "Sincronizar" para testar a ligação.</p>
-                      ) : (
-                        diagnostics.map((d, idx) => (
-                          <div key={idx} className={d.isError ? "text-rose-400 font-bold" : "text-slate-300"}>
-                            {d.log}
-                          </div>
-                        ))
-                      )}
-                    </div>
-                  </div>
                 </div>
               </div>
             </div>
@@ -1692,6 +1593,37 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </div>
                   </div>
 
+                  <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <span className="block text-xs font-black text-slate-200 uppercase tracking-wider">Agendar Notificação?</span>
+                        <span className="block text-[10px] text-slate-400 mt-0.5">Programe um dia e horário específicos para disparo automático</span>
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setIsScheduled(!isScheduled)}
+                        className={`w-12 h-6 rounded-full p-1 transition-all flex items-center ${
+                          isScheduled ? 'bg-amber-500 justify-end' : 'bg-slate-700 justify-start'
+                        }`}
+                      >
+                        <div className="w-4 h-4 bg-slate-950 rounded-full" />
+                      </button>
+                    </div>
+
+                    {isScheduled && (
+                      <div className="space-y-3 pt-4 border-t border-white/10 animate-in fade-in duration-200">
+                        <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Data e Hora de Disparo</label>
+                        <input
+                          type="datetime-local"
+                          value={scheduledTime}
+                          onChange={e => setScheduledTime(e.target.value)}
+                          min={new Date().toISOString().slice(0, 16)}
+                          className="w-full bg-white/5 border border-white/10 rounded-xl px-5 py-3 text-sm font-black outline-none text-white focus:border-amber-500"
+                        />
+                      </div>
+                    )}
+                  </div>
+
                   <div className="pt-4 grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <button 
                       type="button"
@@ -1705,7 +1637,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       onClick={handleSendPush}
                       className="py-4.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest transition-all active:scale-95 shadow-xl flex items-center justify-center gap-2"
                     >
-                      <Smartphone size={16} /> Disparar para os Telemóveis
+                      <Smartphone size={16} /> {isScheduled ? 'Confirmar Agendamento' : 'Disparar para os Telemóveis'}
                     </button>
                   </div>
                 </div>
@@ -1722,18 +1654,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     Nenhuma mensagem disparada recentemente.
                   </div>
                 ) : (
-                  <div className="space-y-3">
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
                     {pushHistory.map(hist => (
-                      <div key={hist.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                      <div key={hist.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative group">
                         <div>
                           <p className="font-extrabold text-white text-sm">{hist.title}</p>
                           <p className="text-slate-400 text-xs mt-1 leading-snug">{hist.body}</p>
                         </div>
-                        <div className="flex sm:flex-col items-end gap-2 shrink-0">
-                          <span className="text-[9px] font-black px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase rounded-md">
-                            {getAudienceLabel(hist.targetAudience)}
-                          </span>
-                          <span className="text-[8px] font-bold text-slate-500 uppercase">
+                        <div className="flex sm:flex-col items-end gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black px-2.5 py-1 bg-amber-500/10 text-amber-400 border border-amber-500/20 uppercase rounded-md">
+                              {getAudienceLabel(hist.targetAudience)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleDeletePushHistory(hist.id)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-all"
+                              title="Excluir do Histórico"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          <span className="text-[8px] font-bold text-slate-500 uppercase self-end mt-1">
                             {new Date(hist.createdAt).toLocaleTimeString(locale)} - {new Date(hist.createdAt).toLocaleDateString(locale)}
                           </span>
                         </div>
@@ -1743,169 +1685,44 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 )}
               </div>
 
-              {/* Painel de Configuração do Firebase Cloud Messaging (FCM) */}
+              {/* Agendamentos Ativos */}
               <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-6">
-                <button 
-                  type="button"
-                  onClick={() => setIsFCMExpanded(!isFCMExpanded)}
-                  className="w-full flex items-center justify-between text-left focus:outline-none"
-                >
-                  <div className="flex items-center gap-3">
-                    <Settings className="text-amber-500" size={24} />
-                    <div>
-                      <h3 className="text-lg font-black italic text-slate-200 uppercase tracking-tight">
-                        ⚙️ Configurar Firebase Push (FCM)
-                      </h3>
-                      <p className="text-[10px] text-slate-400 font-extrabold uppercase tracking-wide mt-1">
-                        Habilite notificações nativas super rápidas e em segundo plano
-                      </p>
-                    </div>
+                <h3 className="text-xl font-black italic text-blue-400 uppercase flex items-center gap-2">
+                  <Calendar size={20} /> Agendamentos de Push Ativos
+                </h3>
+                
+                {scheduledPushes.length === 0 ? (
+                  <div className="py-12 text-center text-slate-500 uppercase font-black text-xs border border-white/10 border-dashed rounded-[2rem]">
+                    Nenhum agendamento ativo no momento.
                   </div>
-                  {isFCMExpanded ? <ChevronUp className="text-slate-400" size={20} /> : <ChevronDown className="text-slate-400" size={20} />}
-                </button>
-
-                {isFCMExpanded && (
-                  <div className="pt-6 border-t border-white/5 space-y-8 animate-in slide-in-from-top-4 duration-300">
-                    <div className="bg-amber-500/5 border border-amber-500/10 p-5 rounded-2xl text-[11px] leading-relaxed text-slate-400">
-                      <p className="font-black text-amber-500 uppercase mb-2">💡 Informações de visualização do AI Studio:</p>
-                      <p className="mb-2">
-                        Por motivos de segurança dos navegadores, as notificações de segundo plano (PWA / FCM) 
-                        <strong> NÃO chegam quando testa a aplicação dentro do frame de visualização do AI Studio</strong>.
-                      </p>
-                      <p className="font-bold text-white">
-                        Para testar e receber notificações push no telemóvel ou computador:
-                      </p>
-                      <ol className="list-decimal pl-5 mt-1 space-y-1">
-                        <li>Abra a sua aplicação numa <strong>nova aba autónoma</strong> (fora do AI Studio).</li>
-                        <li>Permita o acesso a notificações no navegador quando solicitado.</li>
-                        <li>Realize o login com a conta do utilizador e depois envie a campanha a partir deste painel administrativo!</li>
-                      </ol>
-                    </div>
-
-                    {/* Bloco 1: Configuração do Cliente Firebase */}
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest border-l-2 border-amber-500 pl-2">
-                        1. Credenciais do Aplicativo Web (Client SDK)
-                      </h4>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                ) : (
+                  <div className="space-y-3 max-h-[350px] overflow-y-auto pr-2 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
+                    {scheduledPushes.map(sched => (
+                      <div key={sched.id} className="bg-white/5 border border-white/10 p-5 rounded-2xl flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 relative group">
                         <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Firebase API Key</label>
-                          <input 
-                            type="password" 
-                            value={fcmApiKey}
-                            onChange={e => setFcmApiKey(e.target.value)}
-                            placeholder="AIzaSy..."
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-extrabold outline-none placeholder:text-slate-700"
-                          />
+                          <p className="font-extrabold text-white text-sm">{sched.title}</p>
+                          <p className="text-slate-400 text-xs mt-1 leading-snug">{sched.body}</p>
                         </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Auth Domain</label>
-                          <input 
-                            type="text" 
-                            value={fcmAuthDomain}
-                            onChange={e => setFcmAuthDomain(e.target.value)}
-                            placeholder="projeto-id.firebaseapp.com"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Project ID</label>
-                          <input 
-                            type="text" 
-                            value={fcmProjectId}
-                            onChange={e => setFcmProjectId(e.target.value)}
-                            placeholder="projeto-id"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Storage Bucket</label>
-                          <input 
-                            type="text" 
-                            value={fcmStorageBucket}
-                            onChange={e => setFcmStorageBucket(e.target.value)}
-                            placeholder="projeto-id.appspot.com"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">Messaging Sender ID</label>
-                          <input 
-                            type="text" 
-                            value={fcmMessagingSenderId}
-                            onChange={e => setFcmMessagingSenderId(e.target.value)}
-                            placeholder="1234567890"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">App ID</label>
-                          <input 
-                            type="text" 
-                            value={fcmAppId}
-                            onChange={e => setFcmAppId(e.target.value)}
-                            placeholder="1:123456:web:abcd"
-                            className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                          />
+                        <div className="flex sm:flex-col items-end gap-2 shrink-0 w-full sm:w-auto justify-between sm:justify-end">
+                          <div className="flex items-center gap-2">
+                            <span className="text-[9px] font-black px-2.5 py-1 bg-blue-500/10 text-blue-400 border border-blue-500/20 uppercase rounded-md">
+                              {getAudienceLabel(sched.targetAudience)}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => handleCancelScheduledPush(sched.id)}
+                              className="p-1.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 rounded-lg border border-red-500/20 transition-all"
+                              title="Cancelar Agendamento"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                          <span className="text-[8px] font-bold text-amber-500 uppercase self-end mt-1">
+                            Disparo: {new Date(sched.scheduledTime).toLocaleString(locale)}
+                          </span>
                         </div>
                       </div>
-
-                      <div>
-                        <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">
-                          Chave VAPID Web Push (FCM Certificate)
-                        </label>
-                        <input 
-                          type="text" 
-                          value={fcmVapidKey}
-                          onChange={e => setFcmVapidKey(e.target.value)}
-                          placeholder="Obtenha em Configurações do Projeto > Cloud Messaging > Web Push"
-                          className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-xs font-bold outline-none placeholder:text-slate-700"
-                        />
-                      </div>
-
-                      <button 
-                        type="button"
-                        onClick={handleSaveFCMConfig}
-                        disabled={isSavingFCMConfig}
-                        className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {isSavingFCMConfig ? 'A Guardar...' : 'Salvar Configuração do Cliente'}
-                      </button>
-                    </div>
-
-                    {/* Bloco 2: Configuração do Servidor Firebase Admin */}
-                    <div className="space-y-4 pt-4 border-t border-white/5">
-                      <h4 className="text-xs font-black text-amber-500 uppercase tracking-widest border-l-2 border-amber-500 pl-2">
-                        2. Conta de Serviço do Servidor (Admin SDK)
-                      </h4>
-                      <p className="text-[10px] text-slate-400 leading-relaxed">
-                        Para disparar notificações em segundo plano para utilizadores com o aplicativo fechado, cole o conteúdo do ficheiro JSON da sua <strong>Chave Privada da Conta de Serviço</strong>.
-                      </p>
-                      <div className="bg-slate-950/40 p-3 rounded-lg border border-white/5 text-[9px] text-slate-500 leading-normal">
-                        <strong>Como obter:</strong> Vá à consola do Firebase &gt; Configurações do Projeto &gt; Contas de Serviço &gt; clique em <strong>Gerar nova chave privada</strong>. Abra o ficheiro obtido e cole o conteúdo completo aqui.
-                      </div>
-
-                      <div>
-                        <label className="block text-[8px] font-black text-slate-500 uppercase tracking-wider mb-2">JSON da Conta de Serviço (Service Account)</label>
-                        <textarea 
-                          value={fcmServiceAccount}
-                          onChange={e => setFcmServiceAccount(e.target.value)}
-                          placeholder='{ "type": "service_account", "project_id": "...", "private_key": "...", ... }'
-                          rows={6}
-                          className="w-full bg-white/5 border border-white/10 rounded-xl p-4 text-[10px] font-mono outline-none placeholder:text-slate-700 resize-none"
-                        />
-                      </div>
-
-                      <button 
-                        type="button"
-                        onClick={handleSaveFCMSA}
-                        disabled={isSavingFCMSA}
-                        className="w-full py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[10px] uppercase tracking-wider rounded-xl transition-all disabled:opacity-50"
-                      >
-                        {isSavingFCMSA ? 'A Configurar Servidor...' : 'Salvar Service Account do Servidor'}
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 )}
               </div>

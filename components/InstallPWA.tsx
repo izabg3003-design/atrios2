@@ -12,16 +12,16 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
   const [hasDismissed, setHasDismissed] = useState(false);
 
   useEffect(() => {
-    // Registrar Service Worker
-    const registerSW = () => {
-      navigator.serviceWorker.register('/sw.js').then(registration => {
-        console.log('SW registrado com sucesso:', registration.scope);
-      }).catch(err => {
-        console.log('SW falhou:', err);
-      });
-    };
-
+    // Registrar Service Worker de forma robusta (evita que fique preso se o evento load já tiver ocorrido)
     if ('serviceWorker' in navigator) {
+      const registerSW = () => {
+        navigator.serviceWorker.register('/sw.js').then(registration => {
+          console.log('SW registrado com sucesso:', registration.scope);
+        }).catch(err => {
+          console.log('SW falhou:', err);
+        });
+      };
+
       if (document.readyState === 'complete' || document.readyState === 'interactive') {
         registerSW();
       } else {
@@ -89,11 +89,6 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
             } else {
               new Notification("Muitos Parabéns! 🎉", options);
             }
-
-            // Sincronizar tokens no servidor imediatamente após instalação bem sucedida
-            if (typeof (window as any).registerPushNotifications === 'function') {
-              (window as any).registerPushNotifications();
-            }
           }
         } catch (e) {
           console.error('[PWA Install] Failed to trigger notification', e);
@@ -125,11 +120,6 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
             });
           } else {
             new Notification("Bem-vindo ao Átrios! 📱", options);
-          }
-
-          // Sincronizar tokens no servidor imediatamente ao abrir PWA standalone
-          if (typeof (window as any).registerPushNotifications === 'function') {
-            (window as any).registerPushNotifications();
           }
         }
       }

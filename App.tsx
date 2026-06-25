@@ -45,8 +45,7 @@ import {
   Trash2,
   Facebook,
   Twitter,
-  Smartphone,
-  BellRing
+  Smartphone
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -75,7 +74,6 @@ import {
 } from './services/storage';
 import { supabase, safeFetch } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
-import { registerFirebaseFCM } from './services/firebase-client';
 import { Locale, translations } from './translations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
@@ -91,39 +89,43 @@ import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (!('Notification' in window)) {
-    console.warn('Notifications not supported by this browser.');
-    return;
-  }
-  
-  if (Notification.permission === 'granted') {
-    const options = {
-      body,
-      icon: '/favicon.svg',
-      badge: '/favicon.svg',
-      vibrate: [200, 100, 200],
-      tag: 'atrios-client-push',
-      renotify: true
-    };
+  try {
+    if (!('Notification' in window)) {
+      console.warn('Notifications not supported by this browser.');
+      return;
+    }
     
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.ready.then((reg) => {
-        reg.showNotification(title, options);
-      }).catch((e) => {
-        console.error('SW ready failed, fallback to standard Notification', e);
+    if (Notification.permission === 'granted') {
+      const options = {
+        body,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        vibrate: [200, 100, 200],
+        tag: 'atrios-client-push',
+        renotify: true
+      };
+      
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready.then((reg) => {
+          reg.showNotification(title, options);
+        }).catch((e) => {
+          console.error('SW ready failed, fallback to standard Notification', e);
+          try {
+            new Notification(title, options);
+          } catch (err) {
+            console.error(err);
+          }
+        });
+      } else {
         try {
           new Notification(title, options);
         } catch (err) {
           console.error(err);
         }
-      });
-    } else {
-      try {
-        new Notification(title, options);
-      } catch (err) {
-        console.error(err);
       }
     }
+  } catch (err) {
+    console.error('Error in triggerPushNotificationSubmit:', err);
   }
 };
 
@@ -159,85 +161,47 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
-const addPushDiagnostic = (msg: string, isError = false) => {
-  const log = `[${new Date().toLocaleTimeString()}] ${msg}`;
-  console.log(log);
-  if (typeof window !== 'undefined') {
-    if (!(window as any).pushDiagnostics) (window as any).pushDiagnostics = [];
-    (window as any).pushDiagnostics.push({ log, isError });
-    window.dispatchEvent(new CustomEvent('push_diagnostic_updated'));
-  }
-};
-
-const addPushError = (msg: string, err: any) => {
-  const errMsg = err?.message || String(err);
-  const log = `[${new Date().toLocaleTimeString()}] ❌ ${msg}: ${errMsg}`;
-  console.error(log, err);
-  if (typeof window !== 'undefined') {
-    if (!(window as any).pushDiagnostics) (window as any).pushDiagnostics = [];
-    (window as any).pushDiagnostics.push({ log, isError: true });
-    window.dispatchEvent(new CustomEvent('push_diagnostic_updated'));
-    
-    fetch('/api/push/log-client-error', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: msg, error: errMsg })
-    }).catch(() => {});
-  }
-};
-
-if (typeof window !== 'undefined') {
-  (window as any).addPushDiagnostic = addPushDiagnostic;
-  (window as any).addPushError = addPushError;
-}
-
 const registerWebPushSubscription = async (companyId: string, plan: string) => {
-  addPushDiagnostic(`[PWA WebPush] Iniciar registo para: ${companyId} (Plano: ${plan})`);
-  if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-    addPushError('Web Push não é totalmente suportado neste dispositivo/browser', new Error('serviceWorker/PushManager ausente'));
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    console.warn('Web Push is not fully supported on this device/browser');
+    return;
+  }
+
+  if (typeof Notification.requestPermission !== 'function') {
+    console.warn('Notification.requestPermission is not a function');
     return;
   }
 
   try {
     const permission = await Notification.requestPermission();
-    addPushDiagnostic(`Permissão de notificação atual: ${permission}`);
     if (permission !== 'granted') {
-      addPushError('Permissão de notificação negada pelo utilizador', new Error('permission !== granted'));
+      console.warn('Notification permission was not granted by user');
       return;
     }
 
-    // Tentar obter registo atual de forma robusta
-    let reg = await navigator.serviceWorker.getRegistration();
-    if (!reg) {
-      addPushDiagnostic('Nenhum registo de SW encontrado, registando /sw.js...');
-      reg = await navigator.serviceWorker.register('/sw.js');
-    }
-
-    addPushDiagnostic('A aguardar que o Service Worker fique pronto (active)...');
-    reg = await navigator.serviceWorker.ready;
-    addPushDiagnostic(`Service Worker pronto no escopo: ${reg.scope}`);
-
-    addPushDiagnostic('A obter chave pública VAPID do servidor...');
+    const reg = await navigator.serviceWorker.ready;
+    
+    // Obter chave pública VAPID do backend do Átrios
     const keyRes = await fetch('/api/push/public-key');
     if (!keyRes.ok) {
-      throw new Error(`Erro ao obter chave pública: ${keyRes.statusText}`);
+      throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
     }
     const { publicKey } = await keyRes.json();
-    addPushDiagnostic(`Chave pública recebida: ${publicKey ? "Sim (Válida)" : "Não (Ausente)"}`);
     if (!publicKey) {
-      throw new Error('Chave pública VAPID recebida do servidor está vazia');
+      throw new Error('VAPID public key received from server is empty');
     }
 
     const convertedKey = urlBase64ToUint8Array(publicKey);
     
-    addPushDiagnostic('A solicitar subscrição no pushManager do browser...');
+    // Subscrever no pushManager do browser
     const subscription = await reg.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: convertedKey
     });
 
-    addPushDiagnostic('Inscrição no browser obtida com sucesso! A enviar para o servidor...');
+    console.log('[PWA Subscription] Browser success:', subscription);
 
+    // Enviar subscrição para sincronizar com o nosso Express Server
     const saveRes = await fetch('/api/push/subscribe', {
       method: 'POST',
       headers: {
@@ -250,14 +214,13 @@ const registerWebPushSubscription = async (companyId: string, plan: string) => {
       })
     });
 
-    const resData = await saveRes.json();
     if (saveRes.ok) {
-      addPushDiagnostic(`Web Push sincronizado no servidor com sucesso! Supabase: ${resData.savedToSupabase}`);
+      console.log('[PWA Subscription] Synced with server successfully.');
     } else {
-      throw new Error(`Servidor rejeitou subscrição com status ${saveRes.status}`);
+      console.error('[PWA Subscription] Server sync failed status:', saveRes.status);
     }
   } catch (err) {
-    addPushError('Falha geral no processo de Web Push', err);
+    console.error('[PWA Subscription] Error initiating offline Web Push:', err);
   }
 };
 
@@ -915,38 +878,9 @@ const App: React.FC = () => {
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      const registerSW = () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
-          console.log('[App] SW registrado com sucesso:', registration.scope);
-        }).catch(err => {
-          console.error('[App] SW falhou:', err);
-        });
-      };
-      if (document.readyState === 'complete' || document.readyState === 'interactive') {
-        registerSW();
-      } else {
-        window.addEventListener('load', registerSW);
-        return () => window.removeEventListener('load', registerSW);
-      }
-    }
-  }, []);
-
-  useEffect(() => {
-    if (currentUser?.id) {
-      // Expor para registos manuais e eventos do sistema (PWA, Chat, Botão Bell)
-      (window as any).registerPushNotifications = () => {
-        console.log("[PWA FCM] Registando subscrições no servidor manualmente...");
-        registerWebPushSubscription(currentUser.id, currentUser.plan);
-        registerFirebaseFCM(currentUser.id, currentUser.plan);
-      };
-
-      // Só registar automaticamente no arranque se a permissão já estiver concedida
-      if ('Notification' in window && Notification.permission === 'granted') {
-        registerWebPushSubscription(currentUser.id, currentUser.plan);
-        registerFirebaseFCM(currentUser.id, currentUser.plan);
-      }
-    }
+    const companyId = currentUser?.id || "guest";
+    const plan = currentUser?.plan || "free";
+    registerWebPushSubscription(companyId, plan);
   }, [currentUser?.id, currentUser?.plan]);
 
 
@@ -2967,26 +2901,6 @@ const App: React.FC = () => {
 
               <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
                 <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
-                
-                {('Notification' in window) && Notification.permission !== 'granted' && (
-                  <button
-                    onClick={async () => {
-                      const res = await Notification.requestPermission();
-                      if (res === 'granted') {
-                        if (typeof (window as any).registerPushNotifications === 'function') {
-                          (window as any).registerPushNotifications();
-                        }
-                        alert("Notificações e Alertas Push ativados com sucesso! 🔔");
-                      }
-                    }}
-                    title="Ativar Alertas e Notificações Push"
-                    className="px-3 py-2.5 sm:px-4 sm:py-3 lg:px-6 lg:py-4 bg-amber-500 hover:bg-amber-400 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-2 transition-all shadow-lg shadow-amber-500/20 text-[10px] sm:text-xs"
-                  >
-                    <BellRing size={16} className="animate-bounce" />
-                    <span className="hidden xs:inline">Ativar Alertas 🔔</span>
-                  </button>
-                )}
-
                 <button 
                   onClick={() => { 
                     if (!canCreateBudget) {
