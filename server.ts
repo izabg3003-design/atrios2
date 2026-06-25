@@ -395,30 +395,7 @@ async function startServer() {
 
   // 1.1 Obter configuração do Firebase para o Cliente (FCM)
   app.get("/api/push/firebase-config", (req, res) => {
-    const configPath = path.join(__dirname, "firebase_config.json");
-    let config: any = {};
-
-    // Prioridade 1: Variáveis de Ambiente
-    if (process.env.VITE_FIREBASE_API_KEY) {
-      config = {
-        apiKey: process.env.VITE_FIREBASE_API_KEY,
-        authDomain: process.env.VITE_FIREBASE_AUTH_DOMAIN,
-        projectId: process.env.VITE_FIREBASE_PROJECT_ID,
-        storageBucket: process.env.VITE_FIREBASE_STORAGE_BUCKET,
-        messagingSenderId: process.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
-        appId: process.env.VITE_FIREBASE_APP_ID,
-        measurementId: process.env.VITE_FIREBASE_MEASUREMENT_ID,
-        vapidKey: process.env.VITE_FIREBASE_FCM_VAPID_KEY
-      };
-    } else if (fs.existsSync(configPath)) {
-      // Prioridade 2: Ficheiro local persistido via Admin Panel
-      try {
-        config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-      } catch (e) {
-        console.error("Erro ao ler firebase_config.json:", e);
-      }
-    }
-
+    const config = getStoredFirebaseConfig();
     res.json(config);
   });
 
