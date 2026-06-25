@@ -1,5 +1,6 @@
 import { initializeApp, cert } from "firebase-admin/app";
 import { getMessaging } from "firebase-admin/messaging";
+import { getFirestore } from "firebase-admin/firestore";
 import fs from "fs";
 import path from "path";
 import { fileURLToPath } from "url";
@@ -8,6 +9,31 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 let isFirebaseAdminInitialized = false;
+
+function getFirebaseProjectId(): string | undefined {
+  if (process.env.VITE_FIREBASE_PROJECT_ID) {
+    return process.env.VITE_FIREBASE_PROJECT_ID;
+  }
+  const paths = [
+    path.join(process.cwd(), "firebase_config.json"),
+    path.join(__dirname, "firebase_config.json"),
+    path.join(__dirname, "..", "firebase_config.json")
+  ];
+  for (const configPath of paths) {
+    if (fs.existsSync(configPath)) {
+      try {
+        const raw = fs.readFileSync(configPath, "utf8");
+        const parsed = JSON.parse(raw);
+        if (parsed && parsed.projectId) {
+          return parsed.projectId;
+        }
+      } catch (e) {
+        // Ignorar erro ao ler ou parsear
+      }
+    }
+  }
+  return undefined;
+}
 
 export function getFirebaseAdmin() {
   if (isFirebaseAdminInitialized) {
@@ -45,9 +71,17 @@ export function getFirebaseAdmin() {
 
     // 3. Tentar inicializar com credenciais padrão (Cloud Run / GCP SDK automatic detect)
     try {
-      initializeApp();
+      const projectId = getFirebaseProjectId();
+      if (projectId) {
+        // Configurar as variáveis de ambiente que o SDK do Google procura por padrão
+        process.env.GOOGLE_CLOUD_PROJECT = projectId;
+        process.env.GCP_PROJECT = projectId;
+      }
+      initializeApp({
+        projectId: projectId
+      });
       isFirebaseAdminInitialized = true;
-      console.log("[Firebase Admin] Inicializado com credenciais padrão da Google Cloud.");
+      console.log(`[Firebase Admin] Inicializado com credenciais padrão da Google Cloud e Project ID: ${projectId || "não detectado"}`);
       return true;
     } catch (gcpErr: any) {
       console.warn("[Firebase Admin] Não foi possível usar as credenciais padrão da GCP:", gcpErr.message);
@@ -153,5 +187,118 @@ export async function sendFCMBroadcast(title: string, body: string, tokens: stri
   } catch (err: any) {
     console.error("[Firebase Admin] Erro ao disparar sendEachForMulticast:", err);
     return { success: false, error: err.message };
+  }
+}
+
+// Save FCM Token in Firestore
+export async function saveFCMTokenToFirestore(token: string, companyId: string, plan: string) {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return false;
+
+  try {
+    const db = getFirestore();
+    const docRef = db.collection("fcm_tokens").doc(token);
+    await docRef.set({
+      token,
+      companyId: companyId || "guest",
+      plan: plan || "free",
+      updatedAt: new Date().toISOString()
+    }, { merge: true });
+    console.log(`[Firebase Admin Firestore] Token FCM guardado com sucesso para ${companyId}`);
+    return true;
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao guardar token no Firestore:", err.message);
+    return false;
+  }
+}
+
+// Save WebPush Subscription in Firestore
+export async function saveSubscriptionToFirestore(subscription: any, companyId: string, plan: string) {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return false;
+
+  try {
+    const db = getFirestore();
+    // Usar base64url do endpoint como ID do documento para evitar caracteres inválidos no Firestore doc ID
+    const endpointHash = Buffer.from(subscription.endpoint).toString("base64url");
+    const docRef = db.collection("push_subscriptions").doc(endpointHash);
+    await docRef.set({
+      subscription,
+      companyId: companyId || "guest",
+      plan: plan || "free",
+      createdAt: new Date().toISOString()
+    }, { merge: true });
+    console.log(`[Firebase Admin Firestore] Subscrição WebPush guardada com sucesso para ${companyId}`);
+    return true;
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao guardar subscrição no Firestore:", err.message);
+    return false;
+  }
+}
+
+// Get FCM Tokens from Firestore
+export async function getFCMTokensFromFirestore() {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return [];
+
+  try {
+    const db = getFirestore();
+    const snapshot = await db.collection("fcm_tokens").get();
+    const tokens: any[] = [];
+    snapshot.forEach(doc => {
+      tokens.push(doc.data());
+    });
+    return tokens;
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao obter tokens do Firestore:", err.message);
+    return [];
+  }
+}
+
+// Get WebPush Subscriptions from Firestore
+export async function getSubscriptionsFromFirestore() {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return [];
+
+  try {
+    const db = getFirestore();
+    const snapshot = await db.collection("push_subscriptions").get();
+    const subscriptions: any[] = [];
+    snapshot.forEach(doc => {
+      subscriptions.push(doc.data());
+    });
+    return subscriptions;
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao obter subscrições do Firestore:", err.message);
+    return [];
+  }
+}
+
+// Remove FCM Token from Firestore
+export async function removeFCMTokenFromFirestore(token: string) {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return;
+
+  try {
+    const db = getFirestore();
+    await db.collection("fcm_tokens").doc(token).delete();
+    console.log(`[Firebase Admin Firestore] Token FCM removido por estar inativo: ${token}`);
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao remover token do Firestore:", err.message);
+  }
+}
+
+// Remove WebPush Subscription from Firestore
+export async function removeSubscriptionFromFirestore(endpoint: string) {
+  const isInitialized = getFirebaseAdmin();
+  if (!isInitialized) return;
+
+  try {
+    const db = getFirestore();
+    const endpointHash = Buffer.from(endpoint).toString("base64url");
+    await db.collection("push_subscriptions").doc(endpointHash).delete();
+    console.log(`[Firebase Admin Firestore] Subscrição WebPush removida por estar inativa: ${endpoint}`);
+  } catch (err: any) {
+    console.error("[Firebase Admin Firestore] Erro ao remover subscrição do Firestore:", err.message);
   }
 }

@@ -19,7 +19,7 @@ import path from "path";
 import { fileURLToPath } from "url";
 import webPush from "web-push";
 import fs from "fs";
-import { sendFCMBroadcast, getFirebaseAdmin } from "./services/firebase-admin-server";
+import { sendFCMBroadcast, getFirebaseAdmin, saveFCMTokenToFirestore, saveSubscriptionToFirestore, getFCMTokensFromFirestore, getSubscriptionsFromFirestore, removeFCMTokenFromFirestore, removeSubscriptionFromFirestore } from "./services/firebase-admin-server";
 
 dotenv.config();
 
@@ -493,11 +493,19 @@ async function startServer() {
           console.log(`[PWA Push] Sincronizado com sucesso no Supabase para User: ${companyId}`);
           savedToSupabase = true;
         } else {
-          console.warn("[PWA Push] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local:", error.message);
+          console.warn("[PWA Push] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local/Firestore:", error.message);
         }
       }
     } catch (e: any) {
-      console.error("[PWA Push] Erro na ligação ao Supabase, usando fallback local:", e.message);
+      console.error("[PWA Push] Erro na ligação ao Supabase, usando fallback local/Firestore:", e.message);
+    }
+
+    // A2. Guardar no Firestore
+    let savedToFirestore = false;
+    try {
+      savedToFirestore = await saveSubscriptionToFirestore(subscription, companyId, plan);
+    } catch (e: any) {
+      console.error("[PWA Push] Erro ao guardar no Firestore:", e.message);
     }
 
     // B. Guardar localmente como Backup/Fallback
@@ -529,7 +537,7 @@ async function startServer() {
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
       console.log(`[PWA Push] Registered subscription local backup for User: ${companyId}, Plan: ${plan}`);
-      res.json({ success: true, savedToSupabase });
+      res.json({ success: true, savedToSupabase, savedToFirestore });
     } catch (dbErr: any) {
       console.error("Failed to write subscriptions to disk", dbErr);
       res.status(500).json({ error: "Failed to persist subscription" });
@@ -559,11 +567,19 @@ async function startServer() {
           console.log(`[PWA FCM] Sincronizado com sucesso no Supabase para User: ${companyId}`);
           savedToSupabase = true;
         } else {
-          console.warn("[PWA FCM] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local:", error.message);
+          console.warn("[PWA FCM] Falha ao guardar no Supabase (Mesa pode não existir), usando fallback local/Firestore:", error.message);
         }
       }
     } catch (e: any) {
-      console.error("[PWA FCM] Erro na ligação ao Supabase, usando fallback local:", e.message);
+      console.error("[PWA FCM] Erro na ligação ao Supabase, usando fallback local/Firestore:", e.message);
+    }
+
+    // A2. Guardar no Firestore
+    let savedToFirestore = false;
+    try {
+      savedToFirestore = await saveFCMTokenToFirestore(token, companyId, plan);
+    } catch (e: any) {
+      console.error("[PWA FCM] Erro ao guardar token no Firestore:", e.message);
     }
 
     // B. Guardar localmente como Backup/Fallback
@@ -594,7 +610,7 @@ async function startServer() {
     try {
       fs.writeFileSync(tokenFile, JSON.stringify(tokensList, null, 2), "utf8");
       console.log(`[PWA FCM] Registado Token local backup para User: ${companyId}, Plano: ${plan}`);
-      res.json({ success: true, savedToSupabase });
+      res.json({ success: true, savedToSupabase, savedToFirestore });
     } catch (e: any) {
       console.error("Falha ao salvar token FCM local:", e);
       res.status(500).json({ error: e.message });
@@ -643,6 +659,24 @@ async function startServer() {
       }
     } catch (e: any) {
       console.error("[Push Broadcast] Erro ao carregar subscrições do Supabase:", e.message);
+    }
+
+    // Tentar carregar do Firestore
+    try {
+      const firestoreSubs = await getSubscriptionsFromFirestore();
+      firestoreSubs.forEach(fsSub => {
+        if (!subscriptions.some(s => s.subscription?.endpoint === fsSub.subscription?.endpoint)) {
+          subscriptions.push({
+            subscription: fsSub.subscription,
+            companyId: fsSub.companyId || "guest",
+            plan: fsSub.plan || "free",
+            createdAt: fsSub.createdAt
+          });
+        }
+      });
+      console.log(`[Push Broadcast] Carregadas subscrições Web-Push do Firestore. Total atual: ${subscriptions.length}`);
+    } catch (e: any) {
+      console.error("[Push Broadcast] Erro ao carregar subscrições do Firestore:", e.message);
     }
 
     // Unir com locais (evitar duplicados por endpoint)
@@ -710,6 +744,15 @@ async function startServer() {
           console.error("Erro ao limpar subscrições web-push locais mortas", e);
         }
 
+        // Limpar também no Firestore
+        for (const endpoint of deadWebPushEndpoints) {
+          try {
+            await removeSubscriptionFromFirestore(endpoint);
+          } catch (e: any) {
+            console.error("Erro ao remover subscrição morta do Firestore:", e.message);
+          }
+        }
+
         // Limpar também no Supabase
         try {
           if (process.env.SUPABASE_URL) {
@@ -748,6 +791,24 @@ async function startServer() {
       }
     } catch (e: any) {
       console.error("[Push Broadcast] Erro ao carregar tokens FCM do Supabase:", e.message);
+    }
+
+    // Tentar carregar do Firestore
+    try {
+      const firestoreTokens = await getFCMTokensFromFirestore();
+      firestoreTokens.forEach(fsTok => {
+        if (!fcmTokensList.some(t => t.token === fsTok.token)) {
+          fcmTokensList.push({
+            token: fsTok.token,
+            companyId: fsTok.companyId || "guest",
+            plan: fsTok.plan || "free",
+            updatedAt: fsTok.updatedAt
+          });
+        }
+      });
+      console.log(`[Push Broadcast] Carregados tokens FCM do Firestore. Total atual: ${fcmTokensList.length}`);
+    } catch (e: any) {
+      console.error("[Push Broadcast] Erro ao carregar tokens FCM do Firestore:", e.message);
     }
 
     // Unir com locais (evitar duplicados por token)
@@ -803,6 +864,28 @@ async function startServer() {
               fs.writeFileSync(tokenFile, JSON.stringify(activeFCM, null, 2), "utf8");
             } catch (e) {
               console.error("Erro ao limpar tokens FCM mortos", e);
+            }
+
+            // Limpar também do Firestore
+            for (const tok of deadTokens) {
+              try {
+                await removeFCMTokenFromFirestore(tok);
+              } catch (e: any) {
+                console.error("Erro ao remover token morto do Firestore:", e.message);
+              }
+            }
+
+            // Limpar também no Supabase
+            try {
+              if (process.env.SUPABASE_URL) {
+                await supabase
+                  .from("fcm_tokens")
+                  .delete()
+                  .in("token", deadTokens);
+                console.log(`[FCM Broadcast] Removidos ${deadTokens.length} tokens mortos do Supabase.`);
+              }
+            } catch (e: any) {
+              console.error("Erro ao remover tokens mortos do Supabase:", e.message);
             }
           }
         }
