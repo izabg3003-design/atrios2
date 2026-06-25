@@ -87,6 +87,26 @@ export async function sendFCMBroadcast(title: string, body: string, tokens: stri
       title: title,
       body: body,
     },
+    android: {
+      priority: "high" as const,
+      notification: {
+        sound: "default",
+        defaultSound: true,
+        notificationPriority: "PRIORITY_MAX" as const,
+        channelId: "high_importance_channel"
+      }
+    },
+    apns: {
+      headers: {
+        "apns-priority": "10"
+      },
+      payload: {
+        aps: {
+          sound: "default",
+          contentAvailable: true
+        }
+      }
+    },
     webpush: {
       headers: {
         Urgency: "high"
@@ -97,7 +117,8 @@ export async function sendFCMBroadcast(title: string, body: string, tokens: stri
         icon: "/favicon.svg",
         badge: "/favicon.svg",
         tag: "atrios-global-push",
-        requireInteraction: true
+        requireInteraction: true,
+        vibrate: [200, 100, 200, 100, 300]
       }
     }
   };
