@@ -137,6 +137,26 @@ async function saveSubscriptionToSupabase(record: {
   await tryUpsert(payload);
 }
 
+// Helper para limpar automaticamente subscrições antigas (com mais de 7 dias) do Supabase
+async function pruneOldSubscriptionsFromSupabase() {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
+  try {
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const { error } = await supabase
+      .from("push_subscriptions")
+      .delete()
+      .lt("created_at", sevenDaysAgo);
+      
+    if (error) {
+      console.warn("[Supabase Prune] Erro ao limpar subscrições antigas:", error.message);
+    } else {
+      console.log("[Supabase Prune] Subscrições antigas (mais de 7 dias) limpas com sucesso.");
+    }
+  } catch (err: any) {
+    console.error("[Supabase Prune Exception]", err.message || err);
+  }
+}
+
 // Helper resiliente para buscar subscrições persistidas no Supabase
 async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[] }> {
   const web: any[] = [];
@@ -145,6 +165,9 @@ async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     return { web, fcm };
   }
+
+  // Executar limpeza automática de tokens com mais de 7 dias antes de retornar as subscrições
+  await pruneOldSubscriptionsFromSupabase().catch(() => {});
 
   try {
     const { data, error } = await supabase.from("push_subscriptions").select("*");
@@ -574,6 +597,18 @@ async function startServer() {
       } catch (dbErr) {
         console.error("Failed to prune inactive FCM tokens", dbErr);
       }
+
+      // Remover os tokens inativos do Supabase também
+      if (process.env.SUPABASE_URL) {
+        try {
+          for (const token of fcmTokensToRemove) {
+            await supabase.from("push_subscriptions").delete().eq("id", token);
+          }
+          console.log(`[FCM Push] Inactive FCM tokens pruned from Supabase database successfully.`);
+        } catch (dbDelErr) {
+          console.error("Failed to prune inactive FCM tokens in Supabase:", dbDelErr);
+        }
+      }
     }
 
     return { 
@@ -605,6 +640,47 @@ async function startServer() {
     } catch (err: any) {
       console.error("[PWA Broadcast Error]", err);
       res.status(500).json({ error: "Internal broadcast error", details: err.message });
+    }
+  });
+
+  // 3.5. Limpar tokens antigos ou reiniciar tabela push_subscriptions
+  app.post("/api/push/cleanup", async (req, res) => {
+    const { all } = req.body;
+    try {
+      if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        return res.status(400).json({ error: "Supabase integration not configured." });
+      }
+
+      if (all === true) {
+        // Limpar tudo
+        const { error } = await supabase.from("push_subscriptions").delete().neq("id", "placeholder_impossible_id");
+        if (error) throw error;
+        
+        // Também limpar arquivos locais
+        try {
+          fs.writeFileSync(path.join(process.cwd(), "push_subscriptions.json"), "[]", "utf8");
+          fs.writeFileSync(path.join(process.cwd(), "fcm_subscriptions.json"), "[]", "utf8");
+        } catch (fErr) {
+          console.warn("Failed to reset local push files during total cleanup:", fErr);
+        }
+
+        console.log("[Push Cleanup] Deletadas TODAS as subscrições com sucesso.");
+        return res.json({ success: true, message: "Todas as subscrições foram reiniciadas com sucesso no Supabase e no servidor local." });
+      } else {
+        // Limpar apenas mais antigas de 7 dias
+        const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+        const { error } = await supabase
+          .from("push_subscriptions")
+          .delete()
+          .lt("created_at", sevenDaysAgo);
+
+        if (error) throw error;
+        console.log("[Push Cleanup] Subscrições mais antigas de 7 dias foram limpas.");
+        return res.json({ success: true, message: "Subscrições inativas ou antigas (mais de 7 dias) foram limpas com sucesso do Supabase." });
+      }
+    } catch (err: any) {
+      console.error("[Push Cleanup Error]", err);
+      res.status(500).json({ error: "Failed to run cleanup", details: err.message });
     }
   });
 

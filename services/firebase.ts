@@ -1,5 +1,5 @@
 import { initializeApp } from 'firebase/app';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging, getToken, onMessage, deleteToken } from 'firebase/messaging';
 
 export const firebaseConfig = {
   apiKey: "AIzaSyBZAyIZFSzqGwQkq853PA6yueVBkRYrDVg",
@@ -41,6 +41,21 @@ export const requestFcmToken = async (): Promise<string | null> => {
     if (permission !== 'granted') {
       console.warn('Permissão para notificações negada pelo utilizador.');
       return null;
+    }
+
+    // --- FORÇA RE-REGISTRO SE FOR UMA CONTA COM TOKEN ANTIGO (VERSÃO < V3) ---
+    const versionKey = 'atrios_fcm_version_v3';
+    const isUpgraded = localStorage.getItem(versionKey) === 'true';
+    if (!isUpgraded) {
+      console.log('[FCM] Detetada conta antiga/migração de Service Worker. Forçando exclusão de token anterior para re-registo...');
+      try {
+        await deleteToken(messaging);
+        console.log('[FCM] Token antigo excluído do FCM com sucesso.');
+      } catch (delErr) {
+        console.warn('[FCM] Erro ao deletar token antigo:', delErr);
+      }
+      localStorage.setItem(versionKey, 'true');
+      localStorage.removeItem('atrios_fcm_token'); // Limpa cache para obter um novo token
     }
 
     // Registrar o service worker do Firebase explicitamente para garantir mapeamento correto
