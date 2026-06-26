@@ -162,6 +162,52 @@ function urlBase64ToUint8Array(base64String: string) {
   return outputArray;
 }
 
+const pushNotificationStrings: Record<string, {
+  title: string;
+  desc: string;
+  allowBtn: string;
+  laterBtn: string;
+  statusTitle: string;
+  statusGranted: string;
+  statusDenied: string;
+  statusDefault: string;
+  unblockGuide: string;
+}> = {
+  'pt-PT': {
+    title: 'Deseja receber Notificações Push?',
+    desc: 'Ative as notificações para receber alertas instantâneos de novos orçamentos, alterações de status de pedidos e mensagens do suporte técnico, mesmo com o aplicativo fechado.',
+    allowBtn: 'Ativar Notificações',
+    laterBtn: 'Agora Não',
+    statusTitle: 'Notificações do Aplicativo',
+    statusGranted: 'Ativas',
+    statusDenied: 'Bloqueadas pelo Navegador',
+    statusDefault: 'Não Configurado',
+    unblockGuide: 'As notificações estão bloqueadas nas configurações do seu navegador para este site. Para ativá-las, clique no ícone de cadeado ao lado do endereço (URL) do site e mude as permissões de Notificações para "Permitir".',
+  },
+  'pt-BR': {
+    title: 'Deseja receber Notificações Push?',
+    desc: 'Ative as notificações para receber alertas instantâneos de novos orçamentos, alterações de status de pedidos e mensagens do suporte técnico, mesmo com o aplicativo fechado.',
+    allowBtn: 'Ativar Notificações',
+    laterBtn: 'Agora Não',
+    statusTitle: 'Notificações do Aplicativo',
+    statusGranted: 'Ativadas',
+    statusDenied: 'Bloqueadas pelo Navegador',
+    statusDefault: 'Não Configurado',
+    unblockGuide: 'As notificações estão bloqueadas nas configurações do seu navegador para este site. Para ativá-las, clique no ícone de cadeado ao lado do endereço (URL) do site e mude as permissões de Notificações para "Permitir".',
+  },
+  'en-US': {
+    title: 'Enable Push Notifications?',
+    desc: 'Enable notifications to receive instant alerts for new budgets, order updates, and support messages, even when the application is closed.',
+    allowBtn: 'Enable Notifications',
+    laterBtn: 'Not Now',
+    statusTitle: 'App Notifications',
+    statusGranted: 'Enabled',
+    statusDenied: 'Blocked by Browser',
+    statusDefault: 'Not Configured',
+    unblockGuide: 'Notifications are blocked in your browser settings for this site. To enable them, click the lock icon next to the site address (URL) and change Notifications permission to "Allow".',
+  }
+};
+
 const registerWebPushSubscription = async (companyId: string, plan: string) => {
   if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
     console.warn('Web Push is not fully supported on this device/browser');
@@ -251,21 +297,76 @@ const App: React.FC = () => {
 
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
   const [fcmToken, setFcmToken] = useState<string | null>(() => localStorage.getItem('atrios_fcm_token'));
+  
+  const [notificationPermission, setNotificationPermission] = useState<NotificationPermission>(() => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      return Notification.permission;
+    }
+    return 'default';
+  });
 
-  useEffect(() => {
-    const fetchToken = async () => {
-      try {
+  const [showNotificationPrompt, setShowNotificationPrompt] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const dismissed = localStorage.getItem('atrios_push_prompt_dismissed');
+      const hasPermission = 'Notification' in window && Notification.permission === 'granted';
+      return dismissed !== 'true' && !hasPermission;
+    }
+    return false;
+  });
+
+  const handleRequestPushPermission = async () => {
+    if (!('Notification' in window)) {
+      alert('Seu navegador não suporta notificações push.');
+      return;
+    }
+
+    try {
+      const permission = await Notification.requestPermission();
+      setNotificationPermission(permission);
+      
+      if (permission === 'granted') {
+        const companyId = currentUser?.id || "guest";
+        const plan = currentUser?.plan || "free";
+        
+        // 1. Obter FCM Token
         const token = await requestFcmToken();
         if (token) {
           setFcmToken(token);
         }
-      } catch (err) {
-        console.warn('FCM registration skipped or unsupported:', err);
+        
+        // 2. Registrar Web Push VAPID
+        await registerWebPushSubscription(companyId, plan);
+        setShowNotificationPrompt(false);
+      } else {
+        console.warn('Permissão para notificações foi negada ou fechada pelo utilizador:', permission);
+      }
+    } catch (err) {
+      console.error('Erro ao solicitar permissão de notificações:', err);
+    }
+  };
+
+  const dismissPushPrompt = () => {
+    localStorage.setItem('atrios_push_prompt_dismissed', 'true');
+    setShowNotificationPrompt(false);
+  };
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      // Apenas buscar token automaticamente se a permissão já estiver como 'granted'
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        try {
+          const token = await requestFcmToken();
+          if (token) {
+            setFcmToken(token);
+          }
+        } catch (err) {
+          console.warn('FCM registration skipped or unsupported:', err);
+        }
       }
     };
 
     fetchToken();
-  }, []);
+  }, [notificationPermission]);
 
   useEffect(() => {
     const unsubscribe = onMessageListener((payload) => {
@@ -931,10 +1032,12 @@ const App: React.FC = () => {
   }, [currentUser?.id, view, activeTab, currencyCode]);
 
   useEffect(() => {
-    const companyId = currentUser?.id || "guest";
-    const plan = currentUser?.plan || "free";
-    registerWebPushSubscription(companyId, plan);
-  }, [currentUser?.id, currentUser?.plan]);
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      const companyId = currentUser?.id || "guest";
+      const plan = currentUser?.plan || "free";
+      registerWebPushSubscription(companyId, plan);
+    }
+  }, [currentUser?.id, currentUser?.plan, notificationPermission]);
 
 
   useEffect(() => {
@@ -3238,57 +3341,113 @@ const App: React.FC = () => {
                                <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-6 uppercase tracking-tighter italic flex items-center gap-2 text-slate-900">
                                  <Smartphone size={20} className="text-amber-500" /> Firebase Cloud Messaging (Push)
                                </h3>
-                               <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-4">
-                                 <div className="flex items-center justify-between">
-                                   <div>
-                                     <span className="block text-xs font-black text-slate-800 uppercase tracking-wider">Estado de Ligação FCM</span>
-                                     <span className="block text-[10px] text-slate-500 mt-0.5">Dispositivo registado no canal de notificações push do Firebase</span>
-                                   </div>
-                                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
-                                     fcmToken 
-                                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
-                                       : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                   }`}>
-                                     <span className={`w-2 h-2 rounded-full ${fcmToken ? 'bg-emerald-500' : 'bg-amber-500'}`} />
-                                     {fcmToken ? 'Ligado' : 'Desligado'}
-                                   </span>
-                                 </div>
-
-                                 {fcmToken ? (
-                                   <div className="space-y-2 pt-2">
-                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">O seu Token FCM:</label>
-                                     <div className="flex gap-2">
-                                       <input 
-                                         type="text" 
-                                         readOnly 
-                                         value={fcmToken} 
-                                         className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-600 select-all outline-none"
-                                       />
-                                       <button 
-                                         onClick={() => {
-                                           navigator.clipboard.writeText(fcmToken);
-                                           alert('Token FCM copiado para a área de transferência!');
-                                         }}
-                                         className="px-4 py-2.5 bg-slate-950 text-white hover:bg-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
-                                       >
-                                         Copiar
-                                       </button>
+                               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 lg:p-8 space-y-6">
+                                 {/* Status indicators */}
+                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
+                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissão do Navegador</span>
+                                     <div className="flex items-center justify-between mt-2">
+                                       <span className="text-sm font-black text-slate-900">
+                                         {notificationPermission === 'granted' && 'Ativada ✔'}
+                                         {notificationPermission === 'denied' && 'Bloqueada ❌'}
+                                         {notificationPermission === 'default' && 'Pendente ⏳'}
+                                       </span>
+                                       <span className={`w-2.5 h-2.5 rounded-full ${
+                                         notificationPermission === 'granted' ? 'bg-emerald-500' :
+                                         notificationPermission === 'denied' ? 'bg-red-500' : 'bg-amber-500'
+                                       }`} />
                                      </div>
                                    </div>
-                                 ) : (
-                                   <button 
-                                     onClick={async () => {
-                                       const token = await requestFcmToken();
-                                       if (token) {
-                                         setFcmToken(token);
-                                       } else {
-                                         alert('Não foi possível obter o Token FCM. Por favor, verifique as permissões de notificação do seu navegador.');
-                                       }
-                                     }}
-                                     className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-                                   >
-                                     Ativar Notificações Push Firebase
-                                   </button>
+
+                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
+                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronização Cloud</span>
+                                     <div className="flex items-center justify-between mt-2">
+                                       <span className="text-sm font-black text-slate-900">
+                                         {fcmToken ? 'Ligado' : 'Desligado'}
+                                       </span>
+                                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
+                                         fcmToken ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                       }`}>
+                                         {fcmToken ? 'Ativo' : 'Pendente'}
+                                       </span>
+                                     </div>
+                                   </div>
+                                 </div>
+
+                                 {/* Dynamic prompt section based on permission */}
+                                 {notificationPermission === 'default' && (
+                                   <div className="bg-white border border-amber-100 rounded-2xl p-4 sm:p-5 space-y-3">
+                                     <p className="text-xs text-slate-500 font-bold leading-relaxed">
+                                       Ative as notificações push para receber alertas automáticos de novos orçamentos, atualizações de status de encomendas e avisos de suporte diretamente no seu ecrã, mesmo com a aplicação fechada!
+                                     </p>
+                                     <button 
+                                       onClick={handleRequestPushPermission}
+                                       className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-95"
+                                     >
+                                       Permitir Notificações
+                                     </button>
+                                   </div>
+                                 )}
+
+                                 {notificationPermission === 'denied' && (
+                                   <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-5 space-y-3">
+                                     <div className="flex items-center gap-2 text-amber-800">
+                                       <Lock size={16} />
+                                       <span className="text-xs font-black uppercase tracking-wider">Como Desbloquear Notificações</span>
+                                     </div>
+                                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
+                                       {pushNotificationStrings[locale]?.unblockGuide || pushNotificationStrings['pt-PT'].unblockGuide}
+                                     </p>
+                                     <div className="text-[10px] text-amber-700 font-bold bg-amber-50 border border-amber-100 rounded-xl p-3">
+                                       💡 <strong>Nota:</strong> Como a permissão foi bloqueada anteriormente, o navegador não nos deixa abrir o painel de solicitação automática. Siga os passos acima para ativar as notificações push e receber mensagens com o aplicativo fechado.
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 {notificationPermission === 'granted' && fcmToken && (
+                                   <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
+                                     <div className="flex items-center gap-2 text-emerald-600">
+                                       <CheckCircle2 size={16} />
+                                       <span className="text-xs font-black uppercase tracking-wider">Tudo configurado com sucesso!</span>
+                                     </div>
+                                     <p className="text-xs text-slate-500 font-bold">
+                                       As notificações estão ativas neste dispositivo. O token de identificação cloud é sincronizado automaticamente com a nossa base de dados.
+                                     </p>
+                                     <div className="space-y-1.5">
+                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">O seu token atual:</label>
+                                       <div className="flex gap-2">
+                                         <input 
+                                           type="text" 
+                                           readOnly 
+                                           value={fcmToken} 
+                                           className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[10px] font-mono text-slate-600 select-all outline-none"
+                                         />
+                                         <button 
+                                           onClick={() => {
+                                             navigator.clipboard.writeText(fcmToken);
+                                             alert('Token copiado!');
+                                           }}
+                                           className="px-4 py-2.5 bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                                         >
+                                           Copiar
+                                         </button>
+                                       </div>
+                                     </div>
+                                   </div>
+                                 )}
+
+                                 {notificationPermission === 'granted' && !fcmToken && (
+                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 text-center space-y-3">
+                                     <p className="text-xs text-slate-500 font-bold">
+                                       Permissão concedida, mas o token de registo ainda não foi gerado.
+                                     </p>
+                                     <button 
+                                       onClick={handleRequestPushPermission}
+                                       className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
+                                     >
+                                       Gerar Token Push
+                                     </button>
+                                   </div>
                                  )}
                                </div>
                              </div>
@@ -3367,6 +3526,44 @@ const App: React.FC = () => {
                   100% { width: 100%; }
                 }
               `}</style>
+            </div>
+          )}
+          
+          {showNotificationPrompt && notificationPermission === 'default' && (
+            <div className="fixed bottom-4 left-4 right-4 sm:right-auto sm:left-8 sm:bottom-8 sm:max-w-md z-[50] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
+              <button 
+                onClick={dismissPushPrompt} 
+                className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full flex items-center justify-center transition-all"
+              >
+                <X size={14} />
+              </button>
+              <div className="flex gap-4 items-start">
+                <div className="w-12 h-12 bg-amber-500 text-white rounded-[1rem] flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                  <Bell className="animate-bounce" size={24} />
+                </div>
+                <div className="space-y-2 col-span-3">
+                  <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                    {pushNotificationStrings[locale]?.title || pushNotificationStrings['pt-PT'].title}
+                  </h4>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+                    {pushNotificationStrings[locale]?.desc || pushNotificationStrings['pt-PT'].desc}
+                  </p>
+                  <div className="pt-2 flex items-center gap-4">
+                    <button 
+                      onClick={handleRequestPushPermission} 
+                      className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
+                    >
+                      {pushNotificationStrings[locale]?.allowBtn || pushNotificationStrings['pt-PT'].allowBtn}
+                    </button>
+                    <button 
+                      onClick={dismissPushPrompt} 
+                      className="text-slate-400 hover:text-slate-600 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors"
+                    >
+                      {pushNotificationStrings[locale]?.laterBtn || pushNotificationStrings['pt-PT'].laterBtn}
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
           
