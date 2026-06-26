@@ -65,6 +65,11 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       setIsVisible(false);
       setDeferredPrompt(null);
       
+      // Evitar múltiplos disparos do evento de instalação
+      const alreadyInstalledNotified = localStorage.getItem('atrios_installed_notified');
+      if (alreadyInstalledNotified === 'true') return;
+      localStorage.setItem('atrios_installed_notified', 'true');
+      
       // Quando instalado, disparar notificação push local de sucesso com o logotipo!
       if ('Notification' in window) {
         try {
@@ -100,9 +105,11 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
 
     // Detetar se o utilizador abriu o app a partir do Ecrã Principal (Standalone PWA)
     if (isStandalone) {
-      const alreadyNotified = sessionStorage.getItem('atrios_standalone_welcome_notified');
+      // Usar localStorage em vez de sessionStorage para garantir que só seja enviado uma vez para sempre,
+      // impedindo que dispare em futuros logins ou recarregamentos de página.
+      const alreadyNotified = localStorage.getItem('atrios_standalone_welcome_notified');
       if (!alreadyNotified) {
-        sessionStorage.setItem('atrios_standalone_welcome_notified', 'true');
+        localStorage.setItem('atrios_standalone_welcome_notified', 'true');
         
         // Se abriu a partir do ecrã principal, enviar de imediato uma notificação push de boas-vindas
         if ('Notification' in window && Notification.permission === 'granted') {
