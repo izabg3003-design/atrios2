@@ -3,6 +3,7 @@ import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
 import { Store } from './components/Store';
 import { InstallPWA } from './components/InstallPWA';
+import { requestFcmToken, onMessageListener } from './services/firebase';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -249,6 +250,39 @@ const App: React.FC = () => {
   });
 
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
+  const [fcmToken, setFcmToken] = useState<string | null>(() => localStorage.getItem('atrios_fcm_token'));
+
+  useEffect(() => {
+    const fetchToken = async () => {
+      try {
+        const token = await requestFcmToken();
+        if (token) {
+          setFcmToken(token);
+        }
+      } catch (err) {
+        console.warn('FCM registration skipped or unsupported:', err);
+      }
+    };
+
+    if (view === 'app' && currentUser) {
+      fetchToken();
+    }
+  }, [view, currentUser]);
+
+  useEffect(() => {
+    const unsubscribe = onMessageListener((payload) => {
+      console.log('Foreground notification received:', payload);
+      if (payload.notification) {
+        const title = payload.notification.title || 'Alerta Átrios';
+        const body = payload.notification.body || '';
+        triggerPushNotificationSubmit(title, body);
+      }
+    });
+
+    return () => {
+      unsubscribe();
+    };
+  }, []);
 
   useEffect(() => {
     const handler = (e: any) => {
@@ -3178,6 +3212,65 @@ const App: React.FC = () => {
                                    <input type="password" value={confirmPassword || ''} onChange={e => setConfirmPassword(e.target.value)} className="w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base focus:border-slate-900" />
                                  </div>
                                  <button onClick={handleChangePassword} className="w-full py-4 lg:py-5 bg-slate-100 text-slate-900 rounded-xl lg:rounded-2xl font-black text-base lg:text-lg hover:bg-slate-200 transition-all">{t.saveChanges}</button>
+                               </div>
+                             </div>
+
+                             <div className="pt-8 lg:pt-12 border-t border-slate-100 mt-8 lg:mt-12">
+                               <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-6 uppercase tracking-tighter italic flex items-center gap-2 text-slate-900">
+                                 <Smartphone size={20} className="text-amber-500" /> Firebase Cloud Messaging (Push)
+                               </h3>
+                               <div className="bg-slate-50 border border-slate-100 rounded-2xl p-6 space-y-4">
+                                 <div className="flex items-center justify-between">
+                                   <div>
+                                     <span className="block text-xs font-black text-slate-800 uppercase tracking-wider">Estado de Ligação FCM</span>
+                                     <span className="block text-[10px] text-slate-500 mt-0.5">Dispositivo registado no canal de notificações push do Firebase</span>
+                                   </div>
+                                   <span className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-black uppercase ${
+                                     fcmToken 
+                                       ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' 
+                                       : 'bg-amber-50 text-amber-600 border border-amber-100'
+                                   }`}>
+                                     <span className={`w-2 h-2 rounded-full ${fcmToken ? 'bg-emerald-500' : 'bg-amber-500'}`} />
+                                     {fcmToken ? 'Ligado' : 'Desligado'}
+                                   </span>
+                                 </div>
+
+                                 {fcmToken ? (
+                                   <div className="space-y-2 pt-2">
+                                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">O seu Token FCM:</label>
+                                     <div className="flex gap-2">
+                                       <input 
+                                         type="text" 
+                                         readOnly 
+                                         value={fcmToken} 
+                                         className="flex-1 bg-white border border-slate-200 rounded-xl px-4 py-2.5 text-xs font-mono text-slate-600 select-all outline-none"
+                                       />
+                                       <button 
+                                         onClick={() => {
+                                           navigator.clipboard.writeText(fcmToken);
+                                           alert('Token FCM copiado para a área de transferência!');
+                                         }}
+                                         className="px-4 py-2.5 bg-slate-950 text-white hover:bg-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
+                                       >
+                                         Copiar
+                                       </button>
+                                     </div>
+                                   </div>
+                                 ) : (
+                                   <button 
+                                     onClick={async () => {
+                                       const token = await requestFcmToken();
+                                       if (token) {
+                                         setFcmToken(token);
+                                       } else {
+                                         alert('Não foi possível obter o Token FCM. Por favor, verifique as permissões de notificação do seu navegador.');
+                                       }
+                                     }}
+                                     className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
+                                   >
+                                     Ativar Notificações Push Firebase
+                                   </button>
+                                 )}
                                </div>
                              </div>
                          </div>

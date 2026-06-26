@@ -1542,9 +1542,32 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-10 animate-in fade-in">
             <div className="lg:col-span-2 space-y-10">
               <div className="bg-white/5 border border-white/10 rounded-[3rem] p-10 space-y-8">
-                <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
-                  <Smartphone size={28} /> Disparar Alertas em Massa (Push)
-                </h2>
+                <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+                  <h2 className="text-2xl font-black italic flex items-center gap-3 text-amber-500 uppercase">
+                    <Smartphone size={28} /> Disparar Alertas em Massa (Push)
+                  </h2>
+                  <div className="flex items-center gap-2 px-4 py-2 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 rounded-2xl">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                    <span className="text-[9px] font-black uppercase tracking-wider">FCM Ativo: pushbuild-164d9</span>
+                  </div>
+                </div>
+
+                {/* Info do Projeto Firebase */}
+                <div className="bg-slate-950/40 border border-white/5 p-5 rounded-2xl space-y-2">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Configuração do Firebase Cloud Messaging:</p>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-xs font-mono text-slate-400">
+                    <div>
+                      <span className="text-slate-500">Project ID:</span> <span className="text-white font-bold">pushbuild-164d9</span>
+                    </div>
+                    <div>
+                      <span className="text-slate-500">Sender ID:</span> <span className="text-white font-bold">387301085750</span>
+                    </div>
+                    <div className="sm:col-span-2">
+                      <span className="text-slate-500">Chave Pública (VAPID):</span> <span className="text-amber-400 font-bold break-all">BDbP6H-i86jr1AR9GpbUJ6oNxH69LPQE5cntwWdI7Ez01T_isAPCAIyfFirzco3MLpTr9G1EWf-4z8-qqhzvMQU</span>
+                    </div>
+                  </div>
+                </div>
+
                 <div className="space-y-6">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Título da Notificação</label>
