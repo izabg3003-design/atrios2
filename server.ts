@@ -28,6 +28,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // Carregar ou gerar chaves VAPID estáveis e persistentes para PWA Offline Push
+const DEFAULT_VAPID = {
+  publicKey: "BDbP6H-i86jr1AR9GpbUJ6oNxH69LPQE5cntwWdI7Ez01T_isAPCAIyfFirzco3MLpTr9G1EWf-4z8-qqhzvMQU",
+  privateKey: "U6TDY19IqDqB8VOsu9JyQ2tzDbU_i3jwtzTD6aEQJd0"
+};
+
 let vapidKeys: { publicKey: string; privateKey: string };
 const vapidFilePath = path.join(process.cwd(), "vapid_keys.json");
 
@@ -36,14 +41,17 @@ if (fs.existsSync(vapidFilePath)) {
     vapidKeys = JSON.parse(fs.readFileSync(vapidFilePath, "utf8"));
     console.log("[PWA Push] Loaded stable, existing VAPID keys successfully.");
   } catch (e) {
-    console.error("[PWA Push] Error reading vapid_keys.json, generating new keys...", e);
-    vapidKeys = webPush.generateVAPIDKeys();
-    fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys), "utf8");
+    console.error("[PWA Push] Error reading vapid_keys.json, using stable default keys...", e);
+    vapidKeys = DEFAULT_VAPID;
   }
 } else {
-  vapidKeys = webPush.generateVAPIDKeys();
-  fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys), "utf8");
-  console.log("[PWA Push] Created a fresh sets of VAPID keys and persisted to disk.");
+  vapidKeys = DEFAULT_VAPID;
+  try {
+    fs.writeFileSync(vapidFilePath, JSON.stringify(vapidKeys), "utf8");
+    console.log("[PWA Push] Created stable vapid_keys.json on disk.");
+  } catch (err) {
+    console.warn("[PWA Push] Could not write vapid_keys.json to disk (read-only filesystem?), using stable memory keys.");
+  }
 }
 
 webPush.setVapidDetails(
@@ -64,6 +72,129 @@ const supabase = createClient(
   process.env.SUPABASE_URL || "",
   process.env.SUPABASE_SERVICE_ROLE_KEY || ""
 );
+
+// Helper resiliente para salvar subscrição/token no Supabase (com detecção dinâmica de colunas)
+async function saveSubscriptionToSupabase(record: {
+  endpoint?: string;
+  subscription?: any;
+  token?: string;
+  companyId: string;
+  plan: string;
+}) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    console.warn("[Supabase Push] Supabase URL or Key missing. Skipping DB save.");
+    return;
+  }
+
+  const idValue = record.token || record.endpoint || record.subscription?.endpoint;
+  if (!idValue) return;
+
+  const payload: any = {
+    id: idValue,
+    subscription: record.subscription ? (typeof record.subscription === 'object' ? JSON.stringify(record.subscription) : record.subscription) : null,
+    token: record.token || null,
+    plan: record.plan || 'free',
+    companyId: record.companyId,
+    company_id: record.companyId,
+    companyid: record.companyId,
+    created_at: new Date().toISOString()
+  };
+
+  const tryUpsert = async (data: any): Promise<any> => {
+    try {
+      const { error } = await supabase.from("push_subscriptions").upsert(data);
+      if (!error) {
+        console.log(`[Supabase Push Sync] Salvo com sucesso para ${record.companyId}`);
+        return { success: true };
+      }
+      
+      console.warn(`[Supabase Push Sync Warn] Erro ao salvar subscrição:`, error.message);
+      
+      // Se a tabela não existir, podemos alertar ou falhar silenciosamente
+      if (error.code === 'PGRST116' || error.message?.includes("relation") || error.message?.includes("does not exist")) {
+        console.warn("[Supabase Push Sync] A tabela 'push_subscriptions' não existe no Supabase. Fallback para JSON local.");
+        return { success: false, noTable: true };
+      }
+
+      // Se der coluna não encontrada (PGRST204), remove a coluna e tenta de novo recursivamente
+      if (error.code === 'PGRST204' || error.message?.includes("column")) {
+        const match = error.message.match(/Could not find the '(.+)' column/) || error.message.match(/column "(.+)" of relation/);
+        const missingColumn = match ? match[1] : null;
+        if (missingColumn && data[missingColumn] !== undefined) {
+          console.log(`[Supabase Push Sync] Removendo coluna inexistente '${missingColumn}' e tentando novamente...`);
+          const nextData = { ...data };
+          delete nextData[missingColumn];
+          return await tryUpsert(nextData);
+        }
+      }
+      return { success: false, error };
+    } catch (err: any) {
+      console.error("[Supabase Push Sync Exception]", err.message || err);
+      return { success: false, error: err };
+    }
+  };
+
+  await tryUpsert(payload);
+}
+
+// Helper resiliente para buscar subscrições persistidas no Supabase
+async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[] }> {
+  const web: any[] = [];
+  const fcm: any[] = [];
+
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return { web, fcm };
+  }
+
+  try {
+    const { data, error } = await supabase.from("push_subscriptions").select("*");
+    if (error) {
+      console.warn("[Supabase Fetch Subs Warn] Falha ao obter dados (tabela pode não existir):", error.message);
+      return { web, fcm };
+    }
+
+    if (data && Array.isArray(data)) {
+      data.forEach((row: any) => {
+        const companyId = row.company_id || row.companyId || row.companyid || "guest";
+        const plan = row.plan || "free";
+        const createdAt = row.created_at || new Date().toISOString();
+
+        if (row.token) {
+          fcm.push({
+            token: row.token,
+            companyId,
+            plan,
+            createdAt
+          });
+        }
+
+        if (row.subscription) {
+          let subscription = row.subscription;
+          if (typeof subscription === 'string') {
+            try {
+              subscription = JSON.parse(subscription);
+            } catch (e) {
+              // não é JSON válido
+            }
+          }
+          if (subscription && subscription.endpoint) {
+            web.push({
+              subscription,
+              companyId,
+              plan,
+              createdAt
+            });
+          }
+        }
+      });
+      console.log(`[Supabase Fetch Subs] Obtidas ${web.length} subscrições Web e ${fcm.length} tokens FCM.`);
+    }
+  } catch (err: any) {
+    console.error("[Supabase Fetch Subs Exception]", err.message || err);
+  }
+
+  return { web, fcm };
+}
 
 async function startServer() {
   try {
@@ -222,6 +353,13 @@ async function startServer() {
       subscriptions.push(newRecord);
     }
 
+    // Sincronizar em segundo plano com o Supabase
+    saveSubscriptionToSupabase({
+      subscription,
+      companyId: companyId || "guest",
+      plan: plan || "free"
+    }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
+
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
       console.log(`[PWA Push] Registered subscription for User: ${companyId}, Plan: ${plan}`);
@@ -265,6 +403,13 @@ async function startServer() {
       subscriptions.push(newRecord);
     }
 
+    // Sincronizar em segundo plano com o Supabase
+    saveSubscriptionToSupabase({
+      token,
+      companyId: companyId || "guest",
+      plan: plan || "free"
+    }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
+
     try {
       fs.writeFileSync(fcmSubFile, JSON.stringify(subscriptions, null, 2), "utf8");
       console.log(`[FCM Push] Registered/Updated token for User: ${companyId}, Plan: ${plan}`);
@@ -280,6 +425,9 @@ async function startServer() {
     let successCount = 0;
     let failureCount = 0;
 
+    // Buscar subscrições do Supabase
+    const dbSubs = await fetchSubscriptionsFromSupabase();
+
     // --- PARTE A: Web Push padrão (VAPID) ---
     const subFile = path.join(process.cwd(), "push_subscriptions.json");
     let webSubscriptions: any[] = [];
@@ -291,7 +439,21 @@ async function startServer() {
       }
     }
 
-    const filteredWeb = webSubscriptions.filter(sub => {
+    // Unificar e remover duplicados do Web Push (usando o endpoint como chave única)
+    const allWebSubs = [...webSubscriptions, ...dbSubs.web];
+    const uniqueWebSubs: any[] = [];
+    const seenEndpoints = new Set<string>();
+
+    allWebSubs.forEach(sub => {
+      if (sub && sub.subscription && sub.subscription.endpoint) {
+        if (!seenEndpoints.has(sub.subscription.endpoint)) {
+          seenEndpoints.add(sub.subscription.endpoint);
+          uniqueWebSubs.push(sub);
+        }
+      }
+    });
+
+    const filteredWeb = uniqueWebSubs.filter(sub => {
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -334,7 +496,21 @@ async function startServer() {
       }
     }
 
-    const filteredFcm = fcmSubscriptions.filter(sub => {
+    // Unificar e remover duplicados do FCM (usando o token como chave única)
+    const allFcmSubs = [...fcmSubscriptions, ...dbSubs.fcm];
+    const uniqueFcmSubs: any[] = [];
+    const seenTokens = new Set<string>();
+
+    allFcmSubs.forEach(sub => {
+      if (sub && sub.token) {
+        if (!seenTokens.has(sub.token)) {
+          seenTokens.add(sub.token);
+          uniqueFcmSubs.push(sub);
+        }
+      }
+    });
+
+    const filteredFcm = uniqueFcmSubs.filter(sub => {
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -375,6 +551,17 @@ async function startServer() {
         fs.writeFileSync(subFile, JSON.stringify(activeWeb, null, 2), "utf8");
       } catch (dbErr) {
         console.error("Failed to prune dead Web subscriptions", dbErr);
+      }
+
+      // Remover do Supabase se estiver configurado
+      if (process.env.SUPABASE_URL) {
+        try {
+          for (const endpoint of deadWebEndpoints) {
+            await supabase.from("push_subscriptions").delete().eq("id", endpoint);
+          }
+        } catch (dbDelErr) {
+          console.error("Failed to prune dead Web subscriptions in Supabase:", dbDelErr);
+        }
       }
     }
 

@@ -1035,7 +1035,27 @@ const App: React.FC = () => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       const companyId = currentUser?.id || "guest";
       const plan = currentUser?.plan || "free";
-      registerWebPushSubscription(companyId, plan);
+      
+      const autoRegister = async () => {
+        try {
+          // 1. Obter FCM Token automaticamente em background
+          const token = await requestFcmToken();
+          if (token) {
+            setFcmToken(token);
+          }
+        } catch (err) {
+          console.warn('FCM auto-registration skipped or unsupported:', err);
+        }
+        
+        try {
+          // 2. Registrar Web Push VAPID
+          await registerWebPushSubscription(companyId, plan);
+        } catch (err) {
+          console.warn('VAPID auto-registration skipped or unsupported:', err);
+        }
+      };
+      
+      autoRegister();
     }
   }, [currentUser?.id, currentUser?.plan, notificationPermission]);
 
