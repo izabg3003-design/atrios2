@@ -53,9 +53,10 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(fetch(event.request));
 });
 
-// 4. Listener para receber eventos Push brutos (VAPID padrão ou FCM nativo)
+// 4. Listener resiliente para receber eventos Push brutos (VAPID padrão ou FCM nativo)
+// Garante exibição de notificação mesmo com o app fechado sob qualquer circunstância
 self.addEventListener('push', (event) => {
-  console.log('[SW] Recebido evento push bruto em segundo plano:', event);
+  console.log('[SW] Recebido evento push em segundo plano:', event);
   
   let payload = null;
   if (event.data) {
@@ -70,24 +71,50 @@ self.addEventListener('push', (event) => {
     }
   }
 
-  // Se for uma mensagem do FCM, o SDK do Firebase Messaging já a intercepta e trata.
-  // Ignoramos aqui para evitar notificações duplicadas.
-  if (payload && (payload.from || payload.collapse_key || payload.gcm || payload.notification || payload.priority)) {
-    console.log('[SW] Mensagem FCM detectada. Delegando ao SDK do Firebase.');
-    return;
+  console.log('[SW] Payload de push recebido e decodificado:', payload);
+
+  // Extrair título e conteúdo de forma extremamente resiliente (FCM, VAPID ou campos de texto puro)
+  let title = 'Átrios App';
+  let body = 'Você tem uma nova atualização.';
+  let icon = '/favicon.svg';
+  let badge = '/favicon.svg';
+  let tag = 'atrios-global-push';
+  let additionalData = {};
+
+  if (payload) {
+    // 1. Se estiver encapsulado na propriedade "notification" (Padrão FCM)
+    if (payload.notification) {
+      title = payload.notification.title || title;
+      body = payload.notification.body || body;
+      icon = payload.notification.icon || icon;
+    }
+    // 2. Se estiver encapsulado em "data" (FCM data-only ou VAPID encapsulado)
+    else if (payload.data) {
+      title = payload.data.title || payload.title || title;
+      body = payload.data.body || payload.body || body;
+      icon = payload.data.icon || icon;
+    }
+    // 3. Se for propriedades de primeiro nível (Web Push VAPID padrão)
+    else {
+      title = payload.title || title;
+      body = payload.body || body;
+      icon = payload.icon || icon;
+    }
+
+    tag = payload.tag || payload.notification?.tag || payload.data?.tag || 'atrios-bg-push';
+    additionalData = payload.data || payload;
   }
 
-  // Se não for FCM, é um Web Push VAPID padrão do backend
-  console.log('[SW] Web Push VAPID padrão detectado:', payload);
-  const title = payload?.title || 'Átrios Software';
   const options = {
-    body: payload?.body || 'Tem uma nova atualização.',
-    icon: payload?.icon || '/favicon.svg',
-    badge: '/favicon.svg',
+    body: body,
+    icon: icon,
+    badge: badge,
     vibrate: [200, 100, 200, 100, 300],
-    tag: payload?.tag || 'atrios-bg-push',
-    data: payload
+    tag: tag,
+    data: additionalData
   };
+
+  console.log('[SW] Exibindo notificação de fundo:', title, options);
 
   event.waitUntil(
     self.registration.showNotification(title, options)

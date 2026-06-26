@@ -11,7 +11,7 @@ export const firebaseConfig = {
   measurementId: "G-2GE58ZJNWH"
 };
 
-export const VAPID_KEY = "BDbP6H-i86jr1AR9GpbUJ6oNxH69LPQE5cntwWdI7Ez01T_isAPCAIyfFirzco3MLpTr9G1EWf-4z8-qqhzvMQU";
+export const VAPID_KEY = import.meta.env.VITE_FIREBASE_VAPID_KEY || "BDbP6H-i86jr1AR9GpbUJ6oNxH69LPQE5cntwWdI7Ez01T_isAPCAIyfFirzco3MLpTr9G1EWf-4z8-qqhzvMQU";
 
 // Inicializar Firebase
 const app = initializeApp(firebaseConfig);

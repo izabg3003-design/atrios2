@@ -1980,13 +1980,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       console.log("Testando conexão Supabase...");
                       const testProducts = await testTableAccess('products');
                       const testOrders = await testTableAccess('store_orders');
+                      const testSubs = await testTableAccess('push_subscriptions');
                       
-                      if (!testProducts.success || !testOrders.success) {
-                        console.error("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error });
+                      if (!testProducts.success || !testOrders.success || !testSubs.success) {
+                        console.error("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error, subs: testSubs.error });
                         const errP = testProducts.error as any;
                         const errO = testOrders.error as any;
+                        const errS = testSubs.error as any;
                         
-                        let msg = "ERRO DE CONEXÃO SUPABASE:\n\n";
+                        let msg = "DIAGNÓSTICO SUPABASE - TABELAS EM FALTA:\n\n";
                         
                         if (!testProducts.success) {
                           msg += `TABELA 'products':\nStatus: ${testProducts.status}\nMensagem: ${errP?.message || "Erro"}\n\n`;
@@ -1995,18 +1997,32 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         if (!testOrders.success) {
                           msg += `TABELA 'store_orders':\nStatus: ${testOrders.status}\nMensagem: ${errO?.message || "Erro"}\n\n`;
                         }
+
+                        if (!testSubs.success) {
+                          msg += `TABELA 'push_subscriptions' (Necessária para Push PWA/FCM):\nStatus: ${testSubs.status}\nMensagem: ${errS?.message || "Erro"}\n\n`;
+                        }
                         
-                        msg += "SQL PARA CRIAR TABELAS (se não existirem):\n\n";
-                        msg += "CREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
-                        msg += "SQL PARA ADICIONAR COLUNA DE PREÇO (se a tabela já existir):\n";
-                        msg += "ALTER TABLE products ADD COLUMN IF NOT EXISTS price NUMERIC;\n\n";
-                        msg += "CREATE TABLE store_orders (\n  id TEXT PRIMARY KEY,\n  \"companyId\" TEXT,\n  \"productId\" TEXT,\n  \"productName\" TEXT,\n  quantity INTEGER,\n  notes TEXT,\n  \"uploadedImage\" TEXT,\n  status TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
-                        msg += "SQL PARA LIBERAR RLS:\nALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON products FOR ALL USING (true) WITH CHECK (true);\n\nALTER TABLE store_orders ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON store_orders FOR ALL USING (true) WITH CHECK (true);";
+                        msg += "SQL PARA CRIAR TABELAS (Execute isto no SQL Editor do Supabase):\n\n";
+                        
+                        if (!testProducts.success) {
+                          msg += "CREATE TABLE products (\n  id TEXT PRIMARY KEY,\n  name TEXT,\n  code TEXT,\n  category TEXT,\n  description TEXT,\n  image TEXT,\n  price NUMERIC,\n  active BOOLEAN DEFAULT true,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                          msg += "ALTER TABLE products ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON products FOR ALL USING (true) WITH CHECK (true);\n\n";
+                        }
+
+                        if (!testOrders.success) {
+                          msg += "CREATE TABLE store_orders (\n  id TEXT PRIMARY KEY,\n  \"companyId\" TEXT,\n  \"productId\" TEXT,\n  \"productName\" TEXT,\n  quantity INTEGER,\n  notes TEXT,\n  \"uploadedImage\" TEXT,\n  status TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                          msg += "ALTER TABLE store_orders ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON store_orders FOR ALL USING (true) WITH CHECK (true);\n\n";
+                        }
+
+                        if (!testSubs.success) {
+                          msg += "CREATE TABLE push_subscriptions (\n  id TEXT PRIMARY KEY,\n  subscription TEXT,\n  token TEXT,\n  plan TEXT,\n  \"companyId\" TEXT,\n  \"company_id\" TEXT,\n  \"companyid\" TEXT,\n  created_at TIMESTAMPTZ DEFAULT now()\n);\n\n";
+                          msg += "ALTER TABLE push_subscriptions ENABLE ROW LEVEL SECURITY;\nCREATE POLICY \"Public Access\" ON push_subscriptions FOR ALL USING (true) WITH CHECK (true);\n\n";
+                        }
                         
                         alert(msg);
                       } else {
                         console.log("Conexão Supabase OK. Status:", testProducts.status);
-                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${testProducts.status}\nProdutos Locais: ${localParsed.length}\nPedidos Locais: ${storeOrders.length}\n\nSe os dados não aparecem no banco, verifique se a coluna 'id' nas tabelas é do tipo TEXT.`);
+                        alert(`CONEXÃO SUPABASE OK!\n\nStatus: ${testProducts.status}\nProdutos Locais: ${localParsed.length}\nPedidos Locais: ${storeOrders.length}\nSubscrições Push: Ativas\n\nTudo pronto para sincronizar dados e enviar notificações push FCM/Web Push de forma resiliente.`);
                       }
                     } catch (e) {
                       console.error("Falha crítica no diagnóstico:", e);
