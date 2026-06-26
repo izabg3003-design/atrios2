@@ -3357,120 +3357,7 @@ const App: React.FC = () => {
                                </div>
                              </div>
 
-                             <div className="pt-8 lg:pt-12 border-t border-slate-100 mt-8 lg:mt-12">
-                               <h3 className="text-lg lg:text-xl font-black text-slate-900 mb-6 uppercase tracking-tighter italic flex items-center gap-2 text-slate-900">
-                                 <Smartphone size={20} className="text-amber-500" /> Firebase Cloud Messaging (Push)
-                               </h3>
-                               <div className="bg-slate-50 border border-slate-100 rounded-3xl p-6 lg:p-8 space-y-6">
-                                 {/* Status indicators */}
-                                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Permissão do Navegador</span>
-                                     <div className="flex items-center justify-between mt-2">
-                                       <span className="text-sm font-black text-slate-900">
-                                         {notificationPermission === 'granted' && 'Ativada ✔'}
-                                         {notificationPermission === 'denied' && 'Bloqueada ❌'}
-                                         {notificationPermission === 'default' && 'Pendente ⏳'}
-                                       </span>
-                                       <span className={`w-2.5 h-2.5 rounded-full ${
-                                         notificationPermission === 'granted' ? 'bg-emerald-500' :
-                                         notificationPermission === 'denied' ? 'bg-red-500' : 'bg-amber-500'
-                                       }`} />
-                                     </div>
-                                   </div>
-
-                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 flex flex-col justify-between">
-                                     <span className="text-[10px] font-black text-slate-400 uppercase tracking-widest">Sincronização Cloud</span>
-                                     <div className="flex items-center justify-between mt-2">
-                                       <span className="text-sm font-black text-slate-900">
-                                         {fcmToken ? 'Ligado' : 'Desligado'}
-                                       </span>
-                                       <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[9px] font-black uppercase ${
-                                         fcmToken ? 'bg-emerald-50 text-emerald-600 border border-emerald-100' : 'bg-amber-50 text-amber-600 border border-amber-100'
-                                       }`}>
-                                         {fcmToken ? 'Ativo' : 'Pendente'}
-                                       </span>
-                                     </div>
-                                   </div>
-                                 </div>
-
-                                 {/* Dynamic prompt section based on permission */}
-                                 {notificationPermission === 'default' && (
-                                   <div className="bg-white border border-amber-100 rounded-2xl p-4 sm:p-5 space-y-3">
-                                     <p className="text-xs text-slate-500 font-bold leading-relaxed">
-                                       Ative as notificações push para receber alertas automáticos de novos orçamentos, atualizações de status de encomendas e avisos de suporte diretamente no seu ecrã, mesmo com a aplicação fechada!
-                                     </p>
-                                     <button 
-                                       onClick={handleRequestPushPermission}
-                                       className="w-full py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-widest transition-all shadow-md active:scale-95"
-                                     >
-                                       Permitir Notificações
-                                     </button>
-                                   </div>
-                                 )}
-
-                                 {notificationPermission === 'denied' && (
-                                   <div className="bg-amber-50/50 border border-amber-100 rounded-2xl p-5 space-y-3">
-                                     <div className="flex items-center gap-2 text-amber-800">
-                                       <Lock size={16} />
-                                       <span className="text-xs font-black uppercase tracking-wider">Como Desbloquear Notificações</span>
-                                     </div>
-                                     <p className="text-xs text-slate-600 font-bold leading-relaxed">
-                                       {pushNotificationStrings[locale]?.unblockGuide || pushNotificationStrings['pt-PT'].unblockGuide}
-                                     </p>
-                                     <div className="text-[10px] text-amber-700 font-bold bg-amber-50 border border-amber-100 rounded-xl p-3">
-                                       💡 <strong>Nota:</strong> Como a permissão foi bloqueada anteriormente, o navegador não nos deixa abrir o painel de solicitação automática. Siga os passos acima para ativar as notificações push e receber mensagens com o aplicativo fechado.
-                                     </div>
-                                   </div>
-                                 )}
-
-                                 {notificationPermission === 'granted' && fcmToken && (
-                                   <div className="bg-white border border-slate-100 rounded-2xl p-5 space-y-3">
-                                     <div className="flex items-center gap-2 text-emerald-600">
-                                       <CheckCircle2 size={16} />
-                                       <span className="text-xs font-black uppercase tracking-wider">Tudo configurado com sucesso!</span>
-                                     </div>
-                                     <p className="text-xs text-slate-500 font-bold">
-                                       As notificações estão ativas neste dispositivo. O token de identificação cloud é sincronizado automaticamente com a nossa base de dados.
-                                     </p>
-                                     <div className="space-y-1.5">
-                                       <label className="block text-[9px] font-black text-slate-400 uppercase tracking-widest">O seu token atual:</label>
-                                       <div className="flex gap-2">
-                                         <input 
-                                           type="text" 
-                                           readOnly 
-                                           value={fcmToken} 
-                                           className="flex-1 bg-slate-50 border border-slate-100 rounded-xl px-4 py-2.5 text-[10px] font-mono text-slate-600 select-all outline-none"
-                                         />
-                                         <button 
-                                           onClick={() => {
-                                             navigator.clipboard.writeText(fcmToken);
-                                             alert('Token copiado!');
-                                           }}
-                                           className="px-4 py-2.5 bg-slate-900 text-white hover:bg-slate-800 text-[10px] font-black uppercase tracking-wider rounded-xl transition-all"
-                                         >
-                                           Copiar
-                                         </button>
-                                       </div>
-                                     </div>
-                                   </div>
-                                 )}
-
-                                 {notificationPermission === 'granted' && !fcmToken && (
-                                   <div className="bg-white border border-slate-100 rounded-2xl p-4 sm:p-5 text-center space-y-3">
-                                     <p className="text-xs text-slate-500 font-bold">
-                                       Permissão concedida, mas o token de registo ainda não foi gerado.
-                                     </p>
-                                     <button 
-                                       onClick={handleRequestPushPermission}
-                                       className="w-full py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-widest transition-all"
-                                     >
-                                       Gerar Token Push
-                                     </button>
-                                   </div>
-                                 )}
-                               </div>
-                             </div>
+                             
                          </div>
                       </div>
                     </div>
@@ -3550,7 +3437,7 @@ const App: React.FC = () => {
           )}
           
           {showNotificationPrompt && (notificationPermission === 'default' || notificationPermission === 'denied') && (
-            <div className="fixed bottom-4 left-4 right-4 sm:right-auto sm:left-8 sm:bottom-8 sm:max-w-md z-[50] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
+            <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-8 sm:bottom-8 sm:max-w-md z-[80] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
               <button 
                 onClick={dismissPushPrompt} 
                 className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full flex items-center justify-center transition-all"
