@@ -19,6 +19,8 @@ import path from "path";
 import { fileURLToPath } from "url";
 import webPush from "web-push";
 import fs from "fs";
+import { sendFcmNotification } from "./services/firebase-admin.js";
+
 
 dotenv.config();
 
@@ -230,23 +232,66 @@ async function startServer() {
     }
   });
 
-  // Helper to trigger push broadcast
-  const sendPushBroadcast = async (title: string, body: string, targetAudience: string) => {
-    const subFile = path.join(__dirname, "push_subscriptions.json");
+  // 2.1 Subscrever um dispositivo utilizando Firebase Cloud Messaging (FCM)
+  app.post("/api/push/fcm-subscribe", (req, res) => {
+    const { token, companyId, plan } = req.body;
+    if (!token) {
+      return res.status(400).json({ error: "Missing FCM token" });
+    }
+
+    const fcmSubFile = path.join(__dirname, "fcm_subscriptions.json");
     let subscriptions: any[] = [];
-    if (fs.existsSync(subFile)) {
+    if (fs.existsSync(fcmSubFile)) {
       try {
-        subscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+        subscriptions = JSON.parse(fs.readFileSync(fcmSubFile, "utf8"));
       } catch (e) {
-        console.error("Error reading subscriptions", e);
+        console.error("Error reading FCM subscriptions file", e);
       }
     }
 
-    if (subscriptions.length === 0) {
-      return { successCount: 0, failureCount: 0, totalCount: 0 };
+    // Evitar duplicados pelo token
+    const existingIndex = subscriptions.findIndex(sub => sub.token === token);
+    
+    const newRecord = {
+      token,
+      companyId: companyId || "guest",
+      plan: plan || "free",
+      createdAt: new Date().toISOString()
+    };
+
+    if (existingIndex > -1) {
+      subscriptions[existingIndex] = newRecord;
+    } else {
+      subscriptions.push(newRecord);
     }
 
-    const filtered = subscriptions.filter(sub => {
+    try {
+      fs.writeFileSync(fcmSubFile, JSON.stringify(subscriptions, null, 2), "utf8");
+      console.log(`[FCM Push] Registered/Updated token for User: ${companyId}, Plan: ${plan}`);
+      res.json({ success: true });
+    } catch (dbErr: any) {
+      console.error("Failed to write FCM subscriptions to disk", dbErr);
+      res.status(500).json({ error: "Failed to persist FCM subscription" });
+    }
+  });
+
+  // Helper to trigger push broadcast (Web Push + FCM)
+  const sendPushBroadcast = async (title: string, body: string, targetAudience: string) => {
+    let successCount = 0;
+    let failureCount = 0;
+
+    // --- PARTE A: Web Push padrão (VAPID) ---
+    const subFile = path.join(__dirname, "push_subscriptions.json");
+    let webSubscriptions: any[] = [];
+    if (fs.existsSync(subFile)) {
+      try {
+        webSubscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+      } catch (e) {
+        console.error("Error reading web subscriptions", e);
+      }
+    }
+
+    const filteredWeb = webSubscriptions.filter(sub => {
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -255,11 +300,8 @@ async function startServer() {
       return false;
     });
 
-    let successCount = 0;
-    let failureCount = 0;
-    const deadEndpoints: string[] = [];
-
-    const payload = JSON.stringify({
+    const deadWebEndpoints: string[] = [];
+    const webPayload = JSON.stringify({
       title,
       body,
       icon: '/favicon.svg',
@@ -268,32 +310,92 @@ async function startServer() {
       vibrate: [200, 100, 200, 100, 300]
     });
 
-    const sendPromises = filtered.map(async (sub) => {
+    const webPromises = filteredWeb.map(async (sub) => {
       try {
-        await webPush.sendNotification(sub.subscription, payload);
+        await webPush.sendNotification(sub.subscription, webPayload);
         successCount++;
       } catch (err: any) {
         console.error(`[PWA Push Send Error] ${sub.subscription.endpoint}:`, err.message);
         failureCount++;
         if (err.statusCode === 410 || err.statusCode === 404) {
-          deadEndpoints.push(sub.subscription.endpoint);
+          deadWebEndpoints.push(sub.subscription.endpoint);
         }
       }
     });
 
-    await Promise.all(sendPromises);
-
-    if (deadEndpoints.length > 0) {
-      console.log(`[PWA Push] Pruning ${deadEndpoints.length} dead endpoints.`);
-      const activeSubs = subscriptions.filter(sub => !deadEndpoints.includes(sub.subscription.endpoint));
+    // --- PARTE B: Firebase Cloud Messaging (FCM) ---
+    const fcmSubFile = path.join(__dirname, "fcm_subscriptions.json");
+    let fcmSubscriptions: any[] = [];
+    if (fs.existsSync(fcmSubFile)) {
       try {
-        fs.writeFileSync(subFile, JSON.stringify(activeSubs, null, 2), "utf8");
-      } catch (dbErr) {
-        console.error("Failed to prune dead subscriptions", dbErr);
+        fcmSubscriptions = JSON.parse(fs.readFileSync(fcmSubFile, "utf8"));
+      } catch (e) {
+        console.error("Error reading FCM subscriptions", e);
       }
     }
 
-    return { successCount, failureCount, totalCount: filtered.length };
+    const filteredFcm = fcmSubscriptions.filter(sub => {
+      if (!targetAudience || targetAudience === 'all') return true;
+      if (targetAudience === 'free' && sub.plan === 'free') return true;
+      if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
+      if (targetAudience === 'premium_monthly' && sub.plan === 'premium_monthly') return true;
+      if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
+      return false;
+    });
+
+    const fcmTokens = filteredFcm.map(sub => sub.token);
+    let fcmSuccess = 0;
+    let fcmFailure = 0;
+    let fcmTokensToRemove: string[] = [];
+
+    if (fcmTokens.length > 0) {
+      try {
+        const fcmResult = await sendFcmNotification(fcmTokens, title, body);
+        fcmSuccess = fcmResult.successCount;
+        fcmFailure = fcmResult.failureCount;
+        fcmTokensToRemove = fcmResult.tokensToRemove || [];
+        
+        successCount += fcmSuccess;
+        failureCount += fcmFailure;
+      } catch (fcmErr) {
+        console.error('[PWA FCM Send Error]', fcmErr);
+        fcmFailure = fcmTokens.length;
+        failureCount += fcmFailure;
+      }
+    }
+
+    // Aguardar o término dos envios Web Push
+    await Promise.all(webPromises);
+
+    // Pruning de Web Push inativos
+    if (deadWebEndpoints.length > 0) {
+      console.log(`[PWA Push] Pruning ${deadWebEndpoints.length} dead Web endpoints.`);
+      const activeWeb = webSubscriptions.filter(sub => !deadWebEndpoints.includes(sub.subscription.endpoint));
+      try {
+        fs.writeFileSync(subFile, JSON.stringify(activeWeb, null, 2), "utf8");
+      } catch (dbErr) {
+        console.error("Failed to prune dead Web subscriptions", dbErr);
+      }
+    }
+
+    // Pruning de FCM Tokens inativos
+    if (fcmTokensToRemove.length > 0) {
+      console.log(`[FCM Push] Pruning ${fcmTokensToRemove.length} inactive FCM tokens.`);
+      const activeFcm = fcmSubscriptions.filter(sub => !fcmTokensToRemove.includes(sub.token));
+      try {
+        fs.writeFileSync(fcmSubFile, JSON.stringify(activeFcm, null, 2), "utf8");
+      } catch (dbErr) {
+        console.error("Failed to prune inactive FCM tokens", dbErr);
+      }
+    }
+
+    return { 
+      successCount, 
+      failureCount, 
+      totalCount: filteredWeb.length + filteredFcm.length,
+      webCount: filteredWeb.length,
+      fcmCount: filteredFcm.length
+    };
   };
 
   // 3. Enviar notificação push em segundo plano offline (mesmo fechado)

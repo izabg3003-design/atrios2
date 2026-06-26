@@ -284,6 +284,27 @@ const App: React.FC = () => {
     };
   }, []);
 
+  // Sincronizar o token FCM obtido com o backend
+  useEffect(() => {
+    if (fcmToken && currentUser) {
+      fetch('/api/push/fcm-subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          token: fcmToken,
+          companyId: currentUser.id,
+          plan: currentUser.plan || 'free'
+        })
+      })
+      .then(res => res.json())
+      .then(data => console.log('[FCM Backend Token Registered]:', data))
+      .catch(err => console.error('[FCM Backend Token Error]:', err));
+    }
+  }, [fcmToken, currentUser]);
+
+
   useEffect(() => {
     const handler = (e: any) => {
       e.preventDefault();
