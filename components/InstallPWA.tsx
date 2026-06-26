@@ -15,7 +15,7 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     // Registrar Service Worker de forma robusta (evita que fique preso se o evento load já tiver ocorrido)
     if ('serviceWorker' in navigator) {
       const registerSW = () => {
-        navigator.serviceWorker.register('/sw.js').then(registration => {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
           console.log('SW registrado com sucesso:', registration.scope);
         }).catch(err => {
           console.log('SW falhou:', err);
