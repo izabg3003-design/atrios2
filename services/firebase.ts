@@ -43,9 +43,19 @@ export const requestFcmToken = async (): Promise<string | null> => {
       return null;
     }
 
-    // Registar o service worker padrão do Firebase
+    // Registrar o service worker do Firebase explicitamente para garantir mapeamento correto
+    let registration;
+    try {
+      registration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+      console.log('[FCM SW] Service Worker registrado com sucesso:', registration.scope);
+    } catch (swErr) {
+      console.warn('[FCM SW] Falha ao registrar Service Worker explicitamente:', swErr);
+    }
+
+    // Obter o token passando a referência do registration se disponível
     const token = await getToken(messaging, {
-      vapidKey: VAPID_KEY
+      vapidKey: VAPID_KEY,
+      ...(registration ? { serviceWorkerRegistration: registration } : {})
     });
 
     if (token) {
