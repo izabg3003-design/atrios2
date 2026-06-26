@@ -264,10 +264,8 @@ const App: React.FC = () => {
       }
     };
 
-    if (view === 'app' && currentUser) {
-      fetchToken();
-    }
-  }, [view, currentUser]);
+    fetchToken();
+  }, []);
 
   useEffect(() => {
     const unsubscribe = onMessageListener((payload) => {
@@ -286,7 +284,7 @@ const App: React.FC = () => {
 
   // Sincronizar o token FCM obtido com o backend
   useEffect(() => {
-    if (fcmToken && currentUser) {
+    if (fcmToken) {
       fetch('/api/push/fcm-subscribe', {
         method: 'POST',
         headers: {
@@ -294,15 +292,15 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({
           token: fcmToken,
-          companyId: currentUser.id,
-          plan: currentUser.plan || 'free'
+          companyId: currentUser?.id || 'guest',
+          plan: currentUser?.plan || 'free'
         })
       })
       .then(res => res.json())
       .then(data => console.log('[FCM Backend Token Registered]:', data))
       .catch(err => console.error('[FCM Backend Token Error]:', err));
     }
-  }, [fcmToken, currentUser]);
+  }, [fcmToken, currentUser?.id, currentUser?.plan]);
 
 
   useEffect(() => {
