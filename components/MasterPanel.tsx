@@ -699,6 +699,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         return;
       }
 
+      let utcScheduledTime = scheduledTime;
+      try {
+        utcScheduledTime = new Date(scheduledTime).toISOString();
+      } catch (err) {
+        console.error('Error parsing scheduled time:', err);
+      }
+
       fetch('/api/push/schedule', {
         method: 'POST',
         headers: {
@@ -708,7 +715,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           title: pushTitle,
           body: pushBody,
           targetAudience: pushAudience,
-          scheduledTime: scheduledTime
+          scheduledTime: utcScheduledTime
         })
       })
       .then(res => res.json())
