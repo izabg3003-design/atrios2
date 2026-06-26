@@ -29,7 +29,7 @@ const __dirname = path.dirname(__filename);
 
 // Carregar ou gerar chaves VAPID estáveis e persistentes para PWA Offline Push
 let vapidKeys: { publicKey: string; privateKey: string };
-const vapidFilePath = path.join(__dirname, "vapid_keys.json");
+const vapidFilePath = path.join(process.cwd(), "vapid_keys.json");
 
 if (fs.existsSync(vapidFilePath)) {
   try {
@@ -196,7 +196,7 @@ async function startServer() {
       return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
     }
 
-    const subFile = path.join(__dirname, "push_subscriptions.json");
+    const subFile = path.join(process.cwd(), "push_subscriptions.json");
     let subscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
       try {
@@ -239,7 +239,7 @@ async function startServer() {
       return res.status(400).json({ error: "Missing FCM token" });
     }
 
-    const fcmSubFile = path.join(__dirname, "fcm_subscriptions.json");
+    const fcmSubFile = path.join(process.cwd(), "fcm_subscriptions.json");
     let subscriptions: any[] = [];
     if (fs.existsSync(fcmSubFile)) {
       try {
@@ -281,7 +281,7 @@ async function startServer() {
     let failureCount = 0;
 
     // --- PARTE A: Web Push padrão (VAPID) ---
-    const subFile = path.join(__dirname, "push_subscriptions.json");
+    const subFile = path.join(process.cwd(), "push_subscriptions.json");
     let webSubscriptions: any[] = [];
     if (fs.existsSync(subFile)) {
       try {
@@ -324,7 +324,7 @@ async function startServer() {
     });
 
     // --- PARTE B: Firebase Cloud Messaging (FCM) ---
-    const fcmSubFile = path.join(__dirname, "fcm_subscriptions.json");
+    const fcmSubFile = path.join(process.cwd(), "fcm_subscriptions.json");
     let fcmSubscriptions: any[] = [];
     if (fs.existsSync(fcmSubFile)) {
       try {
@@ -423,7 +423,7 @@ async function startServer() {
 
   // 4. Obter lista de agendamentos
   app.get("/api/push/scheduled", (req, res) => {
-    const schedFile = path.join(__dirname, "scheduled_push.json");
+    const schedFile = path.join(process.cwd(), "scheduled_push.json");
     let scheduledList: any[] = [];
     if (fs.existsSync(schedFile)) {
       try {
@@ -442,7 +442,7 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields: title, body, or scheduledTime" });
     }
 
-    const schedFile = path.join(__dirname, "scheduled_push.json");
+    const schedFile = path.join(process.cwd(), "scheduled_push.json");
     let scheduledList: any[] = [];
     if (fs.existsSync(schedFile)) {
       try {
@@ -476,7 +476,7 @@ async function startServer() {
   // 6. Cancelar/Eliminar um agendamento
   app.delete("/api/push/scheduled/:id", (req, res) => {
     const { id } = req.params;
-    const schedFile = path.join(__dirname, "scheduled_push.json");
+    const schedFile = path.join(process.cwd(), "scheduled_push.json");
     let scheduledList: any[] = [];
     if (fs.existsSync(schedFile)) {
       try {
@@ -500,7 +500,7 @@ async function startServer() {
 
   // Background scheduler interval (executa a cada 30 segundos)
   setInterval(async () => {
-    const schedFile = path.join(__dirname, "scheduled_push.json");
+    const schedFile = path.join(process.cwd(), "scheduled_push.json");
     if (!fs.existsSync(schedFile)) return;
 
     let scheduledList: any[] = [];
@@ -845,7 +845,7 @@ async function startServer() {
     app.use(vite.middlewares);
   } else {
     console.log("Starting in PRODUCTION mode serving static files");
-    const distPath = path.join(__dirname, "dist");
+    const distPath = path.join(process.cwd(), "dist");
     app.use(express.static(distPath));
     app.get("*any", (req, res) => {
       // Don't serve index.html for missing API routes
