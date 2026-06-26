@@ -3529,7 +3529,7 @@ const App: React.FC = () => {
             </div>
           )}
           
-          {showNotificationPrompt && notificationPermission === 'default' && (
+          {showNotificationPrompt && (notificationPermission === 'default' || notificationPermission === 'denied') && (
             <div className="fixed bottom-4 left-4 right-4 sm:right-auto sm:left-8 sm:bottom-8 sm:max-w-md z-[50] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
               <button 
                 onClick={dismissPushPrompt} 
@@ -3538,23 +3538,46 @@ const App: React.FC = () => {
                 <X size={14} />
               </button>
               <div className="flex gap-4 items-start">
-                <div className="w-12 h-12 bg-amber-500 text-white rounded-[1rem] flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
-                  <Bell className="animate-bounce" size={24} />
+                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 shadow-lg ${
+                  notificationPermission === 'denied' 
+                    ? 'bg-amber-100 text-amber-600 shadow-amber-500/5' 
+                    : 'bg-amber-500 text-white shadow-amber-500/20'
+                }`}>
+                  {notificationPermission === 'denied' ? (
+                    <Lock size={24} />
+                  ) : (
+                    <Bell className="animate-bounce" size={24} />
+                  )}
                 </div>
                 <div className="space-y-2 col-span-3">
                   <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                    {pushNotificationStrings[locale]?.title || pushNotificationStrings['pt-PT'].title}
+                    {notificationPermission === 'denied' 
+                      ? 'Notificações Bloqueadas' 
+                      : (pushNotificationStrings[locale]?.title || pushNotificationStrings['pt-PT'].title)}
                   </h4>
                   <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                    {pushNotificationStrings[locale]?.desc || pushNotificationStrings['pt-PT'].desc}
+                    {notificationPermission === 'denied' 
+                      ? (pushNotificationStrings[locale]?.unblockGuide || pushNotificationStrings['pt-PT'].unblockGuide)
+                      : (pushNotificationStrings[locale]?.desc || pushNotificationStrings['pt-PT'].desc)}
                   </p>
                   <div className="pt-2 flex items-center gap-4">
-                    <button 
-                      onClick={handleRequestPushPermission} 
-                      className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
-                    >
-                      {pushNotificationStrings[locale]?.allowBtn || pushNotificationStrings['pt-PT'].allowBtn}
-                    </button>
+                    {notificationPermission !== 'denied' ? (
+                      <button 
+                        onClick={handleRequestPushPermission} 
+                        className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
+                      >
+                        {pushNotificationStrings[locale]?.allowBtn || pushNotificationStrings['pt-PT'].allowBtn}
+                      </button>
+                    ) : (
+                      <button 
+                        onClick={() => {
+                          alert('Como as notificações foram bloqueadas no navegador, é necessário clicar no cadeado 🔒 ao lado da URL na barra de endereços para reativá-las.');
+                        }} 
+                        className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
+                      >
+                        Como Ativar?
+                      </button>
+                    )}
                     <button 
                       onClick={dismissPushPrompt} 
                       className="text-slate-400 hover:text-slate-600 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors"
