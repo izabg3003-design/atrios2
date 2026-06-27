@@ -1985,6 +1985,16 @@ const App: React.FC = () => {
       lastLocale: locale
     };
     saveCompany(newCompany);
+
+    // Notificar o Master por Push
+    fetch('/api/push/notify-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'signup',
+        details: { name: companyName, email: email }
+      })
+    }).catch(err => console.error('Error notifying master of signup:', err));
     
     // Track signup event
     if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {

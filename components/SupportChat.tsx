@@ -69,6 +69,17 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
     };
 
     saveMessage(msg);
+
+    // Notificar o Master por Push
+    fetch('/api/push/notify-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'message',
+        details: { companyName: company.name, content: newMessage }
+      })
+    }).catch(err => console.error('Error notifying master of support message:', err));
+
     // O App.tsx vai receber a atualização via Realtime ou via saveMessage que atualiza o localStorage
     setNewMessage('');
     setIsTranslating(false);

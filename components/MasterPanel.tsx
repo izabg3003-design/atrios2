@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
+import EmojiPicker, { EmojiClickData, Theme as EmojiTheme } from 'emoji-picker-react';
 import { 
   Users, 
   TrendingUp, 
@@ -79,6 +80,54 @@ import { supabase, testTableAccess, safeFetch } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
+function urlBase64ToUint8Array(base64String: string) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+  const base64 = (base64String + padding)
+    .replace(/\-/g, '+')
+    .replace(/_/g, '/');
+
+  const rawData = window.atob(base64);
+  const outputArray = new Uint8Array(rawData.length);
+
+  for (let i = 0; i < rawData.length; ++i) {
+    outputArray[i] = rawData.charCodeAt(i);
+  }
+  return outputArray;
+}
+
+const registerMasterPushSubscription = async () => {
+  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
+    console.warn('Web Push is not fully supported on this device/browser');
+    return;
+  }
+  try {
+    const reg = await navigator.serviceWorker.ready;
+    const keyRes = await fetch('/api/push/public-key');
+    if (!keyRes.ok) throw new Error('Failed to fetch public key');
+    const { publicKey } = await keyRes.json();
+    if (!publicKey) throw new Error('Public key empty');
+
+    const convertedKey = urlBase64ToUint8Array(publicKey);
+    const subscription = await reg.pushManager.subscribe({
+      userVisibleOnly: true,
+      applicationServerKey: convertedKey
+    });
+
+    await fetch('/api/push/subscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        subscription,
+        companyId: 'master',
+        plan: 'master'
+      })
+    });
+    console.log('[Master Push] Subscribed successfully');
+  } catch (err) {
+    console.error('[Master Push] Error registering subscription:', err);
+  }
+};
+
 const triggerPushNotificationSubmit = (title: string, body: string) => {
   try {
     if (!('Notification' in window)) {
@@ -136,6 +185,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   // Custom Push notifications composer states
   const [pushTitle, setPushTitle] = useState('');
   const [pushBody, setPushBody] = useState('');
+  const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<'title' | 'body' | null>(null);
   const [pushAudience, setPushAudience] = useState<AudienceType>('all');
   const [pushHistory, setPushHistory] = useState<PushNotification[]>(() => {
     try {
@@ -203,10 +253,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         "Átrios App",
         "Perfeito! Notificações com o logo oficial da Átrios ativadas com sucesso. 🎉"
       );
+      registerMasterPushSubscription();
     } else if (perm === 'denied') {
       alert('As notificações foram negadas. Se desejar receber avisos de cadastro, por favor ative-as nas definições de segurança do seu telemóvel ou navegador.');
     }
   };
+
+  useEffect(() => {
+    if (pushPermission === 'granted') {
+      registerMasterPushSubscription();
+    }
+  }, [pushPermission]);
 
   const testPushNotification = () => {
     if (pushPermission !== 'granted') {
@@ -1577,25 +1634,69 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
                 <div className="space-y-6">
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Título da Notificação</label>
-                    <input 
-                      type="text" 
-                      value={pushTitle} 
-                      onChange={e => setPushTitle(e.target.value)} 
-                      placeholder="Ex: Nova funcionalidade disponível! 🚀" 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600" 
-                    />
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Título da Notificação</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === 'title' ? null : 'title')}
+                        className="text-xs bg-white/5 hover:bg-white/10 text-amber-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 transition-all"
+                      >
+                        😊 <span className="text-[9px] uppercase tracking-wider">Emoji</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <input 
+                        type="text" 
+                        value={pushTitle} 
+                        onChange={e => setPushTitle(e.target.value)} 
+                        placeholder="Ex: Nova funcionalidade disponível! 🚀" 
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600 text-white focus:border-amber-500 transition-colors" 
+                      />
+                      {showEmojiPickerFor === 'title' && (
+                        <div className="absolute z-[100] mt-2 right-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-slate-900">
+                          <EmojiPicker 
+                            theme={EmojiTheme.DARK}
+                            onEmojiClick={(emojiData: EmojiClickData) => {
+                              setPushTitle(prev => prev + emojiData.emoji);
+                              setShowEmojiPickerFor(null);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>
-                    <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-3">Corpo da Mensagem</label>
-                    <textarea 
-                      value={pushBody} 
-                      onChange={e => setPushBody(e.target.value)} 
-                      placeholder="Ex: Atualize o aplicativo PWA nos seus dispositivos para desfrutar da nova funcionalidade de orçamentos."
-                      rows={3}
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600 resize-none animate-in duration-300" 
-                    />
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">Corpo da Mensagem</label>
+                      <button 
+                        type="button" 
+                        onClick={() => setShowEmojiPickerFor(showEmojiPickerFor === 'body' ? null : 'body')}
+                        className="text-xs bg-white/5 hover:bg-white/10 text-amber-400 font-bold px-3 py-1.5 rounded-xl border border-white/10 flex items-center gap-1.5 transition-all"
+                      >
+                        😊 <span className="text-[9px] uppercase tracking-wider">Emoji</span>
+                      </button>
+                    </div>
+                    <div className="relative">
+                      <textarea 
+                        value={pushBody} 
+                        onChange={e => setPushBody(e.target.value)} 
+                        placeholder="Ex: Atualize o aplicativo PWA nos seus dispositivos para desfrutar da nova funcionalidade de orçamentos."
+                        rows={3}
+                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-black outline-none placeholder:text-slate-600 resize-none animate-in duration-300 text-white focus:border-amber-500 transition-colors" 
+                      />
+                      {showEmojiPickerFor === 'body' && (
+                        <div className="absolute z-[100] mt-2 right-0 shadow-2xl rounded-2xl overflow-hidden border border-white/10 bg-slate-900">
+                          <EmojiPicker 
+                            theme={EmojiTheme.DARK}
+                            onEmojiClick={(emojiData: EmojiClickData) => {
+                              setPushBody(prev => prev + emojiData.emoji);
+                              setShowEmojiPickerFor(null);
+                            }}
+                          />
+                        </div>
+                      )}
+                    </div>
                   </div>
 
                   <div>

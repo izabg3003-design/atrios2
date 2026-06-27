@@ -477,6 +477,9 @@ async function startServer() {
     });
 
     const filteredWeb = uniqueWebSubs.filter(sub => {
+      if (targetAudience === 'master') {
+        return sub.companyId === 'master' || sub.plan === 'master';
+      }
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -534,6 +537,9 @@ async function startServer() {
     });
 
     const filteredFcm = uniqueFcmSubs.filter(sub => {
+      if (targetAudience === 'master') {
+        return sub.companyId === 'master' || sub.plan === 'master';
+      }
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
       if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
@@ -640,6 +646,47 @@ async function startServer() {
     } catch (err: any) {
       console.error("[PWA Broadcast Error]", err);
       res.status(500).json({ error: "Internal broadcast error", details: err.message });
+    }
+  });
+
+  // 3.1 Enviar notificação push específica para o Master (cadastro, mensagem, venda)
+  app.post("/api/push/notify-master", async (req, res) => {
+    const { type, details } = req.body;
+    if (!type || !details) {
+      return res.status(400).json({ error: "Missing required fields: type and details" });
+    }
+
+    let title = "";
+    let body = "";
+
+    if (type === "signup") {
+      title = "Novo Usuário Cadastrado! 🚀";
+      body = `O usuário "${details.name}" (${details.email}) acabou de se cadastrar no aplicativo.`;
+    } else if (type === "message") {
+      title = "Nova Mensagem de Suporte! 💬";
+      body = `"${details.companyName}" enviou uma nova mensagem: "${details.content}"`;
+    } else if (type === "sale") {
+      const formattedTotal = details.total ? `€${Number(details.total).toFixed(2)}` : "€0.00";
+      title = "Nova Venda Registrada! 🛍️";
+      body = `Foi vendido ${details.quantity || 1}x "${details.productName || 'Produto'}" no valor de ${formattedTotal}!`;
+    } else {
+      title = "Notificação do Sistema 🔔";
+      body = JSON.stringify(details);
+    }
+
+    console.log(`[PWA Master Notify] Event: ${type} | Sending: "${title}"`);
+
+    try {
+      const result = await sendPushBroadcast(title, body, 'master');
+      res.json({
+        success: true,
+        sentCount: result.totalCount,
+        successCount: result.successCount,
+        failureCount: result.failureCount
+      });
+    } catch (err: any) {
+      console.error("[PWA Master Notify Error]", err);
+      res.status(500).json({ error: "Internal notification error", details: err.message });
     }
   });
 
