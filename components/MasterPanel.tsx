@@ -102,29 +102,41 @@ const registerMasterPushSubscription = async () => {
   }
   try {
     const reg = await navigator.serviceWorker.ready;
-    const keyRes = await fetch('/api/push/public-key');
-    if (!keyRes.ok) throw new Error('Failed to fetch public key');
-    const { publicKey } = await keyRes.json();
-    if (!publicKey) throw new Error('Public key empty');
+    let subscription = await reg.pushManager.getSubscription();
+    
+    if (!subscription) {
+      const keyRes = await fetch('/api/push/public-key');
+      if (!keyRes.ok) throw new Error('Failed to fetch public key');
+      const { publicKey } = await keyRes.json();
+      if (!publicKey) throw new Error('Public key empty');
 
-    const convertedKey = urlBase64ToUint8Array(publicKey);
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedKey
-    });
+      const convertedKey = urlBase64ToUint8Array(publicKey);
+      try {
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey
+        });
+      } catch (subErr: any) {
+        console.warn('[Master Push] Browser PushManager.subscribe failed, continuing with fallback:', subErr.message || subErr);
+      }
+    }
 
-    await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        subscription,
-        companyId: 'master',
-        plan: 'master'
-      })
-    });
-    console.log('[Master Push] Subscribed successfully');
-  } catch (err) {
-    console.error('[Master Push] Error registering subscription:', err);
+    if (subscription) {
+      await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription,
+          companyId: 'master',
+          plan: 'master'
+        })
+      });
+      console.log('[Master Push] Subscribed successfully');
+    } else {
+      console.info('[Master Push] Subscription skipped or unavailable in this environment.');
+    }
+  } catch (err: any) {
+    console.warn('[Master Push] Error registering subscription (expected in some sandboxed preview environments):', err.message || err);
   }
 };
 

@@ -227,47 +227,58 @@ const registerWebPushSubscription = async (companyId: string, plan: string) => {
     }
 
     const reg = await navigator.serviceWorker.ready;
-    
-    // Obter chave pública VAPID do backend do Átrios
-    const keyRes = await fetch('/api/push/public-key');
-    if (!keyRes.ok) {
-      throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
+    let subscription = await reg.pushManager.getSubscription();
+
+    if (!subscription) {
+      // Obter chave pública VAPID do backend do Átrios
+      const keyRes = await fetch('/api/push/public-key');
+      if (!keyRes.ok) {
+        throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
+      }
+      const { publicKey } = await keyRes.json();
+      if (!publicKey) {
+        throw new Error('VAPID public key received from server is empty');
+      }
+
+      const convertedKey = urlBase64ToUint8Array(publicKey);
+      
+      try {
+        // Subscrever no pushManager do browser
+        subscription = await reg.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: convertedKey
+        });
+      } catch (subErr: any) {
+        console.warn('[PWA Subscription] Browser PushManager.subscribe failed, continuing with fallback:', subErr.message || subErr);
+      }
     }
-    const { publicKey } = await keyRes.json();
-    if (!publicKey) {
-      throw new Error('VAPID public key received from server is empty');
-    }
 
-    const convertedKey = urlBase64ToUint8Array(publicKey);
-    
-    // Subscrever no pushManager do browser
-    const subscription = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: convertedKey
-    });
+    if (subscription) {
+      console.log('[PWA Subscription] Browser success:', subscription);
 
-    console.log('[PWA Subscription] Browser success:', subscription);
+      // Enviar subscrição para sincronizar com o nosso Express Server
+      const saveRes = await fetch('/api/push/subscribe', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          subscription,
+          companyId,
+          plan
+        })
+      });
 
-    // Enviar subscrição para sincronizar com o nosso Express Server
-    const saveRes = await fetch('/api/push/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        subscription,
-        companyId,
-        plan
-      })
-    });
-
-    if (saveRes.ok) {
-      console.log('[PWA Subscription] Synced with server successfully.');
+      if (saveRes.ok) {
+        console.log('[PWA Subscription] Synced with server successfully.');
+      } else {
+        console.warn('[PWA Subscription] Server sync failed status:', saveRes.status);
+      }
     } else {
-      console.error('[PWA Subscription] Server sync failed status:', saveRes.status);
+      console.info('[PWA Subscription] Subscription not available or skipped in this environment.');
     }
-  } catch (err) {
-    console.error('[PWA Subscription] Error initiating offline Web Push:', err);
+  } catch (err: any) {
+    console.warn('[PWA Subscription] Error initiating offline Web Push:', err.message || err);
   }
 };
 
