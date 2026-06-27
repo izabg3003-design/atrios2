@@ -666,9 +666,8 @@ async function startServer() {
       title = "Nova Mensagem de Suporte! 💬";
       body = `"${details.companyName}" enviou uma nova mensagem: "${details.content}"`;
     } else if (type === "sale") {
-      const formattedTotal = details.total ? `€${Number(details.total).toFixed(2)}` : "€0.00";
       title = "Novo Orçamento Recebido! 🛍️";
-      body = `Foi vendido ${details.quantity || 1}x "${details.productName || 'Produto'}" no valor de ${formattedTotal}!`;
+      body = `Fazer orçamento para ${details.quantity || 10} ${details.productName || 'calças'}.`;
     } else {
       title = "Notificação do Sistema 🔔";
       body = JSON.stringify(details);
