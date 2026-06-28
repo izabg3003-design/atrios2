@@ -22,7 +22,7 @@ export const safeFetch = async <T>(query: any): Promise<{ data: T | null, error:
     const result = await query;
     return result;
   } catch (err: any) {
-    console.error("Supabase SafeFetch Error:", err);
+    console.warn("Supabase SafeFetch Warning:", err);
     return { 
       data: null, 
       error: { 
@@ -110,7 +110,7 @@ export interface SyncResult {
       
       if (!error) return { success: true };
 
-      console.error(`syncToCloud: Erro ao sincronizar ${table}:`, {
+      console.warn(`syncToCloud: Erro ao sincronizar ${table}:`, {
         message: error.message,
         code: error.code,
         dataSent: payload
@@ -133,7 +133,7 @@ export interface SyncResult {
 
     return await performUpsert(cleanData);
   } catch (err) {
-    console.error(`syncToCloud: Erro inesperado em ${table}:`, err);
+    console.warn(`syncToCloud: Erro inesperado em ${table}:`, err);
     return { success: false, error: err };
   }
 };

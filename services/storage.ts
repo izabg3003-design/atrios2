@@ -631,7 +631,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     const { data: customOrders, error: customOrdersError } = await fetchResilient('custom_order_requests', companyId, undefined, '*');
     
     if (customOrdersError) {
-      console.error("[Hydrate] Erro ao buscar pedidos personalizados:", customOrdersError);
+      console.warn("[Hydrate] Erro ao buscar pedidos personalizados:", customOrdersError);
     }
 
     if (customOrders) {
@@ -648,7 +648,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     const { data: budgets, error: budgetsError } = await fetchResilient('budgets', companyId, 'created_at', '*');
       
     if (budgetsError) {
-      console.error("[Hydrate] Erro ao buscar orçamentos:", budgetsError);
+      console.warn("[Hydrate] Erro ao buscar orçamentos:", budgetsError);
     }
 
     if (budgets) {
@@ -686,7 +686,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     const { data: messages, error: messagesError } = await fetchResilient('messages', companyId, undefined, '*');
     
     if (messagesError) {
-      console.error("[Hydrate] Erro ao buscar mensagens:", messagesError);
+      console.warn("[Hydrate] Erro ao buscar mensagens:", messagesError);
     }
 
     if (messages) {
@@ -719,7 +719,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     const { data: storeOrders, error: ordersError } = await fetchResilient('store_orders', companyId, undefined, '*');
 
     if (ordersError) {
-      console.error("[Hydrate] Erro ao buscar pedidos:", ordersError);
+      console.warn("[Hydrate] Erro ao buscar pedidos:", ordersError);
     }
 
     if (storeOrders) {
@@ -782,7 +782,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     
     return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };
   } catch (err) {
-    console.error("Falha ao recuperar dados remotos:", err);
+    console.warn("Falha ao recuperar dados remotos (esperado em modo offline/sandboxed):", err);
     return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };
   }
 };
