@@ -400,10 +400,10 @@ export const getProducts = async (forceRefresh = false): Promise<Product[]> => {
     }
     
     if (error) {
-      console.error("getProducts: Erro Supabase:", error);
+      console.warn("getProducts: Erro Supabase:", error);
     }
   } catch (err) {
-    console.error("getProducts: Exceção:", err);
+    console.warn("getProducts: Exceção:", err);
   }
   
   return local;
@@ -752,7 +752,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     if (!lastFetch['products'] || (now - lastFetch['products'] > CACHE_TTL)) {
       const { data: products, error: prodError } = await safeFetch<any[]>(supabase.from('products').select('*'));
       if (prodError) {
-        console.error("[Hydrate] Erro ao buscar produtos:", prodError);
+        console.warn("[Hydrate] Erro ao buscar produtos:", prodError);
       }
       if (products && products.length > 0) {
         lastFetch['products'] = now;

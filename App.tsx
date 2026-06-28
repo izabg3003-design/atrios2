@@ -401,6 +401,7 @@ const App: React.FC = () => {
   // Sincronizar o token FCM obtido com o backend
   useEffect(() => {
     if (fcmToken) {
+      const isMaster = view === 'master';
       fetch('/api/push/fcm-subscribe', {
         method: 'POST',
         headers: {
@@ -408,15 +409,15 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({
           token: fcmToken,
-          companyId: currentUser?.id || 'guest',
-          plan: currentUser?.plan || 'free'
+          companyId: isMaster ? 'master' : (currentUser?.id || 'guest'),
+          plan: isMaster ? 'master' : (currentUser?.plan || 'free')
         })
       })
       .then(res => res.json())
       .then(data => console.log('[FCM Backend Token Registered]:', data))
       .catch(err => console.error('[FCM Backend Token Error]:', err));
     }
-  }, [fcmToken, currentUser?.id, currentUser?.plan]);
+  }, [fcmToken, currentUser?.id, currentUser?.plan, view]);
 
 
   useEffect(() => {
@@ -1106,7 +1107,7 @@ const App: React.FC = () => {
             handleLogout();
           }
         } catch (error) {
-          console.error("Erro durante a hidratação inicial:", error);
+          console.warn("Erro durante a hidratação inicial:", error);
           // Fallback to local data
           const localBudgets = getStoredBudgets(currentUser.id);
           setBudgets(localBudgets);

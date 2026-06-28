@@ -411,7 +411,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const mappedCustomOrders = cloudCustomOrders ? cloudCustomOrders.map(mapCustomOrderFromSupabase) : [];
 
     if (ordersError) {
-      console.error("MasterPanel: Erro ao buscar pedidos da loja:", ordersError.message, ordersError.details);
+      console.warn("MasterPanel: Erro ao buscar pedidos da loja:", ordersError.message, ordersError.details);
     } else {
       console.log(`MasterPanel: ${mappedOrders.length} pedidos recebidos do cloud.`);
     }
@@ -441,7 +441,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     // Buscar produtos da loja
     const { data: cloudProducts, error: productsError } = await safeFetch<any[]>(supabase.from('products').select('*'));
     if (productsError) {
-      console.error("Erro ao buscar produtos:", productsError.message);
+      console.warn("Erro ao buscar produtos:", productsError.message);
     }
     console.log("Produtos recebidos do cloud:", cloudProducts);
 
@@ -2103,7 +2103,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       const testSubs = await testTableAccess('push_subscriptions');
                       
                       if (!testProducts.success || !testOrders.success || !testSubs.success) {
-                        console.error("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error, subs: testSubs.error });
+                        console.warn("Erro na conexão Supabase:", { products: testProducts.error, orders: testOrders.error, subs: testSubs.error });
                         const errP = testProducts.error as any;
                         const errO = testOrders.error as any;
                         const errS = testSubs.error as any;
