@@ -340,8 +340,9 @@ const App: React.FC = () => {
       setNotificationPermission(permission);
       
       if (permission === 'granted') {
-        const companyId = currentUser?.id || "guest";
-        const plan = currentUser?.plan || "free";
+        const isMaster = view === 'master';
+        const companyId = isMaster ? "master" : (currentUser?.id || "guest");
+        const plan = isMaster ? "master" : (currentUser?.plan || "free");
         
         // 1. Obter FCM Token
         const token = await requestFcmToken();
@@ -1049,8 +1050,9 @@ const App: React.FC = () => {
 
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-      const companyId = currentUser?.id || "guest";
-      const plan = currentUser?.plan || "free";
+      const isMaster = view === 'master';
+      const companyId = isMaster ? "master" : (currentUser?.id || "guest");
+      const plan = isMaster ? "master" : (currentUser?.plan || "free");
       
       const autoRegister = async () => {
         try {
@@ -1073,7 +1075,7 @@ const App: React.FC = () => {
       
       autoRegister();
     }
-  }, [currentUser?.id, currentUser?.plan, notificationPermission]);
+  }, [currentUser?.id, currentUser?.plan, notificationPermission, view]);
 
 
   useEffect(() => {
