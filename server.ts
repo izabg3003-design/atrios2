@@ -978,6 +978,7 @@ async function startServer() {
       }
 
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
+        payment_method_types: ["card"],
         line_items: [
           {
             price: priceId,
