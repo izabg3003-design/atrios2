@@ -2446,39 +2446,38 @@ const App: React.FC = () => {
   }, []);
 
   const Selectors = ({ dark = true }: { dark?: boolean }) => {
-    const isMobile = windowWidth < 640;
     return (
-      <div className="flex flex-col sm:flex-row items-center gap-1 sm:gap-3">
-        <div className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20' : 'bg-slate-100 border-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm w-full sm:w-auto`}>
-          <Coins size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px]`} />
+      <div className="flex items-center gap-1 sm:gap-2">
+        <div className={`flex items-center gap-1 sm:gap-1.5 ${dark ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-200'} border rounded-xl px-2 sm:px-2.5 py-1 shadow-sm transition-all hover:border-amber-400`}>
+          <Coins size={12} className={dark ? 'text-amber-400' : 'text-amber-600'} />
           <select 
             value={currencyCode} 
             onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} 
-            className={`bg-transparent text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-tight w-full sm:w-auto`}
+            className={`bg-transparent text-[10px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-wider`}
           >
             {Object.values(CURRENCIES).map(curr => (
-              <option key={curr.code} value={curr.code} className="text-slate-900">
-                {curr.code} {isMobile ? '' : `- ${curr.label}`}
+              <option key={curr.code} value={curr.code} className="text-slate-900 font-bold">
+                {curr.code} ({curr.symbol})
               </option>
             ))}
           </select>
         </div>
-        <div className={`flex items-center gap-1.5 sm:gap-2 ${dark ? 'bg-white/10 border-white/20' : 'bg-slate-100 border-slate-200'} backdrop-blur-md border rounded-xl px-2 sm:px-3 py-0.5 sm:py-1.5 shadow-sm w-full sm:w-auto`}>
-          <Globe size={10} className={`${dark ? 'text-white/60' : 'text-slate-400'} sm:w-[14px] sm:h-[14px]`} />
+        <div className={`flex items-center gap-1 sm:gap-1.5 ${dark ? 'bg-slate-800 text-white border-slate-700' : 'bg-slate-100 text-slate-900 border-slate-200'} border rounded-xl px-2 sm:px-2.5 py-1 shadow-sm transition-all hover:border-amber-400`}>
+          <Globe size={12} className={dark ? 'text-amber-400' : 'text-amber-600'} />
           <select 
             value={locale} 
             onChange={(e) => setLocale(e.target.value as Locale)} 
-            className={`bg-transparent text-[9px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-tight w-full sm:w-auto`}
+            className={`bg-transparent text-[10px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-wider`}
           >
-            <option value="pt-PT" className="text-slate-900">🇵🇹 {isMobile ? 'PT' : 'PT - Português (Portugal)'}</option>
-            <option value="pt-BR" className="text-slate-900">🇧🇷 {isMobile ? 'PT' : 'PT - Português (Brasil)'}</option>
-            <option value="en-US" className="text-slate-900">🇺🇸 {isMobile ? 'EN' : 'EN - English (USA)'}</option>
-            <option value="fr-FR" className="text-slate-900">🇫🇷 {isMobile ? 'FR' : 'FR - Français (France)'}</option>
-            <option value="it-IT" className="text-slate-900">🇮🇹 {isMobile ? 'IT' : 'IT - Italiano (Italia)'}</option>
-            <option value="es-ES" className="text-slate-900">🇪🇸 {isMobile ? 'ES' : 'ES - Español (España)'}</option>
-            <option value="ru-RU" className="text-slate-900">🇷🇺 {isMobile ? 'RU' : 'RU - Pоссия (Russian)'}</option>
-            <option value="hi-IN" className="text-slate-900">🇮🇳 {isMobile ? 'HI' : 'HI - भारत (Hindi)'}</option>
-            <option value="bn-BD" className="text-slate-900">🇧🇩 {isMobile ? 'BN' : 'BN - বাংলাদেশ (Bengali)'}</option>
+            <option value="pt-PT" className="text-slate-900 font-bold">🇵🇹 PT</option>
+            <option value="pt-BR" className="text-slate-900 font-bold">🇧🇷 PT-BR</option>
+            <option value="en-US" className="text-slate-900 font-bold">🇺🇸 EN</option>
+            <option value="fr-FR" className="text-slate-900 font-bold">🇫🇷 FR</option>
+            <option value="it-IT" className="text-slate-900 font-bold">🇮🇹 IT</option>
+            <option value="es-ES" className="text-slate-900 font-bold">🇪🇸 ES</option>
+            <option value="ru-RU" className="text-slate-900 font-bold">🇷🇺 RU</option>
+            <option value="hi-IN" className="text-slate-900 font-bold">🇮🇳 HI</option>
+            <option value="bn-BD" className="text-slate-900 font-bold">🇧🇩 BN</option>
           </select>
         </div>
       </div>
@@ -2571,35 +2570,80 @@ const App: React.FC = () => {
       {view === 'landing' ? (
         <div className="min-h-screen w-full max-w-[1440px] mx-auto bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900 shadow-2xl relative">
           {/* Navigation */}
-          <nav className="fixed top-0 left-0 right-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-100">
-            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between gap-4">
-              <div className="flex items-center gap-2 sm:gap-3 shrink-0">
-                <div className="bg-amber-500 p-1.5 sm:p-2 rounded-xl shadow-lg shadow-amber-500/20">
-                  <Construction className="text-white w-5 h-5 sm:w-6 sm:h-6" />
+          <nav className="fixed top-0 left-0 right-0 z-50 bg-white/95 backdrop-blur-md border-b border-slate-100 shadow-sm transition-all">
+            <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+              {/* Desktop & Tablet Layout (sm and above) */}
+              <div className="hidden sm:flex items-center justify-between h-20 gap-4">
+                <div className="flex items-center gap-3 shrink-0">
+                  <div className="bg-amber-500 p-2 rounded-xl shadow-lg shadow-amber-500/20">
+                    <Construction className="text-white w-6 h-6" />
+                  </div>
+                  <span className="text-2xl font-black tracking-tighter italic text-slate-900">{t.appName}</span>
                 </div>
-                <span className="text-xl sm:text-2xl font-black tracking-tighter italic text-slate-900">{t.appName}</span>
-              </div>
-              <div className="flex items-center gap-2 sm:gap-8">
-                <div className="scale-90 sm:scale-100"><Selectors dark={false} /></div>
-                <div className="flex items-center gap-2 sm:gap-4">
+
+                <div className="flex items-center gap-3 md:gap-4 lg:gap-6">
+                  <Selectors dark={false} />
+
                   <button
                     onClick={handlePwaDownload}
-                    className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-black text-[9px] sm:text-xs transition-all active:scale-95 uppercase tracking-widest shrink-0"
+                    className="flex items-center gap-1.5 px-3 py-2 bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200 rounded-xl font-black text-xs transition-all active:scale-95 uppercase tracking-wider shrink-0"
                   >
-                    <Smartphone size={13} className="animate-bounce" />
+                    <Smartphone size={14} className="animate-bounce" />
                     <span>{locale.startsWith('pt') ? 'Baixar App' : 'Get App'}</span>
                   </button>
+
                   <button 
                     onClick={() => setView('login')} 
-                    className="hidden sm:block text-sm font-bold text-slate-600 hover:text-slate-900 transition-colors uppercase tracking-widest"
+                    className="px-3.5 py-2 text-xs font-black text-slate-700 hover:text-slate-900 transition-colors uppercase tracking-wider shrink-0"
                   >
                     {t.loginBtn}
                   </button>
+
                   <button 
                     onClick={() => setView('signup')} 
-                    className="px-3 sm:px-4 py-1.5 sm:py-2 bg-slate-900 text-white rounded-xl font-bold text-[9px] sm:text-xs hover:bg-slate-800 transition-all shadow-xl shadow-slate-900/10 active:scale-95 uppercase tracking-widest shrink-0"
+                    className="px-5 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs hover:bg-slate-800 transition-all shadow-md active:scale-95 uppercase tracking-wider shrink-0"
                   >
                     {t.heroCta}
+                  </button>
+                </div>
+              </div>
+
+              {/* Mobile Layout (< sm) */}
+              <div className="flex sm:hidden flex-col py-2.5 gap-2">
+                {/* Top Mobile Row: Brand Logo + Selectors */}
+                <div className="flex items-center justify-between w-full">
+                  <div className="flex items-center gap-2 shrink-0">
+                    <div className="bg-amber-500 p-1.5 rounded-xl shadow-md shadow-amber-500/20">
+                      <Construction className="text-white w-5 h-5" />
+                    </div>
+                    <span className="text-lg font-black tracking-tighter italic text-slate-900">{t.appName}</span>
+                  </div>
+
+                  <div className="scale-95">
+                    <Selectors dark={false} />
+                  </div>
+                </div>
+
+                {/* Bottom Mobile Row: Action Buttons in a clean card bar */}
+                <div className="grid grid-cols-3 gap-1.5 w-full bg-slate-50 p-1 rounded-2xl border border-slate-200/80 shadow-inner">
+                  <button 
+                    onClick={() => setView('signup')} 
+                    className="py-2 bg-slate-900 text-white rounded-xl font-black text-[10px] text-center shadow-sm active:scale-95 uppercase tracking-wider truncate px-1"
+                  >
+                    {t.heroCta}
+                  </button>
+                  <button
+                    onClick={handlePwaDownload}
+                    className="py-2 bg-emerald-600 text-white rounded-xl font-black text-[10px] flex items-center justify-center gap-1 active:scale-95 uppercase tracking-wider truncate px-1"
+                  >
+                    <Smartphone size={11} />
+                    <span className="truncate">{locale.startsWith('pt') ? 'Baixar' : 'App'}</span>
+                  </button>
+                  <button 
+                    onClick={() => setView('login')} 
+                    className="py-2 bg-white text-slate-900 border border-slate-200 rounded-xl font-black text-[10px] text-center active:scale-95 uppercase tracking-wider truncate px-1"
+                  >
+                    {t.loginBtn}
                   </button>
                 </div>
               </div>
@@ -2607,7 +2651,7 @@ const App: React.FC = () => {
           </nav>
 
           {/* Hero Section */}
-          <section className="relative pt-32 pb-20 sm:pt-48 sm:pb-32 overflow-hidden">
+          <section className="relative pt-28 sm:pt-48 pb-20 sm:pb-32 overflow-hidden">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full -z-10 opacity-30 pointer-events-none">
               <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-amber-200 blur-[120px] rounded-full animate-pulse" />
               <div className="absolute bottom-[10%] right-[-10%] w-[30%] h-[30%] bg-blue-100 blur-[100px] rounded-full" />
@@ -3201,8 +3245,8 @@ const App: React.FC = () => {
                 <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t.searchPlaceholder} className="bg-transparent border-none outline-none px-3 lg:px-4 w-full text-xs lg:text-sm font-bold text-slate-700" />
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3 lg:gap-8">
-                <div className="hidden lg:block bg-slate-900 rounded-xl p-0.5"><Selectors dark={true} /></div>
+              <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-8">
+                <div className="bg-slate-900 rounded-xl p-0.5 shadow-sm"><Selectors dark={true} /></div>
                 <button 
                   onClick={() => { 
                     if (!canCreateBudget) {
@@ -3213,16 +3257,16 @@ const App: React.FC = () => {
                     setSelectedBudget(undefined); 
                     setIsEditingBudget(true); 
                   }} 
-                  className="px-3 sm:px-4 lg:px-8 py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-2xl text-[10px] sm:text-xs lg:text-base"
+                  className="px-2.5 sm:px-4 lg:px-8 py-2 sm:py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-1.5 sm:gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-xl text-[10px] sm:text-xs lg:text-base shrink-0"
                 >
-                  <PlusCircle size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> 
+                  <PlusCircle size={15} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> 
                   <span className="hidden xs:inline">{t.newBudget}</span>
-                  <span className="xs:hidden">{t.newBudget.split(' ')[1] || t.newBudget}</span>
+                  <span className="xs:hidden">+</span>
                 </button>
               </div>
             </header>
 
-            <div className="flex-1 overflow-y-auto p-4 sm:p-8 lg:p-12 no-scrollbar">
+            <div className="flex-1 overflow-y-auto p-2 sm:p-6 lg:p-12 no-scrollbar max-w-full overflow-x-hidden">
               {isEditingBudget ? (
                 <BudgetForm locale={locale} currencyCode={currencyCode} company={currentUser || ({} as Company)} onSave={handleSaveBudget} onCancel={() => setIsEditingBudget(false)} onUpgrade={() => { setIsEditingBudget(false); setActiveTab('plans'); }} initialData={selectedBudget} />
               ) : (
