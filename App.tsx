@@ -420,6 +420,69 @@ const App: React.FC = () => {
     }
   }, [fcmToken, currentUser?.id, currentUser?.plan, view]);
 
+  // Heartbeat para atualizar o status online do utilizador no Supabase e LocalStorage
+  useEffect(() => {
+    if (!currentUser?.id || view === 'master') return;
+
+    const pingOnlineStatus = () => {
+      const nowIso = new Date().toISOString();
+      const companyId = currentUser.id;
+      const email = currentUser.email;
+
+      // 1. Atualizar no estado local & LocalStorage
+      const updatedUser = { 
+        ...currentUser, 
+        lastSeenAt: nowIso, 
+        last_seen_at: nowIso 
+      };
+      setCurrentUser(updatedUser);
+      saveCompany(updatedUser);
+
+      // 2. Transmitir via BroadcastChannel (sincronização instantânea entre abas no mesmo navegador)
+      try {
+        if ('BroadcastChannel' in window) {
+          const bc = new BroadcastChannel('atrios_presence_channel');
+          bc.postMessage({ companyId, email, lastSeenAt: nowIso });
+          bc.close();
+        }
+      } catch (e) {}
+
+      // 3. Ping do servidor Express em memória (para cross-device real-time)
+      fetch('/api/user/ping', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId, email })
+      }).catch(err => console.warn('Ping error:', err));
+
+      // 4. Tentar atualizar no Supabase se disponível
+      try {
+        supabase.from('companies').update({
+          last_seen_at: nowIso,
+          lastSeenAt: nowIso
+        }).eq('id', companyId).then(() => {}).catch(() => {});
+      } catch (e) {}
+    };
+
+    pingOnlineStatus();
+
+    const interval = setInterval(() => {
+      pingOnlineStatus();
+    }, 10000); // Atualiza a cada 10 segundos
+
+    const handleVisibility = () => {
+      pingOnlineStatus();
+    };
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleVisibility);
+
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleVisibility);
+    };
+  }, [currentUser?.id, currentUser?.email, view]);
+
 
   useEffect(() => {
     const handler = (e: any) => {

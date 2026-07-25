@@ -322,6 +322,32 @@ async function startServer() {
     next();
   });
 
+  // In-memory real-time user online presence tracker
+  const userOnlineMap: Record<string, string> = {};
+
+  app.post("/api/user/ping", (req, res) => {
+    const { companyId, email } = req.body || {};
+    const nowIso = new Date().toISOString();
+    if (companyId) {
+      const cId = String(companyId);
+      userOnlineMap[cId] = nowIso;
+      userOnlineMap[cId.toLowerCase()] = nowIso;
+      userOnlineMap[cId.toUpperCase()] = nowIso;
+    }
+    if (email) {
+      const em = String(email).toLowerCase().trim();
+      userOnlineMap[em] = nowIso;
+    }
+    if (companyId || email) {
+      return res.json({ success: true, companyId, email, lastSeenAt: nowIso });
+    }
+    return res.status(400).json({ error: "companyId or email missing" });
+  });
+
+  app.get("/api/user/last-seen", (req, res) => {
+    return res.json({ success: true, lastSeenMap: userOnlineMap });
+  });
+
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ 

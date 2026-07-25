@@ -36,7 +36,9 @@ import {
   Globe,
   ShoppingBag,
   Smartphone,
-  PieChart as PieChartIcon
+  PieChart as PieChartIcon,
+  Clock,
+  Activity
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -230,6 +232,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   }, [activeTab]);
   const [companies, setCompanies] = useState<Company[]>([]);
+  const [serverLastSeenMap, setServerLastSeenMap] = useState<Record<string, string>>({});
   const [transactions, setTransactions] = useState<Transaction[]>([]);
   const [coupons, setCoupons] = useState<Coupon[]>([]);
   const [storeOrders, setStoreOrders] = useState<StoreOrder[]>([]);
@@ -324,6 +327,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setIsSyncing(true);
     try {
       setActiveNotifications(getGlobalNotifications());
+
+      // Fetch server real-time presence map
+      let serverPresenceMap: Record<string, string> = {};
+      try {
+        const pRes = await fetch('/api/user/last-seen');
+        const pJson = await pRes.json();
+        if (pJson.success && pJson.lastSeenMap) {
+          serverPresenceMap = pJson.lastSeenMap;
+          setServerLastSeenMap(serverPresenceMap);
+        }
+      } catch (err) {
+        console.warn("Could not fetch presence map:", err);
+      }
     
     // Buscar empresas diretamente do Supabase para garantir que todos os usuários apareçam
     const { data: cloudCompanies, error: companiesError } = await safeFetch<Company[]>(supabase
@@ -336,7 +352,55 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
     
     const masterEmails = ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'];
-    let allCompanies = cloudCompanies || getStoredCompanies().filter(c => !masterEmails.includes(c.email));
+    const localCompanies = getStoredCompanies().filter(c => !masterEmails.includes(c.email));
+    const localMap = new Map(localCompanies.map(c => [c.id, c]));
+
+    let rawCompanies = cloudCompanies || localCompanies;
+    if (cloudCompanies) {
+      // Mesclar empresas locais que possam não ter sido sincronizadas no Supabase ainda
+      localCompanies.forEach(lc => {
+        if (!rawCompanies.find(c => c.id === lc.id)) {
+          rawCompanies.push(lc);
+        }
+      });
+    }
+
+    // Mesclar timestamps de lastSeenAt para garantir que o status online não seja apagado pelo Supabase
+    let allCompanies = rawCompanies.map(company => {
+      const localComp = localMap.get(company.id);
+      
+      const possibleKeys = [
+        company.id,
+        company.id ? String(company.id).toLowerCase() : null,
+        company.id ? String(company.id).toUpperCase() : null,
+        company.email ? String(company.email).toLowerCase().trim() : null
+      ].filter(Boolean) as string[];
+
+      let serverTime: string | undefined = undefined;
+      for (const key of possibleKeys) {
+        if (serverPresenceMap[key]) {
+          serverTime = serverPresenceMap[key];
+          break;
+        }
+      }
+
+      const cloudTime = company.lastSeenAt || (company as any).last_seen_at;
+      const localTime = localComp?.lastSeenAt || (localComp as any)?.last_seen_at;
+
+      const validTimes = [serverTime, cloudTime, localTime]
+        .filter(Boolean)
+        .map(t => new Date(t!).getTime())
+        .filter(t => !isNaN(t));
+
+      const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
+      const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
+
+      return {
+        ...company,
+        lastSeenAt: bestLastSeen || company.lastSeenAt,
+        last_seen_at: bestLastSeen || (company as any).last_seen_at
+      };
+    });
     
     // Check for expired subscriptions and downgrade them automatically in background
     const nowTime = Date.now();
@@ -1126,6 +1190,148 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     alert(t.masterManualUserCreated);
   };
 
+  const [, setTick] = useState(0);
+
+  // Escutar BroadcastChannel para atualizações instantâneas no mesmo navegador
+  useEffect(() => {
+    let bc: BroadcastChannel | null = null;
+    try {
+      if ('BroadcastChannel' in window) {
+        bc = new BroadcastChannel('atrios_presence_channel');
+        bc.onmessage = (event) => {
+          if (event.data && (event.data.companyId || event.data.email)) {
+            const { companyId, email, lastSeenAt } = event.data;
+            setServerLastSeenMap(prev => {
+              const updated = { ...prev };
+              if (companyId) {
+                const cId = String(companyId);
+                updated[cId] = lastSeenAt;
+                updated[cId.toLowerCase()] = lastSeenAt;
+                updated[cId.toUpperCase()] = lastSeenAt;
+              }
+              if (email) {
+                updated[String(email).toLowerCase().trim()] = lastSeenAt;
+              }
+              return updated;
+            });
+            setTick(t => t + 1);
+          }
+        };
+      }
+    } catch (e) {}
+
+    const fetchPresence = () => {
+      fetch('/api/user/last-seen')
+        .then(res => res.json())
+        .then(data => {
+          if (data.success && data.lastSeenMap) {
+            setServerLastSeenMap(data.lastSeenMap);
+          }
+        })
+        .catch(() => {});
+    };
+
+    fetchPresence();
+    const timer = setInterval(() => {
+      fetchPresence();
+      setTick(t => t + 1);
+    }, 5000); // Polling a cada 5 segundos
+
+    return () => {
+      if (bc) bc.close();
+      clearInterval(timer);
+    };
+  }, []);
+
+  const getUserOnlineStatus = (company: Company) => {
+    if (!company) {
+      return {
+        isOnline: false,
+        label: 'Offline',
+        detail: 'Sem registo',
+        badgeColor: 'bg-slate-800/80 text-slate-400 border border-slate-700/50',
+        dotColor: 'bg-slate-600'
+      };
+    }
+
+    const possibleKeys = [
+      company.id,
+      company.id ? String(company.id).toLowerCase() : null,
+      company.id ? String(company.id).toUpperCase() : null,
+      company.email ? String(company.email).toLowerCase().trim() : null
+    ].filter(Boolean) as string[];
+
+    let serverTime: string | undefined = undefined;
+    for (const key of possibleKeys) {
+      if (serverLastSeenMap[key]) {
+        serverTime = serverLastSeenMap[key];
+        break;
+      }
+    }
+
+    // Também verificar armazenamento local de empresas
+    const stored = getStoredCompanies();
+    const localComp = stored.find(c => c.id === company.id || (c.email && company.email && c.email.toLowerCase() === company.email.toLowerCase()));
+
+    const companyTime = company.lastSeenAt || (company as any).last_seen_at || localComp?.lastSeenAt || (localComp as any)?.last_seen_at;
+
+    let timeMs = 0;
+    if (serverTime) {
+      timeMs = Math.max(timeMs, new Date(serverTime).getTime() || 0);
+    }
+    if (companyTime) {
+      timeMs = Math.max(timeMs, new Date(companyTime).getTime() || 0);
+    }
+
+    if (!timeMs) {
+      return {
+        isOnline: false,
+        label: 'Offline',
+        detail: 'Nunca acedeu',
+        badgeColor: 'bg-slate-800/80 text-slate-400 border border-slate-700/50',
+        dotColor: 'bg-slate-600'
+      };
+    }
+
+    const nowMs = Date.now();
+    const diffMs = Math.max(0, nowMs - timeMs);
+    const diffMinutes = Math.floor(diffMs / (1000 * 60));
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffMs / (1000 * 60 * 60 * 24));
+
+    // Menos de 5 minutos de inatividade = ONLINE
+    if (diffMinutes < 5) {
+      return {
+        isOnline: true,
+        label: 'Online',
+        detail: 'Ativo agora',
+        badgeColor: 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40',
+        dotColor: 'bg-emerald-500 shadow-[0_0_8px_#10b981]'
+      };
+    }
+
+    let detail = '';
+    if (diffMinutes < 60) {
+      detail = `Há ${diffMinutes} min`;
+    } else if (diffHours < 24) {
+      detail = `Há ${diffHours} h`;
+    } else if (diffDays === 1) {
+      detail = `Há 1 dia`;
+    } else if (diffDays < 30) {
+      detail = `Há ${diffDays} dias`;
+    } else {
+      detail = `Há +30 dias`;
+    }
+
+    return {
+      isOnline: false,
+      label: 'Offline',
+      detail,
+      badgeColor: 'bg-slate-800/80 text-slate-400 border border-slate-700/50',
+      dotColor: 'bg-slate-500'
+    };
+  };
+
   const getDaysInfo = (company: Company) => {
     if (!company.firstLoginAt) return t.masterWaitingLogin;
     const now = Date.now();
@@ -1366,17 +1572,206 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
         {activeTab === 'users' && (
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
-            <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5"><h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase"><Users size={24} /> {t.masterUserManagement}</h2><button onClick={() => setShowAddUserModal(true)} className="px-6 py-3 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 flex items-center gap-2"><UserPlus size={18} /> {t.masterAddUser}</button></div>
-            <div className="overflow-x-auto"><table className="w-full text-left"><thead><tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5"><th className="px-8 py-6">{t.masterTableIdCompany}</th><th className="px-8 py-6">{t.masterTableEmail}</th><th className="px-8 py-6">{t.masterTablePlan}</th><th className="px-8 py-6">{t.masterTableStatus}</th><th className="px-8 py-6 text-right">{t.masterTableActions}</th></tr></thead><tbody className="divide-y divide-white/5">{companies.map(user => (<tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''}`}><td className="px-8 py-6"><div className="flex items-center gap-3"><div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'}`}>{user.name?.charAt(0)}</div><div><p className="font-black text-sm">{user.name}</p><p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {user.id}</p></div></div></td><td className="px-8 py-6 font-bold text-slate-400 text-sm">{user.email}</td><td className="px-8 py-6"><span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-amber-500/50 text-amber-500">{getTranslatedPlan(user.plan)}</span></td><td className="px-8 py-6"><p className="text-xs font-black text-emerald-400 flex items-center gap-2"><Calendar size={12} /> {getDaysInfo(user)}</p></td><td className="px-8 py-6 text-right"><div className="flex items-center justify-end gap-3">{getUnreadCount(user.id) > 0 && <button onClick={() => selectChat(user.id)} className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase animate-pulse"><MessageSquare size={12} /> {getUnreadCount(user.id)}</button>}{user.unlockRequested && <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">{t.unlockRequestedNotify}</span>}{user.plan === PlanType.FREE && <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}><Zap size={18} /></button>}<button onClick={() => setShowResetPassModal(user)} className="p-2 bg-white/5 text-slate-400 hover:text-amber-500 rounded-xl transition-all" title={t.resetPasswordTitle}><Lock size={18} /></button><button onClick={() => toggleUnlock(user)} className={`p-2 rounded-xl transition-all ${user.canEditSensitiveData ? 'bg-emerald-500 text-slate-900' : 'bg-white/5 text-slate-400 hover:text-white'}`} title={t.masterUnlockAction}>{user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}</button><button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}><Ban size={18} /></button><button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" title={t.masterDeleteUser}><Trash2 size={18} /></button></div>
-</td>
-</tr>))}</tbody></table></div>
+            <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5">
+              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
+                <Users size={24} /> {t.masterUserManagement}
+              </h2>
+              <button 
+                onClick={() => setShowAddUserModal(true)} 
+                className="px-6 py-3 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 flex items-center gap-2"
+              >
+                <UserPlus size={18} /> {t.masterAddUser}
+              </button>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full text-left">
+                <thead>
+                  <tr className="text-[10px] font-black text-slate-500 uppercase tracking-widest border-b border-white/5">
+                    <th className="px-8 py-6">{t.masterTableIdCompany}</th>
+                    <th className="px-8 py-6">{t.masterTableEmail}</th>
+                    <th className="px-8 py-6">Status Online</th>
+                    <th className="px-8 py-6">{t.masterTablePlan}</th>
+                    <th className="px-8 py-6">{t.masterTableStatus}</th>
+                    <th className="px-8 py-6 text-right">{t.masterTableActions}</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-white/5">
+                  {companies.map(user => {
+                    const onlineStatus = getUserOnlineStatus(user);
+                    return (
+                      <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''}`}>
+                        <td className="px-8 py-6">
+                          <div className="flex items-center gap-3">
+                            <div className="relative shrink-0">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'}`}>
+                                {user.name?.charAt(0)}
+                              </div>
+                              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${onlineStatus.dotColor}`} />
+                            </div>
+                            <div>
+                              <p className="font-black text-sm">{user.name}</p>
+                              <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {user.id}</p>
+                            </div>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6 font-bold text-slate-400 text-sm">
+                          {user.email}
+                        </td>
+                        <td className="px-8 py-6">
+                          <div className="flex flex-col gap-1">
+                            <div className="flex items-center gap-2">
+                              <span className={`w-2 h-2 rounded-full ${onlineStatus.isOnline ? 'bg-emerald-500 animate-pulse' : 'bg-slate-500'}`} />
+                              <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-md ${onlineStatus.badgeColor}`}>
+                                {onlineStatus.label}
+                              </span>
+                            </div>
+                            <span className="text-[10px] font-bold text-slate-400 flex items-center gap-1 ml-0.5">
+                              <Clock size={11} className="text-slate-500" />
+                              {onlineStatus.detail}
+                            </span>
+                          </div>
+                        </td>
+                        <td className="px-8 py-6">
+                          <span className="text-[9px] font-black uppercase tracking-widest px-3 py-1 rounded-full border border-amber-500/50 text-amber-500">
+                            {getTranslatedPlan(user.plan)}
+                          </span>
+                        </td>
+                        <td className="px-8 py-6">
+                          <p className="text-xs font-black text-emerald-400 flex items-center gap-2">
+                            <Calendar size={12} /> {getDaysInfo(user)}
+                          </p>
+                        </td>
+                        <td className="px-8 py-6 text-right">
+                          <div className="flex items-center justify-end gap-3">
+                            {getUnreadCount(user.id) > 0 && (
+                              <button onClick={() => selectChat(user.id)} className="flex items-center gap-2 bg-blue-500 text-white px-3 py-1.5 rounded-xl text-[10px] font-black uppercase animate-pulse">
+                                <MessageSquare size={12} /> {getUnreadCount(user.id)}
+                              </button>
+                            )}
+                            {user.unlockRequested && (
+                              <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">
+                                {t.unlockRequestedNotify}
+                              </span>
+                            )}
+                            {user.plan === PlanType.FREE && (
+                              <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}>
+                                <Zap size={18} />
+                              </button>
+                            )}
+                            <button onClick={() => setShowResetPassModal(user)} className="p-2 bg-white/5 text-slate-400 hover:text-amber-500 rounded-xl transition-all" title={t.resetPasswordTitle}>
+                              <Lock size={18} />
+                            </button>
+                            <button onClick={() => toggleUnlock(user)} className={`p-2 rounded-xl transition-all ${user.canEditSensitiveData ? 'bg-emerald-500 text-slate-900' : 'bg-white/5 text-slate-400 hover:text-white'}`} title={t.masterUnlockAction}>
+                              {user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}
+                            </button>
+                            <button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}>
+                              <Ban size={18} />
+                            </button>
+                            <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" title={t.masterDeleteUser}>
+                              <Trash2 size={18} />
+                            </button>
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )}
 
         {activeTab === 'messages' && (
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden flex h-[600px] animate-in fade-in">
-             <div className="w-80 border-r border-white/10 flex flex-col bg-slate-950/50"><div className="p-6 border-b border-white/10"><h3 className="font-black text-sm uppercase tracking-widest text-slate-400 italic">{t.masterChatConversations}</h3></div><div className="flex-1 overflow-y-auto no-scrollbar">{companies.map(comp => { const unread = getMessages(comp.id).filter(m => m.senderRole === 'user' && !m.read).length; return (<button key={comp.id} onClick={() => selectChat(comp.id)} className={`w-full p-6 text-left flex items-start gap-4 hover:bg-white/5 border-b border-white/5 ${selectedCompanyId === comp.id ? 'bg-white/10' : ''} relative`}><div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-amber-500 shrink-0">{comp.name?.charAt(0)}</div><div className="flex-1 min-w-0"><p className="font-black text-sm truncate">{comp.name}</p><p className="text-[10px] text-slate-500 truncate mt-1">{t.viewProof}</p></div>{unread > 0 && <span className="absolute top-6 right-6 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">{unread}</span>}</button>);})}</div></div>
-             <div className="flex-1 flex flex-col bg-slate-900/20">{selectedCompanyId ? (<><div className="p-6 border-b border-white/10 bg-white/5 flex items-center gap-4"><div className="w-10 h-10 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black">{companies.find(c => c.id === selectedCompanyId)?.name?.charAt(0)}</div><p className="font-black italic">{companies.find(c => c.id === selectedCompanyId)?.name}</p></div><div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">{messages.length === 0 ? <div className="h-full flex items-center justify-center text-slate-500 uppercase font-black text-[10px]">{t.supportNoMessages}</div> : messages.map(m => (<div key={m.id} className={`flex ${m.senderRole === 'master' ? 'justify-end' : 'justify-start'}`}><div className={`max-w-[70%] p-4 rounded-2xl text-sm font-medium ${m.senderRole === 'master' ? 'bg-amber-500 text-slate-950 rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}`}>{m.senderRole === 'user' ? (m.translatedContent || m.content) : m.content}</div></div>))}<div ref={chatEndRef} /></div><form onSubmit={handleSendMessage} className="p-6 bg-white/5 border-t border-white/10 flex gap-4"><input disabled={isTranslating} type="text" value={newMessage || ''} onChange={e => setNewMessage(e.target.value)} placeholder={t.supportChatPlaceholder} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none" /><button type="submit" disabled={!newMessage.trim() || isTranslating} className="bg-amber-500 text-slate-950 p-4 rounded-2xl hover:scale-110 transition-all">{isTranslating ? <Loader2 className="animate-spin" /> : <Send />}</button></form></>) : <div className="flex-1 flex items-center justify-center opacity-40 uppercase font-black text-xs">{t.masterChatSelectUser}</div>}</div>
+             <div className="w-80 border-r border-white/10 flex flex-col bg-slate-950/50">
+               <div className="p-6 border-b border-white/10">
+                 <h3 className="font-black text-sm uppercase tracking-widest text-slate-400 italic">{t.masterChatConversations}</h3>
+               </div>
+               <div className="flex-1 overflow-y-auto no-scrollbar">
+                 {companies.map(comp => { 
+                   const unread = getMessages(comp.id).filter(m => m.senderRole === 'user' && !m.read).length; 
+                   const status = getUserOnlineStatus(comp);
+                   return (
+                     <button 
+                       key={comp.id} 
+                       onClick={() => selectChat(comp.id)} 
+                       className={`w-full p-5 text-left flex items-start gap-4 hover:bg-white/5 border-b border-white/5 ${selectedCompanyId === comp.id ? 'bg-white/10' : ''} relative transition-colors`}
+                     >
+                       <div className="relative shrink-0">
+                         <div className="w-10 h-10 bg-white/10 rounded-xl flex items-center justify-center font-black text-amber-500">
+                           {comp.name?.charAt(0)}
+                         </div>
+                         <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${status.dotColor}`} />
+                       </div>
+                       <div className="flex-1 min-w-0">
+                         <p className="font-black text-sm truncate">{comp.name}</p>
+                         <p className="text-[10px] text-slate-400 truncate mt-1 flex items-center gap-1">
+                           <span className={`w-1.5 h-1.5 rounded-full ${status.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                           {status.isOnline ? 'Online agora' : status.detail}
+                         </p>
+                       </div>
+                       {unread > 0 && (
+                         <span className="shrink-0 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">
+                           {unread}
+                         </span>
+                       )}
+                     </button>
+                   );
+                 })}
+               </div>
+             </div>
+             <div className="flex-1 flex flex-col bg-slate-900/20">
+               {selectedCompanyId ? (
+                 <>
+                   <div className="p-6 border-b border-white/10 bg-white/5 flex items-center gap-4">
+                     {(() => {
+                       const activeComp = companies.find(c => c.id === selectedCompanyId);
+                       if (!activeComp) return null;
+                       const status = getUserOnlineStatus(activeComp);
+                       return (
+                         <>
+                           <div className="relative shrink-0">
+                             <div className="w-10 h-10 bg-amber-500 text-slate-950 rounded-xl flex items-center justify-center font-black">
+                               {activeComp.name?.charAt(0)}
+                             </div>
+                             <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${status.dotColor}`} />
+                           </div>
+                           <div>
+                             <p className="font-black italic text-sm">{activeComp.name}</p>
+                             <p className="text-[10px] font-bold text-slate-400 flex items-center gap-1 mt-0.5">
+                               <span className={`w-1.5 h-1.5 rounded-full ${status.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
+                               {status.isOnline ? 'Online agora' : status.detail}
+                             </p>
+                           </div>
+                         </>
+                       );
+                     })()}
+                   </div>
+                   <div className="flex-1 overflow-y-auto p-8 space-y-6 no-scrollbar">
+                     {messages.length === 0 ? (
+                       <div className="h-full flex items-center justify-center text-slate-500 uppercase font-black text-[10px]">{t.supportNoMessages}</div>
+                     ) : (
+                       messages.map(m => (
+                         <div key={m.id} className={`flex ${m.senderRole === 'master' ? 'justify-end' : 'justify-start'}`}>
+                           <div className={`max-w-[70%] p-4 rounded-2xl text-sm font-medium ${m.senderRole === 'master' ? 'bg-amber-500 text-slate-950 rounded-tr-none' : 'bg-white/10 text-white rounded-tl-none border border-white/10'}`}>
+                             {m.senderRole === 'user' ? (m.translatedContent || m.content) : m.content}
+                           </div>
+                         </div>
+                       ))
+                     )}
+                     <div ref={chatEndRef} />
+                   </div>
+                   <form onSubmit={handleSendMessage} className="p-6 bg-white/5 border-t border-white/10 flex gap-4">
+                     <input disabled={isTranslating} type="text" value={newMessage || ''} onChange={e => setNewMessage(e.target.value)} placeholder={t.supportChatPlaceholder} className="flex-1 bg-white/5 border border-white/10 rounded-2xl px-6 py-4 text-sm font-bold outline-none" />
+                     <button type="submit" disabled={!newMessage.trim() || isTranslating} className="bg-amber-500 text-slate-950 p-4 rounded-2xl hover:scale-110 transition-all">
+                       {isTranslating ? <Loader2 className="animate-spin" /> : <Send />}
+                     </button>
+                   </form>
+                 </>
+               ) : (
+                 <div className="flex-1 flex items-center justify-center opacity-40 uppercase font-black text-xs">{t.masterChatSelectUser}</div>
+               )}
+             </div>
           </div>
         )}
 

@@ -148,6 +148,8 @@ export interface Company {
   manualPaymentProof?: string;
   stripe_customer_id?: string;
   stripe_subscription_id?: string;
+  lastSeenAt?: string;
+  last_seen_at?: string;
 }
 
 export type AudienceType = 'all' | 'free' | 'premium_monthly' | 'premium_annual' | 'all_premium' | 'monthly_purchase' | 'annual_purchase';
