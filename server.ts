@@ -951,12 +951,33 @@ async function startServer() {
 
     try {
       console.log("Request body:", JSON.stringify(req.body));
-      const { origin } = req.body;
+      const { origin, email: reqEmail } = req.body;
       const appUrl = origin || process.env.APP_URL || `${req.protocol}://${req.get('host')}`;
       console.log("Using App URL:", appUrl);
 
+      let customerId: string | undefined = undefined;
+      let userEmail: string | undefined = reqEmail;
+
+      if (companyId) {
+        try {
+          const { data: company } = await supabase
+            .from("companies")
+            .select("stripe_customer_id, email")
+            .eq("id", companyId)
+            .maybeSingle();
+
+          if (company?.stripe_customer_id) {
+            customerId = company.stripe_customer_id;
+          }
+          if (company?.email) {
+            userEmail = company.email;
+          }
+        } catch (e) {
+          console.warn("Could not fetch company for Stripe customer:", e);
+        }
+      }
+
       const sessionParams: Stripe.Checkout.SessionCreateParams = {
-        payment_method_types: ["card"],
         line_items: [
           {
             price: priceId,
@@ -969,10 +990,18 @@ async function startServer() {
         client_reference_id: companyId,
         metadata: {
           planType: planType,
+          companyId: companyId
         },
-        allow_promotion_codes: true,
+        billing_address_collection: 'auto'
       };
 
+      if (customerId) {
+        sessionParams.customer = customerId;
+      } else if (userEmail) {
+        sessionParams.customer_email = userEmail;
+      }
+
+      let discountApplied = false;
       if (couponCode) {
         try {
           const promoCodes = await stripe.promotionCodes.list({
@@ -982,10 +1011,15 @@ async function startServer() {
           });
           if (promoCodes.data.length > 0) {
             sessionParams.discounts = [{ promotion_code: promoCodes.data[0].id }];
+            discountApplied = true;
           }
         } catch (promoError) {
           console.warn("Could not find matching Stripe promotion code:", promoError);
         }
+      }
+
+      if (!discountApplied) {
+        sessionParams.allow_promotion_codes = true;
       }
 
       const session = await stripe.checkout.sessions.create(sessionParams);

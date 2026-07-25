@@ -422,21 +422,19 @@ const App: React.FC = () => {
 
   // Heartbeat para atualizar o status online do utilizador no Supabase e LocalStorage
   useEffect(() => {
-    if (!currentUser?.id || view === 'master') return;
+    if (!currentUser?.id) return;
 
     const pingOnlineStatus = () => {
       const nowIso = new Date().toISOString();
       const companyId = currentUser.id;
       const email = currentUser.email;
 
-      // 1. Atualizar no estado local & LocalStorage
-      const updatedUser = { 
+      // Atualizar no LocalStorage sem re-renderizar continuamente o React
+      saveCompany({ 
         ...currentUser, 
         lastSeenAt: nowIso, 
         last_seen_at: nowIso 
-      };
-      setCurrentUser(updatedUser);
-      saveCompany(updatedUser);
+      });
 
       // 2. Transmitir via BroadcastChannel (sincronização instantânea entre abas no mesmo navegador)
       try {
@@ -467,7 +465,7 @@ const App: React.FC = () => {
 
     const interval = setInterval(() => {
       pingOnlineStatus();
-    }, 10000); // Atualiza a cada 10 segundos
+    }, 5000); // Heartbeat a cada 5 segundos
 
     const handleVisibility = () => {
       pingOnlineStatus();
@@ -481,7 +479,7 @@ const App: React.FC = () => {
       document.removeEventListener('visibilitychange', handleVisibility);
       window.removeEventListener('focus', handleVisibility);
     };
-  }, [currentUser?.id, currentUser?.email, view]);
+  }, [currentUser?.id, currentUser?.email]);
 
 
   useEffect(() => {
@@ -1945,11 +1943,29 @@ const App: React.FC = () => {
     }
 
     const companyRaw = companyData as any;
+    const nowIso = new Date().toISOString();
     const company: Company = {
       ...companyRaw,
-      id: companyRaw.id || companyRaw.company_id || companyRaw.companyid
+      id: companyRaw.id || companyRaw.company_id || companyRaw.companyid,
+      lastSeenAt: nowIso,
+      last_seen_at: nowIso
     };
     
+    // Ping de login imediato
+    fetch('/api/user/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId: company.id, email: company.email })
+    }).catch(() => {});
+
+    try {
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('atrios_presence_channel');
+        bc.postMessage({ companyId: company.id, email: company.email, lastSeenAt: nowIso });
+        bc.close();
+      }
+    } catch (e) {}
+
     saveCompany(company); // Atualiza/Salva no local storage
 
     if (company) {
@@ -2050,6 +2066,7 @@ const App: React.FC = () => {
        return;
     }
 
+    const nowIso = new Date().toISOString();
     const newCompany: Company = {
       id: Math.random().toString(36).substr(2, 9).toUpperCase(),
       name: companyName,
@@ -2057,10 +2074,27 @@ const App: React.FC = () => {
       password,
       plan: PlanType.FREE,
       verified: true,
-      createdAt: new Date().toISOString(),
-      firstLoginAt: new Date().toISOString(),
+      createdAt: nowIso,
+      firstLoginAt: nowIso,
+      lastSeenAt: nowIso,
+      last_seen_at: nowIso,
       lastLocale: locale
     };
+
+    fetch('/api/user/ping', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ companyId: newCompany.id, email: newCompany.email })
+    }).catch(() => {});
+
+    try {
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('atrios_presence_channel');
+        bc.postMessage({ companyId: newCompany.id, email: newCompany.email, lastSeenAt: nowIso });
+        bc.close();
+      }
+    } catch (e) {}
+
     saveCompany(newCompany);
 
     // Notificar o Master por Push
@@ -2252,6 +2286,7 @@ const App: React.FC = () => {
         },
         body: JSON.stringify({
           companyId: currentUser.id,
+          email: currentUser.email,
           planType: plan,
           couponCode: coupon,
           origin: window.location.origin,

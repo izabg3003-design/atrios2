@@ -67,16 +67,28 @@ export const getStoredCompanies = (): Company[] => {
 
 export const saveCompany = async (company: Company) => {
   const companies = getStoredCompanies();
-  const index = companies.findIndex(c => c.id === company.id);
+  const index = companies.findIndex(c => c.id === company.id || (c.email && company.email && c.email.toLowerCase().trim() === company.email.toLowerCase().trim()));
+  
+  const nowIso = new Date().toISOString();
+  const existing = index > -1 ? companies[index] : null;
+
+  const bestLastSeen = company.lastSeenAt || (company as any).last_seen_at || existing?.lastSeenAt || (existing as any)?.last_seen_at || nowIso;
+
+  const updatedCompany: Company = {
+    ...company,
+    lastSeenAt: bestLastSeen,
+    last_seen_at: bestLastSeen
+  };
+
   if (index > -1) {
-    companies[index] = company;
+    companies[index] = updatedCompany;
   } else {
-    companies.push(company);
+    companies.push(updatedCompany);
   }
   safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
   // Sincroniza plano e dados sensíveis com Supabase
-  return await syncToCloud('companies', company);
+  return await syncToCloud('companies', updatedCompany);
 };
 
 export const removeCompany = async (id: string) => {
