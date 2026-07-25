@@ -2319,8 +2319,8 @@ const App: React.FC = () => {
       if (data.url) {
         // Ensure session is saved with dashboard tab before redirecting
         setActiveTab('dashboard');
-        // Delay redirection by 8 seconds as requested
-        await new Promise(resolve => setTimeout(resolve, 8000));
+        // Immediate redirect to Stripe Checkout
+        await new Promise(resolve => setTimeout(resolve, 500));
         window.location.href = data.url;
       } else {
         throw new Error("URL de checkout não recebida.");

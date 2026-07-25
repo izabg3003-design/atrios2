@@ -997,7 +997,18 @@ async function startServer() {
       };
 
       if (customerId) {
-        sessionParams.customer = customerId;
+        try {
+          const cust = await stripe.customers.retrieve(customerId);
+          if (cust && !(cust as any).deleted) {
+            sessionParams.customer = customerId;
+          } else {
+            console.warn(`Stripe customer ${customerId} is deleted or invalid, falling back to customer_email.`);
+            if (userEmail) sessionParams.customer_email = userEmail;
+          }
+        } catch (custErr) {
+          console.warn(`Stripe customer ${customerId} not found on active account, falling back to customer_email.`);
+          if (userEmail) sessionParams.customer_email = userEmail;
+        }
       } else if (userEmail) {
         sessionParams.customer_email = userEmail;
       }
