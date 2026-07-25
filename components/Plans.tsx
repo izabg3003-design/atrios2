@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Check, Star, Ticket, Percent } from 'lucide-react';
+import { Check, Star, Ticket, Sparkles } from 'lucide-react';
 import { Locale, translations } from '../translations';
 import { PlanType, CurrencyCode, CURRENCIES } from '../types';
 import { getCoupons } from '../services/storage';
@@ -11,6 +11,8 @@ interface PlansProps {
   currencyCode: CurrencyCode;
   isProcessing?: boolean;
 }
+
+type FeatureItem = string | { text: string; highlighted?: boolean };
 
 const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCode, isProcessing }) => {
   const t = translations[locale];
@@ -55,7 +57,18 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
     });
   };
 
-  const plans = [
+  const plans: Array<{
+    id: PlanType;
+    name: string;
+    basePrice: number;
+    period: string;
+    savings?: string;
+    bestValue?: boolean;
+    features: FeatureItem[];
+    color: string;
+    textColor: string;
+    buttonColor: string;
+  }> = [
     {
       id: PlanType.FREE,
       name: t.planFree,
@@ -77,11 +90,12 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       basePrice: basePrices.monthly,
       period: t.planPeriodMonth,
       features: [
-        t.featUnlimitedItems,
-        t.featAdvancedDash,
-        t.featProfitReports,
-        t.featUnlimitedPdf,
-        t.featPrioritySupport
+        "Orçamentos ilimitados",
+        "Registos de despesas ilimitados",
+        "Downloads ilimitados",
+        "Escolha e inclusão de serviços sem limites",
+        "Acesso a todos os relatórios",
+        "Upload de mapa do projeto"
       ],
       color: "bg-slate-900",
       textColor: "text-white",
@@ -95,9 +109,18 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       savings: t.planPromoAnnual,
       bestValue: true,
       features: [
-        t.featEverythingMonthly,
-        t.featCloudBackup,
-        t.featHdLogo
+        "Orçamentos ilimitados",
+        "Registos de despesas ilimitados",
+        "Downloads ilimitados",
+        "Escolha e inclusão de serviços sem limites",
+        "Acesso a todos os relatórios",
+        "Upload de mapa do projeto",
+        "Backup na Nuvem Ilimitado",
+        "Logótipo HD no PDF",
+        {
+          text: "GANHE UM SITE PROFISSIONAL COMPLETO (4 PÁGINAS)",
+          highlighted: true
+        }
       ],
       color: "bg-amber-500",
       textColor: "text-slate-900",
@@ -172,14 +195,41 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
               </div>
 
               <div className="flex-1 space-y-3 lg:space-y-4 mb-8 lg:mb-10">
-                {plan.features.map((feature, fIndex) => (
-                  <div key={fIndex} className="flex items-start gap-2 lg:gap-3">
-                    <div className={`mt-0.5 lg:mt-1 p-0.5 rounded-full shrink-0 ${plan.textColor === 'text-white' ? 'bg-white/20' : 'bg-slate-900/10'}`}>
-                      <Check size={10} className="lg:w-3 lg:h-3" />
+                {plan.features.map((featureItem, fIndex) => {
+                  const isObj = typeof featureItem === 'object';
+                  const text = isObj ? featureItem.text : featureItem;
+                  const isHighlighted = isObj && featureItem.highlighted;
+
+                  if (isHighlighted) {
+                    return (
+                      <div 
+                        key={fIndex} 
+                        className="bg-slate-900 text-amber-400 p-3.5 lg:p-4 rounded-2xl shadow-xl border-2 border-slate-900 flex items-start gap-3 my-3 transform hover:scale-[1.02] transition-all"
+                      >
+                        <div className="p-1.5 bg-amber-400/20 text-amber-400 rounded-lg shrink-0 mt-0.5">
+                          <Sparkles size={16} className="animate-pulse text-amber-400" />
+                        </div>
+                        <div className="space-y-0.5">
+                          <span className="text-[9px] lg:text-[10px] font-black uppercase tracking-wider text-amber-300 block">
+                            ✨ OFERTA EXCLUSIVA EM DESTAQUE
+                          </span>
+                          <span className="text-xs lg:text-sm font-black tracking-tight leading-snug block text-amber-400">
+                            {text}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div key={fIndex} className="flex items-start gap-2 lg:gap-3">
+                      <div className={`mt-0.5 lg:mt-1 p-0.5 rounded-full shrink-0 ${plan.textColor === 'text-white' ? 'bg-white/20' : 'bg-slate-900/10'}`}>
+                        <Check size={10} className="lg:w-3 lg:h-3" />
+                      </div>
+                      <span className="text-[11px] lg:text-xs font-bold leading-tight">{text}</span>
                     </div>
-                    <span className="text-[11px] lg:text-xs font-bold leading-tight">{feature}</span>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               <button 
