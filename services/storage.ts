@@ -121,7 +121,17 @@ export const saveCompany = async (company: Company) => {
   const nowIso = new Date().toISOString();
   const existing = index > -1 ? companies[index] : null;
 
-  const bestLastSeen = company.lastSeenAt || (company as any).last_seen_at || existing?.lastSeenAt || (existing as any)?.last_seen_at || nowIso;
+  const validTimes = [
+    company.lastSeenAt,
+    (company as any).last_seen_at,
+    existing?.lastSeenAt,
+    (existing as any)?.last_seen_at
+  ].filter(Boolean)
+   .map(t => new Date(t!).getTime())
+   .filter(t => !isNaN(t));
+
+  const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : new Date().getTime();
+  const bestLastSeen = new Date(maxTime).toISOString();
 
   const updatedCompany: Company = {
     ...company,

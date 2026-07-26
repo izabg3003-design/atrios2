@@ -430,7 +430,12 @@ const App: React.FC = () => {
       const companyId = currentUser.id;
       const email = currentUser.email;
 
-      // Atualizar no LocalStorage sem re-renderizar continuamente o React
+      if (currentUserRef.current) {
+        currentUserRef.current.lastSeenAt = nowIso;
+        (currentUserRef.current as any).last_seen_at = nowIso;
+      }
+
+      // 1. Atualizar no LocalStorage
       saveCompany({ 
         ...currentUser, 
         lastSeenAt: nowIso, 

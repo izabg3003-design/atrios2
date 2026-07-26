@@ -394,6 +394,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       if (cloudTime && !isNaN(new Date(cloudTime).getTime())) validTimes.push(new Date(cloudTime).getTime());
       if (localTime && !isNaN(new Date(localTime).getTime())) validTimes.push(new Date(localTime).getTime());
 
+      const existingInState = companiesRef.current?.find(c => c.id === mapped.id || (c.email && mapped.email && c.email.toLowerCase().trim() === mapped.email.toLowerCase().trim()));
+      const stateTime = existingInState?.lastSeenAt || (existingInState as any)?.last_seen_at;
+      if (stateTime && !isNaN(new Date(stateTime).getTime())) validTimes.push(new Date(stateTime).getTime());
+
       const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
       const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
 
@@ -564,8 +568,22 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       allTransactions = getTransactions();
     }
 
-    setCompanies(allCompanies);
-    companiesRef.current = allCompanies;
+    setCompanies(prevCompanies => {
+      const prevMap = new Map<string, Company>(prevCompanies.map(c => [c.id, c]));
+      const merged = allCompanies.map((c: Company) => {
+        const prev = prevMap.get(c.id);
+        if (!prev) return c;
+        const prevTime = prev.lastSeenAt ? new Date(prev.lastSeenAt).getTime() : 0;
+        const currTime = c.lastSeenAt ? new Date(c.lastSeenAt).getTime() : 0;
+        if (prevTime > currTime) {
+          const bestIso = new Date(prevTime).toISOString();
+          return { ...c, lastSeenAt: bestIso, last_seen_at: bestIso };
+        }
+        return c;
+      });
+      companiesRef.current = merged;
+      return merged;
+    });
     setTransactions(allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setCoupons(getCoupons());
 
@@ -675,12 +693,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 );
               }
               
+              const existingInState = companiesRef.current?.find(c => 
+                c.id === updatedCompany.id || 
+                (c.email && updatedCompany.email && c.email.toLowerCase().trim() === updatedCompany.email.toLowerCase().trim())
+              );
+
               // Preservar a data mais recente de atividade (lastSeenAt / last_seen_at)
               const bestLastSeenTimes = [
                 updatedCompany.lastSeenAt,
                 (updatedCompany as any).last_seen_at,
                 old.lastSeenAt,
-                (old as any).last_seen_at
+                (old as any).last_seen_at,
+                existingInState?.lastSeenAt,
+                (existingInState as any)?.last_seen_at
               ].filter(Boolean)
                .map(t => new Date(t!).getTime())
                .filter(t => !isNaN(t));
@@ -719,7 +744,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           if (changed) {
             safeSetItem('atrios_companies', JSON.stringify(companies));
             const masterEmails = ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'];
-            setCompanies(companies.filter(c => !masterEmails.includes(c.email)));
+            const filtered = companies.filter(c => !masterEmails.includes(c.email));
+            setCompanies(prevCompanies => {
+              return filtered.map(c => {
+                const prev = prevCompanies.find(p => p.id === c.id);
+                if (prev) {
+                  const prevTime = prev.lastSeenAt ? new Date(prev.lastSeenAt).getTime() : 0;
+                  const currTime = c.lastSeenAt ? new Date(c.lastSeenAt).getTime() : 0;
+                  if (prevTime > currTime) {
+                    const bestIso = new Date(prevTime).toISOString();
+                    return { ...c, lastSeenAt: bestIso, last_seen_at: bestIso };
+                  }
+                }
+                return c;
+              });
+            });
           }
         }
       )
@@ -1406,6 +1445,41 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 }
               });
               return updated;
+            });
+
+            setCompanies(prevCompanies => {
+              let changed = false;
+              const next = prevCompanies.map(c => {
+                const possibleKeys = [
+                  c.id,
+                  c.id ? String(c.id).toLowerCase() : null,
+                  c.id ? String(c.id).toUpperCase() : null,
+                  c.email ? String(c.email).toLowerCase().trim() : null
+                ].filter(Boolean) as string[];
+
+                let bestServerTime = 0;
+                for (const key of possibleKeys) {
+                  if (data.lastSeenMap[key]) {
+                    const t = new Date(data.lastSeenMap[key]).getTime();
+                    if (!isNaN(t) && t > bestServerTime) bestServerTime = t;
+                  }
+                }
+
+                if (bestServerTime > 0) {
+                  const currentCompanyTime = c.lastSeenAt ? new Date(c.lastSeenAt).getTime() : 0;
+                  if (bestServerTime > currentCompanyTime) {
+                    changed = true;
+                    const bestIso = new Date(bestServerTime).toISOString();
+                    return {
+                      ...c,
+                      lastSeenAt: bestIso,
+                      last_seen_at: bestIso
+                    };
+                  }
+                }
+                return c;
+              });
+              return changed ? next : prevCompanies;
             });
           }
         })
