@@ -87,6 +87,8 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     subExpiry = undefined;
   }
 
+  const rawLastSeen = raw.lastSeenAt || raw.last_seen_at || raw.lastseenat;
+
   const mapped: Company = {
     ...raw,
     id: String(raw.id || raw.company_id || raw.companyid || ''),
@@ -95,6 +97,8 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     plan: normalizedPlan,
     subscriptionExpiresAt: subExpiry,
     subscription_expires_at: subExpiry,
+    lastSeenAt: rawLastSeen,
+    last_seen_at: rawLastSeen,
     isManual: Boolean(raw.isManual || raw.is_manual),
     canEditSensitiveData: Boolean(raw.canEditSensitiveData || raw.can_edit_sensitive_data || normalizedPlan !== PlanType.FREE),
     unlockRequested: Boolean(raw.unlockRequested || raw.unlock_requested),

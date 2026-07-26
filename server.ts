@@ -358,7 +358,8 @@ async function startServer() {
   const userOnlineMap: Record<string, string> = {};
 
   app.post("/api/user/ping", (req, res) => {
-    const { companyId, email } = req.body || {};
+    const companyId = req.body?.companyId || req.body?.company_id || req.body?.companyid || req.body?.id;
+    const email = req.body?.email;
     const nowIso = new Date().toISOString();
     if (companyId) {
       const cId = String(companyId);

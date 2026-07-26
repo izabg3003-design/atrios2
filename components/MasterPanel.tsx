@@ -337,7 +337,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         const pJson = await pRes.json();
         if (pJson.success && pJson.lastSeenMap) {
           serverPresenceMap = pJson.lastSeenMap;
-          setServerLastSeenMap(serverPresenceMap);
+          setServerLastSeenMap(prev => ({ ...prev, ...pJson.lastSeenMap }));
         }
       } catch (err) {
         console.warn("Could not fetch presence map:", err);
@@ -1367,6 +1367,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               }
               return updated;
             });
+
+            setCompanies(prevCompanies => {
+              let changed = false;
+              const next = prevCompanies.map(c => {
+                const isMatch = (companyId && (c.id === companyId || String(c.id).toLowerCase() === String(companyId).toLowerCase())) ||
+                                (email && c.email && c.email.toLowerCase().trim() === String(email).toLowerCase().trim());
+                if (isMatch) {
+                  changed = true;
+                  return {
+                    ...c,
+                    lastSeenAt: lastSeenAt,
+                    last_seen_at: lastSeenAt
+                  };
+                }
+                return c;
+              });
+              return changed ? next : prevCompanies;
+            });
+
             setTick(t => t + 1);
           }
         };
@@ -1378,7 +1397,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         .then(res => res.json())
         .then(data => {
           if (data.success && data.lastSeenMap) {
-            setServerLastSeenMap(data.lastSeenMap);
+            setServerLastSeenMap(prev => {
+              const updated = { ...prev };
+              Object.entries(data.lastSeenMap).forEach(([k, v]) => {
+                const existingTime = updated[k] ? new Date(updated[k]).getTime() : 0;
+                const newTime = v ? new Date(v as string).getTime() : 0;
+                if (newTime >= existingTime) {
+                  updated[k] = v as string;
+                }
+              });
+              return updated;
+            });
           }
         })
         .catch(() => {});
