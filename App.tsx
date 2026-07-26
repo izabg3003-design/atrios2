@@ -453,12 +453,15 @@ const App: React.FC = () => {
         body: JSON.stringify({ companyId, email })
       }).catch(err => console.warn('Ping error:', err));
 
-      // 4. Tentar atualizar no Supabase se disponível
+      // 4. Tentar atualizar no Supabase se disponível (apenas com coluna snake_case válida)
       try {
-        supabase.from('companies').update({
-          last_seen_at: nowIso,
-          lastSeenAt: nowIso
-        }).eq('id', companyId).then(() => {}, () => {});
+        const updateObj = { last_seen_at: nowIso };
+        if (email) {
+          supabase.from('companies').update(updateObj).eq('email', email).then(() => {}, () => {});
+        }
+        if (companyId) {
+          supabase.from('companies').update(updateObj).eq('id', companyId).then(() => {}, () => {});
+        }
       } catch (e) {}
     };
 

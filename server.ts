@@ -372,6 +372,16 @@ async function startServer() {
       userOnlineMap[em] = nowIso;
     }
     if (companyId || email) {
+      // Atualizar também no Supabase em background
+      try {
+        if (email) {
+          supabase.from("companies").update({ last_seen_at: nowIso }).eq("email", String(email).toLowerCase().trim()).then(() => {}, () => {});
+        }
+        if (companyId) {
+          supabase.from("companies").update({ last_seen_at: nowIso }).eq("id", String(companyId)).then(() => {}, () => {});
+        }
+      } catch (e) {}
+
       return res.json({ success: true, companyId, email, lastSeenAt: nowIso });
     }
     return res.status(400).json({ error: "companyId or email missing" });

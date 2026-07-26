@@ -61,15 +61,13 @@ export interface SyncResult {
       }
     }
 
-    // 3. Mapeamento Automático de CamelCase para SnakeCase
+    // 3. Mapeamento Automático de CamelCase para SnakeCase (removendo as chaves camelCase originais)
     const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     
-    const cleanData: any = { ...rawData }; // Mantém as chaves originais (camelCase)
+    const cleanData: any = {};
     Object.keys(rawData).forEach(key => {
       const snakeKey = toSnakeCase(key);
-      if (snakeKey !== key) {
-        cleanData[snakeKey] = rawData[key]; // Adiciona a versão snake_case
-      }
+      cleanData[snakeKey] = rawData[key];
     });
 
     // 4. Casos especiais de mapeamento

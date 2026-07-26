@@ -379,21 +379,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         mapped.email ? String(mapped.email).toLowerCase().trim() : null
       ].filter(Boolean) as string[];
 
-      let serverTime: string | undefined = undefined;
+      const validTimes: number[] = [];
+
       for (const key of possibleKeys) {
         if (serverPresenceMap[key]) {
-          serverTime = serverPresenceMap[key];
-          break;
+          const t = new Date(serverPresenceMap[key]).getTime();
+          if (!isNaN(t)) validTimes.push(t);
         }
       }
 
       const cloudTime = mapped.lastSeenAt || (mapped as any).last_seen_at;
       const localTime = localComp?.lastSeenAt || (localComp as any)?.last_seen_at;
 
-      const validTimes = [serverTime, cloudTime, localTime]
-        .filter(Boolean)
-        .map(t => new Date(t!).getTime())
-        .filter(t => !isNaN(t));
+      if (cloudTime && !isNaN(new Date(cloudTime).getTime())) validTimes.push(new Date(cloudTime).getTime());
+      if (localTime && !isNaN(new Date(localTime).getTime())) validTimes.push(new Date(localTime).getTime());
 
       const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
       const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
