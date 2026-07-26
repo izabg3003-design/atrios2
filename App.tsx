@@ -56,6 +56,7 @@ import {
   getAllStoredBudgets,
   getStoredStoreOrders,
   getStoredProducts,
+  mapCompanyFromSupabase,
   mapBudgetFromSupabase,
   mapMessageFromSupabase,
   mapOrderFromSupabase,
@@ -457,7 +458,7 @@ const App: React.FC = () => {
         supabase.from('companies').update({
           last_seen_at: nowIso,
           lastSeenAt: nowIso
-        }).eq('id', companyId).then(() => {}).catch(() => {});
+        }).eq('id', companyId).then(() => {}, () => {});
       } catch (e) {}
     };
 
@@ -746,7 +747,7 @@ const App: React.FC = () => {
               return;
             }
 
-            const updated = payload.new as Company;
+            const updated = mapCompanyFromSupabase(payload.new);
             if (!updated) return;
             
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
@@ -1942,11 +1943,10 @@ const App: React.FC = () => {
       return;
     }
 
-    const companyRaw = companyData as any;
     const nowIso = new Date().toISOString();
+    const companyMapped = mapCompanyFromSupabase(companyData);
     const company: Company = {
-      ...companyRaw,
-      id: companyRaw.id || companyRaw.company_id || companyRaw.companyid,
+      ...companyMapped,
       lastSeenAt: nowIso,
       last_seen_at: nowIso
     };
@@ -2132,7 +2132,7 @@ const App: React.FC = () => {
     if (!company) {
        // Buscar se foi criado recentemente no signup mas não está no cache (improvável mas possível)
        const { data } = await supabase.from('companies').select('*').eq('email', email).single();
-       if (data) company = data as Company;
+       if (data) company = mapCompanyFromSupabase(data);
     }
 
     if (company) {

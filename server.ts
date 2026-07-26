@@ -257,16 +257,48 @@ async function startServer() {
           const planType = session.metadata?.planType;
 
           if (companyId && planType) {
+            const isAnn = planType === 'premium_annual' || planType === 'annual';
+            const now = new Date();
+            let expiryDate = new Date();
+            if (isAnn) {
+              expiryDate.setFullYear(now.getFullYear() + 1);
+            } else {
+              expiryDate.setDate(now.getDate() + 30);
+            }
+
             const { error } = await supabase
               .from("companies")
               .update({ 
                 plan: planType,
                 stripe_customer_id: session.customer as string,
-                stripe_subscription_id: session.subscription as string
+                stripe_subscription_id: session.subscription as string,
+                subscription_expires_at: expiryDate.toISOString()
               })
               .eq("id", companyId);
             
             if (error) console.error("Error updating company plan:", error);
+
+            try {
+              const amountTotal = (session.amount_total || (isAnn ? 8990 : 990)) / 100;
+              const amountBase = Math.round((amountTotal / 1.23) * 100) / 100;
+              const ivaAmount = Math.round((amountTotal - amountBase) * 100) / 100;
+
+              const { data: comp } = await supabase.from("companies").select("name").eq("id", companyId).single();
+              const companyName = comp?.name || "Cliente";
+
+              await supabase.from("transactions").insert({
+                id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+                company_id: companyId,
+                company_name: companyName,
+                plan_type: planType,
+                amount: amountBase,
+                iva_amount: ivaAmount,
+                total_amount: amountTotal,
+                date: new Date().toISOString()
+              });
+            } catch (txErr) {
+              console.error("Error recording transaction in webhook:", txErr);
+            }
           }
           break;
         }

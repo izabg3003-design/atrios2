@@ -63,6 +63,7 @@ import {
   saveMessage, 
   markMessagesAsRead,
   getTransactions,
+  saveTransaction,
   getCoupons,
   saveCoupon,
   removeCoupon,
@@ -73,6 +74,7 @@ import {
   saveProduct,
   deleteProduct,
   generateShortId,
+  mapCompanyFromSupabase,
   mapMessageFromSupabase,
   mapOrderFromSupabase,
   mapCustomOrderFromSupabase,
@@ -365,15 +367,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       });
     }
 
-    // Mesclar timestamps de lastSeenAt para garantir que o status online não seja apagado pelo Supabase
-    let allCompanies = rawCompanies.map(company => {
-      const localComp = localMap.get(company.id);
+    // Mapear empresas garantindo que planos e expirações do Supabase sejam normalizados
+    let allCompanies = await Promise.all(rawCompanies.map(async (company) => {
+      const mapped = mapCompanyFromSupabase(company);
+      const localComp = localMap.get(mapped.id);
       
       const possibleKeys = [
-        company.id,
-        company.id ? String(company.id).toLowerCase() : null,
-        company.id ? String(company.id).toUpperCase() : null,
-        company.email ? String(company.email).toLowerCase().trim() : null
+        mapped.id,
+        mapped.id ? String(mapped.id).toLowerCase() : null,
+        mapped.id ? String(mapped.id).toUpperCase() : null,
+        mapped.email ? String(mapped.email).toLowerCase().trim() : null
       ].filter(Boolean) as string[];
 
       let serverTime: string | undefined = undefined;
@@ -384,7 +387,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         }
       }
 
-      const cloudTime = company.lastSeenAt || (company as any).last_seen_at;
+      const cloudTime = mapped.lastSeenAt || (mapped as any).last_seen_at;
       const localTime = localComp?.lastSeenAt || (localComp as any)?.last_seen_at;
 
       const validTimes = [serverTime, cloudTime, localTime]
@@ -395,12 +398,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
       const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
 
-      return {
-        ...company,
-        lastSeenAt: bestLastSeen || company.lastSeenAt,
-        last_seen_at: bestLastSeen || (company as any).last_seen_at
+      const updatedCompany: Company = {
+        ...mapped,
+        lastSeenAt: bestLastSeen || mapped.lastSeenAt,
+        last_seen_at: bestLastSeen || (mapped as any).last_seen_at
       };
-    });
+
+      // Se o plano no Supabase foi alterado para pago e atualizamos subscriptionExpiresAt para uma data futura válida,
+      // salva de volta no Supabase para sincronizar
+      if (company.plan !== updatedCompany.plan || (company as any).subscription_expires_at !== updatedCompany.subscriptionExpiresAt) {
+        await saveCompany(updatedCompany);
+      }
+
+      return updatedCompany;
+    }));
     
     // Check for expired subscriptions and downgrade them automatically in background
     const nowTime = Date.now();
@@ -524,9 +535,39 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       }
     }
 
+    // Buscar transações no Supabase
+    let allTransactions: Transaction[] = [];
+    try {
+      const { data: cloudTransactions, error: txError } = await safeFetch<any[]>(supabase.from('transactions').select('*'));
+      if (!txError && cloudTransactions) {
+        allTransactions = cloudTransactions.map((t: any) => ({
+          id: String(t.id),
+          companyId: t.companyId || t.company_id || '',
+          companyName: t.companyName || t.company_name || 'Cliente',
+          planType: t.planType || t.plan_type || PlanType.PREMIUM_MONTHLY,
+          amount: Number(t.amount || 0),
+          ivaAmount: Number(t.ivaAmount || t.iva_amount || 0),
+          totalAmount: Number(t.totalAmount || t.total_amount || 0),
+          couponUsed: t.couponUsed || t.coupon_used,
+          date: t.date || t.created_at || new Date().toISOString()
+        }));
+        const localTx = getTransactions();
+        localTx.forEach(lt => {
+          if (!allTransactions.find(t => t.id === lt.id)) {
+            allTransactions.push(lt);
+          }
+        });
+        safeSetItem('atrios_transactions', JSON.stringify(allTransactions));
+      } else {
+        allTransactions = getTransactions();
+      }
+    } catch (txErr) {
+      allTransactions = getTransactions();
+    }
+
     setCompanies(allCompanies);
     companiesRef.current = allCompanies;
-    setTransactions(getTransactions().sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
+    setTransactions(allTransactions.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()));
     setCoupons(getCoupons());
 
     if (selectedCompanyId) {
@@ -715,20 +756,57 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     return allMsgs.filter(m => m.senderRole === 'user' && !m.read).length;
   }, [companies]);
 
-  const financialStats = useMemo(() => {
-    const totalRevenue = transactions.reduce((sum, tx) => sum + tx.totalAmount, 0);
-    const totalIva = transactions.reduce((sum, tx) => sum + tx.ivaAmount, 0);
-    const monthlySales = transactions.filter(tx => tx.planType === PlanType.PREMIUM_MONTHLY).reduce((sum, tx) => sum + tx.totalAmount, 0);
-    const annualSales = transactions.filter(tx => tx.planType === PlanType.PREMIUM_ANNUAL).reduce((sum, tx) => sum + tx.totalAmount, 0);
-    return { totalRevenue, totalIva, monthlySales, annualSales };
-  }, [transactions]);
-
-  const userStats = {
-    total: companies.length,
-    free: companies.filter(c => c.plan === PlanType.FREE).length,
-    monthly: companies.filter(c => c.plan === PlanType.PREMIUM_MONTHLY).length,
-    annual: companies.filter(c => c.plan === PlanType.PREMIUM_ANNUAL).length,
+  const isFreePlan = (plan?: string) => {
+    if (!plan) return true;
+    const p = String(plan).toLowerCase().trim();
+    return p === PlanType.FREE || p === 'free' || p === 'gratis' || p === 'gráti' || p === 'grátis';
   };
+
+  const isAnnualPlan = (plan?: string) => {
+    if (!plan || isFreePlan(plan)) return false;
+    const p = String(plan).toLowerCase().trim();
+    return p === PlanType.PREMIUM_ANNUAL || p === 'premium_annual' || p === 'annual' || p === 'anual' || p.includes('annual') || p.includes('anual');
+  };
+
+  const isMonthlyPlan = (plan?: string) => {
+    if (!plan || isFreePlan(plan)) return false;
+    if (isAnnualPlan(plan)) return false;
+    return true;
+  };
+
+  const financialStats = useMemo(() => {
+    let monthlySales = transactions
+      .filter(tx => isMonthlyPlan(tx.planType))
+      .reduce((sum, tx) => sum + (Number(tx.totalAmount) || 0), 0);
+    let annualSales = transactions
+      .filter(tx => isAnnualPlan(tx.planType))
+      .reduce((sum, tx) => sum + (Number(tx.totalAmount) || 0), 0);
+
+    // Incluir compras de empresas que têm plano pago mas sem registro direto na lista de transações local/cloud
+    companies.forEach(company => {
+      if (!isFreePlan(company.plan)) {
+        const hasTx = transactions.some(tx => String(tx.companyId) === String(company.id));
+        if (!hasTx) {
+          if (isAnnualPlan(company.plan)) {
+            annualSales += 89.90;
+          } else if (isMonthlyPlan(company.plan)) {
+            monthlySales += 9.90;
+          }
+        }
+      }
+    });
+
+    const totalRevenue = monthlySales + annualSales;
+    const totalIva = totalRevenue - (totalRevenue / 1.23);
+    return { totalRevenue, totalIva, monthlySales, annualSales };
+  }, [transactions, companies]);
+
+  const userStats = useMemo(() => ({
+    total: companies.length,
+    free: companies.filter(c => isFreePlan(c.plan)).length,
+    monthly: companies.filter(c => isMonthlyPlan(c.plan)).length,
+    annual: companies.filter(c => isAnnualPlan(c.plan)).length,
+  }), [companies]);
 
   const chartDataPlans = [
     { name: t.planFree, value: userStats.free, color: '#94a3b8' },
@@ -755,13 +833,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   };
 
-  const getTranslatedPlan = (plan: PlanType) => {
-    switch (plan) {
-      case PlanType.FREE: return t.planFree;
-      case PlanType.PREMIUM_MONTHLY: return t.planMonthly;
-      case PlanType.PREMIUM_ANNUAL: return t.planAnnual;
-      default: return plan;
-    }
+  const getTranslatedPlan = (plan: PlanType | string) => {
+    if (isFreePlan(plan)) return t.planFree;
+    if (isAnnualPlan(plan)) return t.planAnnual;
+    return t.planMonthly;
   };
 
   const handleCreateCoupon = (e: React.FormEvent) => {
@@ -987,15 +1062,33 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const handleRemoveRestrictions = async (company: Company, days: number) => {
+    const isAnn = days >= 365;
+    const selectedPlan = isAnn ? PlanType.PREMIUM_ANNUAL : PlanType.PREMIUM_MONTHLY;
     const updated = { 
       ...company, 
-      plan: PlanType.PREMIUM_ANNUAL, 
+      plan: selectedPlan, 
       subscriptionExpiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
       isManual: true,
       canEditSensitiveData: true,
       unlockRequested: false
     };
     await saveCompany(updated);
+
+    const total = isAnn ? 89.90 : 9.90;
+    const amount = total / 1.23;
+    const iva = total - amount;
+    const tx: Transaction = {
+      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      companyId: company.id,
+      companyName: company.name,
+      planType: selectedPlan,
+      amount,
+      ivaAmount: iva,
+      totalAmount: total,
+      date: new Date().toISOString()
+    };
+    saveTransaction(tx);
+
     loadData();
     setShowDurationModal(null);
   };
@@ -1183,7 +1276,42 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const handleManualUserSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!manualProofPreview) { alert(t.masterBannerSelectError); return; }
-    await saveCompany({ id: Math.random().toString(36).substr(2, 9).toUpperCase(), name: manualUserName, email: manualUserEmail, password: manualUserPass, plan: manualUserPlan, verified: true, createdAt: new Date().toISOString(), isManual: true, manualPaymentProof: manualProofPreview, subscriptionExpiresAt: manualUserPlan === PlanType.FREE ? undefined : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString() });
+    
+    const newCompanyId = Math.random().toString(36).substr(2, 9).toUpperCase();
+    const isAnn = isAnnualPlan(manualUserPlan);
+    const expiresDays = isAnn ? 365 : 30;
+
+    const newCompany: Company = {
+      id: newCompanyId,
+      name: manualUserName,
+      email: manualUserEmail,
+      password: manualUserPass,
+      plan: manualUserPlan,
+      verified: true,
+      createdAt: new Date().toISOString(),
+      isManual: true,
+      manualPaymentProof: manualProofPreview,
+      subscriptionExpiresAt: isFreePlan(manualUserPlan) ? undefined : new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000).toISOString()
+    };
+    await saveCompany(newCompany);
+
+    if (!isFreePlan(manualUserPlan)) {
+      const total = isAnn ? 89.90 : 9.90;
+      const amount = total / 1.23;
+      const iva = total - amount;
+      const tx: Transaction = {
+        id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+        companyId: newCompanyId,
+        companyName: manualUserName,
+        planType: manualUserPlan,
+        amount,
+        ivaAmount: iva,
+        totalAmount: total,
+        date: new Date().toISOString()
+      };
+      saveTransaction(tx);
+    }
+
     loadData();
     setShowAddUserModal(false);
     setManualUserName(''); setManualUserEmail(''); setManualUserPass(''); setManualProofPreview(null);

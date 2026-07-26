@@ -1,4 +1,4 @@
-import { Company, Budget, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -58,6 +58,51 @@ export const safeSetItem = (key: string, value: string) => {
 
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+};
+
+export const mapCompanyFromSupabase = (data: any): Company => {
+  if (!data) return data;
+  const raw = { ...data };
+  const rawPlanStr = String(raw.plan || '').toLowerCase().trim();
+  
+  let normalizedPlan: PlanType = PlanType.FREE;
+  if (rawPlanStr.includes('annual') || rawPlanStr.includes('anual')) {
+    normalizedPlan = PlanType.PREMIUM_ANNUAL;
+  } else if (rawPlanStr.includes('month') || rawPlanStr.includes('mensal') || rawPlanStr.includes('premium')) {
+    normalizedPlan = PlanType.PREMIUM_MONTHLY;
+  } else if (rawPlanStr !== 'free' && rawPlanStr !== 'gratis' && rawPlanStr !== 'grátis' && rawPlanStr !== 'gráti' && rawPlanStr !== '') {
+    normalizedPlan = PlanType.PREMIUM_MONTHLY;
+  }
+
+  let subExpiry = raw.subscriptionExpiresAt || raw.subscription_expires_at || raw.subscriptionExpiresat;
+
+  if (normalizedPlan !== PlanType.FREE) {
+    const isExpValid = subExpiry && !isNaN(new Date(subExpiry).getTime());
+    const isExpInPast = isExpValid && new Date(subExpiry).getTime() < Date.now();
+    if (!isExpValid || isExpInPast) {
+      const daysToAdd = normalizedPlan === PlanType.PREMIUM_ANNUAL ? 365 : 30;
+      subExpiry = new Date(Date.now() + daysToAdd * 24 * 60 * 60 * 1000).toISOString();
+    }
+  } else {
+    subExpiry = undefined;
+  }
+
+  const mapped: Company = {
+    ...raw,
+    id: String(raw.id || raw.company_id || raw.companyid || ''),
+    name: raw.name || raw.company_name || 'Empresa',
+    email: raw.email || '',
+    plan: normalizedPlan,
+    subscriptionExpiresAt: subExpiry,
+    subscription_expires_at: subExpiry,
+    isManual: Boolean(raw.isManual || raw.is_manual),
+    canEditSensitiveData: Boolean(raw.canEditSensitiveData || raw.can_edit_sensitive_data || normalizedPlan !== PlanType.FREE),
+    unlockRequested: Boolean(raw.unlockRequested || raw.unlock_requested),
+    isBlocked: Boolean(raw.isBlocked || raw.is_blocked),
+    verified: raw.verified !== undefined ? Boolean(raw.verified) : true
+  };
+
+  return mapped;
 };
 
 export const getStoredCompanies = (): Company[] => {
@@ -624,9 +669,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
 
     if (companyData) {
       // Mapeamento de campos da empresa
-      const mappedCompany: any = { ...companyData };
-      if (companyData.company_id && !companyData.id) mappedCompany.id = companyData.company_id;
-      if (companyData.companyid && !companyData.id) mappedCompany.id = companyData.companyid;
+      const mappedCompany = mapCompanyFromSupabase(companyData);
       
       const companies = getStoredCompanies();
       const idx = companies.findIndex(c => String(c.id) === String(companyId));
