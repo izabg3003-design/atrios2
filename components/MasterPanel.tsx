@@ -653,14 +653,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         { event: '*', schema: 'public', table: 'companies' },
         (payload) => {
           console.log('Master company change detected:', payload.eventType, payload);
-          const updatedCompany = (payload['new'] || payload['old']) as Company;
+          const raw = payload['new'] || payload['old'];
+          if (!raw) return;
+          const updatedCompany = mapCompanyFromSupabase(raw);
           if (!updatedCompany || ['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'].includes(updatedCompany.email)) return;
           
           const companies = getStoredCompanies();
           let changed = false;
 
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            const idx = companies.findIndex(c => 
+              c.id === updatedCompany.id || 
+              (c.email && updatedCompany.email && c.email.toLowerCase().trim() === updatedCompany.email.toLowerCase().trim())
+            );
             if (idx > -1) {
               const old = companies[idx];
               if (!old.unlockRequested && updatedCompany.unlockRequested) {
@@ -670,8 +675,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   `A empresa ${updatedCompany.name} solicitou o desbloqueio da sua conta.`
                 );
               }
-              if (JSON.stringify(old) !== JSON.stringify(updatedCompany)) {
-                companies[idx] = updatedCompany;
+              
+              // Preservar a data mais recente de atividade (lastSeenAt / last_seen_at)
+              const bestLastSeenTimes = [
+                updatedCompany.lastSeenAt,
+                (updatedCompany as any).last_seen_at,
+                old.lastSeenAt,
+                (old as any).last_seen_at
+              ].filter(Boolean)
+               .map(t => new Date(t!).getTime())
+               .filter(t => !isNaN(t));
+
+              const maxLastSeenIso = bestLastSeenTimes.length > 0 ? new Date(Math.max(...bestLastSeenTimes)).toISOString() : undefined;
+
+              const mergedCompany: Company = {
+                ...old,
+                ...updatedCompany,
+                lastSeenAt: maxLastSeenIso || old.lastSeenAt || updatedCompany.lastSeenAt,
+                last_seen_at: maxLastSeenIso || (old as any).last_seen_at || (updatedCompany as any).last_seen_at
+              };
+
+              if (JSON.stringify(old) !== JSON.stringify(mergedCompany)) {
+                companies[idx] = mergedCompany;
                 changed = true;
               }
             } else {
@@ -1386,30 +1411,39 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       company.id,
       company.id ? String(company.id).toLowerCase() : null,
       company.id ? String(company.id).toUpperCase() : null,
-      company.email ? String(company.email).toLowerCase().trim() : null
+      company.email ? String(company.email).toLowerCase().trim() : null,
+      (company as any).company_id ? String((company as any).company_id) : null,
+      (company as any).company_id ? String((company as any).company_id).toLowerCase() : null,
+      (company as any).companyid ? String((company as any).companyid) : null
     ].filter(Boolean) as string[];
 
-    let serverTime: string | undefined = undefined;
+    let serverTimes: number[] = [];
     for (const key of possibleKeys) {
       if (serverLastSeenMap[key]) {
-        serverTime = serverLastSeenMap[key];
-        break;
+        const t = new Date(serverLastSeenMap[key]).getTime();
+        if (!isNaN(t)) serverTimes.push(t);
       }
     }
+    const maxServerTime = serverTimes.length > 0 ? Math.max(...serverTimes) : 0;
 
     // Também verificar armazenamento local de empresas
     const stored = getStoredCompanies();
-    const localComp = stored.find(c => c.id === company.id || (c.email && company.email && c.email.toLowerCase() === company.email.toLowerCase()));
+    const localComp = stored.find(c => 
+      c.id === company.id || 
+      (c.email && company.email && c.email.toLowerCase().trim() === company.email.toLowerCase().trim())
+    );
 
-    const companyTime = company.lastSeenAt || (company as any).last_seen_at || localComp?.lastSeenAt || (localComp as any)?.last_seen_at;
+    const companyTimes = [
+      company.lastSeenAt,
+      (company as any).last_seen_at,
+      localComp?.lastSeenAt,
+      (localComp as any)?.last_seen_at
+    ].filter(Boolean)
+     .map(t => new Date(t!).getTime())
+     .filter(t => !isNaN(t));
 
-    let timeMs = 0;
-    if (serverTime) {
-      timeMs = Math.max(timeMs, new Date(serverTime).getTime() || 0);
-    }
-    if (companyTime) {
-      timeMs = Math.max(timeMs, new Date(companyTime).getTime() || 0);
-    }
+    const maxCompanyTime = companyTimes.length > 0 ? Math.max(...companyTimes) : 0;
+    const timeMs = Math.max(maxServerTime, maxCompanyTime);
 
     if (!timeMs) {
       return {
