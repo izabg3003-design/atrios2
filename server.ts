@@ -439,6 +439,8 @@ async function startServer() {
       createdAt: new Date().toISOString()
     };
 
+    const isNewSub = (existingIndex === -1);
+
     if (existingIndex > -1) {
       subscriptions[existingIndex] = newRecord;
     } else {
@@ -452,8 +454,8 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
 
-    // Enviar notificação push de incentivo à instalação do App imediatamente
-    if (subscription && subscription.endpoint) {
+    // Enviar notificação push de incentivo à instalação do App APENAS na PRIMEIRA subscrição
+    if (isNewSub && subscription && subscription.endpoint) {
       const welcomePayload = JSON.stringify({
         title: "Instale a App do Átrios! 📱",
         body: "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!",
@@ -504,6 +506,8 @@ async function startServer() {
       createdAt: new Date().toISOString()
     };
 
+    const isNewFcm = (existingIndex === -1);
+
     if (existingIndex > -1) {
       subscriptions[existingIndex] = newRecord;
     } else {
@@ -517,8 +521,8 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
 
-    // Enviar notificação push de incentivo à instalação via FCM imediatamente
-    if (token) {
+    // Enviar notificação push de incentivo à instalação via FCM APENAS na PRIMEIRA subscrição
+    if (isNewFcm && token) {
       sendFcmNotification(
         [token],
         "Instale a App do Átrios! 📱",

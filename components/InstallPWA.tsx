@@ -113,28 +113,37 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
   }, [view]);
 
   const handleInstallClick = async () => {
+    if (showIosGuide) {
+      handleDismiss();
+      return;
+    }
+
     const activePrompt = deferredPrompt || (window as any).deferredPrompt;
+
     if (activePrompt) {
       try {
-        activePrompt.prompt();
+        await activePrompt.prompt();
         const { outcome } = await activePrompt.userChoice;
         console.log(`[InstallPWA] Usuário escolheu: ${outcome}`);
         setDeferredPrompt(null);
         (window as any).deferredPrompt = null;
-        setIsVisible(false);
+        if (outcome === 'accepted') {
+          setIsVisible(false);
+        } else {
+          setShowIosGuide(true);
+        }
       } catch (err) {
         console.error("[InstallPWA] Erro no prompt de instalação:", err);
+        setShowIosGuide(true);
       }
-    } else if (isIOS) {
-      setShowIosGuide(true);
     } else {
-      // Caso não haja prompt automático nem seja iOS (ex: Chrome Desktop onde antes já rejeitou ou browser sem suporte PWA)
       setShowIosGuide(true);
     }
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
+    setShowIosGuide(false);
     sessionStorage.setItem('atrios_pwa_dismissed', 'true');
   };
 
