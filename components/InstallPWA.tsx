@@ -51,20 +51,17 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     // Ouvir evento customizado para abrir a janela a qualquer momento (ex: clique no botão "Baixar App")
     const handleOpenModal = () => {
       setIsVisible(true);
+      setShowIosGuide(false);
     };
     window.addEventListener('open-install-pwa-modal', handleOpenModal);
 
     // Mostrar modal automaticamente após 3.5 segundos se não for standalone e não tiver sido dispensado na sessão
     const dismissedSession = sessionStorage.getItem('atrios_pwa_dismissed');
+    let autoTimer: any = null;
     if (!isStandalone && !dismissedSession) {
-      const timer = setTimeout(() => {
+      autoTimer = setTimeout(() => {
         setIsVisible(true);
       }, 3500);
-      return () => {
-        clearTimeout(timer);
-        window.removeEventListener('beforeinstallprompt', handler);
-        window.removeEventListener('open-install-pwa-modal', handleOpenModal);
-      };
     }
 
     const installedHandler = async () => {
@@ -108,6 +105,7 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     window.addEventListener('appinstalled', installedHandler);
 
     return () => {
+      if (autoTimer) clearTimeout(autoTimer);
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('open-install-pwa-modal', handleOpenModal);
       window.removeEventListener('appinstalled', installedHandler);

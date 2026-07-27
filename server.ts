@@ -452,11 +452,11 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
 
-    // Enviar notificação push de boas-vindas imediatamente
+    // Enviar notificação push de incentivo à instalação do App imediatamente
     if (subscription && subscription.endpoint) {
       const welcomePayload = JSON.stringify({
-        title: "Bem-vindo ao Átrios! 🎉",
-        body: "As notificações foram ativadas com sucesso. Você receberá alertas em tempo real de orçamentos, vendas e suporte.",
+        title: "Instale a App do Átrios! 📱",
+        body: "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!",
         icon: "/favicon.svg",
         badge: "/favicon.svg",
         tag: "welcome-push",
@@ -517,12 +517,12 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
 
-    // Enviar notificação push de boas-vindas via FCM imediatamente
+    // Enviar notificação push de incentivo à instalação via FCM imediatamente
     if (token) {
       sendFcmNotification(
         [token],
-        "Bem-vindo ao Átrios! 🎉",
-        "As notificações foram ativadas com sucesso. Você receberá alertas em tempo real de orçamentos, vendas e suporte."
+        "Instale a App do Átrios! 📱",
+        "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!"
       ).catch(err => {
         console.error("[PWA Welcome FCM Error]:", err);
       });
