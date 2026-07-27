@@ -94,6 +94,7 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     id: String(raw.id || raw.company_id || raw.companyid || ''),
     name: raw.name || raw.company_name || 'Empresa',
     email: raw.email || '',
+    website: raw.website || raw.site || raw.web_site || raw.website_url || raw.site_url || '',
     plan: normalizedPlan,
     subscriptionExpiresAt: subExpiry,
     subscription_expires_at: subExpiry,
@@ -150,18 +151,62 @@ export const saveCompany = async (company: Company) => {
   return await syncToCloud('companies', updatedCompany);
 };
 
-export const removeCompany = async (id: string) => {
-  const companies = getStoredCompanies().filter(c => c.id !== id);
+export const removeCompany = async (id: string, email?: string) => {
+  const normEmail = email ? email.toLowerCase().trim() : '';
+  const companies = getStoredCompanies().filter(c => c.id !== id && (!normEmail || c.email?.toLowerCase().trim() !== normEmail));
   safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
   const allBudgetsStr = localStorage.getItem(STORAGE_KEY_BUDGETS);
   if (allBudgetsStr) {
     const allBudgets = JSON.parse(allBudgetsStr);
-    const filteredBudgets = allBudgets.filter((b: Budget) => b.companyId !== id);
+    const filteredBudgets = allBudgets.filter((b: Budget) => String(b.companyId) !== String(id));
     safeSetItem(STORAGE_KEY_BUDGETS, JSON.stringify(filteredBudgets));
   }
 
-  await supabase.from('companies').delete().eq('id', id);
+  const allOrdersStr = localStorage.getItem(STORAGE_KEY_STORE_ORDERS);
+  if (allOrdersStr) {
+    const allOrders = JSON.parse(allOrdersStr);
+    const filteredOrders = allOrders.filter((o: StoreOrder) => String(o.companyId) !== String(id));
+    safeSetItem(STORAGE_KEY_STORE_ORDERS, JSON.stringify(filteredOrders));
+  }
+
+  const allMsgsStr = localStorage.getItem(STORAGE_KEY_MESSAGES);
+  if (allMsgsStr) {
+    const allMsgs = JSON.parse(allMsgsStr);
+    const filteredMsgs = allMsgs.filter((m: SupportMessage) => String(m.companyId) !== String(id));
+    safeSetItem(STORAGE_KEY_MESSAGES, JSON.stringify(filteredMsgs));
+  }
+
+  const allCustomStr = localStorage.getItem(STORAGE_KEY_CUSTOM_ORDERS);
+  if (allCustomStr) {
+    const allCustom = JSON.parse(allCustomStr);
+    const filteredCustom = allCustom.filter((c: CustomOrderRequest) => String(c.companyId) !== String(id));
+    safeSetItem(STORAGE_KEY_CUSTOM_ORDERS, JSON.stringify(filteredCustom));
+  }
+
+  const allTxStr = localStorage.getItem(STORAGE_KEY_TRANSACTIONS);
+  if (allTxStr) {
+    const allTx = JSON.parse(allTxStr);
+    const filteredTx = allTx.filter((t: Transaction) => String(t.companyId) !== String(id));
+    safeSetItem(STORAGE_KEY_TRANSACTIONS, JSON.stringify(filteredTx));
+  }
+
+  if (supabase) {
+    try {
+      await Promise.all([
+        supabase.from('companies').delete().eq('id', id),
+        supabase.from('companies').delete().eq('company_id', id),
+        normEmail ? supabase.from('companies').delete().eq('email', normEmail) : Promise.resolve(),
+        supabase.from('budgets').delete().eq('company_id', id),
+        supabase.from('messages').delete().eq('company_id', id),
+        supabase.from('store_orders').delete().eq('company_id', id),
+        supabase.from('custom_order_requests').delete().eq('company_id', id),
+        supabase.from('transactions').delete().eq('company_id', id)
+      ]);
+    } catch (err) {
+      console.error("[Storage] Erro ao deletar empresa e dados no Supabase:", err);
+    }
+  }
 };
 
 export const getAllStoredBudgets = (): Budget[] => {
@@ -673,7 +718,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       }
     }
     
-    if (companyError && companyError.code === 'PGRST116') {
+    if (!companyData || (companyError && (companyError.code === 'PGRST116' || companyError.code === 'PGRST204'))) {
       console.warn(`[Hydrate] Empresa ${companyId} não encontrada no Supabase. Removendo localmente.`);
       const companies = getStoredCompanies();
       const filtered = companies.filter(c => String(c.id) !== String(companyId));
@@ -688,6 +733,9 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const companies = getStoredCompanies();
       const idx = companies.findIndex(c => String(c.id) === String(companyId));
       if (idx > -1) {
+        if (!mappedCompany.website && companies[idx].website) {
+          mappedCompany.website = companies[idx].website;
+        }
         companies[idx] = mappedCompany;
       } else {
         companies.push(mappedCompany);
@@ -878,3 +926,32 @@ export const getSession = (): { companyId: string | null; view: string; activeTa
   const data = localStorage.getItem(STORAGE_KEY_SESSION);
   return data ? JSON.parse(data) : null;
 };
+
+export const fetchCompanyForVerification = async (companyId: string): Promise<Company | null> => {
+  if (!companyId) return null;
+  
+  // First check local storage companies
+  const localCompanies = getStoredCompanies();
+  const localMatch = localCompanies.find(c => String(c.id) === String(companyId));
+  
+  try {
+    let { data: companyData, error } = await safeFetch<any>(supabase.from('companies').select('*').eq('id', companyId).single());
+    if (error && (error.code === 'PGRST204' || error.message?.includes('column'))) {
+      const { data: fallbackData } = await safeFetch<any>(supabase.from('companies').select('*').eq('company_id', companyId).single());
+      if (fallbackData) companyData = fallbackData;
+    }
+    if (companyData) {
+      const mapped = mapCompanyFromSupabase(companyData);
+      if (localMatch) {
+        if (!mapped.website && localMatch.website) mapped.website = localMatch.website;
+        if (!mapped.qrCode && localMatch.qrCode) mapped.qrCode = localMatch.qrCode;
+      }
+      return mapped;
+    }
+  } catch (err) {
+    console.warn('[Verification] Failed to fetch remote company, falling back to local:', err);
+  }
+
+  return localMatch || null;
+};
+

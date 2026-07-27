@@ -10,10 +10,11 @@ interface SupportChatProps {
   company: Company;
   locale: Locale;
   messages: SupportMessage[];
+  onSendMessage?: (msg: SupportMessage) => void;
   onClose: () => void;
 }
 
-const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, onClose }) => {
+const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, onSendMessage, onClose }) => {
   const t = translations[locale];
   const [newMessage, setNewMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -69,6 +70,9 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
     };
 
     saveMessage(msg);
+    if (onSendMessage) {
+      onSendMessage(msg);
+    }
 
     // Notificar o Master por Push
     fetch('/api/push/notify-master', {

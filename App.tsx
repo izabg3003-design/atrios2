@@ -72,8 +72,11 @@ import {
   saveSession,
   getSession,
   generateShortId,
-  safeSetItem
+  safeSetItem,
+  fetchCompanyForVerification
 } from './services/storage';
+import { generateCompanyQrCode } from './services/qrcode';
+import { CertificateModal } from './components/CertificateModal';
 import { supabase, safeFetch } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
 import { Locale, translations } from './translations';
@@ -330,6 +333,44 @@ const App: React.FC = () => {
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
+  // Certificado Átrios State & Handling
+  const [certificateCompany, setCertificateCompany] = useState<Company | null>(null);
+  const [showCertificateModal, setShowCertificateModal] = useState<boolean>(false);
+  const [isStandaloneCertificate, setIsStandaloneCertificate] = useState<boolean>(false);
+
+  // Auto-verify Certificate parameter on URL mount (when scanning QR Code)
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const certCompanyId = urlParams.get('cert') || urlParams.get('verify');
+    if (certCompanyId) {
+      fetchCompanyForVerification(certCompanyId).then(comp => {
+        if (comp) {
+          setCertificateCompany(comp);
+          setShowCertificateModal(true);
+          setIsStandaloneCertificate(true);
+        } else {
+          setCertificateCompany(null);
+          setShowCertificateModal(true);
+          setIsStandaloneCertificate(true);
+        }
+      });
+    }
+  }, []);
+
+  // Ensure current user automatically has a valid QR Code pointing to their Átrios Certificate URL
+  useEffect(() => {
+    if (currentUser && currentUser.id) {
+      const currentOrigin = window.location.origin;
+      generateCompanyQrCode(currentUser.id, currentOrigin).then(qrUrl => {
+        if (qrUrl && (!currentUser.qrCode || currentUser.qrCode.length < 50 || currentUser.qrCode !== qrUrl)) {
+          const updated = { ...currentUser, qrCode: qrUrl };
+          setCurrentUser(updated);
+          saveCompany(updated);
+        }
+      });
+    }
+  }, [currentUser?.id]);
+
   const handleRequestPushPermission = async () => {
     if (!('Notification' in window)) {
       alert('Seu navegador não suporta notificações push.');
@@ -514,25 +555,7 @@ const App: React.FC = () => {
   }, []);
 
   const handlePwaDownload = async () => {
-    const promptEvent = pwaPrompt || (window as any).deferredPrompt;
-    if (promptEvent) {
-      promptEvent.prompt();
-      const { outcome } = await promptEvent.userChoice;
-      console.log(`User choice PWA download: ${outcome}`);
-      setPwaPrompt(null);
-      (window as any).deferredPrompt = null;
-    } else {
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      if (isIOS) {
-        alert(locale.startsWith('pt') 
-          ? 'Para instalar no iOS: Toque no ícone de partilha (quadrado com seta no navegador Safari) e selecione "Adicionar ao Ecrã Principal". 📱' 
-          : 'To install on iOS: Tap the share button (square with arrow in Safari browser) and select "Add to Home Screen". 📱');
-      } else {
-        alert(locale.startsWith('pt')
-          ? 'O aplicativo já está instalado ou o seu navegador não suporta a instalação automática direta. Procure por "Instalar" ou "Adicionar ao Ecrã Principal" no menu do seu navegador. 💡'
-          : 'The app is already installed or your browser does not support automatic install prompts. Look for "Install" or "Add to Home Screen" in your browser menu. 💡');
-      }
-    }
+    window.dispatchEvent(new CustomEvent('open-install-pwa-modal'));
   };
 
   useEffect(() => {
@@ -665,6 +688,7 @@ const App: React.FC = () => {
   const [settingsAddress, setSettingsAddress] = useState('');
   const [settingsNif, setSettingsNif] = useState('');
   const [settingsPhone, setSettingsPhone] = useState('');
+  const [settingsWebsite, setSettingsWebsite] = useState('');
   const [settingsPdfTemplate, setSettingsPdfTemplate] = useState<PdfTemplate>('default' as PdfTemplate);
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -1056,6 +1080,7 @@ const App: React.FC = () => {
       setSettingsAddress(currentUser.address || '');
       setSettingsNif(currentUser.nif || '');
       setSettingsPhone(currentUser.phone || '');
+      setSettingsWebsite(currentUser.website || '');
       setSettingsPdfTemplate(currentUser.pdfTemplate || 'default' as PdfTemplate);
       
       const checkMessages = () => {
@@ -1277,7 +1302,7 @@ const App: React.FC = () => {
     return result;
   };
 
-  const exportToPDF = (budget: Budget) => {
+  const exportToPDF = async (budget: Budget) => {
     const company = currentUser;
     if (!company) return;
     const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
@@ -1292,6 +1317,17 @@ const App: React.FC = () => {
       }
     }
 
+    // Ensure company has a valid QR code pointing to Átrios Certificate
+    let activeQrCode = company.qrCode;
+    if (!activeQrCode || activeQrCode.length < 50) {
+      activeQrCode = await generateCompanyQrCode(company.id, window.location.origin);
+      if (activeQrCode) {
+        company.qrCode = activeQrCode;
+        setCurrentUser({ ...company, qrCode: activeQrCode });
+        saveCompany({ ...company, qrCode: activeQrCode });
+      }
+    }
+
     const doc = new jsPDF();
     const colors = getPdfColors(company.pdfTemplate);
     const currencyInfo = CURRENCIES[currencyCode];
@@ -1302,10 +1338,26 @@ const App: React.FC = () => {
 
     // Dynamic Footer on Every Page
     const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(7.5).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      // Bottom Right QR Code placed higher above the footer line
+      if (activeQrCode && activeQrCode.length > 50) {
+        try {
+          const qrFormat = activeQrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+          const qrSize = 14;
+          const qrX = pageWidth - margin - qrSize;
+          const qrY = pageHeight - 28;
+          doc.addImage(activeQrCode, qrFormat, qrX, qrY, qrSize, qrSize, undefined, 'FAST');
+
+          doc.setFont('helvetica', 'bold').setFontSize(5.8).setTextColor(71, 85, 105);
+          doc.text(normalizeForPdf('CERTIFICADO ÁTRIOS'), qrX - 2.5, qrY + 5.5, { align: 'right' });
+          doc.setFont('helvetica', 'normal').setFontSize(5.2).setTextColor(148, 163, 184);
+          doc.text(normalizeForPdf(pdfT.scanMe || 'ESCANEAR PARA VERIFICAR'), qrX - 2.5, qrY + 9.5, { align: 'right' });
+        } catch (err) {}
+      }
+
+      doc.setFontSize(7).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
       const footerText = `Documento processado na nuvem via ÁTRIOS - Segurança e Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 8, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+      doc.text(footerText, pageWidth / 2, pageHeight - 6, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
     };
 
     // 1. TOP BRAND ACCENT BAR
@@ -1317,30 +1369,40 @@ const App: React.FC = () => {
     if (company.logo && company.logo.length > 50) {
       try {
         const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 12, 24, 20, undefined, 'FAST');
-        companyX = margin + 28;
+        doc.addImage(company.logo, format, margin, 8, 45, 35, undefined, 'FAST');
+        companyX = margin + 48;
       } catch (err) {}
     }
 
-    doc.setFont('helvetica', 'bold').setFontSize(15).setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(15, 23, 42);
     const companyNameClean = normalizeForPdf(company.name.toUpperCase());
-    doc.text(companyNameClean, companyX, 17);
+    doc.text(companyNameClean, companyX, 16);
 
-    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
-    let companyY = 21.5;
+    doc.setFont('helvetica', 'normal').setFontSize(10.5).setTextColor(100, 116, 139);
+    let companyY = 22.5;
     if (company.nif) {
       doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
-      companyY += 3.8;
+      companyY += 5.0;
     }
     doc.text(normalizeForPdf(company.email), companyX, companyY);
-    companyY += 3.8;
+    companyY += 5.0;
     if (company.phone) {
       doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
-      companyY += 3.8;
+      companyY += 5.0;
     }
     if (company.address) {
-      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), 85 - (companyX - margin));
+      const maxAddrWidth = Math.max(50, 132 - companyX);
+      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), maxAddrWidth);
       doc.text(splitAddr, companyX, companyY);
+      companyY += (Array.isArray(splitAddr) ? splitAddr.length : 1) * 5.0;
+    }
+    if (company.website) {
+      companyY += 1.5;
+      const formattedWeb = company.website.toLowerCase().startsWith('http') || company.website.toLowerCase().startsWith('site') || company.website.toLowerCase().startsWith('www') 
+        ? company.website 
+        : `${pdfT.websiteLabel || 'Site'}: ${company.website}`;
+      doc.text(normalizeForPdf(formattedWeb), companyX, companyY);
+      companyY += 5.0;
     }
 
     // 3. HEADER: BUDGET INFO CARD (RIGHT)
@@ -1387,15 +1449,6 @@ const App: React.FC = () => {
     }
     doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
     doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-
-    // Embed QR code cleanly as integral UI element
-    if (company.qrCode && company.qrCode.length > 50) {
-      try {
-        const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.qrCode, qrFormat, cardX + 38, 16.5, 14, 14, undefined, 'FAST');
-        doc.setFontSize(5.5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 45, 33.5, { align: 'center' });
-      } catch (err) {}
-    }
 
     // 4. SIDE-BY-SIDE PANELS (CLIENTS & PROJECT DETAILS)
     const panelY = 54;
@@ -1445,8 +1498,11 @@ const App: React.FC = () => {
 
     // Beautiful Responsive Pill Badges for Services
     if (budget.servicesSelected && budget.servicesSelected.length > 0) {
+      doc.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(100, 116, 139);
+      doc.text(normalizeForPdf(pdfT.servicesToPerform || 'Serviços a realizar:'), 113, siteRowY + 5);
+
       let pillX = 113;
-      let pillY = siteRowY + 6;
+      let pillY = siteRowY + 10.5;
       doc.setFont('helvetica', 'bold').setFontSize(6.5);
       
       budget.servicesSelected.forEach((serviceId) => {
@@ -1517,10 +1573,7 @@ const App: React.FC = () => {
         3: { halign: 'center', cellWidth: 15 },
         4: { halign: 'right', cellWidth: 25 }
       },
-      margin: { left: margin, right: margin },
-      didDrawPage: (data) => {
-        addFooter(doc, data.pageNumber, doc.getNumberOfPages());
-      }
+      margin: { left: margin, right: margin }
     });
 
     // 6. TOTALS & LOWER MEMORANDUM SECTION
@@ -1604,7 +1657,14 @@ const App: React.FC = () => {
       doc.text(pmLines, 139, pmY + 4.5);
     }
 
-    // 7. SAVE THE CORRESPONDING DOCUMENT
+    // 7. DRAW FOOTER WITH QR CODE ON ALL PAGES
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(doc, i, totalPages);
+    }
+
+    // 8. SAVE THE CORRESPONDING DOCUMENT
     const isApproved = budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED;
     const fileNamePrefix = isApproved ? 'Atrios_Pedido' : 'Atrios_Orcamento';
     doc.save(`${fileNamePrefix}_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
@@ -1621,7 +1681,7 @@ const App: React.FC = () => {
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
-  const exportServiceOrderToPDF = (budget: Budget) => {
+  const exportServiceOrderToPDF = async (budget: Budget) => {
     const company = currentUser;
     if (!company) return;
     const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
@@ -1636,6 +1696,17 @@ const App: React.FC = () => {
       }
     }
 
+    // Ensure company has a valid QR code pointing to Átrios Certificate
+    let activeQrCode = company.qrCode;
+    if (!activeQrCode || activeQrCode.length < 50) {
+      activeQrCode = await generateCompanyQrCode(company.id, window.location.origin);
+      if (activeQrCode) {
+        company.qrCode = activeQrCode;
+        setCurrentUser({ ...company, qrCode: activeQrCode });
+        saveCompany({ ...company, qrCode: activeQrCode });
+      }
+    }
+
     const doc = new jsPDF();
     const colors = getPdfColors(company.pdfTemplate);
     const pageHeight = doc.internal.pageSize.getHeight();
@@ -1644,10 +1715,26 @@ const App: React.FC = () => {
     const usableWidth = pageWidth - (margin * 2);
 
     const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      doc.setFontSize(7.5).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
+      // Bottom Right QR Code placed higher above the footer line
+      if (activeQrCode && activeQrCode.length > 50) {
+        try {
+          const qrFormat = activeQrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+          const qrSize = 14;
+          const qrX = pageWidth - margin - qrSize;
+          const qrY = pageHeight - 28;
+          doc.addImage(activeQrCode, qrFormat, qrX, qrY, qrSize, qrSize, undefined, 'FAST');
+
+          doc.setFont('helvetica', 'bold').setFontSize(5.8).setTextColor(71, 85, 105);
+          doc.text(normalizeForPdf('CERTIFICADO ÁTRIOS'), qrX - 2.5, qrY + 5.5, { align: 'right' });
+          doc.setFont('helvetica', 'normal').setFontSize(5.2).setTextColor(148, 163, 184);
+          doc.text(normalizeForPdf(pdfT.scanMe || 'ESCANEAR PARA VERIFICAR'), qrX - 2.5, qrY + 9.5, { align: 'right' });
+        } catch (err) {}
+      }
+
+      doc.setFontSize(7).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
       const footerText = `Ordem de Serviço - ÁTRIOS | Segurança & Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 8, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 8, { align: 'right' });
+      doc.text(footerText, pageWidth / 2, pageHeight - 6, { align: 'center' });
+      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
     };
 
     // 1. TOP ACCENT BAR
@@ -1659,30 +1746,40 @@ const App: React.FC = () => {
     if (company.logo && company.logo.length > 50) {
       try {
         const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 12, 24, 20, undefined, 'FAST');
-        companyX = margin + 28;
+        doc.addImage(company.logo, format, margin, 8, 45, 35, undefined, 'FAST');
+        companyX = margin + 48;
       } catch (err) {}
     }
 
-    doc.setFont('helvetica', 'bold').setFontSize(15).setTextColor(15, 23, 42);
+    doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(15, 23, 42);
     const companyNameClean = normalizeForPdf(company.name.toUpperCase());
-    doc.text(companyNameClean, companyX, 17);
+    doc.text(companyNameClean, companyX, 16);
 
-    doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
-    let companyY = 21.5;
+    doc.setFont('helvetica', 'normal').setFontSize(10.5).setTextColor(100, 116, 139);
+    let companyY = 22.5;
     if (company.nif) {
       doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
-      companyY += 3.8;
+      companyY += 5.0;
     }
     doc.text(normalizeForPdf(company.email), companyX, companyY);
-    companyY += 3.8;
+    companyY += 5.0;
     if (company.phone) {
       doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
-      companyY += 3.8;
+      companyY += 5.0;
     }
     if (company.address) {
-      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), 85 - (companyX - margin));
+      const maxAddrWidth = Math.max(50, 132 - companyX);
+      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), maxAddrWidth);
       doc.text(splitAddr, companyX, companyY);
+      companyY += (Array.isArray(splitAddr) ? splitAddr.length : 1) * 5.0;
+    }
+    if (company.website) {
+      companyY += 1.5;
+      const formattedWeb = company.website.toLowerCase().startsWith('http') || company.website.toLowerCase().startsWith('site') || company.website.toLowerCase().startsWith('www') 
+        ? company.website 
+        : `${pdfT.websiteLabel || 'Site'}: ${company.website}`;
+      doc.text(normalizeForPdf(formattedWeb), companyX, companyY);
+      companyY += 5.0;
     }
 
     // 3. HEADER: OS DETAILS CARD (RIGHT)
@@ -1723,15 +1820,6 @@ const App: React.FC = () => {
     }
     doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
     doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-
-    // Embed QR code cleanly as integral UI element
-    if (company.qrCode && company.qrCode.length > 50) {
-      try {
-        const qrFormat = company.qrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.qrCode, qrFormat, cardX + 38, 16.5, 14, 14, undefined, 'FAST');
-        doc.setFontSize(5.5).setTextColor(148, 163, 184).text(normalizeForPdf(pdfT.scanMe.toUpperCase()), cardX + 45, 33.5, { align: 'center' });
-      } catch (err) {}
-    }
 
     // 4. SIDE-BY-SIDE PANELS (CLIENT CONTACT & SITE LOCATION)
     const panelY = 54;
@@ -1781,8 +1869,11 @@ const App: React.FC = () => {
 
     // Elegant inline services pill badges
     if (budget.servicesSelected && budget.servicesSelected.length > 0) {
+      doc.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(100, 116, 139);
+      doc.text(normalizeForPdf(pdfT.servicesToPerform || 'Serviços a realizar:'), 113, siteRowY + 5);
+
       let pillX = 113;
-      let pillY = siteRowY + 6;
+      let pillY = siteRowY + 10.5;
       doc.setFont('helvetica', 'bold').setFontSize(6.5);
       
       budget.servicesSelected.forEach((serviceId) => {
@@ -1846,10 +1937,7 @@ const App: React.FC = () => {
         1: { halign: 'center', cellWidth: 20 },
         2: { halign: 'center', cellWidth: 25 }
       },
-      margin: { left: margin, right: margin },
-      didDrawPage: (data) => {
-        addFooter(doc, data.pageNumber, doc.getNumberOfPages());
-      }
+      margin: { left: margin, right: margin }
     });
 
     // 6. TECHNICAL OBSERVATIONS & REMARKS
@@ -1897,6 +1985,13 @@ const App: React.FC = () => {
     doc.setFont('helvetica', 'normal').setFontSize(6).setTextColor(148, 163, 184);
     doc.text("Declaro a realização conforme os padrões técnicos", margin + 37.5, sigY + 8.5, { align: 'center' });
     doc.text("Declaro a conformidade e recebimento dos serviços", pageWidth - margin - 37.5, sigY + 8.5, { align: 'center' });
+
+    // 8. DRAW FOOTER WITH QR CODE ON ALL PAGES
+    const totalPages = (doc as any).internal.getNumberOfPages();
+    for (let i = 1; i <= totalPages; i++) {
+      doc.setPage(i);
+      addFooter(doc, i, totalPages);
+    }
 
     doc.save(`OS_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
     
@@ -2423,6 +2518,7 @@ const App: React.FC = () => {
       address: settingsAddress,
       nif: settingsNif,
       phone: settingsPhone,
+      website: settingsWebsite,
       pdfTemplate: settingsPdfTemplate,
       canEditSensitiveData: false,
       unlockRequested: false
@@ -2496,6 +2592,14 @@ const App: React.FC = () => {
 
   return (
     <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
+      {showCertificateModal && (
+        <CertificateModal 
+          company={certificateCompany || currentUser} 
+          onClose={() => setShowCertificateModal(false)}
+          isStandalone={isStandaloneCertificate}
+        />
+      )}
+
       {showWelcome && currentUser && <WelcomeScreen company={currentUser} locale={locale} />}
       
       {showUnlockAlert && (
@@ -3486,11 +3590,32 @@ const App: React.FC = () => {
                               </label>
                             </div>
                             <div className="space-y-3 lg:space-y-4">
-                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest">{t.companyQrCode}</label>
+                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
+                                <span>{t.companyQrCode}</span>
+                                {currentUser && (
+                                  <button 
+                                    type="button"
+                                    onClick={() => { setCertificateCompany(currentUser); setShowCertificateModal(true); setIsStandaloneCertificate(false); }}
+                                    className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer"
+                                  >
+                                    <ShieldCheck size={12} /> Ver Certificado Átrios
+                                  </button>
+                                )}
+                              </label>
                               <label className="border-4 border-dashed border-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex flex-col items-center justify-center gap-3 lg:gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-40 lg:h-48 relative">
                                 {settingsQrCode ? <img src={settingsQrCode} className="absolute inset-0 w-full h-full object-contain p-6 lg:p-8" alt="QR Code" /> : <><div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 text-slate-300 rounded-lg lg:rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><QrCode size={20} className="lg:w-6 lg:h-6" /></div><span className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadQrCode}</span></>}
                                 <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsQrCode)} />
                               </label>
+                              {currentUser && (
+                                <button
+                                  type="button"
+                                  onClick={() => { setCertificateCompany(currentUser); setShowCertificateModal(true); setIsStandaloneCertificate(false); }}
+                                  className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl lg:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                                >
+                                  <ShieldCheck size={16} className="text-emerald-600" />
+                                  <span>Visualizar Certificado Átrios Ativo (Confiança Total)</span>
+                                </button>
+                              )}
                             </div>
                          </div>
                          <div className="space-y-6 lg:space-y-8">
@@ -3499,7 +3624,9 @@ const App: React.FC = () => {
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.nifLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsNif || ''} onChange={e => setSettingsNif(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.phone} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsPhone || ''} onChange={e => setSettingsPhone(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
                             
-                            <div>
+                            <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.websiteLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="url" placeholder="https://www.exemplo.com" value={settingsWebsite || ''} onChange={e => setSettingsWebsite(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
+                             
+                             <div>
                               <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">
                                 {t.pdfTemplateLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}
                               </label>
@@ -3552,6 +3679,12 @@ const App: React.FC = () => {
               locale={locale} 
               company={currentUser} 
               messages={messages}
+              onSendMessage={(msg) => {
+                setMessages(prev => {
+                  if (prev.some(m => String(m.id) === String(msg.id))) return prev;
+                  return [...prev, msg];
+                });
+              }}
               onClose={() => { 
                 setShowSupportChat(false); 
                 markMessagesAsRead(currentUser.id, 'user'); 

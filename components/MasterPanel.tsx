@@ -298,6 +298,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const companiesRef = useRef<Company[]>([]);
 
   const [selectedCompanyId, setSelectedCompanyId] = useState<string | null>(null);
+  const selectedCompanyIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    selectedCompanyIdRef.current = selectedCompanyId;
+  }, [selectedCompanyId]);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessage, setNewMessage] = useState('');
   const [isTranslating, setIsTranslating] = useState(false);
@@ -357,14 +362,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const localCompanies = getStoredCompanies().filter(c => !masterEmails.includes(c.email));
     const localMap = new Map(localCompanies.map(c => [c.id, c]));
 
-    let rawCompanies = cloudCompanies || localCompanies;
+    let rawCompanies: Company[] = [];
     if (cloudCompanies) {
-      // Mesclar empresas locais que possam não ter sido sincronizadas no Supabase ainda
+      rawCompanies = [...cloudCompanies];
+      // Apenas mesclar empresas locais criadas no último minuto (ainda não sincronizadas)
+      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
       localCompanies.forEach(lc => {
-        if (!rawCompanies.find(c => c.id === lc.id)) {
+        const isVeryNew = lc.createdAt && lc.createdAt > oneMinuteAgo;
+        if (isVeryNew && !rawCompanies.some(c => c.id === lc.id || (c.email && lc.email && c.email.toLowerCase().trim() === lc.email.toLowerCase().trim()))) {
           rawCompanies.push(lc);
         }
       });
+    } else {
+      rawCompanies = localCompanies;
     }
 
     // Mapear empresas garantindo que planos e expirações do Supabase sejam normalizados
@@ -588,7 +598,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     setCoupons(getCoupons());
 
     if (selectedCompanyId) {
-      setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
+      setMessages(allMsgs.filter(m => String(m.companyId) === String(selectedCompanyId)));
     }
     } catch (error) {
       console.error("Error loading data in MasterPanel:", error);
@@ -617,15 +627,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           let changed = false;
 
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            const existingIdx = allMsgs.findIndex(m => m.id === newMessage.id);
+            const existingIdx = allMsgs.findIndex(m => String(m.id) === String(newMessage.id));
             if (existingIdx === -1) {
               allMsgs.push(newMessage);
               changed = true;
               
               if (newMessage.senderRole === 'user' && payload.eventType === 'INSERT') {
                 const allCompanies = getStoredCompanies();
-                const sender = allCompanies.find(c => c.id === newMessage.companyId);
-                if (sender && (activeTab !== 'messages' || selectedCompanyId !== newMessage.companyId)) {
+                const sender = allCompanies.find(c => String(c.id) === String(newMessage.companyId));
+                const currentSelected = selectedCompanyIdRef.current;
+                if (sender && (activeTab !== 'messages' || String(currentSelected) !== String(newMessage.companyId))) {
                   setLastMessageAlert({ name: sender.name, content: newMessage.content });
                 }
                 const senderName = sender ? sender.name : "Cliente";
@@ -641,7 +652,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               }
             }
           } else if (payload.eventType === 'DELETE') {
-            const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+            const idx = allMsgs.findIndex(m => String(m.id) === String(newMessage.id));
             if (idx > -1) {
               allMsgs.splice(idx, 1);
               changed = true;
@@ -650,8 +661,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
           if (changed) {
             safeSetItem('atrios_messages', JSON.stringify(allMsgs));
-            if (selectedCompanyId === newMessage.companyId) {
-              setMessages(allMsgs.filter(m => m.companyId === selectedCompanyId));
+            const currentSelected = selectedCompanyIdRef.current;
+            if (currentSelected && String(currentSelected) === String(newMessage.companyId)) {
+              setMessages(allMsgs.filter(m => String(m.companyId) === String(currentSelected)));
             } else {
               setCompanies(prev => [...prev]);
             }
@@ -734,7 +746,14 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               }
             }
           } else if (payload.eventType === 'DELETE') {
-            const idx = companies.findIndex(c => c.id === updatedCompany.id);
+            const oldRaw = payload['old'];
+            const delId = oldRaw?.id || oldRaw?.company_id || updatedCompany?.id;
+            const delEmail = oldRaw?.email || updatedCompany?.email;
+            
+            const idx = companies.findIndex(c => 
+              (delId && c.id === delId) || 
+              (delEmail && c.email && c.email.toLowerCase().trim() === delEmail.toLowerCase().trim())
+            );
             if (idx > -1) {
               companies.splice(idx, 1);
               changed = true;
@@ -929,6 +948,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   const selectChat = (companyId: string) => {
     setSelectedCompanyId(companyId);
+    selectedCompanyIdRef.current = companyId;
     setMessages(getMessages(companyId));
     markMessagesAsRead(companyId, 'master');
   };
@@ -1157,7 +1177,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const handleDeleteUser = (id: string, name: string) => {
-    if (window.confirm(`${t.masterDeleteUser} "${name}"?`)) { removeCompany(id); setCompanies(prev => prev.filter(c => c.id !== id)); if (selectedCompanyId === id) setSelectedCompanyId(null); }
+    if (window.confirm(`${t.masterDeleteUser} "${name}"?`)) {
+      const targetCompany = companies.find(c => c.id === id);
+      removeCompany(id, targetCompany?.email);
+      setCompanies(prev => prev.filter(c => c.id !== id));
+      if (selectedCompanyId === id) setSelectedCompanyId(null);
+    }
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {

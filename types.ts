@@ -133,6 +133,7 @@ export interface Company {
   address?: string;
   nif?: string;
   phone?: string;
+  website?: string;
   plan: PlanType;
   verified: boolean;
   createdAt: string;

@@ -452,6 +452,21 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
 
+    // Enviar notificação push de boas-vindas imediatamente
+    if (subscription && subscription.endpoint) {
+      const welcomePayload = JSON.stringify({
+        title: "Bem-vindo ao Átrios! 🎉",
+        body: "As notificações foram ativadas com sucesso. Você receberá alertas em tempo real de orçamentos, vendas e suporte.",
+        icon: "/favicon.svg",
+        badge: "/favicon.svg",
+        tag: "welcome-push",
+        vibrate: [200, 100, 200]
+      });
+      webPush.sendNotification(subscription, welcomePayload).catch(err => {
+        console.error("[PWA Welcome Push Error] Web push send failed:", err.message);
+      });
+    }
+
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
       console.log(`[PWA Push] Registered subscription for User: ${companyId}, Plan: ${plan}`);
@@ -502,6 +517,17 @@ async function startServer() {
       plan: plan || "free"
     }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
 
+    // Enviar notificação push de boas-vindas via FCM imediatamente
+    if (token) {
+      sendFcmNotification(
+        [token],
+        "Bem-vindo ao Átrios! 🎉",
+        "As notificações foram ativadas com sucesso. Você receberá alertas em tempo real de orçamentos, vendas e suporte."
+      ).catch(err => {
+        console.error("[PWA Welcome FCM Error]:", err);
+      });
+    }
+
     try {
       fs.writeFileSync(fcmSubFile, JSON.stringify(subscriptions, null, 2), "utf8");
       console.log(`[FCM Push] Registered/Updated token for User: ${companyId}, Plan: ${plan}`);
@@ -545,9 +571,17 @@ async function startServer() {
       }
     });
 
-    const filteredWeb = uniqueWebSubs.filter(sub => {
+    const isMasterSub = (sub: any) => {
+      if (!sub) return false;
+      const cId = String(sub.companyId || '').toLowerCase();
+      const plan = String(sub.plan || '').toLowerCase();
+      const email = String(sub.email || '').toLowerCase();
+      return cId === 'master' || plan === 'master' || cId.includes('izarellebraga') || email.includes('izarellebraga');
+    };
+
+    let filteredWeb = uniqueWebSubs.filter(sub => {
       if (targetAudience === 'master') {
-        return sub.companyId === 'master' || sub.plan === 'master';
+        return isMasterSub(sub);
       }
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
@@ -605,9 +639,9 @@ async function startServer() {
       }
     });
 
-    const filteredFcm = uniqueFcmSubs.filter(sub => {
+    let filteredFcm = uniqueFcmSubs.filter(sub => {
       if (targetAudience === 'master') {
-        return sub.companyId === 'master' || sub.plan === 'master';
+        return isMasterSub(sub);
       }
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'free' && sub.plan === 'free') return true;
@@ -616,6 +650,14 @@ async function startServer() {
       if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
       return false;
     });
+
+    // Fallback para notificações do Master: se não houver NENHUMA subscrição marcada explicitamente como master,
+    // enviar a notificação para TODAS as subscrições (garante entrega no ambiente de testes/desenvolvimento)
+    if (targetAudience === 'master' && filteredWeb.length === 0 && filteredFcm.length === 0) {
+      console.log('[PWA Push] Nenhuma subscrição de Master específica encontrada. Ativando fallback para todas as subscrições.');
+      filteredWeb = uniqueWebSubs;
+      filteredFcm = uniqueFcmSubs;
+    }
 
     const fcmTokens = filteredFcm.map(sub => sub.token);
     let fcmSuccess = 0;

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, X, Smartphone } from 'lucide-react';
+import { Download, X, Smartphone, Zap, Bell, ShieldCheck, Share2, PlusSquare, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 interface InstallPWAProps {
@@ -9,16 +9,21 @@ interface InstallPWAProps {
 export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
   const [deferredPrompt, setDeferredPrompt] = useState<any>(null);
   const [isVisible, setIsVisible] = useState(false);
-  const [hasDismissed, setHasDismissed] = useState(false);
+  const [showIosGuide, setShowIosGuide] = useState(false);
+  const [isIOS, setIsIOS] = useState(false);
 
   useEffect(() => {
-    // Registrar Service Worker de forma robusta (evita que fique preso se o evento load já tiver ocorrido)
+    // Detectar iOS
+    const checkIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+    setIsIOS(checkIOS);
+
+    // Registrar Service Worker de forma robusta
     if ('serviceWorker' in navigator) {
       const registerSW = () => {
         navigator.serviceWorker.register('/firebase-messaging-sw.js').then(registration => {
-          console.log('SW registrado com sucesso:', registration.scope);
+          console.log('[InstallPWA] SW registrado com sucesso:', registration.scope);
         }).catch(err => {
-          console.log('SW falhou:', err);
+          console.log('[InstallPWA] SW falhou:', err);
         });
       };
 
@@ -29,48 +34,47 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       }
     }
 
-    const delay = view === 'landing' ? 5000 : 10000;
-    let timer: any;
+    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
 
-    const showPrompt = () => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(() => setIsVisible(true), delay);
-    };
-
+    // Handler para capturar o evento de instalação
     const handler = (e: any) => {
-      // Prevenir que o prompt padrão apareça
       e.preventDefault();
-      // Guardar o evento para ser usado depois
       setDeferredPrompt(e);
-      // Guardar no window para o botão da página inicial usar
       (window as any).deferredPrompt = e;
       if (typeof (window as any).onPwaPromptAvailable === 'function') {
         (window as any).onPwaPromptAvailable(e);
       }
-      // Mostrar o balão após o tempo definido
-      showPrompt();
     };
 
     window.addEventListener('beforeinstallprompt', handler);
 
-    // Para iOS, mostrar o balão mesmo sem beforeinstallprompt
-    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-    const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (navigator as any).standalone;
-    
-    if ((deferredPrompt || (isIOS && !isStandalone)) && !isVisible && !hasDismissed && !isStandalone) {
-      showPrompt();
+    // Ouvir evento customizado para abrir a janela a qualquer momento (ex: clique no botão "Baixar App")
+    const handleOpenModal = () => {
+      setIsVisible(true);
+    };
+    window.addEventListener('open-install-pwa-modal', handleOpenModal);
+
+    // Mostrar modal automaticamente após 3.5 segundos se não for standalone e não tiver sido dispensado na sessão
+    const dismissedSession = sessionStorage.getItem('atrios_pwa_dismissed');
+    if (!isStandalone && !dismissedSession) {
+      const timer = setTimeout(() => {
+        setIsVisible(true);
+      }, 3500);
+      return () => {
+        clearTimeout(timer);
+        window.removeEventListener('beforeinstallprompt', handler);
+        window.removeEventListener('open-install-pwa-modal', handleOpenModal);
+      };
     }
 
     const installedHandler = async () => {
       setIsVisible(false);
       setDeferredPrompt(null);
       
-      // Evitar múltiplos disparos do evento de instalação
       const alreadyInstalledNotified = localStorage.getItem('atrios_installed_notified');
       if (alreadyInstalledNotified === 'true') return;
       localStorage.setItem('atrios_installed_notified', 'true');
       
-      // Quando instalado, disparar notificação push local de sucesso com o logotipo!
       if ('Notification' in window) {
         try {
           let permission = Notification.permission;
@@ -103,114 +107,162 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
 
     window.addEventListener('appinstalled', installedHandler);
 
-    // Detetar se o utilizador abriu o app a partir do Ecrã Principal (Standalone PWA)
-    if (isStandalone) {
-      // Usar localStorage em vez de sessionStorage para garantir que só seja enviado uma vez para sempre,
-      // impedindo que dispare em futuros logins ou recarregamentos de página.
-      const alreadyNotified = localStorage.getItem('atrios_standalone_welcome_notified');
-      if (!alreadyNotified) {
-        localStorage.setItem('atrios_standalone_welcome_notified', 'true');
-        
-        // Se abriu a partir do ecrã principal, enviar de imediato uma notificação push de boas-vindas
-        if ('Notification' in window && Notification.permission === 'granted') {
-          const options = {
-            body: "A desfrutar do Átrios diretamente no seu telemóvel com rapidez e segurança! 🚀",
-            icon: '/favicon.svg',
-            badge: '/favicon.svg',
-            vibrate: [150, 50, 150]
-          };
-          if ('serviceWorker' in navigator) {
-            navigator.serviceWorker.ready.then(reg => {
-              reg.showNotification("Bem-vindo ao Átrios! 📱", options);
-            }).catch(() => {
-              new Notification("Bem-vindo ao Átrios! 📱", options);
-            });
-          } else {
-            new Notification("Bem-vindo ao Átrios! 📱", options);
-          }
-        }
-      }
-    }
-
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('open-install-pwa-modal', handleOpenModal);
       window.removeEventListener('appinstalled', installedHandler);
-      if (timer) clearTimeout(timer);
     };
-  }, [view, deferredPrompt, hasDismissed]);
+  }, [view]);
 
   const handleInstallClick = async () => {
-    if (!deferredPrompt) {
-      // Caso seja iOS ou outro navegador sem suporte ao prompt automático
-      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
-      if (isIOS) {
-        alert('Para instalar no iOS: Toque no ícone de partilha (quadrado com seta) e selecione "Adicionar ao Ecrã Principal".');
+    const activePrompt = deferredPrompt || (window as any).deferredPrompt;
+    if (activePrompt) {
+      try {
+        activePrompt.prompt();
+        const { outcome } = await activePrompt.userChoice;
+        console.log(`[InstallPWA] Usuário escolheu: ${outcome}`);
+        setDeferredPrompt(null);
+        (window as any).deferredPrompt = null;
+        setIsVisible(false);
+      } catch (err) {
+        console.error("[InstallPWA] Erro no prompt de instalação:", err);
       }
-      return;
+    } else if (isIOS) {
+      setShowIosGuide(true);
+    } else {
+      // Caso não haja prompt automático nem seja iOS (ex: Chrome Desktop onde antes já rejeitou ou browser sem suporte PWA)
+      setShowIosGuide(true);
     }
-
-    // Mostrar o prompt de instalação
-    deferredPrompt.prompt();
-
-    // Esperar pela escolha do usuário
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`Usuário escolheu: ${outcome}`);
-
-    // Limpar o prompt
-    setDeferredPrompt(null);
-    setIsVisible(false);
   };
 
   const handleDismiss = () => {
     setIsVisible(false);
-    setHasDismissed(true);
+    sessionStorage.setItem('atrios_pwa_dismissed', 'true');
   };
 
   return (
     <AnimatePresence>
       {isVisible && (
-        <motion.div
-          initial={{ y: 100, opacity: 0 }}
-          animate={{ y: 0, opacity: 1 }}
-          exit={{ y: 100, opacity: 0 }}
-          className="fixed bottom-6 left-6 right-6 md:left-auto md:right-8 md:w-96 z-[9999]"
-        >
-          <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 shadow-2xl shadow-black/50 backdrop-blur-xl relative overflow-hidden group">
-            {/* Efeito de brilho no fundo */}
-            <div className="absolute -top-24 -right-24 w-48 h-48 bg-emerald-500/10 blur-[80px] rounded-full group-hover:bg-emerald-500/20 transition-all duration-700" />
-            
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md">
+          <motion.div
+            initial={{ scale: 0.9, opacity: 0, y: 20 }}
+            animate={{ scale: 1, opacity: 1, y: 0 }}
+            exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            transition={{ type: "spring", duration: 0.5, bounce: 0.3 }}
+            className="w-full max-w-md bg-slate-900 border border-white/10 rounded-3xl p-6 md:p-8 shadow-2xl shadow-emerald-950/40 relative overflow-hidden text-white"
+          >
+            {/* Efeitos de luz no fundo */}
+            <div className="absolute -top-24 -right-24 w-56 h-56 bg-emerald-500/20 blur-[90px] rounded-full pointer-events-none" />
+            <div className="absolute -bottom-24 -left-24 w-56 h-56 bg-cyan-500/15 blur-[90px] rounded-full pointer-events-none" />
+
+            {/* Botão Fechar */}
             <button 
               onClick={handleDismiss}
-              className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white transition-colors"
+              className="absolute top-5 right-5 p-2.5 rounded-full bg-white/5 hover:bg-white/15 text-slate-400 hover:text-white transition-colors"
+              title="Fechar"
             >
               <X size={18} />
             </button>
 
-            <div className="flex items-start gap-4">
-              <div className="w-12 h-12 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-500 shrink-0">
-                <Smartphone size={24} />
+            {/* Cabeçalho */}
+            <div className="flex flex-col items-center text-center mb-6">
+              <div className="relative mb-4">
+                <div className="w-16 h-16 bg-gradient-to-tr from-emerald-500 to-cyan-400 rounded-2xl flex items-center justify-center text-slate-950 shadow-lg shadow-emerald-500/30">
+                  <Smartphone size={32} />
+                </div>
+                <div className="absolute -top-1 -right-1 w-5 h-5 bg-emerald-400 rounded-full flex items-center justify-center animate-bounce">
+                  <Download size={12} className="text-slate-950 font-bold" />
+                </div>
               </div>
-              
-              <div className="flex-1">
-                <h3 className="text-white font-bold text-lg leading-tight mb-1">
-                  Instalar Átrios App
-                </h3>
-                <p className="text-slate-400 text-sm leading-relaxed mb-4">
-                  Tenha acesso rápido aos seus orçamentos e loja diretamente da sua tela inicial.
-                </p>
-                
-                <button
-                  onClick={handleInstallClick}
-                  className="w-full py-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black uppercase tracking-widest text-xs rounded-xl transition-all flex items-center justify-center gap-2 group/btn"
-                >
-                  <Download size={16} className="group-hover/btn:translate-y-0.5 transition-transform" />
-                  Instalar Agora
-                </button>
+
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 text-[11px] font-bold uppercase tracking-wider mb-2">
+                ✨ Aplicativo Oficial Átrios
               </div>
+
+              <h2 className="text-2xl font-black text-white leading-tight">
+                Instale a Aplicação no seu Telemóvel!
+              </h2>
+              <p className="text-slate-400 text-xs md:text-sm mt-2 leading-relaxed">
+                Tenha a melhor experiência com acesso direto na sua tela inicial sem precisar abrir o navegador.
+              </p>
             </div>
-          </div>
-        </motion.div>
+
+            {/* Vantagens */}
+            {!showIosGuide ? (
+              <div className="space-y-3 mb-6 bg-slate-950/50 p-4 rounded-2xl border border-white/5">
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-emerald-500/10 text-emerald-400 shrink-0">
+                    <Zap size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Acesso Ultrarrápido</h4>
+                    <p className="text-[11px] text-slate-400">Abra a app com apenas 1 toque na tela do seu dispositivo.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-cyan-500/10 text-cyan-400 shrink-0">
+                    <Bell size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Notificações em Tempo Real</h4>
+                    <p className="text-[11px] text-slate-400">Receba alertas instantâneos de novos orçamentos, vendas e suporte.</p>
+                  </div>
+                </div>
+
+                <div className="flex items-start gap-3">
+                  <div className="p-2 rounded-xl bg-purple-500/10 text-purple-400 shrink-0">
+                    <ShieldCheck size={18} />
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-bold text-white">Mais Seguro e Leve</h4>
+                    <p className="text-[11px] text-slate-400">Não ocupa memória do telemóvel e funciona perfeitamente offline.</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              /* Guia Manual de Instalação (iOS / Navegadores) */
+              <div className="bg-emerald-950/30 border border-emerald-500/30 rounded-2xl p-4 mb-6 text-left space-y-3 animate-fadeIn">
+                <h4 className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                  <Share2 size={16} /> Instruções de Instalação:
+                </h4>
+                {isIOS ? (
+                  <ol className="text-xs text-slate-300 space-y-2 list-decimal list-inside">
+                    <li>No navegador <strong className="text-white">Safari</strong>, toque no ícone de <strong className="text-white">Partilhar</strong> (quadrado com seta para cima).</li>
+                    <li>Deslize para baixo e selecione <strong className="text-white">"Adicionar ao Ecrã Principal"</strong> <PlusSquare size={14} className="inline text-emerald-400 ml-1" />.</li>
+                    <li>Toque em <strong className="text-white">Adicionar</strong> no canto superior direito!</li>
+                  </ol>
+                ) : (
+                  <ol className="text-xs text-slate-300 space-y-2 list-decimal list-inside">
+                    <li>No menu do seu navegador (três pontos no canto superior), procure a opção <strong className="text-white">"Instalar aplicativo"</strong> ou <strong className="text-white">"Adicionar à tela inicial"</strong>.</li>
+                    <li>Confirme a instalação e aceda ao Átrios a partir do seu ecrã principal!</li>
+                  </ol>
+                )}
+              </div>
+            )}
+
+            {/* Ações */}
+            <div className="space-y-2.5">
+              <button
+                onClick={handleInstallClick}
+                className="w-full py-3.5 px-6 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black uppercase tracking-wider text-xs rounded-2xl transition-all shadow-lg shadow-emerald-500/25 flex items-center justify-center gap-2 active:scale-95"
+              >
+                <Download size={18} />
+                {showIosGuide ? "Entendi!" : "Baixar / Instalar Agora"}
+                {!showIosGuide && <ArrowRight size={16} />}
+              </button>
+
+              <button
+                onClick={handleDismiss}
+                className="w-full py-2.5 text-slate-400 hover:text-white text-xs font-semibold transition-colors"
+              >
+                Continuar no Navegador
+              </button>
+            </div>
+          </motion.div>
+        </div>
       )}
     </AnimatePresence>
   );
 };
+
