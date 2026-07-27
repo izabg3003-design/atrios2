@@ -474,16 +474,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       console.warn("MasterPanel: Falha ao buscar mensagens (Cloud).", messagesError.message);
     }
     const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
-    if (cloudMessages) {
-      safeSetItem('atrios_messages', JSON.stringify(mappedMessages));
+    if (cloudMessages && cloudMessages.length > 0) {
+      const localMsgs = getMessages();
+      const mergedMsgs = [...mappedMessages];
+      localMsgs.forEach(lm => {
+        if (!mergedMsgs.some(mm => String(mm.id) === String(lm.id))) {
+          mergedMsgs.push(lm);
+        }
+      });
+      safeSetItem('atrios_messages', JSON.stringify(mergedMsgs));
     }
 
-    const allMsgs = cloudMessages ? mappedMessages : getMessages();
+    const allMsgs = getMessages();
+    const currentSelected = selectedCompanyIdRef.current;
+    if (currentSelected) {
+      setMessages(allMsgs.filter(m => String(m.companyId) === String(currentSelected)));
+    }
+
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
     if (unreadCount > prevUnreadCount.current) {
        const last = unreadMessages[unreadMessages.length - 1];
-       const sender = allCompanies.find(c => c.id === last.companyId);
+       const sender = allCompanies.find(c => String(c.id) === String(last.companyId));
        if (sender && activeTab !== 'messages') setLastMessageAlert({ name: sender.name, content: last.content });
     }
     prevUnreadCount.current = unreadCount;
@@ -815,14 +827,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         console.log('Master custom orders subscription status:', status);
       });
 
-    // Fallback polling para o Master
-    const fallback = setInterval(loadData, 30000);
+    // Fallback polling para o Master (4 segundos para chat em tempo real)
+    const fallback = setInterval(loadData, 4000);
+
+    const handleStorageChange = (e: StorageEvent) => {
+      if (e.key === 'atrios_messages') {
+        const currentSelected = selectedCompanyIdRef.current;
+        if (currentSelected) {
+          setMessages(getMessages(currentSelected));
+        }
+      }
+    };
+    window.addEventListener('storage', handleStorageChange);
 
     return () => {
       supabase.removeChannel(msgChannel);
       supabase.removeChannel(companyChannel);
       supabase.removeChannel(storeOrdersChannel);
       supabase.removeChannel(customOrdersChannel);
+      window.removeEventListener('storage', handleStorageChange);
       clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);

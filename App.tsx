@@ -73,7 +73,9 @@ import {
   getSession,
   generateShortId,
   safeSetItem,
-  fetchCompanyForVerification
+  fetchCompanyForVerification,
+  fetchResilient,
+  saveMessage
 } from './services/storage';
 import { generateCompanyQrCode } from './services/qrcode';
 import { CertificateModal } from './components/CertificateModal';
@@ -986,7 +988,7 @@ const App: React.FC = () => {
               const newMessage = mapMessageFromSupabase(payload.new);
               if (!newMessage || !newMessage.id) return;
               
-              const idx = allMsgs.findIndex(m => m.id === newMessage.id);
+              const idx = allMsgs.findIndex(m => String(m.id) === String(newMessage.id));
               if (idx === -1) {
                 allMsgs.push(newMessage);
                 changed = true;
@@ -1038,15 +1040,60 @@ const App: React.FC = () => {
         });
 
 
-      // Fallback polling para dados básicos
-      const fallback = setInterval(() => {
+      // Fallback polling para dados básicos e mensagens de suporte em tempo real
+      const fallback = setInterval(async () => {
+        const currentId = currentUserRef.current?.id;
+        if (!currentId) return;
+
+        // 1. Atualizar dados da empresa se mudou
         const all = getStoredCompanies();
-        const updated = all.find(c => String(c.id) === String(currentUser.id));
+        const updated = all.find(c => String(c.id) === String(currentId));
         if (updated && JSON.stringify(currentUserRef.current) !== JSON.stringify(updated)) {
           setCurrentUser(updated);
           currentUserRef.current = updated;
         }
-      }, 20000);
+
+        // 2. Polling de mensagens com o Supabase
+        try {
+          const { data: cloudMsgs } = await fetchResilient('messages', currentId, undefined, '*');
+          if (cloudMsgs && Array.isArray(cloudMsgs)) {
+            const mappedCloud = cloudMsgs.map(mapMessageFromSupabase);
+            const localMsgs = getMessages();
+            const otherMsgs = localMsgs.filter(m => String(m.companyId) !== String(currentId));
+            const userLocalMsgs = localMsgs.filter(m => String(m.companyId) === String(currentId));
+
+            let changed = false;
+            const mergedUserMsgs = [...mappedCloud];
+
+            userLocalMsgs.forEach(lm => {
+              if (!mergedUserMsgs.some(mm => String(mm.id) === String(lm.id))) {
+                mergedUserMsgs.push(lm);
+                changed = true;
+              }
+            });
+
+            if (mappedCloud.length !== userLocalMsgs.length || changed) {
+              const updatedAll = [...otherMsgs, ...mergedUserMsgs];
+              safeSetItem('atrios_messages', JSON.stringify(updatedAll));
+              setMessages(mergedUserMsgs);
+              const unread = mergedUserMsgs.filter(m => m.senderRole === 'master' && !m.read);
+              setUnreadCount(unread.length);
+            }
+          }
+        } catch (e) {
+          console.warn('Erro no polling de mensagens:', e);
+        }
+      }, 4000);
+
+      const handleStorageChange = (e: StorageEvent) => {
+        if (e.key === 'atrios_messages' && currentUserRef.current?.id) {
+          const myMsgs = getMessages(currentUserRef.current.id);
+          setMessages(myMsgs);
+          const unread = myMsgs.filter(m => m.senderRole === 'master' && !m.read);
+          setUnreadCount(unread.length);
+        }
+      };
+      window.addEventListener('storage', handleStorageChange);
 
       return () => {
         supabase.removeChannel(companyChannel);
@@ -1058,6 +1105,7 @@ const App: React.FC = () => {
         } catch (e) {
           console.error(e);
         }
+        window.removeEventListener('storage', handleStorageChange);
         clearInterval(fallback);
       };
     }
@@ -2140,9 +2188,7 @@ const App: React.FC = () => {
         timestamp: new Date().toISOString()
       };
 
-      const { error: msgError } = await supabase.from('messages').insert(resetRequestMsg);
-      
-      if (msgError) throw msgError;
+      await saveMessage(resetRequestMsg as SupportMessage);
 
       alert(t.resetLinkSent);
       setView('login');

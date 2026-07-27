@@ -359,12 +359,17 @@ export const getMessages = (companyId?: string): SupportMessage[] => {
   return messages;
 };
 
-export const saveMessage = (message: SupportMessage) => {
+export const saveMessage = async (message: SupportMessage) => {
   const messages = getMessages();
-  messages.push(message);
+  const index = messages.findIndex(m => String(m.id) === String(message.id));
+  if (index > -1) {
+    messages[index] = message;
+  } else {
+    messages.push(message);
+  }
   safeSetItem(STORAGE_KEY_MESSAGES, JSON.stringify(messages));
   
-  syncToCloud('messages', message);
+  return await syncToCloud('messages', message);
 };
 
 export const markMessagesAsRead = async (companyId: string, role: 'user' | 'master') => {
@@ -595,9 +600,12 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
 };
 
 export const mapMessageFromSupabase = (m: any): SupportMessage => {
+  if (!m) return m;
   const mapped: any = { ...m };
-  if (m.company_id && !m.companyId) mapped.companyId = m.company_id;
-  if (m.sender_role && !m.senderRole) mapped.senderRole = m.sender_role;
+  const companyId = m.companyId || m.company_id || m.companyid || '';
+  if (companyId) mapped.companyId = String(companyId);
+  const senderRole = m.senderRole || m.sender_role || m.senderrole || 'user';
+  mapped.senderRole = senderRole;
   if (m.translated_content && !m.translatedContent) mapped.translatedContent = m.translated_content;
   if (m.created_at && !m.createdAt) mapped.createdAt = m.created_at;
   if (m.created_at && !m.timestamp) mapped.timestamp = m.created_at;
@@ -648,7 +656,7 @@ export const mapCustomOrderFromSupabase = (c: any): CustomOrderRequest => {
 };
 
 // Helper para buscar dados de forma resiliente tentando diferentes nomes de coluna para o ID da empresa
-const fetchResilient = async (table: string, companyId: string, orderCol?: string, select = '*') => {
+export const fetchResilient = async (table: string, companyId: string, orderCol?: string, select = '*') => {
   const columns = ['companyId', 'company_id', 'companyid'];
   let lastError = null;
   
