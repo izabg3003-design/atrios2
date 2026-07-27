@@ -1265,9 +1265,9 @@ const App: React.FC = () => {
   }, [currentUser?.id]);
 
   const isSettingsLocked = useMemo(() => {
-    if (!currentUser) return true;
-    const hasData = !!(currentUser.logo || currentUser.nif);
-    return hasData && !currentUser.canEditSensitiveData;
+    if (!currentUser) return false;
+    if (currentUser.plan !== PlanType.FREE) return false;
+    return currentUser.canEditSensitiveData === false;
   }, [currentUser]);
 
   const isPremium = useMemo(() => {

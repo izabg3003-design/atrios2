@@ -89,20 +89,56 @@ export const mapCompanyFromSupabase = (data: any): Company => {
 
   const rawLastSeen = raw.lastSeenAt || raw.last_seen_at || raw.lastseenat;
 
+  let canEdit = true;
+  if (normalizedPlan !== PlanType.FREE) {
+    canEdit = true;
+  } else if (raw.can_edit_sensitive_data !== undefined && raw.can_edit_sensitive_data !== null) {
+    canEdit = Boolean(raw.can_edit_sensitive_data);
+  } else if (raw.canEditSensitiveData !== undefined && raw.canEditSensitiveData !== null) {
+    canEdit = Boolean(raw.canEditSensitiveData);
+  } else {
+    const localCompanies = getStoredCompanies();
+    const localComp = localCompanies.find(c => String(c.id) === String(raw.id || raw.company_id || raw.companyid));
+    if (localComp && localComp.canEditSensitiveData !== undefined) {
+      canEdit = localComp.canEditSensitiveData;
+    } else {
+      canEdit = true;
+    }
+  }
+
+  let unlockReq = false;
+  if (raw.unlock_requested !== undefined && raw.unlock_requested !== null) {
+    unlockReq = Boolean(raw.unlock_requested);
+  } else if (raw.unlockRequested !== undefined && raw.unlockRequested !== null) {
+    unlockReq = Boolean(raw.unlockRequested);
+  } else {
+    const localCompanies = getStoredCompanies();
+    const localComp = localCompanies.find(c => String(c.id) === String(raw.id || raw.company_id || raw.companyid));
+    if (localComp && localComp.unlockRequested !== undefined) {
+      unlockReq = localComp.unlockRequested;
+    }
+  }
+
   const mapped: Company = {
     ...raw,
     id: String(raw.id || raw.company_id || raw.companyid || ''),
     name: raw.name || raw.company_name || 'Empresa',
     email: raw.email || '',
+    logo: raw.logo || raw.logo_url || raw.logourl || '',
+    qrCode: raw.qrCode || raw.qr_code || raw.qrcode || '',
+    address: raw.address || raw.fiscal_address || raw.fiscaladdress || '',
+    nif: raw.nif || raw.tax_id || raw.taxid || '',
+    phone: raw.phone || raw.telephone || raw.phone_number || '',
     website: raw.website || raw.site || raw.web_site || raw.website_url || raw.site_url || '',
+    pdfTemplate: raw.pdfTemplate || raw.pdf_template || raw.pdftemplate || 'default',
     plan: normalizedPlan,
     subscriptionExpiresAt: subExpiry,
     subscription_expires_at: subExpiry,
     lastSeenAt: rawLastSeen,
     last_seen_at: rawLastSeen,
     isManual: Boolean(raw.isManual || raw.is_manual),
-    canEditSensitiveData: Boolean(raw.canEditSensitiveData || raw.can_edit_sensitive_data || normalizedPlan !== PlanType.FREE),
-    unlockRequested: Boolean(raw.unlockRequested || raw.unlock_requested),
+    canEditSensitiveData: canEdit,
+    unlockRequested: unlockReq,
     isBlocked: Boolean(raw.isBlocked || raw.is_blocked),
     verified: raw.verified !== undefined ? Boolean(raw.verified) : true
   };

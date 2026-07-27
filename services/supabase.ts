@@ -53,12 +53,14 @@ export interface SyncResult {
     const rawData = { ...data };
     
     // 2. Tratamento de imagens grandes para evitar erro de payload
-    if (table === 'products' || table === 'store_orders') {
-      const imageField = table === 'products' ? 'image' : 'uploadedImage';
-      if (rawData[imageField] && rawData[imageField].length > 500000) {
-        console.warn(`syncToCloud: Imagem de ${table} muito grande (>500KB), removendo para sincronização cloud.`);
-        delete rawData[imageField];
-      }
+    if (table === 'products' || table === 'store_orders' || table === 'companies') {
+      const imageFields = table === 'products' ? ['image'] : table === 'store_orders' ? ['uploadedImage'] : ['logo', 'qrCode', 'qr_code'];
+      imageFields.forEach(field => {
+        if (rawData[field] && typeof rawData[field] === 'string' && rawData[field].length > 500000) {
+          console.warn(`syncToCloud: Imagem '${field}' em ${table} muito grande (>500KB), removida para sincronização cloud.`);
+          delete rawData[field];
+        }
+      });
     }
 
     // 3. Mapeamento Automático de CamelCase para SnakeCase (removendo as chaves camelCase originais)
