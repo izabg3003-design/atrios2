@@ -2679,6 +2679,8 @@ const App: React.FC = () => {
         </div>
       )}
 
+      <InstallPWA view={view} />
+
       {view === 'landing' ? (
         <div className="min-h-screen w-full max-w-[1440px] mx-auto bg-white text-slate-900 overflow-x-hidden selection:bg-amber-100 selection:text-amber-900 shadow-2xl relative">
           {/* Navigation */}
@@ -3807,8 +3809,6 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-          
-          <InstallPWA view={view} />
 
           {showUnblockGuideModal && (
             <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
@@ -4060,8 +4060,6 @@ const App: React.FC = () => {
               </div>
             </div>
           )}
-
-          <InstallPWA view={view} />
         </div>
       )}
     </div>
