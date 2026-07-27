@@ -38,7 +38,8 @@ import {
   Smartphone,
   PieChart as PieChartIcon,
   Clock,
-  Activity
+  Activity,
+  Key
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -463,7 +464,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const unlockCount = allCompanies.filter(c => c.unlockRequested).length;
     if (unlockCount > prevUnlockCount.current) {
        const newReq = allCompanies.find(c => c.unlockRequested && !companiesRef.current.find(old => old.id === c.id && old.unlockRequested));
-       if (newReq) setLastUnlockAlert(newReq.name);
+       if (newReq) {
+         setLastUnlockAlert(newReq.name);
+         triggerPushNotificationSubmit(
+           "Solicitação de Desbloqueio 🔑",
+           `A empresa ${newReq.name} solicitou o desbloqueio da conta para editar dados nas Definições.`
+         );
+       }
     }
     prevUnlockCount.current = unlockCount;
 
@@ -1915,13 +1922,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-3">
                             <div className="relative shrink-0">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'}`}>
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'} ${user.unlockRequested ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950 animate-pulse' : ''}`}>
                                 {user.name?.charAt(0)}
                               </div>
                               <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${onlineStatus.dotColor}`} />
                             </div>
                             <div>
-                              <p className="font-black text-sm">{user.name}</p>
+                              <div className="flex items-center gap-2">
+                                <p className="font-black text-sm">{user.name}</p>
+                                {user.unlockRequested && (
+                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse shadow-md shadow-red-500/50">
+                                    <Key size={10} className="animate-bounce shrink-0" />
+                                    {t.unlockRequestedNotify}
+                                  </span>
+                                )}
+                              </div>
                               <p className="text-[9px] font-bold text-slate-500 uppercase tracking-tighter">ID: {user.id}</p>
                             </div>
                           </div>
@@ -1961,7 +1976,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                               </button>
                             )}
                             {user.unlockRequested && (
-                              <span className="text-[8px] font-black uppercase bg-red-500 text-white px-2 py-1 rounded-md animate-pulse">
+                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-xl animate-pulse shadow-lg shadow-red-500/40">
+                                <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
                                 {t.unlockRequestedNotify}
                               </span>
                             )}
@@ -1973,7 +1989,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             <button onClick={() => setShowResetPassModal(user)} className="p-2 bg-white/5 text-slate-400 hover:text-amber-500 rounded-xl transition-all" title={t.resetPasswordTitle}>
                               <Lock size={18} />
                             </button>
-                            <button onClick={() => toggleUnlock(user)} className={`p-2 rounded-xl transition-all ${user.canEditSensitiveData ? 'bg-emerald-500 text-slate-900' : 'bg-white/5 text-slate-400 hover:text-white'}`} title={t.masterUnlockAction}>
+                            <button 
+                              onClick={() => toggleUnlock(user)} 
+                              className={`p-2 rounded-xl transition-all ${
+                                user.unlockRequested 
+                                  ? 'bg-amber-500 text-slate-950 animate-bounce ring-4 ring-amber-500/40 font-black shadow-lg shadow-amber-500/50' 
+                                  : user.canEditSensitiveData 
+                                    ? 'bg-emerald-500 text-slate-900' 
+                                    : 'bg-white/5 text-slate-400 hover:text-white'
+                              }`} 
+                              title={t.masterUnlockAction}
+                            >
                               {user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}
                             </button>
                             <button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}>
@@ -2016,7 +2042,14 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                          <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${status.dotColor}`} />
                        </div>
                        <div className="flex-1 min-w-0">
-                         <p className="font-black text-sm truncate">{comp.name}</p>
+                         <div className="flex items-center justify-between gap-1">
+                           <p className="font-black text-sm truncate">{comp.name}</p>
+                           {comp.unlockRequested && (
+                             <span className="shrink-0 text-[8px] font-black uppercase bg-red-500 text-white px-1.5 py-0.5 rounded animate-pulse" title="Solicitou Desbloqueio">
+                               🔑 DESBLOQUEIO
+                             </span>
+                           )}
+                         </div>
                          <p className="text-[10px] text-slate-400 truncate mt-1 flex items-center gap-1">
                            <span className={`w-1.5 h-1.5 rounded-full ${status.isOnline ? 'bg-emerald-400 animate-pulse' : 'bg-slate-500'}`} />
                            {status.isOnline ? 'Online agora' : status.detail}

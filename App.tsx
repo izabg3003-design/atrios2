@@ -1324,13 +1324,37 @@ const App: React.FC = () => {
     }
   };
 
-  const handleRequestUnlock = () => {
+  const handleRequestUnlock = async () => {
     if (!currentUser) return;
     const updated: Company = {
       ...currentUser,
       unlockRequested: true
     };
-    saveCompany(updated);
+    await saveCompany(updated);
+
+    try {
+      await supabase
+        .from('companies')
+        .update({ unlock_requested: true, unlockrequested: true })
+        .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`);
+    } catch (e) {
+      console.warn("Direct update for unlock_requested:", e);
+    }
+
+    try {
+      const unlockMsg: SupportMessage = {
+        id: generateShortId(),
+        companyId: currentUser.id,
+        senderRole: 'user',
+        content: "🔑 SOLICITAÇÃO DE DESBLOQUEIO: O utilizador solicitou autorização para alterar dados das Definições da empresa.",
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+      await saveMessage(unlockMsg);
+    } catch (err) {
+      console.warn("Erro ao enviar mensagem de pedido de desbloqueio:", err);
+    }
+
     setCurrentUser(updated);
     currentUserRef.current = updated;
     alert(t.unlockRequestSent);
@@ -3637,34 +3661,18 @@ const App: React.FC = () => {
                                 <input disabled={isSettingsLocked} type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsLogo)} />
                               </label>
                             </div>
-                            <div className="space-y-3 lg:space-y-4">
-                              <label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center justify-between">
-                                <span>{t.companyQrCode}</span>
-                                {currentUser && (
-                                  <button 
-                                    type="button"
-                                    onClick={() => { setCertificateCompany(currentUser); setShowCertificateModal(true); setIsStandaloneCertificate(false); }}
-                                    className="text-[10px] text-emerald-600 hover:text-emerald-700 font-bold flex items-center gap-1 cursor-pointer"
-                                  >
-                                    <ShieldCheck size={12} /> Ver Certificado Átrios
-                                  </button>
-                                )}
-                              </label>
-                              <label className="border-4 border-dashed border-slate-50 rounded-[1.5rem] lg:rounded-[2.5rem] p-6 lg:p-10 flex flex-col items-center justify-center gap-3 lg:gap-4 cursor-pointer hover:bg-slate-50 overflow-hidden h-40 lg:h-48 relative">
-                                {settingsQrCode ? <img src={settingsQrCode} className="absolute inset-0 w-full h-full object-contain p-6 lg:p-8" alt="QR Code" /> : <><div className="w-10 h-10 lg:w-12 lg:h-12 bg-slate-100 text-slate-300 rounded-lg lg:rounded-[1rem] flex items-center justify-center group-hover:scale-110 transition-transform"><QrCode size={20} className="lg:w-6 lg:h-6" /></div><span className="text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.uploadQrCode}</span></>}
-                                <input type="file" className="hidden" accept="image/*" onChange={(e) => handleFileUpload(e, setSettingsQrCode)} />
-                              </label>
-                              {currentUser && (
+                            {currentUser && (
+                              <div className="pt-2">
                                 <button
                                   type="button"
                                   onClick={() => { setCertificateCompany(currentUser); setShowCertificateModal(true); setIsStandaloneCertificate(false); }}
-                                  className="w-full py-3 px-4 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border border-emerald-200/80 rounded-xl lg:rounded-2xl text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer shadow-sm"
+                                  className="w-full py-4 px-5 bg-emerald-50 hover:bg-emerald-100 text-emerald-800 border-2 border-emerald-200/80 rounded-xl lg:rounded-2xl text-xs lg:text-sm font-black flex items-center justify-center gap-2.5 transition-all cursor-pointer shadow-sm active:scale-[0.99]"
                                 >
-                                  <ShieldCheck size={16} className="text-emerald-600" />
-                                  <span>Visualizar Certificado Átrios Ativo (Confiança Total)</span>
+                                  <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
+                                  <span>Visualizar Certificado Átrios Ativo</span>
                                 </button>
-                              )}
-                            </div>
+                              </div>
+                            )}
                          </div>
                          <div className="space-y-6 lg:space-y-8">
                             <div><label className="block text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest mb-2 lg:mb-3 flex items-center gap-2">{t.companyLabel} {isSettingsLocked && <Lock size={10} className="text-amber-500" />}</label><input disabled={isSettingsLocked} type="text" value={settingsCompanyName || ''} onChange={e => setSettingsCompanyName(e.target.value)} className={`w-full px-5 lg:px-6 py-3.5 lg:py-4 rounded-xl lg:rounded-2xl bg-slate-50 border-2 border-slate-100 outline-none font-bold transition-all text-sm lg:text-base ${isSettingsLocked ? 'opacity-50' : 'focus:border-slate-900'}`} /></div>
