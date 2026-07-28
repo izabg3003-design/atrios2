@@ -902,7 +902,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const pendingRequestsCount = useMemo(() => companies.filter(c => c.unlockRequested).length, [companies]);
+  const pendingRequestsCount = useMemo(() => companies.filter(c => Boolean(c.unlockRequested || (c as any).unlock_requested || (c as any).unlockrequested)).length, [companies]);
 
   const unreadMessagesTotalCount = useMemo(() => {
     const allMsgs = getMessages();
@@ -2041,9 +2041,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         {activeTab === 'users' && (
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden animate-in fade-in">
             <div className="p-8 border-b border-white/10 flex justify-between items-center bg-white/5">
-              <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
-                <Users size={24} /> {t.masterUserManagement}
-              </h2>
+              <div className="flex items-center gap-3">
+                <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
+                  <Users size={24} /> {t.masterUserManagement}
+                </h2>
+                {pendingRequestsCount > 0 && (
+                  <span className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-400 shadow-lg shadow-red-600/50">
+                    <span className="relative flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
+                    </span>
+                    {pendingRequestsCount} Solicitação(ões) de Desbloqueio
+                  </span>
+                )}
+              </div>
               <button 
                 onClick={() => setShowAddUserModal(true)} 
                 className="px-6 py-3 bg-amber-500 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-widest hover:bg-amber-400 flex items-center gap-2"
@@ -2051,6 +2062,23 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 <UserPlus size={18} /> {t.masterAddUser}
               </button>
             </div>
+
+            {pendingRequestsCount > 0 && (
+              <div className="px-8 py-3.5 bg-gradient-to-r from-red-950/80 via-red-900/60 to-slate-950 border-b border-red-500/30 flex items-center justify-between text-red-200 animate-pulse">
+                <div className="flex items-center gap-3 font-black text-xs uppercase tracking-wider">
+                  <span className="relative flex h-3 w-3 shrink-0">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-90"></span>
+                    <span className="relative inline-flex rounded-full h-3 w-3 bg-red-500"></span>
+                  </span>
+                  <Key size={18} className="text-amber-300 animate-bounce shrink-0" />
+                  <span>Atenção: {pendingRequestsCount} usuário(s) na lista abaixo solicitaram DESBLOQUEIO dos dados!</span>
+                </div>
+                <span className="text-[10px] bg-red-600 text-white font-black px-3 py-1 rounded-xl uppercase tracking-widest shadow-md">
+                  Ação Necessária 🚨
+                </span>
+              </div>
+            )}
+
             <div className="overflow-x-auto">
               <table className="w-full text-left">
                 <thead>
@@ -2064,15 +2092,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-white/5">
-                  {companies.map(user => {
+                  {[...companies].sort((a, b) => {
+                    const reqA = Boolean(a.unlockRequested || (a as any).unlock_requested || (a as any).unlockrequested);
+                    const reqB = Boolean(b.unlockRequested || (b as any).unlock_requested || (b as any).unlockrequested);
+                    if (reqA && !reqB) return -1;
+                    if (!reqA && reqB) return 1;
+                    return 0;
+                  }).map(user => {
                     const onlineStatus = getUserOnlineStatus(user);
                     const isUnlockReq = Boolean(user.unlockRequested || (user as any).unlock_requested || (user as any).unlockrequested);
                     return (
-                      <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''} ${isUnlockReq ? 'bg-red-500/10' : ''}`}>
+                      <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''} ${isUnlockReq ? 'bg-red-500/20 border-l-4 border-l-red-500' : ''}`}>
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-3">
                             <div className="relative shrink-0">
-                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black uppercase text-base ${user.isBlocked ? 'bg-red-500/20 text-red-500' : isUnlockReq ? 'bg-red-600 text-white shadow-lg shadow-red-500/50' : 'bg-white/10 text-amber-500'} ${isUnlockReq ? 'ring-4 ring-red-500/50 ring-offset-2 ring-offset-slate-950 animate-pulse' : ''}`}>
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black uppercase text-base ${user.isBlocked ? 'bg-red-500/20 text-red-500' : isUnlockReq ? 'bg-red-600 text-white shadow-xl shadow-red-600/60 ring-4 ring-red-500/80 animate-pulse' : 'bg-white/10 text-amber-500'}`}>
                                 {user.name?.charAt(0)}
                               </div>
                               <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-950 ${onlineStatus.dotColor}`} />
@@ -2082,6 +2116,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                                 <p className="font-black text-sm">{user.name}</p>
                                 {isUnlockReq && (
                                   <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-600 text-white animate-pulse shadow-md shadow-red-600/50 border border-red-400">
+                                    <span className="relative flex h-2 w-2 shrink-0">
+                                      <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-300 opacity-90"></span>
+                                      <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-400"></span>
+                                    </span>
                                     <Key size={12} className="animate-bounce shrink-0 text-amber-200" />
                                     SOLICITOU DESBLOQUEIO
                                   </span>
@@ -2115,8 +2153,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         </td>
                         <td className="px-8 py-6">
                           {isUnlockReq ? (
-                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase bg-red-600 text-white px-3 py-1.5 rounded-xl animate-pulse shadow-lg shadow-red-600/40 border border-red-400">
-                              <Key size={12} className="animate-bounce text-amber-200" />
+                            <span className="inline-flex items-center gap-2 text-[10px] font-black uppercase bg-red-600 text-white px-3.5 py-1.5 rounded-xl animate-pulse shadow-lg shadow-red-600/50 border border-red-400">
+                              <span className="relative flex h-2 w-2 shrink-0">
+                                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-90"></span>
+                                <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
+                              </span>
+                              <Key size={12} className="animate-bounce text-amber-200 shrink-0" />
                               SOLICITOU DESBLOQUEIO
                             </span>
                           ) : (
@@ -2134,17 +2176,23 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             )}
                             <button 
                               onClick={() => toggleUnlock(user)} 
-                              className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg ${
+                              className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xl ${
                                 isUnlockReq 
-                                  ? 'bg-amber-500 text-slate-950 animate-bounce ring-4 ring-amber-500/50 hover:bg-amber-400 shadow-amber-500/50' 
+                                  ? 'bg-gradient-to-r from-red-600 via-amber-500 to-red-600 text-white animate-pulse ring-4 ring-red-500/80 hover:scale-105 shadow-red-600/60' 
                                   : user.canEditSensitiveData 
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950' 
                                     : 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white'
                               }`} 
-                              title={isUnlockReq ? "Clique para Liberar Acesso" : user.canEditSensitiveData ? "Clique para Bloquear Acesso" : "Clique para Desbloquear Acesso"}
+                              title={isUnlockReq ? "Clique para Liberar Acesso ao Usuário" : user.canEditSensitiveData ? "Clique para Bloquear Acesso" : "Clique para Desbloquear Acesso"}
                             >
-                              <Key size={16} />
-                              {isUnlockReq ? "LIBERAR ACESSO 🔑" : user.canEditSensitiveData ? "DESBLOQUEADO" : "BLOQUEADO"}
+                              {isUnlockReq && (
+                                <span className="relative flex h-2.5 w-2.5 shrink-0">
+                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-90"></span>
+                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-300"></span>
+                                </span>
+                              )}
+                              <Key size={16} className={isUnlockReq ? "animate-bounce text-amber-200" : ""} />
+                              {isUnlockReq ? "LIBERAR ACESSO (SOLICITADO) 🔑" : user.canEditSensitiveData ? "DESBLOQUEADO" : "BLOQUEADO"}
                             </button>
                             {user.plan === PlanType.FREE && (
                               <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}>
