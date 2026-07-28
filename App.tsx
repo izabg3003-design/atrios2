@@ -798,6 +798,12 @@ const App: React.FC = () => {
             const updated = mapCompanyFromSupabase(payload.new);
             if (!updated) return;
             
+            // Se a conta estava desbloqueada localmente, preserva o desbloqueio
+            if (currentUserRef.current?.canEditSensitiveData && !updated.canEditSensitiveData) {
+              updated.canEditSensitiveData = true;
+              updated.unlockRequested = false;
+            }
+
             if (!currentUserRef.current?.canEditSensitiveData && updated.canEditSensitiveData) {
               setShowUnlockAlert(true);
               setTimeout(() => setShowUnlockAlert(false), 8000);
@@ -2640,24 +2646,59 @@ const App: React.FC = () => {
     
     // Atualiza diretamente no Supabase para garantir que fique bloqueado novamente após gravar
     try {
-      await supabase
-        .from('companies')
-        .update({
-          name: settingsCompanyName,
-          logo: settingsLogo,
-          fiscal_address: settingsAddress,
-          address: settingsAddress,
-          nif: settingsNif,
-          phone: settingsPhone,
-          website: settingsWebsite,
-          can_edit_sensitive_data: false,
-          caneditsensitivedata: false,
-          unlock_requested: false,
-          unlockrequested: false
-        })
-        .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`);
+      if (currentUser.id) {
+        await supabase
+          .from('companies')
+          .update({
+            name: settingsCompanyName,
+            logo: settingsLogo,
+            fiscal_address: settingsAddress,
+            address: settingsAddress,
+            nif: settingsNif,
+            phone: settingsPhone,
+            website: settingsWebsite,
+            can_edit_sensitive_data: false,
+            caneditsensitivedata: false,
+            unlock_requested: false,
+            unlockrequested: false
+          })
+          .eq('id', currentUser.id);
+      }
+      if (currentUser.email) {
+        await supabase
+          .from('companies')
+          .update({
+            name: settingsCompanyName,
+            logo: settingsLogo,
+            fiscal_address: settingsAddress,
+            address: settingsAddress,
+            nif: settingsNif,
+            phone: settingsPhone,
+            website: settingsWebsite,
+            can_edit_sensitive_data: false,
+            caneditsensitivedata: false,
+            unlock_requested: false,
+            unlockrequested: false
+          })
+          .eq('email', currentUser.email.toLowerCase().trim());
+      }
     } catch (e) {
       console.warn("Erro ao atualizar bloqueio diretamente no Supabase após salvar definições:", e);
+    }
+
+    try {
+      const companyChannel = supabase.channel(`user-company-${currentUser.id}`);
+      await companyChannel.send({
+        type: 'broadcast',
+        event: 'unlock-status-change',
+        payload: {
+          companyId: currentUser.id,
+          canEditSensitiveData: false,
+          unlockRequested: false
+        }
+      });
+    } catch (e) {
+      console.warn('Broadcast lock status error after save:', e);
     }
 
     setCurrentUser({...updated});

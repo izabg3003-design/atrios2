@@ -422,8 +422,14 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
       const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
 
+      const localCanEdit = localComp?.canEditSensitiveData || existingInState?.canEditSensitiveData;
+      const finalCanEdit = mapped.canEditSensitiveData || Boolean(localCanEdit);
+      const finalUnlockReq = finalCanEdit ? false : (mapped.unlockRequested || Boolean(localComp?.unlockRequested || existingInState?.unlockRequested));
+
       const updatedCompany: Company = {
         ...mapped,
+        canEditSensitiveData: finalCanEdit,
+        unlockRequested: finalUnlockReq,
         lastSeenAt: bestLastSeen || mapped.lastSeenAt,
         last_seen_at: bestLastSeen || (mapped as any).last_seen_at
       };
@@ -772,9 +778,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
               const maxLastSeenIso = bestLastSeenTimes.length > 0 ? new Date(Math.max(...bestLastSeenTimes)).toISOString() : undefined;
 
+              const localCanEdit = old.canEditSensitiveData || existingInState?.canEditSensitiveData;
+              const finalCanEdit = updatedCompany.canEditSensitiveData || Boolean(localCanEdit);
+              const finalUnlockReq = finalCanEdit ? false : (updatedCompany.unlockRequested || old.unlockRequested || false);
+
               const mergedCompany: Company = {
                 ...old,
                 ...updatedCompany,
+                canEditSensitiveData: finalCanEdit,
+                unlockRequested: finalUnlockReq,
                 lastSeenAt: maxLastSeenIso || old.lastSeenAt || updatedCompany.lastSeenAt,
                 last_seen_at: maxLastSeenIso || (old as any).last_seen_at || (updatedCompany as any).last_seen_at
               };
@@ -1197,15 +1209,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
     // Direct update to Supabase database
     try {
-      await supabase
-        .from('companies')
-        .update({
-          can_edit_sensitive_data: newCanEdit,
-          caneditsensitivedata: newCanEdit,
-          unlock_requested: false,
-          unlockrequested: false
-        })
-        .or(`id.eq.${company.id},email.eq.${company.email}`);
+      if (company.id) {
+        await supabase
+          .from('companies')
+          .update({
+            can_edit_sensitive_data: newCanEdit,
+            caneditsensitivedata: newCanEdit,
+            unlock_requested: false,
+            unlockrequested: false
+          })
+          .eq('id', company.id);
+      }
+      if (company.email) {
+        await supabase
+          .from('companies')
+          .update({
+            can_edit_sensitive_data: newCanEdit,
+            caneditsensitivedata: newCanEdit,
+            unlock_requested: false,
+            unlockrequested: false
+          })
+          .eq('email', company.email.toLowerCase().trim());
+      }
     } catch (err) {
       console.warn("Direct Supabase update error in toggleUnlock:", err);
     }
