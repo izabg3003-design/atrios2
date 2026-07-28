@@ -485,17 +485,24 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     
     if (messagesError) {
       console.warn("MasterPanel: Falha ao buscar mensagens (Cloud).", messagesError.message);
-    }
-    const mappedMessages = cloudMessages ? cloudMessages.map(mapMessageFromSupabase) : [];
-    if (cloudMessages && cloudMessages.length > 0) {
-      const localMsgs = getMessages();
-      const mergedMsgs = [...mappedMessages];
+    } else if (cloudMessages) {
+      const fetchedMsgs = cloudMessages.map(mapMessageFromSupabase);
+      const fifteenSecsAgo = new Date(Date.now() - 15 * 1000).toISOString();
+      const localMsgsStr = localStorage.getItem('atrios_messages');
+      let localMsgs: SupportMessage[] = localMsgsStr ? JSON.parse(localMsgsStr) : [];
+      
+      const mergedMsgs = [...fetchedMsgs];
       localMsgs.forEach(lm => {
         if (!mergedMsgs.some(mm => String(mm.id) === String(lm.id))) {
-          mergedMsgs.push(lm);
-          syncToCloud('messages', lm).catch(e => console.warn('MasterPanel: Erro ao re-sincronizar mensagem local:', e));
+          // Apenas preserva mensagens locais super recentes enviadas nos últimos 15s que ainda não chegaram à cloud
+          const isBrandNew = lm.timestamp && lm.timestamp > fifteenSecsAgo;
+          if (isBrandNew) {
+            mergedMsgs.push(lm);
+            syncToCloud('messages', lm).catch(e => console.warn('MasterPanel: Erro ao re-sincronizar mensagem local:', e));
+          }
         }
       });
+      
       safeSetItem('atrios_messages', JSON.stringify(mergedMsgs));
     }
 
@@ -503,6 +510,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const currentSelected = selectedCompanyIdRef.current;
     if (currentSelected) {
       setMessages(allMsgs.filter(m => String(m.companyId) === String(currentSelected)));
+    } else {
+      setMessages([]);
     }
 
     // Normalizar unlockRequested em allCompanies com base em mensagens de solicitação de desbloqueio pendentes
@@ -1030,6 +1039,24 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     selectedCompanyIdRef.current = companyId;
     setMessages(getMessages(companyId));
     markMessagesAsRead(companyId, 'master');
+  };
+
+  const handleClearChat = async (companyId: string) => {
+    if (!window.confirm(locale === 'pt' ? "Tem certeza que deseja apagar todas as mensagens desta conversa?" : "Are you sure you want to clear all messages from this chat?")) return;
+    
+    try {
+      await supabase.from('messages').delete().eq('companyId', companyId);
+      await supabase.from('messages').delete().eq('company_id', companyId);
+      await supabase.from('messages').delete().eq('companyid', companyId);
+    } catch (e) {
+      console.warn("Erro ao apagar mensagens no Supabase:", e);
+    }
+
+    const allMsgs = getMessages();
+    const remaining = allMsgs.filter(m => String(m.companyId) !== String(companyId));
+    safeSetItem('atrios_messages', JSON.stringify(remaining));
+    
+    setMessages([]);
   };
 
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
