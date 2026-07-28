@@ -96,13 +96,15 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     canEdit = Boolean(raw.can_edit_sensitive_data);
   } else if (raw.canEditSensitiveData !== undefined && raw.canEditSensitiveData !== null) {
     canEdit = Boolean(raw.canEditSensitiveData);
+  } else if (raw.caneditsensitivedata !== undefined && raw.caneditsensitivedata !== null) {
+    canEdit = Boolean(raw.caneditsensitivedata);
   } else {
     const localCompanies = getStoredCompanies();
     const localComp = localCompanies.find(c => String(c.id) === String(raw.id || raw.company_id || raw.companyid));
     if (localComp && localComp.canEditSensitiveData !== undefined) {
       canEdit = localComp.canEditSensitiveData;
     } else {
-      canEdit = true;
+      canEdit = false;
     }
   }
 
@@ -111,6 +113,8 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     unlockReq = Boolean(raw.unlock_requested);
   } else if (raw.unlockRequested !== undefined && raw.unlockRequested !== null) {
     unlockReq = Boolean(raw.unlockRequested);
+  } else if (raw.unlockrequested !== undefined && raw.unlockrequested !== null) {
+    unlockReq = Boolean(raw.unlockrequested);
   } else {
     const localCompanies = getStoredCompanies();
     const localComp = localCompanies.find(c => String(c.id) === String(raw.id || raw.company_id || raw.companyid));

@@ -812,6 +812,35 @@ const App: React.FC = () => {
             currentUserRef.current = updated;
           }
         )
+        .on(
+          'broadcast',
+          { event: 'unlock-status-change' },
+          (payload) => {
+            console.log('Received broadcast unlock-status-change:', payload);
+            if (payload && payload.payload) {
+              const { canEditSensitiveData } = payload.payload;
+              if (currentUserRef.current) {
+                const newCanEdit = Boolean(canEditSensitiveData);
+                const updated: Company = {
+                  ...currentUserRef.current,
+                  canEditSensitiveData: newCanEdit,
+                  unlockRequested: false
+                };
+                setCurrentUser(updated);
+                currentUserRef.current = updated;
+                saveCompany(updated);
+                if (newCanEdit) {
+                  setShowUnlockAlert(true);
+                  setTimeout(() => setShowUnlockAlert(false), 8000);
+                  triggerPushNotificationSubmit(
+                    "Acesso Liberado! 🔑",
+                    "O suporte aprovou a sua solicitação. O seu painel de dados sensíveis foi desbloqueado com sucesso."
+                  );
+                }
+              }
+            }
+          }
+        )
         .subscribe();
 
       // Subscrição para orçamentos (real-time sync)

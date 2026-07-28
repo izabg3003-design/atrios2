@@ -1153,8 +1153,70 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const toggleUnlock = async (company: Company) => {
-    const updated = { ...company, canEditSensitiveData: !company.canEditSensitiveData, unlockRequested: false };
-    await saveCompany(updated);
+    const newCanEdit = !company.canEditSensitiveData;
+    const updatedCompany: Company = {
+      ...company,
+      canEditSensitiveData: newCanEdit,
+      unlockRequested: false
+    };
+
+    // Update state immediately in Master UI
+    setCompanies(prev => prev.map(c => (c.id === company.id || (c.email && company.email && c.email.toLowerCase().trim() === company.email.toLowerCase().trim())) ? updatedCompany : c));
+    if (companiesRef.current) {
+      companiesRef.current = companiesRef.current.map(c => (c.id === company.id || (c.email && company.email && c.email.toLowerCase().trim() === company.email.toLowerCase().trim())) ? updatedCompany : c);
+    }
+
+    // Direct update to Supabase database
+    try {
+      await supabase
+        .from('companies')
+        .update({
+          can_edit_sensitive_data: newCanEdit,
+          caneditsensitivedata: newCanEdit,
+          unlock_requested: false,
+          unlockrequested: false
+        })
+        .or(`id.eq.${company.id},email.eq.${company.email}`);
+    } catch (err) {
+      console.warn("Direct Supabase update error in toggleUnlock:", err);
+    }
+
+    // Save locally and sync
+    await saveCompany(updatedCompany);
+
+    // Broadcast realtime event on company channel
+    try {
+      const companyChannel = supabase.channel(`user-company-${company.id}`);
+      await companyChannel.send({
+        type: 'broadcast',
+        event: 'unlock-status-change',
+        payload: {
+          companyId: company.id,
+          canEditSensitiveData: newCanEdit,
+          unlockRequested: false
+        }
+      });
+    } catch (e) {
+      console.warn('Broadcast unlock event error:', e);
+    }
+
+    // Send Support Message to company
+    try {
+      const notifyMsg: SupportMessage = {
+        id: generateShortId(),
+        companyId: company.id,
+        senderRole: 'master',
+        content: newCanEdit 
+          ? "🔓 DESBLOQUEIO CONCEDIDO: O administrador Master autorizou a alteração dos dados da sua empresa nas Definições."
+          : "🔒 DESBLOQUEIO REVOGADO: As Definições da empresa foram bloqueadas novamente pelo administrador Master.",
+        timestamp: new Date().toISOString(),
+        read: false
+      };
+      await saveMessage(notifyMsg);
+    } catch (e) {
+      console.warn('Error saving support message in toggleUnlock:', e);
+    }
+
     loadData();
   };
 
