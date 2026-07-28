@@ -54,6 +54,7 @@ import {
   Pie
 } from 'recharts';
 import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification } from '../types';
+import { generateCompanyQrCode } from '../services/qrcode';
 import { 
   getStoredCompanies, 
   saveCompany, 
@@ -1515,6 +1516,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const isAnn = isAnnualPlan(manualUserPlan);
     const expiresDays = isAnn ? 365 : 30;
 
+    const qrCode = await generateCompanyQrCode(newCompanyId, window.location.origin);
+
     const newCompany: Company = {
       id: newCompanyId,
       name: manualUserName,
@@ -1525,6 +1528,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       createdAt: new Date().toISOString(),
       isManual: true,
       manualPaymentProof: manualProofPreview,
+      qrCode: qrCode || '',
       subscriptionExpiresAt: isFreePlan(manualUserPlan) ? undefined : new Date(Date.now() + expiresDays * 24 * 60 * 60 * 1000).toISOString()
     };
     await saveCompany(newCompany);

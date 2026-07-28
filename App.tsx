@@ -2289,8 +2289,11 @@ const App: React.FC = () => {
     }
 
     const nowIso = new Date().toISOString();
+    const newCompanyId = Math.random().toString(36).substr(2, 9).toUpperCase();
+    const autoQrCode = await generateCompanyQrCode(newCompanyId, window.location.origin);
+
     const newCompany: Company = {
-      id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+      id: newCompanyId,
       name: companyName,
       email,
       password,
@@ -2300,7 +2303,8 @@ const App: React.FC = () => {
       firstLoginAt: nowIso,
       lastSeenAt: nowIso,
       last_seen_at: nowIso,
-      lastLocale: locale
+      lastLocale: locale,
+      qrCode: autoQrCode || ''
     };
 
     fetch('/api/user/ping', {
