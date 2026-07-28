@@ -1390,6 +1390,24 @@ const App: React.FC = () => {
       console.warn("Direct update for unlock_requested:", e);
     }
 
+    // Disparar notificação push ao Master (para chegar mesmo com a app fechada)
+    try {
+      await fetch('/api/push/notify-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'unlock_request',
+          details: {
+            companyName: currentUser.name || currentUser.companyName || currentUser.email || 'Empresa',
+            companyId: currentUser.id,
+            email: currentUser.email
+          }
+        })
+      });
+    } catch (pushErr) {
+      console.warn("Erro ao enviar push notification de desbloqueio ao master:", pushErr);
+    }
+
     setCurrentUser(updated);
     currentUserRef.current = updated;
     alert(t.unlockRequestSent);

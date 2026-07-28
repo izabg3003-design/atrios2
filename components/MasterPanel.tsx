@@ -82,7 +82,7 @@ import {
   mapCustomOrderFromSupabase,
   safeSetItem
 } from '../services/storage';
-import { supabase, testTableAccess, safeFetch } from '../services/supabase';
+import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/supabase';
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 
@@ -493,6 +493,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       localMsgs.forEach(lm => {
         if (!mergedMsgs.some(mm => String(mm.id) === String(lm.id))) {
           mergedMsgs.push(lm);
+          syncToCloud('messages', lm).catch(e => console.warn('MasterPanel: Erro ao re-sincronizar mensagem local:', e));
         }
       });
       safeSetItem('atrios_messages', JSON.stringify(mergedMsgs));

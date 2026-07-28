@@ -867,6 +867,8 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       currentCompanyLocalMessages.forEach(lm => {
         if (!mergedMessages.some(mm => String(mm.id) === String(lm.id))) {
           mergedMessages.push(lm);
+          // Se a mensagem existe localmente mas ainda não está no Supabase, sincroniza com a nuvem
+          syncToCloud('messages', lm).catch(e => console.warn('[Hydrate] Erro ao re-sincronizar mensagem local:', e));
         }
       });
       

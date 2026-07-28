@@ -63,23 +63,46 @@ export interface SyncResult {
       });
     }
 
-    // 3. Mapeamento Automático de CamelCase para SnakeCase (removendo as chaves camelCase originais)
+    // 3. Mapeamento Automático: Mantém as chaves originais (camelCase) E adiciona versões snake_case e lowercase
     const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     
     const cleanData: any = {};
     Object.keys(rawData).forEach(key => {
+      cleanData[key] = rawData[key];
       const snakeKey = toSnakeCase(key);
-      cleanData[snakeKey] = rawData[key];
+      if (snakeKey !== key) {
+        cleanData[snakeKey] = rawData[key];
+      }
+      const lowerKey = key.toLowerCase();
+      if (lowerKey !== key && lowerKey !== snakeKey) {
+        cleanData[lowerKey] = rawData[key];
+      }
     });
 
-    // 4. Casos especiais de mapeamento
-    // companyId -> company_id e também companyid (sem underscore)
-    if (cleanData.company_id || cleanData.companyId) {
-      cleanData.companyid = cleanData.company_id || cleanData.companyId;
-      cleanData.company_id = cleanData.company_id || cleanData.companyId;
+    // 4. Casos especiais de mapeamento (garante todas as variações de nomes de colunas)
+    if (rawData.companyId || rawData.company_id || rawData.companyid) {
+      const cId = rawData.companyId || rawData.company_id || rawData.companyid;
+      cleanData.companyId = cId;
+      cleanData.company_id = cId;
+      cleanData.companyid = cId;
     }
-    if (rawData.timestamp) {
-      cleanData.created_at = rawData.timestamp;
+    if (rawData.senderRole || rawData.sender_role || rawData.senderrole) {
+      const sRole = rawData.senderRole || rawData.sender_role || rawData.senderrole;
+      cleanData.senderRole = sRole;
+      cleanData.sender_role = sRole;
+      cleanData.senderrole = sRole;
+    }
+    if (rawData.translatedContent || rawData.translated_content || rawData.translatedcontent) {
+      const tc = rawData.translatedContent || rawData.translated_content || rawData.translatedcontent;
+      cleanData.translatedContent = tc;
+      cleanData.translated_content = tc;
+      cleanData.translatedcontent = tc;
+    }
+    if (rawData.timestamp || rawData.created_at || rawData.createdAt) {
+      const ts = rawData.timestamp || rawData.created_at || rawData.createdAt;
+      cleanData.timestamp = ts;
+      cleanData.created_at = ts;
+      cleanData.createdAt = ts;
     }
 
     // 5. Garantir que arrays/objetos sejam enviados como string se necessário

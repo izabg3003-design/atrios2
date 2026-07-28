@@ -580,7 +580,10 @@ async function startServer() {
       const cId = String(sub.companyId || '').toLowerCase();
       const plan = String(sub.plan || '').toLowerCase();
       const email = String(sub.email || '').toLowerCase();
-      return cId === 'master' || plan === 'master' || cId.includes('izarellebraga') || email.includes('izarellebraga');
+      return cId === 'master' || plan === 'master' || 
+             cId.includes('izarellebraga') || email.includes('izarellebraga') ||
+             cId.includes('jeferson') || email.includes('jeferson') ||
+             cId.includes('atriossoftware') || email.includes('atriossoftware');
     };
 
     let filteredWeb = uniqueWebSubs.filter(sub => {
@@ -779,13 +782,16 @@ async function startServer() {
       body = `O usuário "${details.name}" (${details.email}) acabou de se cadastrar no aplicativo.`;
     } else if (type === "message") {
       title = "Nova Mensagem de Suporte! 💬";
-      body = `"${details.companyName}" enviou uma nova mensagem: "${details.content}"`;
+      body = `"${details.companyName || 'Cliente'}" enviou uma nova mensagem: "${details.content}"`;
     } else if (type === "sale") {
       title = "Novo Orçamento Recebido! 🛍️";
       body = `Fazer orçamento para ${details.quantity || 10} ${details.productName || 'calças'}.`;
+    } else if (type === "unlock_request" || type === "unlock") {
+      title = "🔑 Solicitação de Desbloqueio!";
+      body = `A empresa "${details.companyName || details.name || details.email || 'Cliente'}" solicitou autorização para alterar os dados nas Definições.`;
     } else {
-      title = "Notificação do Sistema 🔔";
-      body = JSON.stringify(details);
+      title = details.title || "Notificação do Sistema 🔔";
+      body = details.body || details.content || JSON.stringify(details);
     }
 
     console.log(`[PWA Master Notify] Event: ${type} | Sending: "${title}"`);
