@@ -93,29 +93,27 @@ export const mapCompanyFromSupabase = (data: any): Company => {
   const localComp = localCompanies.find(c => String(c.id) === String(raw.id || raw.company_id || raw.companyid) || (c.email && raw.email && c.email.toLowerCase().trim() === String(raw.email).toLowerCase().trim()));
 
   const rawCanEditVal = raw.can_edit_sensitive_data ?? raw.canEditSensitiveData ?? raw.caneditsensitivedata;
+  const rawUnlockVal = raw.unlock_requested ?? raw.unlockRequested ?? raw.unlockrequested;
+
+  let unlockReq = false;
+  if (rawUnlockVal !== undefined && rawUnlockVal !== null) {
+    unlockReq = Boolean(rawUnlockVal);
+  } else if (localComp && localComp.unlockRequested !== undefined) {
+    unlockReq = localComp.unlockRequested;
+  }
+
   let canEdit = false;
   if (normalizedPlan !== PlanType.FREE) {
     canEdit = true;
+    unlockReq = false;
+  } else if (unlockReq) {
+    canEdit = false;
   } else if (rawCanEditVal !== undefined && rawCanEditVal !== null) {
     canEdit = Boolean(rawCanEditVal);
-    // Se o valor raw do DB for falso mas no cache local a empresa foi explicitamente desbloqueada pelo Master, preserva true
-    if (!canEdit && localComp && localComp.canEditSensitiveData === true) {
-      canEdit = true;
-    }
   } else if (localComp && localComp.canEditSensitiveData !== undefined) {
     canEdit = localComp.canEditSensitiveData;
   } else {
     canEdit = false;
-  }
-
-  const rawUnlockVal = raw.unlock_requested ?? raw.unlockRequested ?? raw.unlockrequested;
-  let unlockReq = false;
-  if (canEdit) {
-    unlockReq = false;
-  } else if (rawUnlockVal !== undefined && rawUnlockVal !== null) {
-    unlockReq = Boolean(rawUnlockVal);
-  } else if (localComp && localComp.unlockRequested !== undefined) {
-    unlockReq = localComp.unlockRequested;
   }
 
   const mapped: Company = {
@@ -637,14 +635,21 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
 export const mapMessageFromSupabase = (m: any): SupportMessage => {
   if (!m) return m;
   const mapped: any = { ...m };
-  const companyId = m.companyId || m.company_id || m.companyid || '';
-  if (companyId) mapped.companyId = String(companyId);
+  const rawCompanyId = m.companyId || m.company_id || m.companyid || m.company_id_raw || '';
+  if (rawCompanyId) mapped.companyId = String(rawCompanyId);
   const senderRole = m.senderRole || m.sender_role || m.senderrole || 'user';
   mapped.senderRole = senderRole;
   if (m.translated_content && !m.translatedContent) mapped.translatedContent = m.translated_content;
+  if (m.translatedcontent && !m.translatedContent) mapped.translatedContent = m.translatedcontent;
   if (m.created_at && !m.createdAt) mapped.createdAt = m.created_at;
   if (m.created_at && !m.timestamp) mapped.timestamp = m.created_at;
-  if (m.timestamp && !m.created_at) mapped.created_at = m.timestamp;
+  if (m.timestamp && !m.createdAt) mapped.createdAt = m.timestamp;
+  if (!mapped.timestamp && mapped.createdAt) mapped.timestamp = mapped.createdAt;
+  if (!mapped.timestamp) {
+    mapped.timestamp = new Date().toISOString();
+    mapped.createdAt = mapped.timestamp;
+  }
+  mapped.read = Boolean(m.read);
   return mapped as SupportMessage;
 };
 
@@ -856,17 +861,12 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const otherMessages = allMessages.filter(m => String(m.companyId) !== String(companyId));
       const currentCompanyLocalMessages = allMessages.filter(m => String(m.companyId) === String(companyId));
       
-      // Merge: keep local messages that are not in the fetched list (unsynced)
-      // Mas apenas se forem muito recentes (criados no último minuto)
-      const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+      // Merge: preserve local messages that are not in the fetched list
       const mergedMessages = [...fetchedMessages];
       
       currentCompanyLocalMessages.forEach(lm => {
-        if (!mergedMessages.some(mm => mm.id === lm.id)) {
-          const isNew = lm.timestamp && lm.timestamp > oneMinuteAgo;
-          if (isNew) {
-            mergedMessages.push(lm);
-          }
+        if (!mergedMessages.some(mm => String(mm.id) === String(lm.id))) {
+          mergedMessages.push(lm);
         }
       });
       

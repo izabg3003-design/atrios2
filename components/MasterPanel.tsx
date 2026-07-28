@@ -423,9 +423,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       const maxTime = validTimes.length > 0 ? Math.max(...validTimes) : null;
       const bestLastSeen = maxTime ? new Date(maxTime).toISOString() : undefined;
 
-      const localCanEdit = localComp?.canEditSensitiveData || existingInState?.canEditSensitiveData;
-      const finalCanEdit = mapped.canEditSensitiveData || Boolean(localCanEdit);
-      const finalUnlockReq = finalCanEdit ? false : (mapped.unlockRequested || Boolean(localComp?.unlockRequested || existingInState?.unlockRequested));
+      const dbUnlockReq = Boolean(mapped.unlockRequested || (mapped as any).unlock_requested || (mapped as any).unlockrequested);
+      const finalUnlockReq = localComp && localComp.unlockRequested !== undefined ? localComp.unlockRequested : dbUnlockReq;
+
+      const dbCanEdit = Boolean(mapped.canEditSensitiveData || (mapped as any).can_edit_sensitive_data || (mapped as any).caneditsensitivedata);
+      const localCanEdit = Boolean(localComp?.canEditSensitiveData || existingInState?.canEditSensitiveData);
+      const finalCanEdit = finalUnlockReq ? false : (mapped.plan !== PlanType.FREE ? true : (dbCanEdit || localCanEdit));
 
       const updatedCompany: Company = {
         ...mapped,
@@ -779,9 +782,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
               const maxLastSeenIso = bestLastSeenTimes.length > 0 ? new Date(Math.max(...bestLastSeenTimes)).toISOString() : undefined;
 
-              const localCanEdit = old.canEditSensitiveData || existingInState?.canEditSensitiveData;
-              const finalCanEdit = updatedCompany.canEditSensitiveData || Boolean(localCanEdit);
-              const finalUnlockReq = finalCanEdit ? false : (updatedCompany.unlockRequested || old.unlockRequested || false);
+              const dbUnlockReq = Boolean(updatedCompany.unlockRequested || (updatedCompany as any).unlock_requested || (updatedCompany as any).unlockrequested);
+              const finalUnlockReq = old && old.unlockRequested !== undefined ? old.unlockRequested : dbUnlockReq;
+
+              const dbCanEdit = Boolean(updatedCompany.canEditSensitiveData || (updatedCompany as any).can_edit_sensitive_data || (updatedCompany as any).caneditsensitivedata);
+              const localCanEdit = Boolean(old.canEditSensitiveData || existingInState?.canEditSensitiveData);
+              const finalCanEdit = finalUnlockReq ? false : (updatedCompany.plan !== PlanType.FREE ? true : (dbCanEdit || localCanEdit));
 
               const mergedCompany: Company = {
                 ...old,
@@ -2180,9 +2186,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             )}
                             <button 
                               onClick={() => toggleUnlock(user)} 
-                              className={`px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-xl ${
+                              className={`relative px-4 py-2.5 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-2xl overflow-hidden cursor-pointer active:scale-95 ${
                                 isUnlockReq 
-                                  ? 'bg-gradient-to-r from-red-600 via-amber-500 to-red-600 text-white animate-pulse ring-4 ring-red-500/80 hover:scale-105 shadow-red-600/60' 
+                                  ? 'bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white animate-bounce ring-4 ring-amber-400 shadow-red-600/90 hover:scale-105 border-2 border-amber-300' 
                                   : user.canEditSensitiveData 
                                     ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950' 
                                     : 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white'
@@ -2190,13 +2196,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                               title={isUnlockReq ? "Clique para Liberar Acesso ao Usuário" : user.canEditSensitiveData ? "Clique para Bloquear Acesso" : "Clique para Desbloquear Acesso"}
                             >
                               {isUnlockReq && (
-                                <span className="relative flex h-2.5 w-2.5 shrink-0">
-                                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-90"></span>
-                                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-amber-300"></span>
-                                </span>
+                                <>
+                                  <span className="absolute inset-0 bg-amber-400/20 animate-ping opacity-40 rounded-xl pointer-events-none" />
+                                  <span className="relative flex h-3 w-3 shrink-0">
+                                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-200 opacity-90"></span>
+                                    <span className="relative inline-flex rounded-full h-3 w-3 bg-amber-300"></span>
+                                  </span>
+                                </>
                               )}
-                              <Key size={16} className={isUnlockReq ? "animate-bounce text-amber-200" : ""} />
-                              {isUnlockReq ? "LIBERAR ACESSO (SOLICITADO) 🔑" : user.canEditSensitiveData ? "DESBLOQUEADO" : "BLOQUEADO"}
+                              <Key size={16} className={isUnlockReq ? "animate-bounce text-amber-200 shrink-0" : ""} />
+                              <span className="relative z-10">{isUnlockReq ? "LIBERAR ACESSO (SOLICITADO) 🔑" : user.canEditSensitiveData ? "DESBLOQUEADO" : "BLOQUEADO"}</span>
                             </button>
                             {user.plan === PlanType.FREE && (
                               <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}>

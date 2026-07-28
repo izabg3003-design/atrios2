@@ -1390,20 +1390,6 @@ const App: React.FC = () => {
       console.warn("Direct update for unlock_requested:", e);
     }
 
-    try {
-      const unlockMsg: SupportMessage = {
-        id: generateShortId(),
-        companyId: currentUser.id,
-        senderRole: 'user',
-        content: "🔑 SOLICITAÇÃO DE DESBLOQUEIO: O utilizador solicitou autorização para alterar dados das Definições da empresa.",
-        timestamp: new Date().toISOString(),
-        read: false
-      };
-      await saveMessage(unlockMsg);
-    } catch (err) {
-      console.warn("Erro ao enviar mensagem de pedido de desbloqueio:", err);
-    }
-
     setCurrentUser(updated);
     currentUserRef.current = updated;
     alert(t.unlockRequestSent);
@@ -3840,7 +3826,7 @@ const App: React.FC = () => {
           </main>
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowPaymentManager(false); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
-          <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
+          <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); setMessages(getMessages(currentUser.id)); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && (
             <SupportChat 
               locale={locale} 
