@@ -102,34 +102,43 @@ const triggerPushNotificationSubmit = (title: string, body: string) => {
       return;
     }
     
-    if (Notification.permission === 'granted') {
+    const sendNotification = (reg?: ServiceWorkerRegistration) => {
       const options = {
         body,
         icon: '/favicon.svg',
         badge: '/favicon.svg',
         vibrate: [200, 100, 200],
-        tag: 'atrios-client-push',
-        renotify: true
+        tag: 'atrios-client-push-' + Date.now(),
+        renotify: true,
+        requireInteraction: true
       };
-      
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.showNotification(title, options);
-        }).catch((e) => {
-          console.error('SW ready failed, fallback to standard Notification', e);
-          try {
-            new Notification(title, options);
-          } catch (err) {
-            console.error(err);
-          }
-        });
+
+      if (reg && reg.showNotification) {
+        reg.showNotification(title, options);
       } else {
         try {
           new Notification(title, options);
-        } catch (err) {
-          console.error(err);
+        } catch (e) {
+          console.error(e);
         }
       }
+    };
+
+    if (Notification.permission === 'granted') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then(() => navigator.serviceWorker.ready)
+          .then(reg => sendNotification(reg))
+          .catch(() => sendNotification());
+      } else {
+        sendNotification();
+      }
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          triggerPushNotificationSubmit(title, body);
+        }
+      });
     }
   } catch (err) {
     console.error('Error in triggerPushNotificationSubmit:', err);
@@ -469,21 +478,26 @@ const App: React.FC = () => {
     if (!currentUser?.id) return;
 
     const pingOnlineStatus = () => {
+      const curr = currentUserRef.current || currentUser;
+      if (!curr?.id) return;
+
       const nowIso = new Date().toISOString();
-      const companyId = currentUser.id;
-      const email = currentUser.email;
+      const companyId = curr.id;
+      const email = curr.email;
 
       if (currentUserRef.current) {
         currentUserRef.current.lastSeenAt = nowIso;
         (currentUserRef.current as any).last_seen_at = nowIso;
       }
 
-      // 1. Atualizar no LocalStorage
-      saveCompany({ 
-        ...currentUser, 
-        lastSeenAt: nowIso, 
-        last_seen_at: nowIso 
-      });
+      // 1. Atualizar no LocalStorage APENAS a data de último acesso para não sobrescrever dados sensíveis/bloqueios
+      const localCompanies = getStoredCompanies();
+      const idx = localCompanies.findIndex(c => String(c.id) === String(companyId));
+      if (idx > -1) {
+        localCompanies[idx].lastSeenAt = nowIso;
+        (localCompanies[idx] as any).last_seen_at = nowIso;
+        safeSetItem('atrios_companies', JSON.stringify(localCompanies));
+      }
 
       // 2. Transmitir via BroadcastChannel (sincronização instantânea entre abas no mesmo navegador)
       try {
@@ -2623,6 +2637,29 @@ const App: React.FC = () => {
       unlockRequested: false
     };
     await saveCompany(updated);
+    
+    // Atualiza diretamente no Supabase para garantir que fique bloqueado novamente após gravar
+    try {
+      await supabase
+        .from('companies')
+        .update({
+          name: settingsCompanyName,
+          logo: settingsLogo,
+          fiscal_address: settingsAddress,
+          address: settingsAddress,
+          nif: settingsNif,
+          phone: settingsPhone,
+          website: settingsWebsite,
+          can_edit_sensitive_data: false,
+          caneditsensitivedata: false,
+          unlock_requested: false,
+          unlockrequested: false
+        })
+        .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`);
+    } catch (e) {
+      console.warn("Erro ao atualizar bloqueio diretamente no Supabase após salvar definições:", e);
+    }
+
     setCurrentUser({...updated});
     currentUserRef.current = updated;
     setShowSettingsConfirmModal(false);

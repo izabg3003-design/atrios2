@@ -106,6 +106,7 @@ const registerMasterPushSubscription = async () => {
     return;
   }
   try {
+    await navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {});
     const reg = await navigator.serviceWorker.ready;
     let subscription = await reg.pushManager.getSubscription();
     
@@ -141,7 +142,7 @@ const registerMasterPushSubscription = async () => {
       console.info('[Master Push] Subscription skipped or unavailable in this environment.');
     }
   } catch (err: any) {
-    console.warn('[Master Push] Error registering subscription (expected in some sandboxed preview environments):', err.message || err);
+    console.warn('[Master Push] Error registering subscription:', err.message || err);
   }
 };
 
@@ -152,34 +153,43 @@ const triggerPushNotificationSubmit = (title: string, body: string) => {
       return;
     }
     
-    if (Notification.permission === 'granted') {
+    const sendNotification = (reg?: ServiceWorkerRegistration) => {
       const options = {
         body,
         icon: '/favicon.svg',
         badge: '/favicon.svg',
         vibrate: [200, 100, 200],
-        tag: 'atrios-master-push',
-        renotify: true
+        tag: 'atrios-master-push-' + Date.now(),
+        renotify: true,
+        requireInteraction: true
       };
-      
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready.then((reg) => {
-          reg.showNotification(title, options);
-        }).catch((e) => {
-          console.error('SW ready failed, fallback to standard Notification', e);
-          try {
-            new Notification(title, options);
-          } catch (err) {
-            console.error(err);
-          }
-        });
+
+      if (reg && reg.showNotification) {
+        reg.showNotification(title, options);
       } else {
         try {
           new Notification(title, options);
-        } catch (err) {
-          console.error(err);
+        } catch (e) {
+          console.error(e);
         }
       }
+    };
+
+    if (Notification.permission === 'granted') {
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/firebase-messaging-sw.js')
+          .then(() => navigator.serviceWorker.ready)
+          .then(reg => sendNotification(reg))
+          .catch(() => sendNotification());
+      } else {
+        sendNotification();
+      }
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          triggerPushNotificationSubmit(title, body);
+        }
+      });
     }
   } catch (err) {
     console.error('Error in triggerPushNotificationSubmit in MasterPanel:', err);
@@ -460,20 +470,6 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       safeSetItem('atrios_companies', JSON.stringify(allCompanies));
     }
 
-    // Alertas de Desbloqueio
-    const unlockCount = allCompanies.filter(c => c.unlockRequested).length;
-    if (unlockCount > prevUnlockCount.current) {
-       const newReq = allCompanies.find(c => c.unlockRequested && !companiesRef.current.find(old => old.id === c.id && old.unlockRequested));
-       if (newReq) {
-         setLastUnlockAlert(newReq.name);
-         triggerPushNotificationSubmit(
-           "Solicitação de Desbloqueio 🔑",
-           `A empresa ${newReq.name} solicitou o desbloqueio da conta para editar dados nas Definições.`
-         );
-       }
-    }
-    prevUnlockCount.current = unlockCount;
-
     // Buscar mensagens do Supabase
     const { data: cloudMessages, error: messagesError } = await safeFetch<any[]>(supabase.from('messages').select('*'));
     
@@ -497,6 +493,39 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     if (currentSelected) {
       setMessages(allMsgs.filter(m => String(m.companyId) === String(currentSelected)));
     }
+
+    // Normalizar unlockRequested em allCompanies com base em mensagens de solicitação de desbloqueio pendentes
+    allCompanies = allCompanies.map(c => {
+      const hasUnlockMsg = allMsgs.some(m => 
+        String(m.companyId) === String(c.id) && 
+        m.senderRole === 'user' && 
+        (m.content.includes("SOLICITAÇÃO DE DESBLOQUEIO") || m.content.includes("SOLICITACAO DE DESBLOQUEIO"))
+      );
+      const isReq = Boolean(
+        c.unlockRequested || 
+        (c as any).unlock_requested || 
+        (c as any).unlockrequested || 
+        (hasUnlockMsg && c.canEditSensitiveData === false)
+      );
+      return {
+        ...c,
+        unlockRequested: isReq
+      };
+    });
+
+    // Alertas de Desbloqueio
+    const unlockCount = allCompanies.filter(c => c.unlockRequested).length;
+    if (unlockCount > prevUnlockCount.current) {
+       const newReq = allCompanies.find(c => c.unlockRequested && !companiesRef.current.find(old => old.id === c.id && old.unlockRequested));
+       if (newReq) {
+         setLastUnlockAlert(newReq.name);
+         triggerPushNotificationSubmit(
+           "Solicitação de Desbloqueio 🔑",
+           `A empresa ${newReq.name} solicitou o desbloqueio da conta para editar dados nas Definições.`
+         );
+       }
+    }
+    prevUnlockCount.current = unlockCount;
 
     const unreadMessages = allMsgs.filter(m => m.senderRole === 'user' && !m.read);
     const unreadCount = unreadMessages.length;
@@ -1722,6 +1751,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     return "-";
   };
 
+  const pendingUnlockCompanies = useMemo(() => {
+    return companies.filter(c => Boolean(c.unlockRequested || (c as any).unlock_requested || (c as any).unlockrequested));
+  }, [companies]);
+
   const getUnreadCount = (companyId: string) => {
     return getMessages(companyId).filter(m => m.senderRole === 'user' && !m.read).length;
   };
@@ -1729,6 +1762,35 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   return (
     <div className="min-h-screen bg-slate-950 text-white p-8 font-sans relative">
       
+      {/* Balão Flutuante de Notificação de Desbloqueio no Master */}
+      {pendingUnlockCompanies.length > 0 && (
+        <div className="fixed top-6 left-1/2 -translate-x-1/2 z-[10002] bg-gradient-to-r from-red-600 via-amber-600 to-red-600 text-white px-8 py-4 rounded-[2.5rem] shadow-2xl flex items-center gap-5 border-2 border-amber-400 animate-in slide-in-from-top backdrop-blur-xl">
+          <div className="w-12 h-12 rounded-2xl bg-white/20 flex items-center justify-center shrink-0 animate-bounce">
+            <Key size={26} className="text-amber-200" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full bg-amber-300 animate-ping" />
+              <p className="font-black text-xs uppercase tracking-widest text-amber-200">
+                {pendingUnlockCompanies.length === 1 
+                  ? '1 Empresa Solicitou Desbloqueio' 
+                  : `${pendingUnlockCompanies.length} Empresas Solicitaram Desbloqueio`}
+              </p>
+            </div>
+            <p className="text-xs font-bold text-white/90 truncate max-w-[320px] sm:max-w-[450px]">
+              {pendingUnlockCompanies.map(c => c.name).join(', ')}
+            </p>
+          </div>
+          <button 
+            onClick={() => { setActiveTab('users'); setLastUnlockAlert(null); }} 
+            className="px-5 py-2.5 bg-white text-slate-950 hover:bg-amber-300 rounded-2xl text-[11px] font-black uppercase tracking-widest transition-all shadow-xl active:scale-95 shrink-0 flex items-center gap-2"
+          >
+            <Key size={14} />
+            Desbloquear Agora
+          </button>
+        </div>
+      )}
+
       {lastMessageAlert && (
         <div className="fixed top-8 left-1/2 -translate-x-1/2 z-[10002] bg-blue-600 text-white px-8 py-4 rounded-[2rem] shadow-2xl flex items-center gap-4 animate-in slide-in-from-top border border-blue-400">
            <MessageSquare size={24} className="animate-bounce" />
@@ -1979,23 +2041,24 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 <tbody className="divide-y divide-white/5">
                   {companies.map(user => {
                     const onlineStatus = getUserOnlineStatus(user);
+                    const isUnlockReq = Boolean(user.unlockRequested || (user as any).unlock_requested || (user as any).unlockrequested);
                     return (
-                      <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''}`}>
+                      <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''} ${isUnlockReq ? 'bg-red-500/10' : ''}`}>
                         <td className="px-8 py-6">
                           <div className="flex items-center gap-3">
                             <div className="relative shrink-0">
-                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center font-black uppercase ${user.isBlocked ? 'bg-red-500/20 text-red-500' : 'bg-white/10 text-amber-500'} ${user.unlockRequested ? 'ring-2 ring-red-500 ring-offset-2 ring-offset-slate-950 animate-pulse' : ''}`}>
+                              <div className={`w-11 h-11 rounded-2xl flex items-center justify-center font-black uppercase text-base ${user.isBlocked ? 'bg-red-500/20 text-red-500' : isUnlockReq ? 'bg-red-600 text-white shadow-lg shadow-red-500/50' : 'bg-white/10 text-amber-500'} ${isUnlockReq ? 'ring-4 ring-red-500/50 ring-offset-2 ring-offset-slate-950 animate-pulse' : ''}`}>
                                 {user.name?.charAt(0)}
                               </div>
-                              <span className={`absolute -bottom-0.5 -right-0.5 w-3 h-3 rounded-full border-2 border-slate-950 ${onlineStatus.dotColor}`} />
+                              <span className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 rounded-full border-2 border-slate-950 ${onlineStatus.dotColor}`} />
                             </div>
                             <div>
-                              <div className="flex items-center gap-2">
+                              <div className="flex items-center gap-2 flex-wrap">
                                 <p className="font-black text-sm">{user.name}</p>
-                                {user.unlockRequested && (
-                                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-red-500 text-white animate-pulse shadow-md shadow-red-500/50">
-                                    <Key size={10} className="animate-bounce shrink-0" />
-                                    {t.unlockRequestedNotify}
+                                {isUnlockReq && (
+                                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider bg-red-600 text-white animate-pulse shadow-md shadow-red-600/50 border border-red-400">
+                                    <Key size={12} className="animate-bounce shrink-0 text-amber-200" />
+                                    SOLICITOU DESBLOQUEIO
                                   </span>
                                 )}
                               </div>
@@ -2026,9 +2089,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           </span>
                         </td>
                         <td className="px-8 py-6">
-                          <p className="text-xs font-black text-emerald-400 flex items-center gap-2">
-                            <Calendar size={12} /> {getDaysInfo(user)}
-                          </p>
+                          {isUnlockReq ? (
+                            <span className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase bg-red-600 text-white px-3 py-1.5 rounded-xl animate-pulse shadow-lg shadow-red-600/40 border border-red-400">
+                              <Key size={12} className="animate-bounce text-amber-200" />
+                              SOLICITOU DESBLOQUEIO
+                            </span>
+                          ) : (
+                            <p className="text-xs font-black text-emerald-400 flex items-center gap-2">
+                              <Calendar size={12} /> {getDaysInfo(user)}
+                            </p>
+                          )}
                         </td>
                         <td className="px-8 py-6 text-right">
                           <div className="flex items-center justify-end gap-3">
@@ -2037,12 +2107,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                                 <MessageSquare size={12} /> {getUnreadCount(user.id)}
                               </button>
                             )}
-                            {user.unlockRequested && (
-                              <span className="inline-flex items-center gap-1.5 text-[9px] font-black uppercase bg-red-500 text-white px-2.5 py-1 rounded-xl animate-pulse shadow-lg shadow-red-500/40">
-                                <span className="w-2 h-2 rounded-full bg-white animate-ping shrink-0" />
-                                {t.unlockRequestedNotify}
-                              </span>
-                            )}
+                            <button 
+                              onClick={() => toggleUnlock(user)} 
+                              className={`px-4 py-2 rounded-xl text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-2 shadow-lg ${
+                                isUnlockReq 
+                                  ? 'bg-amber-500 text-slate-950 animate-bounce ring-4 ring-amber-500/50 hover:bg-amber-400 shadow-amber-500/50' 
+                                  : user.canEditSensitiveData 
+                                    ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/40 hover:bg-emerald-500 hover:text-slate-950' 
+                                    : 'bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500 hover:text-white'
+                              }`} 
+                              title={isUnlockReq ? "Clique para Liberar Acesso" : user.canEditSensitiveData ? "Clique para Bloquear Acesso" : "Clique para Desbloquear Acesso"}
+                            >
+                              <Key size={16} />
+                              {isUnlockReq ? "LIBERAR ACESSO 🔑" : user.canEditSensitiveData ? "DESBLOQUEADO" : "BLOQUEADO"}
+                            </button>
                             {user.plan === PlanType.FREE && (
                               <button onClick={() => setShowDurationModal(user)} className="p-2 bg-emerald-500/10 text-emerald-500 rounded-xl hover:bg-emerald-500 hover:text-white transition-all" title={t.masterUpgradeUser}>
                                 <Zap size={18} />
@@ -2051,20 +2129,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             <button onClick={() => setShowResetPassModal(user)} className="p-2 bg-white/5 text-slate-400 hover:text-amber-500 rounded-xl transition-all" title={t.resetPasswordTitle}>
                               <Lock size={18} />
                             </button>
-                            <button 
-                              onClick={() => toggleUnlock(user)} 
-                              className={`p-2 rounded-xl transition-all ${
-                                user.unlockRequested 
-                                  ? 'bg-amber-500 text-slate-950 animate-bounce ring-4 ring-amber-500/40 font-black shadow-lg shadow-amber-500/50' 
-                                  : user.canEditSensitiveData 
-                                    ? 'bg-emerald-500 text-slate-900' 
-                                    : 'bg-white/5 text-slate-400 hover:text-white'
-                              }`} 
-                              title={t.masterUnlockAction}
-                            >
-                              {user.canEditSensitiveData ? <Unlock size={18} /> : <Lock size={18} />}
-                            </button>
-                            <button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={t.masterBlockUser}>
+                            <button onClick={() => toggleBlock(user)} className={`p-2 rounded-xl transition-all ${user.isBlocked ? 'bg-red-500 text-white' : 'bg-white/5 text-slate-400 hover:text-red-500'}`} title={user.isBlocked ? t.masterUnblockUser : t.masterBlockUser}>
                               <Ban size={18} />
                             </button>
                             <button onClick={() => handleDeleteUser(user.id, user.name)} className="p-2 bg-red-500/10 text-red-500 rounded-xl hover:bg-red-500 hover:text-white transition-all" title={t.masterDeleteUser}>
