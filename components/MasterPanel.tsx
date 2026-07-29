@@ -1030,6 +1030,18 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const msg: SupportMessage = { id: Math.random().toString(36).substr(2, 9), companyId: selectedCompanyId, senderRole: 'master', content: newMessage, translatedContent: translated, timestamp: new Date().toISOString(), read: false };
     saveMessage(msg);
     setMessages(prev => [...prev, msg]);
+
+    // Enviar notificação push offline para o dispositivo do utilizador
+    fetch('/api/push/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId: selectedCompanyId,
+        title: "Nova Mensagem de Suporte Átrios 💬",
+        body: translated || newMessage
+      })
+    }).catch(err => console.error('Error sending push notify-user:', err));
+
     setNewMessage('');
     setIsTranslating(false);
   };
@@ -1289,19 +1301,31 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       console.warn('Broadcast unlock event error:', e);
     }
 
-    // Send Support Message to company
+    // Send Support Message to company and dispatch Web/FCM Push
     try {
+      const content = newCanEdit 
+        ? "🔓 DESBLOQUEIO CONCEDIDO: O administrador Master autorizou a alteração dos dados da sua empresa nas Definições."
+        : "🔒 DESBLOQUEIO REVOGADO: As Definições da empresa foram bloqueadas novamente pelo administrador Master.";
+      
       const notifyMsg: SupportMessage = {
         id: generateShortId(),
         companyId: company.id,
         senderRole: 'master',
-        content: newCanEdit 
-          ? "🔓 DESBLOQUEIO CONCEDIDO: O administrador Master autorizou a alteração dos dados da sua empresa nas Definições."
-          : "🔒 DESBLOQUEIO REVOGADO: As Definições da empresa foram bloqueadas novamente pelo administrador Master.",
+        content,
         timestamp: new Date().toISOString(),
         read: false
       };
       await saveMessage(notifyMsg);
+
+      fetch('/api/push/notify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: company.id,
+          title: newCanEdit ? "Acesso Liberado! 🔑" : "Acesso Bloqueado 🔒",
+          body: content
+        })
+      }).catch(err => console.error('Error sending unlock push to user:', err));
     } catch (e) {
       console.warn('Error saving support message in toggleUnlock:', e);
     }

@@ -142,22 +142,20 @@ async function pruneOldSubscriptionsFromSupabase() {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) return;
   try {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const { error } = await supabase
+    supabase
       .from("push_subscriptions")
       .delete()
-      .lt("created_at", sevenDaysAgo);
-      
-    if (error) {
-      console.warn("[Supabase Prune] Erro ao limpar subscrições antigas:", error.message);
-    } else {
-      console.log("[Supabase Prune] Subscrições antigas (mais de 7 dias) limpas com sucesso.");
-    }
+      .lt("created_at", sevenDaysAgo)
+      .then(({ error }) => {
+        if (!error) console.log("[Supabase Prune] Subscrições antigas limpas com sucesso.");
+      })
+      .catch(e => console.warn("[Supabase Prune Async Error]", e));
   } catch (err: any) {
     console.error("[Supabase Prune Exception]", err.message || err);
   }
 }
 
-// Helper resiliente para buscar subscrições persistidas no Supabase
+// Helper resiliente e ultrarrápido para buscar subscrições do Supabase com timeout curto (1.2s)
 async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[] }> {
   const web: any[] = [];
   const fcm: any[] = [];
@@ -166,16 +164,20 @@ async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[
     return { web, fcm };
   }
 
-  // Executar limpeza automática de tokens com mais de 7 dias antes de retornar as subscrições
-  await pruneOldSubscriptionsFromSupabase().catch(() => {});
+  // Executar limpeza em segundo plano sem bloquear a busca
+  pruneOldSubscriptionsFromSupabase();
 
   try {
-    const { data, error } = await supabase.from("push_subscriptions").select("*");
-    if (error) {
-      console.warn("[Supabase Fetch Subs Warn] Falha ao obter dados (tabela pode não existir):", error.message);
+    const fetchPromise = supabase.from("push_subscriptions").select("*");
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: null, timeout: true }), 1200));
+    
+    const result: any = await Promise.race([fetchPromise, timeoutPromise]);
+    if (result.timeout || result.error) {
+      if (result.error) console.warn("[Supabase Fetch Subs Warn]:", result.error.message);
       return { web, fcm };
     }
 
+    const data = result.data;
     if (data && Array.isArray(data)) {
       data.forEach((row: any) => {
         const companyId = row.company_id || row.companyId || row.companyid || "guest";
@@ -577,7 +579,7 @@ async function startServer() {
 
     const isMasterSub = (sub: any) => {
       if (!sub) return false;
-      const cId = String(sub.companyId || '').toLowerCase();
+      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase();
       const plan = String(sub.plan || '').toLowerCase();
       const email = String(sub.email || '').toLowerCase();
       return cId === 'master' || plan === 'master' || 
@@ -586,17 +588,31 @@ async function startServer() {
              cId.includes('atriossoftware') || email.includes('atriossoftware');
     };
 
-    let filteredWeb = uniqueWebSubs.filter(sub => {
+    const matchesTarget = (sub: any) => {
+      if (!sub) return false;
+      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase();
+      const plan = String(sub.plan || '').toLowerCase();
+      const email = String(sub.email || '').toLowerCase();
+
       if (targetAudience === 'master') {
         return isMasterSub(sub);
       }
       if (!targetAudience || targetAudience === 'all') return true;
-      if (targetAudience === 'free' && sub.plan === 'free') return true;
-      if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
-      if (targetAudience === 'premium_monthly' && sub.plan === 'premium_monthly') return true;
-      if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
+      if (targetAudience === 'free' && plan === 'free') return true;
+      if (targetAudience === 'all_premium' && plan !== 'free') return true;
+      if (targetAudience === 'premium_monthly' && plan === 'premium_monthly') return true;
+      if (targetAudience === 'premium_annual' && plan === 'premium_annual') return true;
+
+      // Se for um ID de empresa ou email específico:
+      const targetLower = String(targetAudience).toLowerCase();
+      if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) {
+        return true;
+      }
+
       return false;
-    });
+    };
+
+    let filteredWeb = uniqueWebSubs.filter(matchesTarget);
 
     const deadWebEndpoints: string[] = [];
     const webPayload = JSON.stringify({
@@ -604,7 +620,7 @@ async function startServer() {
       body,
       icon: '/favicon.svg',
       badge: '/favicon.svg',
-      tag: 'atrios-global-push',
+      tag: 'atrios-global-push-' + Date.now(),
       vibrate: [200, 100, 200, 100, 300]
     });
 
@@ -613,7 +629,7 @@ async function startServer() {
         await webPush.sendNotification(sub.subscription, webPayload);
         successCount++;
       } catch (err: any) {
-        console.error(`[PWA Push Send Error] ${sub.subscription.endpoint}:`, err.message);
+        console.error(`[PWA Push Send Error] ${sub.subscription?.endpoint}:`, err.message);
         failureCount++;
         if (err.statusCode === 410 || err.statusCode === 404) {
           deadWebEndpoints.push(sub.subscription.endpoint);
@@ -646,51 +662,40 @@ async function startServer() {
       }
     });
 
-    let filteredFcm = uniqueFcmSubs.filter(sub => {
-      if (targetAudience === 'master') {
-        return isMasterSub(sub);
-      }
-      if (!targetAudience || targetAudience === 'all') return true;
-      if (targetAudience === 'free' && sub.plan === 'free') return true;
-      if (targetAudience === 'all_premium' && sub.plan !== 'free') return true;
-      if (targetAudience === 'premium_monthly' && sub.plan === 'premium_monthly') return true;
-      if (targetAudience === 'premium_annual' && sub.plan === 'premium_annual') return true;
-      return false;
-    });
+    let filteredFcm = uniqueFcmSubs.filter(matchesTarget);
 
-    // Fallback para notificações do Master: se não houver NENHUMA subscrição marcada explicitamente como master,
-    // enviar a notificação para TODAS as subscrições (garante entrega no ambiente de testes/desenvolvimento)
-    if (targetAudience === 'master' && filteredWeb.length === 0 && filteredFcm.length === 0) {
-      console.log('[PWA Push] Nenhuma subscrição de Master específica encontrada. Ativando fallback para todas as subscrições.');
+    // Fallback: se for um alvo específico ou Master e nenhuma subscrição específica foi encontrada,
+    // enviar a notificação para TODAS as subscrições como fallback offline
+    if ((targetAudience === 'master' || !['all','free','all_premium','premium_monthly','premium_annual'].includes(targetAudience)) && 
+        filteredWeb.length === 0 && filteredFcm.length === 0) {
+      console.log(`[PWA Push] Nenhuma subscrição específica para '${targetAudience}'. Ativando fallback para todas as subscrições.`);
       filteredWeb = uniqueWebSubs;
       filteredFcm = uniqueFcmSubs;
     }
 
     const fcmTokens = filteredFcm.map(sub => sub.token);
-    let fcmSuccess = 0;
-    let fcmFailure = 0;
     let fcmTokensToRemove: string[] = [];
 
-    if (fcmTokens.length > 0) {
-      try {
-        const fcmResult = await sendFcmNotification(fcmTokens, title, body);
-        fcmSuccess = fcmResult.successCount;
-        fcmFailure = fcmResult.failureCount;
-        fcmTokensToRemove = fcmResult.tokensToRemove || [];
-        
-        successCount += fcmSuccess;
-        failureCount += fcmFailure;
-      } catch (fcmErr) {
-        console.error('[PWA FCM Send Error]', fcmErr);
-        fcmFailure = fcmTokens.length;
-        failureCount += fcmFailure;
+    const fcmPromise = (async () => {
+      if (fcmTokens.length > 0) {
+        try {
+          const fcmResult = await sendFcmNotification(fcmTokens, title, body);
+          successCount += fcmResult.successCount;
+          failureCount += fcmResult.failureCount;
+          if (fcmResult.tokensToRemove?.length) {
+            fcmTokensToRemove.push(...fcmResult.tokensToRemove);
+          }
+        } catch (fcmErr) {
+          console.error('[PWA FCM Send Error]', fcmErr);
+          failureCount += fcmTokens.length;
+        }
       }
-    }
+    })();
 
-    // Aguardar o término dos envios Web Push
-    await Promise.all(webPromises);
+    // Aguardar os envios de Web Push e FCM em PARALELO
+    await Promise.all([Promise.all(webPromises), fcmPromise]);
 
-    // Pruning de Web Push inativos
+    // Pruning assíncrono de Web Push inativos
     if (deadWebEndpoints.length > 0) {
       console.log(`[PWA Push] Pruning ${deadWebEndpoints.length} dead Web endpoints.`);
       const activeWeb = webSubscriptions.filter(sub => !deadWebEndpoints.includes(sub.subscription.endpoint));
@@ -700,19 +705,14 @@ async function startServer() {
         console.error("Failed to prune dead Web subscriptions", dbErr);
       }
 
-      // Remover do Supabase se estiver configurado
       if (process.env.SUPABASE_URL) {
-        try {
-          for (const endpoint of deadWebEndpoints) {
-            await supabase.from("push_subscriptions").delete().eq("id", endpoint);
-          }
-        } catch (dbDelErr) {
-          console.error("Failed to prune dead Web subscriptions in Supabase:", dbDelErr);
+        for (const endpoint of deadWebEndpoints) {
+          supabase.from("push_subscriptions").delete().eq("id", endpoint).catch(() => {});
         }
       }
     }
 
-    // Pruning de FCM Tokens inativos
+    // Pruning assíncrono de FCM Tokens inativos
     if (fcmTokensToRemove.length > 0) {
       console.log(`[FCM Push] Pruning ${fcmTokensToRemove.length} inactive FCM tokens.`);
       const activeFcm = fcmSubscriptions.filter(sub => !fcmTokensToRemove.includes(sub.token));
@@ -722,15 +722,9 @@ async function startServer() {
         console.error("Failed to prune inactive FCM tokens", dbErr);
       }
 
-      // Remover os tokens inativos do Supabase também
       if (process.env.SUPABASE_URL) {
-        try {
-          for (const token of fcmTokensToRemove) {
-            await supabase.from("push_subscriptions").delete().eq("id", token);
-          }
-          console.log(`[FCM Push] Inactive FCM tokens pruned from Supabase database successfully.`);
-        } catch (dbDelErr) {
-          console.error("Failed to prune inactive FCM tokens in Supabase:", dbDelErr);
+        for (const token of fcmTokensToRemove) {
+          supabase.from("push_subscriptions").delete().eq("id", token).catch(() => {});
         }
       }
     }
@@ -751,20 +745,15 @@ async function startServer() {
       return res.status(400).json({ error: "Missing required fields: title and body" });
     }
 
-    console.log(`[PWA Push Broadcast] Sending: "${title}" | Audience: ${targetAudience}`);
+    console.log(`[PWA Push Broadcast] Queueing: "${title}" | Audience: ${targetAudience}`);
     
-    try {
-      const result = await sendPushBroadcast(title, body, targetAudience || 'all');
-      res.json({
-        success: true,
-        sentCount: result.totalCount,
-        successCount: result.successCount,
-        failureCount: result.failureCount
-      });
-    } catch (err: any) {
+    // Resposta imediata para não travar a UI do cliente
+    res.json({ success: true, status: "enqueued" });
+
+    // Enviar em segundo plano sem bloquear o HTTP response
+    sendPushBroadcast(title, body, targetAudience || 'all').catch(err => {
       console.error("[PWA Broadcast Error]", err);
-      res.status(500).json({ error: "Internal broadcast error", details: err.message });
-    }
+    });
   });
 
   // 3.1 Enviar notificação push específica para o Master (cadastro, mensagem, venda)
@@ -794,20 +783,33 @@ async function startServer() {
       body = details.body || details.content || JSON.stringify(details);
     }
 
-    console.log(`[PWA Master Notify] Event: ${type} | Sending: "${title}"`);
+    console.log(`[PWA Master Notify] Queueing Event: ${type} | "${title}"`);
 
-    try {
-      const result = await sendPushBroadcast(title, body, 'master');
-      res.json({
-        success: true,
-        sentCount: result.totalCount,
-        successCount: result.successCount,
-        failureCount: result.failureCount
-      });
-    } catch (err: any) {
+    // Resposta imediata
+    res.json({ success: true, status: "enqueued" });
+
+    // Disparar push em segundo plano
+    sendPushBroadcast(title, body, 'master').catch(err => {
       console.error("[PWA Master Notify Error]", err);
-      res.status(500).json({ error: "Internal notification error", details: err.message });
+    });
+  });
+
+  // 3.2 Enviar notificação push direcionada a um Usuário específico
+  app.post("/api/push/notify-user", async (req, res) => {
+    const { companyId, title, body } = req.body;
+    if (!companyId || !title || !body) {
+      return res.status(400).json({ error: "Missing required fields: companyId, title and body" });
     }
+
+    console.log(`[PWA User Notify] Queueing Push for User '${companyId}': "${title}"`);
+
+    // Resposta imediata
+    res.json({ success: true, status: "enqueued" });
+
+    // Disparar em segundo plano
+    sendPushBroadcast(title, body, companyId).catch(err => {
+      console.error("[PWA User Notify Error]", err);
+    });
   });
 
   // 3.5. Limpar tokens antigos ou reiniciar tabela push_subscriptions
