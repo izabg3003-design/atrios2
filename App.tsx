@@ -592,6 +592,10 @@ const App: React.FC = () => {
       });
     }
   }, [view, activeTab, currentUser]);
+
+  useEffect(() => {
+    setSearchTerm('');
+  }, [view, currentUser?.id]);
   const [isHydrating, setIsHydrating] = useState(false);
   const [budgets, setBudgets] = useState<Budget[]>([]);
   const [orders, setOrders] = useState<StoreOrder[]>([]);
@@ -2159,6 +2163,7 @@ const App: React.FC = () => {
     setCurrentUser(null);
     currentUserRef.current = null;
     setBudgets([]);
+    setSearchTerm('');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -3562,7 +3567,19 @@ const App: React.FC = () => {
 
               <div className="hidden md:flex items-center bg-slate-50 rounded-xl lg:rounded-2xl px-4 lg:px-6 py-2.5 lg:py-3 w-full max-w-[12rem] sm:max-w-[16rem] lg:max-w-[28rem] border border-slate-100 focus-within:border-slate-300 transition-all">
                 <Search className="text-slate-400 lg:w-5 lg:h-5" size={18} />
-                <input type="text" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder={t.searchPlaceholder} className="bg-transparent border-none outline-none px-3 lg:px-4 w-full text-xs lg:text-sm font-bold text-slate-700" />
+                <input 
+                  type="search" 
+                  name="search"
+                  id="app_search_input"
+                  autoComplete="off"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  autoCapitalize="none"
+                  value={searchTerm} 
+                  onChange={(e) => setSearchTerm(e.target.value)} 
+                  placeholder={t.searchPlaceholder} 
+                  className="bg-transparent border-none outline-none px-3 lg:px-4 w-full text-xs lg:text-sm font-bold text-slate-700" 
+                />
               </div>
 
               <div className="flex items-center gap-1.5 sm:gap-3 lg:gap-8">
