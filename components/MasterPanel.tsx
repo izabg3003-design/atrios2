@@ -1419,38 +1419,35 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const updateOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
+    // 1. Disparar notificação Push instantaneamente
+    const targetOrder = storeOrders.find(o => o.id === orderId);
+    if (targetOrder?.companyId) {
+      const statusText = newStatus === 'completed' ? 'Concluído ✅' : newStatus === 'processing' ? 'Em Processamento ⏳' : 'Pendente 🕒';
+      fetch('/api/push/notify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: targetOrder.companyId,
+          title: 'Atualização do Pedido da Loja! 🛍️',
+          body: `O seu pedido de "${targetOrder.productName}" foi atualizado para: ${statusText}`
+        })
+      }).catch(err => console.error('Error sending order status push:', err));
+    }
+
+    // 2. Atualizar estado visual instantaneamente
+    setStoreOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    const localOrders = getStoreOrders();
+    const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+    safeSetItem('atrios_store_orders', JSON.stringify(updatedLocal));
+
+    // 3. Atualizar Supabase em segundo plano
     try {
-      const { error } = await supabase
+      await supabase
         .from('store_orders')
         .update({ status: newStatus })
         .eq('id', orderId);
-
-      if (error) throw error;
-
-      setStoreOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      
-      // Update local storage
-      const localOrders = getStoreOrders();
-      const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-      safeSetItem('atrios_store_orders', JSON.stringify(updatedLocal));
-
-      // Disparar notificação Push para o cliente (App fechado / offline)
-      const targetOrder = storeOrders.find(o => o.id === orderId);
-      if (targetOrder?.companyId) {
-        const statusText = newStatus === 'completed' ? 'Concluído ✅' : newStatus === 'processing' ? 'Em Processamento ⏳' : 'Pendente 🕒';
-        fetch('/api/push/notify-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            companyId: targetOrder.companyId,
-            title: 'Atualização do Pedido da Loja! 🛍️',
-            body: `O seu pedido de "${targetOrder.productName}" foi atualizado para: ${statusText}`
-          })
-        }).catch(err => console.error('Error sending order status push:', err));
-      }
-
     } catch (err) {
-      console.error('Error updating order status:', err);
+      console.error('Error updating order status in cloud:', err);
     }
   };
 
@@ -1472,38 +1469,35 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   };
 
   const updateCustomOrderStatus = async (orderId: string, newStatus: 'pending' | 'processing' | 'completed') => {
+    // 1. Disparar notificação Push instantaneamente
+    const targetOrder = customOrders.find(o => o.id === orderId);
+    if (targetOrder?.companyId) {
+      const statusText = newStatus === 'completed' ? 'Concluído ✅' : newStatus === 'processing' ? 'Em Processamento ⏳' : 'Pendente 🕒';
+      fetch('/api/push/notify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: targetOrder.companyId,
+          title: 'Atualização do Pedido Personalizado! 🎨',
+          body: `O seu pedido de "${targetOrder.itemName}" foi atualizado para: ${statusText}`
+        })
+      }).catch(err => console.error('Error sending custom order push:', err));
+    }
+
+    // 2. Atualizar estado local e storage instantaneamente
+    setCustomOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
+    const localOrders = getStoredCustomOrders();
+    const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
+    safeSetItem('atrios_custom_orders', JSON.stringify(updatedLocal));
+
+    // 3. Atualizar cloud em segundo plano
     try {
-      const { error } = await supabase
+      await supabase
         .from('custom_order_requests')
         .update({ status: newStatus })
         .eq('id', orderId);
-
-      if (error) throw error;
-
-      setCustomOrders(prev => prev.map(o => o.id === orderId ? { ...o, status: newStatus } : o));
-      
-      // Update local storage
-      const localOrders = getStoredCustomOrders();
-      const updatedLocal = localOrders.map(o => o.id === orderId ? { ...o, status: newStatus } : o);
-      safeSetItem('atrios_custom_orders', JSON.stringify(updatedLocal));
-
-      // Disparar notificação Push para o cliente (App fechado / offline)
-      const targetOrder = customOrders.find(o => o.id === orderId);
-      if (targetOrder?.companyId) {
-        const statusText = newStatus === 'completed' ? 'Concluído ✅' : newStatus === 'processing' ? 'Em Processamento ⏳' : 'Pendente 🕒';
-        fetch('/api/push/notify-user', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            companyId: targetOrder.companyId,
-            title: 'Atualização do Pedido Personalizado! 🎨',
-            body: `O seu pedido de "${targetOrder.itemName}" foi atualizado para: ${statusText}`
-          })
-        }).catch(err => console.error('Error sending custom order push:', err));
-      }
-
     } catch (err) {
-      console.error('Error updating custom order status:', err);
+      console.error('Error updating custom order status in cloud:', err);
     }
   };
 

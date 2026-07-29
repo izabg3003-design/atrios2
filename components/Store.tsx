@@ -72,28 +72,28 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
 
     console.log("Store: Enviando novo pedido:", newOrder);
 
+    // 1. Notificar o Master por Push IMEDIATAMENTE (sem qualquer atraso)
+    const totalAmount = (selectedProduct?.price || 0) * quantity;
+    fetch('/api/push/notify-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'sale',
+        details: {
+          companyName: companyId,
+          productName: selectedProduct?.name || 'Produto',
+          quantity: quantity,
+          total: totalAmount
+        }
+      })
+    }).catch(err => console.error('Error notifying master of sale:', err));
+
     try {
       const success = await saveStoreOrder(newOrder);
       console.log("Store: Resultado do saveStoreOrder:", success);
       if (!success) {
         throw new Error("Falha na sincronização cloud");
       }
-
-      // Notificar o Master por Push
-      const totalAmount = (selectedProduct?.price || 0) * quantity;
-      fetch('/api/push/notify-master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'sale',
-          details: {
-            companyName: companyId,
-            productName: selectedProduct?.name || 'Produto',
-            quantity: quantity,
-            total: totalAmount
-          }
-        })
-      }).catch(err => console.error('Error notifying master of sale:', err));
 
       setIsProcessing(false);
       setShowSuccess(true);

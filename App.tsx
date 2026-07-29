@@ -1404,38 +1404,33 @@ const App: React.FC = () => {
       ...currentUser,
       unlockRequested: true
     };
-    await saveCompany(updated);
 
-    try {
-      await supabase
-        .from('companies')
-        .update({ unlock_requested: true, unlockrequested: true })
-        .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`);
-    } catch (e) {
-      console.warn("Direct update for unlock_requested:", e);
-    }
+    // 1. Disparar notificação push ao Master IMEDIATAMENTE (sem qualquer bloqueio ou await)
+    fetch('/api/push/notify-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'unlock_request',
+        details: {
+          companyName: currentUser.name || currentUser.companyName || currentUser.email || 'Empresa',
+          companyId: currentUser.id,
+          email: currentUser.email
+        }
+      })
+    }).catch(pushErr => console.warn("Erro ao enviar push notification de desbloqueio ao master:", pushErr));
 
-    // Disparar notificação push ao Master (para chegar mesmo com a app fechada)
-    try {
-      await fetch('/api/push/notify-master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'unlock_request',
-          details: {
-            companyName: currentUser.name || currentUser.companyName || currentUser.email || 'Empresa',
-            companyId: currentUser.id,
-            email: currentUser.email
-          }
-        })
-      });
-    } catch (pushErr) {
-      console.warn("Erro ao enviar push notification de desbloqueio ao master:", pushErr);
-    }
-
+    // 2. Atualizar estado e dar feedback visual instantâneo
     setCurrentUser(updated);
     currentUserRef.current = updated;
     alert(t.unlockRequestSent);
+
+    // 3. Persistir na cloud/Supabase em segundo plano
+    saveCompany(updated).catch(() => {});
+    supabase
+      .from('companies')
+      .update({ unlock_requested: true, unlockrequested: true })
+      .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`)
+      .catch(e => console.warn("Direct update for unlock_requested:", e));
   };
 
   const normalizeForPdf = (text: string | undefined): string => {
