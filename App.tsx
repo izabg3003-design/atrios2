@@ -19,6 +19,8 @@ import {
   Clock, 
   Banknote,
   Eye,
+  EyeOff,
+  Copy,
   Download,
   Crown,
   Construction,
@@ -614,6 +616,26 @@ const App: React.FC = () => {
   const [showSupportGreeting, setShowSupportGreeting] = useState(false);
   const [greetingShown, setGreetingShown] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const [showCompanyId, setShowCompanyId] = useState(false);
+  const [copiedId, setCopiedId] = useState(false);
+  const idTimerRef = useRef<NodeJS.Timeout | null>(null);
+
+  const handleToggleShowCompanyId = () => {
+    if (showCompanyId) {
+      setShowCompanyId(false);
+      if (idTimerRef.current) {
+        clearTimeout(idTimerRef.current);
+        idTimerRef.current = null;
+      }
+    } else {
+      setShowCompanyId(true);
+      if (idTimerRef.current) clearTimeout(idTimerRef.current);
+      idTimerRef.current = setTimeout(() => {
+        setShowCompanyId(false);
+        idTimerRef.current = null;
+      }, 10000);
+    }
+  };
 
   useEffect(() => {
     if (currentUser && currentUser.subscriptionExpiresAt && currentUser.plan !== PlanType.FREE) {
@@ -1315,8 +1337,7 @@ const App: React.FC = () => {
 
   const isSettingsLocked = useMemo(() => {
     if (!currentUser) return false;
-    if (currentUser.plan !== PlanType.FREE) return false;
-    return currentUser.canEditSensitiveData === false;
+    return currentUser.canEditSensitiveData !== true;
   }, [currentUser]);
 
   const isPremium = useMemo(() => {
@@ -3777,7 +3798,7 @@ const App: React.FC = () => {
                               </label>
                             </div>
                             {currentUser && (
-                              <div className="pt-2">
+                              <div className="pt-2 space-y-4">
                                 <button
                                   type="button"
                                   onClick={() => { setCertificateCompany(currentUser); setShowCertificateModal(true); setIsStandaloneCertificate(false); }}
@@ -3786,6 +3807,59 @@ const App: React.FC = () => {
                                   <ShieldCheck size={18} className="text-emerald-600 shrink-0" />
                                   <span>Visualizar Certificado Átrios Ativo</span>
                                 </button>
+
+                                <div className="p-4 bg-slate-50 border-2 border-slate-100 rounded-2xl lg:rounded-3xl">
+                                  <div className="flex items-center justify-between mb-2">
+                                    <label className="text-[10px] lg:text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+                                      <span>{locale === 'pt' ? 'ID da Conta' : 'Account ID'}</span>
+                                    </label>
+                                    {showCompanyId && (
+                                      <span className="text-[10px] text-amber-600 font-bold animate-pulse">
+                                        {locale === 'pt' ? 'Oculta em 10s' : 'Auto-hides in 10s'}
+                                      </span>
+                                    )}
+                                  </div>
+                                  <div className="flex items-center gap-2">
+                                    <div className="flex-1 px-4 py-3 bg-white border border-slate-200 rounded-xl font-mono font-black text-xs sm:text-sm text-slate-800 flex items-center justify-between tracking-wider select-all overflow-hidden">
+                                      {showCompanyId ? (
+                                        <span className="text-slate-900 font-black">{currentUser?.id || '—'}</span>
+                                      ) : (
+                                        <span className="text-slate-300 font-bold select-none">••••••••••••••••</span>
+                                      )}
+                                    </div>
+                                    <button
+                                      type="button"
+                                      onClick={handleToggleShowCompanyId}
+                                      className={`px-3 py-3 rounded-xl border-2 transition-all flex items-center justify-center gap-1.5 font-black text-xs uppercase cursor-pointer ${
+                                        showCompanyId
+                                          ? 'bg-amber-500 border-amber-500 text-slate-950 shadow-md'
+                                          : 'bg-slate-900 border-slate-900 text-white hover:bg-slate-800'
+                                      }`}
+                                      title={showCompanyId ? (locale === 'pt' ? 'Ocultar ID' : 'Hide ID') : (locale === 'pt' ? 'Mostrar ID' : 'Show ID')}
+                                    >
+                                      {showCompanyId ? <EyeOff size={16} /> : <Eye size={16} />}
+                                      <span className="hidden sm:inline">
+                                        {showCompanyId
+                                          ? (locale === 'pt' ? 'Ocultar' : 'Hide')
+                                          : (locale === 'pt' ? 'Ver ID' : 'Show ID')}
+                                      </span>
+                                    </button>
+                                    {showCompanyId && currentUser?.id && (
+                                      <button
+                                        type="button"
+                                        onClick={() => {
+                                          navigator.clipboard.writeText(currentUser.id);
+                                          setCopiedId(true);
+                                          setTimeout(() => setCopiedId(false), 2000);
+                                        }}
+                                        className="p-3 rounded-xl border-2 border-slate-200 bg-white text-slate-700 hover:bg-slate-100 transition-all flex items-center justify-center cursor-pointer"
+                                        title={locale === 'pt' ? 'Copiar ID' : 'Copy ID'}
+                                      >
+                                        {copiedId ? <Check size={16} className="text-emerald-600" /> : <Copy size={16} />}
+                                      </button>
+                                    )}
+                                  </div>
+                                </div>
                               </div>
                             )}
                          </div>
@@ -3842,8 +3916,8 @@ const App: React.FC = () => {
               )}
             </div>
           </main>
-          {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowPaymentManager(false); }} onClose={() => setShowPaymentManager(false)} />}
-          {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setShowExpenseManager(false); }} onClose={() => setShowExpenseManager(false)} />}
+          {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowPaymentManager(false)} />}
+          {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowExpenseManager(false)} />}
           <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); setMessages(getMessages(currentUser.id)); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && (
             <SupportChat 

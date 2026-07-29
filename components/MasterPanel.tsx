@@ -1333,7 +1333,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       plan: selectedPlan, 
       subscriptionExpiresAt: new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString(),
       isManual: true,
-      canEditSensitiveData: true,
+      canEditSensitiveData: company.canEditSensitiveData ?? false,
       unlockRequested: false
     };
     await saveCompany(updated);

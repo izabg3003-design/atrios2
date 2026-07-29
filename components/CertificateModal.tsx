@@ -27,7 +27,13 @@ interface CertificateModalProps {
 export const CertificateModal: React.FC<CertificateModalProps> = ({ company, onClose, isStandalone = false }) => {
   const [copied, setCopied] = useState(false);
 
-  const certId = company ? `ATR-CERT-2026-${String(company.id).slice(0, 8).toUpperCase()}` : 'ATR-CERT-2026-ACTIVE';
+  const getMaskedId = (id: string) => {
+    const str = String(id);
+    if (str.length <= 7) return str;
+    return str.slice(0, 7) + '*'.repeat(str.length - 7);
+  };
+
+  const certId = company ? `ATR-CERT-2026-${getMaskedId(company.id).toUpperCase()}` : 'ATR-CERT-2026-ACTIVE';
   const verifyUrl = company ? `${window.location.origin}/?cert=${company.id}` : window.location.href;
 
   const handleCopyLink = () => {
@@ -130,7 +136,7 @@ export const CertificateModal: React.FC<CertificateModalProps> = ({ company, onC
                 <div className="text-base sm:text-lg font-black text-white">Empresa Auditada e Ativa</div>
               </div>
             </div>
-            <div className="hidden sm:block text-right">
+            <div className="text-right shrink-0">
               <div className="text-[10px] font-bold uppercase text-slate-400">ID de Segurança</div>
               <div className="text-xs font-mono font-bold text-amber-400">{certId}</div>
             </div>

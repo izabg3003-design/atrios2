@@ -103,12 +103,7 @@ export const mapCompanyFromSupabase = (data: any): Company => {
   }
 
   let canEdit = false;
-  if (normalizedPlan !== PlanType.FREE) {
-    canEdit = true;
-    unlockReq = false;
-  } else if (unlockReq) {
-    canEdit = false;
-  } else if (rawCanEditVal !== undefined && rawCanEditVal !== null) {
+  if (rawCanEditVal !== undefined && rawCanEditVal !== null) {
     canEdit = Boolean(rawCanEditVal);
   } else if (localComp && localComp.canEditSensitiveData !== undefined) {
     canEdit = localComp.canEditSensitiveData;
