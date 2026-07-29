@@ -155,13 +155,59 @@ async function pruneOldSubscriptionsFromSupabase() {
   }
 }
 
-// Helper resiliente e ultrarrápido para buscar subscrições do Supabase com timeout curto (1.2s)
-async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[] }> {
+// Cache em memória de subscrições para entregas ultrarrápidas (<50ms)
+let cachedPushSubs: { web: any[], fcm: any[] } | null = null;
+let lastSubCacheTime = 0;
+const SUB_CACHE_TTL = 60000; // 60 segundos de cache em memória
+
+function parseSubRows(data: any[]): { web: any[], fcm: any[] } {
   const web: any[] = [];
   const fcm: any[] = [];
+  data.forEach((row: any) => {
+    const companyId = row.company_id || row.companyId || row.companyid || "guest";
+    const plan = row.plan || "free";
+    const createdAt = row.created_at || new Date().toISOString();
+
+    if (row.token) {
+      fcm.push({
+        token: row.token,
+        companyId,
+        plan,
+        createdAt
+      });
+    }
+
+    if (row.subscription) {
+      let subscription = row.subscription;
+      if (typeof subscription === 'string') {
+        try {
+          subscription = JSON.parse(subscription);
+        } catch (e) {}
+      }
+      if (subscription && subscription.endpoint) {
+        web.push({
+          subscription,
+          companyId,
+          plan,
+          createdAt
+        });
+      }
+    }
+  });
+  return { web, fcm };
+}
+
+// Helper resiliente e ultrarrápido para buscar subscrições do Supabase com cache e timeout curto (300ms)
+async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[] }> {
+  const now = Date.now();
+  if (cachedPushSubs && (now - lastSubCacheTime < SUB_CACHE_TTL)) {
+    return cachedPushSubs;
+  }
+
+  const empty = { web: [], fcm: [] };
 
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
-    return { web, fcm };
+    return cachedPushSubs || empty;
   }
 
   // Executar limpeza em segundo plano sem bloquear a busca
@@ -169,56 +215,30 @@ async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[
 
   try {
     const fetchPromise = supabase.from("push_subscriptions").select("*");
-    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: null, timeout: true }), 1200));
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve({ data: null, timeout: true }), 300));
     
     const result: any = await Promise.race([fetchPromise, timeoutPromise]);
     if (result.timeout || result.error) {
-      if (result.error) console.warn("[Supabase Fetch Subs Warn]:", result.error.message);
-      return { web, fcm };
+      // Se deu timeout (>300ms), continua em segundo plano para atualizar o cache
+      fetchPromise.then(({ data }) => {
+        if (data && Array.isArray(data)) {
+          cachedPushSubs = parseSubRows(data);
+          lastSubCacheTime = Date.now();
+        }
+      }).catch(() => {});
+
+      return cachedPushSubs || empty;
     }
 
-    const data = result.data;
-    if (data && Array.isArray(data)) {
-      data.forEach((row: any) => {
-        const companyId = row.company_id || row.companyId || row.companyid || "guest";
-        const plan = row.plan || "free";
-        const createdAt = row.created_at || new Date().toISOString();
-
-        if (row.token) {
-          fcm.push({
-            token: row.token,
-            companyId,
-            plan,
-            createdAt
-          });
-        }
-
-        if (row.subscription) {
-          let subscription = row.subscription;
-          if (typeof subscription === 'string') {
-            try {
-              subscription = JSON.parse(subscription);
-            } catch (e) {
-              // não é JSON válido
-            }
-          }
-          if (subscription && subscription.endpoint) {
-            web.push({
-              subscription,
-              companyId,
-              plan,
-              createdAt
-            });
-          }
-        }
-      });
-      console.log(`[Supabase Fetch Subs] Obtidas ${web.length} subscrições Web e ${fcm.length} tokens FCM.`);
+    if (result.data && Array.isArray(result.data)) {
+      cachedPushSubs = parseSubRows(result.data);
+      lastSubCacheTime = Date.now();
     }
   } catch (err: any) {
     console.error("[Supabase Fetch Subs Exception]", err.message || err);
   }
 
-  return { web, fcm };
+  return cachedPushSubs || empty;
 }
 
 async function startServer() {

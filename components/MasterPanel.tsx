@@ -1025,31 +1025,53 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   const handleDeleteCoupon = (id: string) => { removeCoupon(id); setCoupons(getCoupons()); };
 
-  const handleSendMessage = async (e: React.FormEvent) => {
+  const handleSendMessage = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || !selectedCompanyId || isTranslating) return;
-    setIsTranslating(true);
+    if (!newMessage.trim() || !selectedCompanyId) return;
+
+    const messageText = newMessage;
+    setNewMessage('');
+
     const targetComp = companies.find(c => c.id === selectedCompanyId);
     const targetLocale = (targetComp?.lastLocale as Locale) || 'pt-PT';
-    let translated = newMessage;
-    if (targetLocale !== 'pt-PT') translated = await translateMessage(newMessage, targetLocale);
-    const msg: SupportMessage = { id: Math.random().toString(36).substr(2, 9), companyId: selectedCompanyId, senderRole: 'master', content: newMessage, translatedContent: translated, timestamp: new Date().toISOString(), read: false };
-    saveMessage(msg);
-    setMessages(prev => [...prev, msg]);
 
-    // Enviar notificação push offline para o dispositivo do utilizador
+    // 1. Enviar notificação push offline para o utilizador IMEDIATAMENTE
     fetch('/api/push/notify-user', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         companyId: selectedCompanyId,
         title: "Nova Mensagem de Suporte Átrios 💬",
-        body: translated || newMessage
+        body: messageText
       })
     }).catch(err => console.error('Error sending push notify-user:', err));
 
-    setNewMessage('');
-    setIsTranslating(false);
+    // 2. Guardar e atualizar lista de mensagens instantaneamente
+    const msg: SupportMessage = {
+      id: Math.random().toString(36).substr(2, 9),
+      companyId: selectedCompanyId,
+      senderRole: 'master',
+      content: messageText,
+      translatedContent: messageText,
+      timestamp: new Date().toISOString(),
+      read: false
+    };
+
+    saveMessage(msg);
+    setMessages(prev => [...prev, msg]);
+
+    // 3. Tradução em segundo plano se o cliente usar outro idioma
+    if (targetLocale !== 'pt-PT') {
+      setIsTranslating(true);
+      translateMessage(messageText, targetLocale).then(translated => {
+        if (translated && translated !== messageText) {
+          const updatedMsg = { ...msg, translatedContent: translated };
+          saveMessage(updatedMsg);
+          setMessages(prev => prev.map(m => m.id === msg.id ? updatedMsg : m));
+        }
+      }).catch(err => console.error('Error translating master reply in background:', err))
+        .finally(() => setIsTranslating(false));
+    }
   };
 
   const selectChat = (companyId: string) => {

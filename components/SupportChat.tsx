@@ -47,24 +47,30 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
-  const handleSend = async (e: React.FormEvent) => {
+  const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newMessage.trim() || isTranslating) return;
+    if (!newMessage.trim()) return;
 
-    setIsTranslating(true);
-    
-    // Se o idioma não for PT-PT, traduzir para PT-PT antes de enviar para o Master
-    let translated = newMessage;
-    if (locale !== 'pt-PT') {
-      translated = await translateMessage(newMessage, 'pt-PT');
-    }
+    const messageText = newMessage;
+    setNewMessage('');
 
+    // 1. Notificar o Master por Push IMEDIATAMENTE (sem qualquer atraso)
+    fetch('/api/push/notify-master', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        type: 'message',
+        details: { companyName: company.name, content: messageText }
+      })
+    }).catch(err => console.error('Error notifying master of support message:', err));
+
+    // 2. Criar e guardar mensagem localmente e na cloud instantaneamente
     const msg: SupportMessage = {
       id: Math.random().toString(36).substr(2, 9),
       companyId: company.id,
       senderRole: 'user',
-      content: newMessage, // Original em qualquer idioma
-      translatedContent: translated, // Sempre em PT-PT para o Master
+      content: messageText,
+      translatedContent: messageText,
       timestamp: new Date().toISOString(),
       read: false
     };
@@ -74,19 +80,18 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
       onSendMessage(msg);
     }
 
-    // Notificar o Master por Push
-    fetch('/api/push/notify-master', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        type: 'message',
-        details: { companyName: company.name, content: newMessage }
-      })
-    }).catch(err => console.error('Error notifying master of support message:', err));
-
-    // O App.tsx vai receber a atualização via Realtime ou via saveMessage que atualiza o localStorage
-    setNewMessage('');
-    setIsTranslating(false);
+    // 3. Tradução em segundo plano caso o idioma do cliente não seja PT-PT
+    if (locale !== 'pt-PT') {
+      setIsTranslating(true);
+      translateMessage(messageText, 'pt-PT').then(translated => {
+        if (translated && translated !== messageText) {
+          const updatedMsg = { ...msg, translatedContent: translated };
+          saveMessage(updatedMsg);
+          if (onSendMessage) onSendMessage(updatedMsg);
+        }
+      }).catch(err => console.error('Error translating user message in background:', err))
+        .finally(() => setIsTranslating(false));
+    }
   };
 
   // Filtrar mensagens apenas para esta empresa (embora o App.tsx já deva ter filtrado)
