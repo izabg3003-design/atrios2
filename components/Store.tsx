@@ -87,6 +87,7 @@ export const Store: React.FC<StoreProps> = ({ t, locale, companyId, companyName,
         body: JSON.stringify({
           type: 'sale',
           details: {
+            companyName: companyId,
             productName: selectedProduct?.name || 'Produto',
             quantity: quantity,
             total: totalAmount

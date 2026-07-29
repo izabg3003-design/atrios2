@@ -96,6 +96,20 @@ export const CustomOrders: React.FC<CustomOrdersProps> = ({ t, companyId }) => {
     try {
       const success = await saveCustomOrderRequest(request);
       if (success) {
+        // Notificar o Master por Push (App fechado / offline)
+        fetch('/api/push/notify-master', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            type: 'custom_order',
+            details: {
+              companyName: companyId,
+              productName: selectedItem.name,
+              quantity: quantity
+            }
+          })
+        }).catch(err => console.error('Error notifying master of custom order:', err));
+
         setShowSuccess(true);
         setTimeout(() => {
           setShowSuccess(false);

@@ -772,14 +772,19 @@ async function startServer() {
     } else if (type === "message") {
       title = "Nova Mensagem de Suporte! 💬";
       body = `"${details.companyName || 'Cliente'}" enviou uma nova mensagem: "${details.content}"`;
-    } else if (type === "sale") {
-      title = "Novo Orçamento Recebido! 🛍️";
-      body = `Fazer orçamento para ${details.quantity || 10} ${details.productName || 'calças'}.`;
+    } else if (type === "sale" || type === "store_order") {
+      title = "Novo Pedido de Orçamento na Loja! 🛍️";
+      const clientStr = details.companyName ? ` (Cliente: ${details.companyName})` : "";
+      body = `Solicitação de orçamento${clientStr}: ${details.quantity || 1}x ${details.productName || 'Produto'}.`;
+    } else if (type === "custom_order") {
+      title = "Novo Pedido Personalizado! 🎨";
+      const clientStr = details.companyName ? ` (Cliente: ${details.companyName})` : "";
+      body = `Solicitação personalizada${clientStr}: ${details.quantity || 1}x ${details.productName || details.itemName || 'Item'}.`;
     } else if (type === "unlock_request" || type === "unlock") {
       title = "🔑 Solicitação de Desbloqueio!";
       body = `A empresa "${details.companyName || details.name || details.email || 'Cliente'}" solicitou autorização para alterar os dados nas Definições.`;
     } else {
-      title = details.title || "Notificação do Sistema 🔔";
+      title = details.title || "Notificação da Loja 🛍️";
       body = details.body || details.content || JSON.stringify(details);
     }
 
