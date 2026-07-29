@@ -2091,6 +2091,69 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           </nav>
         </div>
 
+        {pendingUnlockCompanies.length > 0 && (
+          <div className="bg-gradient-to-r from-red-600 via-amber-600 to-red-600 p-1 rounded-[2.5rem] shadow-2xl shadow-red-600/40 animate-in fade-in slide-in-from-top-4 duration-500">
+            <div className="bg-slate-950/95 backdrop-blur-xl rounded-[2.3rem] p-6 sm:p-8 border border-red-500/50 space-y-4">
+              <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-2xl bg-red-600 text-white flex items-center justify-center shrink-0 shadow-xl shadow-red-600/80 ring-4 ring-amber-400/80 animate-pulse">
+                    <Key size={30} className="animate-bounce text-amber-200" />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="px-3.5 py-1 rounded-full bg-red-600 text-white text-[11px] font-black uppercase tracking-wider animate-pulse border border-amber-300 shadow-md">
+                        🚨 {pendingUnlockCompanies.length} SOLICITAÇÃO(ÕES) DE DESBLOQUEIO PENDENTE(S)
+                      </span>
+                    </div>
+                    <h3 className="text-xl font-black text-white italic tracking-tight mt-1">
+                      Atenção: Os utilizadores abaixo solicitaram desbloqueio para editar dados nas Definições:
+                    </h3>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setActiveTab('users')}
+                  className="px-5 py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/20 shrink-0"
+                >
+                  Ver Tabela de Utilizadores →
+                </button>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+                {pendingUnlockCompanies.map(c => (
+                  <div key={c.id} className="bg-white/5 border-2 border-red-500/60 hover:border-amber-400/80 p-5 rounded-2xl flex flex-col justify-between gap-3 shadow-xl transition-all group">
+                    <div>
+                      <div className="flex items-center justify-between gap-2 mb-1">
+                        <span className="font-black text-base text-amber-300 truncate">{c.name}</span>
+                        <span className="shrink-0 px-2 py-0.5 rounded-full bg-red-500/30 text-red-300 border border-red-500/40 text-[9px] font-black uppercase animate-pulse">
+                          🔑 PENDENTE
+                        </span>
+                      </div>
+                      <p className="text-xs text-slate-300 font-bold truncate">{c.email}</p>
+                      <p className="text-[10px] text-slate-400 font-bold uppercase mt-1">ID: {c.id}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2 pt-2 border-t border-white/10">
+                      <button
+                        onClick={() => toggleUnlock(c)}
+                        className="flex-1 py-3 bg-gradient-to-r from-emerald-500 to-emerald-600 hover:from-emerald-400 hover:to-emerald-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-xl shadow-lg shadow-emerald-500/30 active:scale-95 transition-all flex items-center justify-center gap-2"
+                      >
+                        <Unlock size={14} /> DESBLOQUEAR AGORA
+                      </button>
+                      <button
+                        onClick={() => selectChat(c.id)}
+                        className="p-3 bg-blue-500/20 hover:bg-blue-500 text-blue-300 hover:text-white rounded-xl font-black text-xs transition-all border border-blue-500/30"
+                        title="Enviar Mensagem ao Utilizador"
+                      >
+                        <MessageSquare size={16} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
         {activeTab === 'home' && (
           <div className="space-y-10 animate-in fade-in">
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
