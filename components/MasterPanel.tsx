@@ -924,7 +924,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const unreadMessagesTotalCount = useMemo(() => {
     const allMsgs = getMessages();
     return allMsgs.filter(m => m.senderRole === 'user' && !m.read).length;
-  }, [companies]);
+  }, [companies, messages, storeOrders, customOrders]);
+
+  const pendingStoreOrdersCount = useMemo(() => {
+    const pendingStore = storeOrders.filter(o => o.status === 'pending').length;
+    const pendingCustom = customOrders.filter(o => o.status === 'pending').length;
+    return pendingStore + pendingCustom;
+  }, [storeOrders, customOrders]);
 
   const isFreePlan = (plan?: string) => {
     if (!plan) return true;
@@ -2033,8 +2039,33 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                 <tab.icon size={16} /> {tab.label}
-                {tab.id === 'users' && pendingRequestsCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-bounce">{pendingRequestsCount}</span>}
-                {tab.id === 'messages' && unreadMessagesTotalCount > 0 && <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] border-2 border-slate-950 animate-pulse">{unreadMessagesTotalCount}</span>}
+                
+                {tab.id === 'users' && pendingRequestsCount > 0 && (
+                  <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-red-600 text-white items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
+                      +{pendingRequestsCount}
+                    </span>
+                  </span>
+                )}
+
+                {tab.id === 'messages' && unreadMessagesTotalCount > 0 && (
+                  <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-red-600 text-white items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
+                      +{unreadMessagesTotalCount}
+                    </span>
+                  </span>
+                )}
+
+                {tab.id === 'store' && pendingStoreOrdersCount > 0 && (
+                  <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-amber-500 text-slate-950 items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
+                      +{pendingStoreOrdersCount}
+                    </span>
+                  </span>
+                )}
               </button>
             ))}
 
@@ -2351,8 +2382,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                          </p>
                        </div>
                        {unread > 0 && (
-                         <span className="shrink-0 w-5 h-5 bg-red-500 text-white rounded-full flex items-center justify-center text-[10px] font-black">
-                           {unread}
+                         <span className="shrink-0 relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                           <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-red-600 text-white items-center justify-center text-[10px] font-black border border-slate-950 animate-pulse">
+                             +{unread}
+                           </span>
                          </span>
                        )}
                      </button>
@@ -2420,6 +2454,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             <div className="p-8 border-b border-white/10 bg-white/5 flex justify-between items-center">
               <h2 className="text-xl font-black flex items-center gap-3 italic text-amber-500 uppercase">
                 <ShoppingBag size={24} /> {t.masterStoreTab}
+                {pendingStoreOrdersCount > 0 && (
+                  <span className="ml-2 px-3 py-1 bg-amber-500/20 text-amber-400 border border-amber-500/40 rounded-full text-xs font-black animate-pulse flex items-center gap-1.5">
+                    <span className="w-2 h-2 rounded-full bg-amber-400 animate-ping" />
+                    +{pendingStoreOrdersCount} Pendentes
+                  </span>
+                )}
               </h2>
               <button 
                 onClick={() => loadData()}
