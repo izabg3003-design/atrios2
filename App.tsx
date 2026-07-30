@@ -821,7 +821,11 @@ const App: React.FC = () => {
               return;
             }
 
-            const updated = mapCompanyFromSupabase(payload.new);
+            const currentLocal = currentUserRef.current || getStoredCompanies().find(c => String(c.id) === String(payload.new?.id));
+            const updated = mapCompanyFromSupabase({
+              ...currentLocal,
+              ...payload.new
+            });
             if (!updated) return;
             
             // Se a conta estava desbloqueada localmente, preserva o desbloqueio
@@ -2671,45 +2675,53 @@ const App: React.FC = () => {
       canEditSensitiveData: false,
       unlockRequested: false
     };
+
+    // Atualiza o estado React e ref imediatamente
+    setCurrentUser(updated);
+    currentUserRef.current = updated;
+
+    // Atualiza variáveis de estado de Definições explicitamente
+    setSettingsCompanyName(updated.name || '');
+    setSettingsLogo(updated.logo);
+    setSettingsQrCode(updated.qrCode);
+    setSettingsAddress(updated.address || '');
+    setSettingsNif(updated.nif || '');
+    setSettingsPhone(updated.phone || '');
+    setSettingsWebsite(updated.website || '');
+    setSettingsPdfTemplate(updated.pdfTemplate || 'default' as PdfTemplate);
+
+    // Salva localmente e sincroniza com a nuvem
     await saveCompany(updated);
     
-    // Atualiza diretamente no Supabase para garantir que fique bloqueado novamente após gravar
+    // Atualiza diretamente no Supabase enviando payload seguro (evita quebrar por imagens gigantes ou colunas ausentes)
     try {
+      const cloudPayload: any = {
+        name: settingsCompanyName,
+        fiscal_address: settingsAddress,
+        address: settingsAddress,
+        nif: settingsNif,
+        phone: settingsPhone,
+        website: settingsWebsite,
+        pdf_template: settingsPdfTemplate,
+        can_edit_sensitive_data: false,
+        caneditsensitivedata: false,
+        unlock_requested: false,
+        unlockrequested: false
+      };
+
+      if (settingsLogo && settingsLogo.length < 500000) {
+        cloudPayload.logo = settingsLogo;
+      }
+      if (settingsQrCode && settingsQrCode.length < 500000) {
+        cloudPayload.qr_code = settingsQrCode;
+        cloudPayload.qrcode = settingsQrCode;
+      }
+
       if (currentUser.id) {
-        await supabase
-          .from('companies')
-          .update({
-            name: settingsCompanyName,
-            logo: settingsLogo,
-            fiscal_address: settingsAddress,
-            address: settingsAddress,
-            nif: settingsNif,
-            phone: settingsPhone,
-            website: settingsWebsite,
-            can_edit_sensitive_data: false,
-            caneditsensitivedata: false,
-            unlock_requested: false,
-            unlockrequested: false
-          })
-          .eq('id', currentUser.id);
+        await supabase.from('companies').update(cloudPayload).eq('id', currentUser.id);
       }
       if (currentUser.email) {
-        await supabase
-          .from('companies')
-          .update({
-            name: settingsCompanyName,
-            logo: settingsLogo,
-            fiscal_address: settingsAddress,
-            address: settingsAddress,
-            nif: settingsNif,
-            phone: settingsPhone,
-            website: settingsWebsite,
-            can_edit_sensitive_data: false,
-            caneditsensitivedata: false,
-            unlock_requested: false,
-            unlockrequested: false
-          })
-          .eq('email', currentUser.email.toLowerCase().trim());
+        await supabase.from('companies').update(cloudPayload).eq('email', currentUser.email.toLowerCase().trim());
       }
     } catch (e) {
       console.warn("Erro ao atualizar bloqueio diretamente no Supabase após salvar definições:", e);
@@ -2730,8 +2742,6 @@ const App: React.FC = () => {
       console.warn('Broadcast lock status error after save:', e);
     }
 
-    setCurrentUser({...updated});
-    currentUserRef.current = updated;
     setShowSettingsConfirmModal(false);
     setTimeout(() => alert(t.saveSuccess), 100);
   };

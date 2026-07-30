@@ -112,27 +112,28 @@ export const mapCompanyFromSupabase = (data: any): Company => {
   }
 
   const mapped: Company = {
+    ...localComp,
     ...raw,
-    id: String(raw.id || raw.company_id || raw.companyid || ''),
-    name: raw.name || raw.company_name || 'Empresa',
-    email: raw.email || '',
-    logo: raw.logo || raw.logo_url || raw.logourl || '',
-    qrCode: raw.qrCode || raw.qr_code || raw.qrcode || '',
-    address: raw.address || raw.fiscal_address || raw.fiscaladdress || '',
-    nif: raw.nif || raw.tax_id || raw.taxid || '',
-    phone: raw.phone || raw.telephone || raw.phone_number || '',
-    website: raw.website || raw.site || raw.web_site || raw.website_url || raw.site_url || '',
-    pdfTemplate: raw.pdfTemplate || raw.pdf_template || raw.pdftemplate || 'default',
+    id: String(raw.id || raw.company_id || raw.companyid || localComp?.id || ''),
+    name: (raw.name || raw.company_name || localComp?.name || 'Empresa').trim() || localComp?.name || 'Empresa',
+    email: raw.email || localComp?.email || '',
+    logo: raw.logo || raw.logo_url || raw.logourl || localComp?.logo || '',
+    qrCode: raw.qrCode || raw.qr_code || raw.qrcode || localComp?.qrCode || '',
+    address: raw.address || raw.fiscal_address || raw.fiscaladdress || localComp?.address || '',
+    nif: raw.nif || raw.tax_id || raw.taxid || localComp?.nif || '',
+    phone: raw.phone || raw.telephone || raw.phone_number || localComp?.phone || '',
+    website: raw.website || raw.site || raw.web_site || raw.website_url || raw.site_url || localComp?.website || '',
+    pdfTemplate: raw.pdfTemplate || raw.pdf_template || raw.pdftemplate || localComp?.pdfTemplate || 'default',
     plan: normalizedPlan,
     subscriptionExpiresAt: subExpiry,
     subscription_expires_at: subExpiry,
-    lastSeenAt: rawLastSeen,
-    last_seen_at: rawLastSeen,
-    isManual: Boolean(raw.isManual || raw.is_manual),
+    lastSeenAt: rawLastSeen || localComp?.lastSeenAt,
+    last_seen_at: rawLastSeen || (localComp as any)?.last_seen_at,
+    isManual: Boolean(raw.isManual || raw.is_manual || localComp?.isManual),
     canEditSensitiveData: canEdit,
     unlockRequested: unlockReq,
-    isBlocked: Boolean(raw.isBlocked || raw.is_blocked),
-    verified: raw.verified !== undefined ? Boolean(raw.verified) : true
+    isBlocked: Boolean(raw.isBlocked || raw.is_blocked || localComp?.isBlocked),
+    verified: raw.verified !== undefined ? Boolean(raw.verified) : (localComp?.verified !== undefined ? localComp.verified : true)
   };
 
   return mapped;
@@ -163,6 +164,7 @@ export const saveCompany = async (company: Company) => {
   const bestLastSeen = new Date(maxTime).toISOString();
 
   const updatedCompany: Company = {
+    ...existing,
     ...company,
     lastSeenAt: bestLastSeen,
     last_seen_at: bestLastSeen
