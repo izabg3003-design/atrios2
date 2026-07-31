@@ -1,4 +1,4 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -12,6 +12,7 @@ const STORAGE_KEY_SESSION = 'atrios_session';
 const STORAGE_KEY_STORE_ORDERS = 'atrios_store_orders';
 const STORAGE_KEY_PRODUCTS = 'atrios_products';
 const STORAGE_KEY_CUSTOM_ORDERS = 'atrios_custom_orders';
+const STORAGE_KEY_JOB_OFFERS = 'atrios_job_offers';
 
 /**
  * Helper para salvar no localStorage com tratamento de erro de cota excedida.
@@ -692,6 +693,111 @@ export const mapCustomOrderFromSupabase = (c: any): CustomOrderRequest => {
   return mapped as CustomOrderRequest;
 };
 
+export const mapJobOfferFromSupabase = (j: any): JobOffer => {
+  const mapped: any = { ...j };
+  if (j.company_id && !j.companyId) mapped.companyId = j.company_id;
+  if (j.company_name && !j.companyName) mapped.companyName = j.company_name;
+  if (j.start_date && !j.startDate) mapped.startDate = j.start_date;
+  if (j.created_at && !j.createdAt) mapped.createdAt = j.created_at;
+  if (j.updated_at && !j.updatedAt) mapped.updatedAt = j.updated_at;
+  return mapped as JobOffer;
+};
+
+export const mapJobOfferToSupabasePayload = (offer: JobOffer) => {
+  return {
+    id: offer.id,
+    company_id: offer.companyId,
+    company_name: offer.companyName,
+    location: offer.location,
+    specialty: offer.specialty,
+    salary: offer.salary,
+    start_date: offer.startDate,
+    duration: offer.duration,
+    description: offer.description,
+    contact: offer.contact,
+    status: offer.status,
+    feedback: offer.feedback || null,
+    created_at: offer.createdAt || new Date().toISOString(),
+    updated_at: offer.updatedAt || new Date().toISOString()
+  };
+};
+
+export const getStoredJobOffers = (companyId?: string): JobOffer[] => {
+  const data = localStorage.getItem(STORAGE_KEY_JOB_OFFERS);
+  const offers: JobOffer[] = data ? JSON.parse(data) : [];
+  if (companyId) {
+    return offers.filter(o => String(o.companyId) === String(companyId));
+  }
+  return offers;
+};
+
+export const saveJobOffer = async (offer: JobOffer): Promise<boolean> => {
+  try {
+    const offers = getStoredJobOffers();
+    const index = offers.findIndex(o => o.id === offer.id);
+    if (index > -1) {
+      offers[index] = offer;
+    } else {
+      offers.unshift(offer);
+    }
+    safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
+    
+    // Sincronizar via syncToCloud para garantias de resiliência e tratamento de schema
+    const result = await syncToCloud('job_offers', offer);
+    if (!result.success) {
+      console.warn("saveJobOffer: Falha na sincronização cloud (salvo localmente):", result.error);
+    } else {
+      console.log("saveJobOffer: Vaga de trabalho sincronizada no Supabase com sucesso!");
+    }
+    return true;
+  } catch (err) {
+    console.error("saveJobOffer error:", err);
+    return false;
+  }
+};
+
+export const deleteJobOffer = async (id: string): Promise<boolean> => {
+  try {
+    const offers = getStoredJobOffers().filter(o => o.id !== id);
+    safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
+    const { error } = await safeFetch<any>(supabase.from('job_offers').delete().eq('id', id));
+    if (error) {
+      console.warn("deleteJobOffer: Aviso ao deletar no Supabase:", error);
+    }
+    return true;
+  } catch (err) {
+    console.error("deleteJobOffer error:", err);
+    return false;
+  }
+};
+
+export const updateJobOfferStatus = async (id: string, status: JobOfferStatus, feedback?: string): Promise<boolean> => {
+  try {
+    const offers = getStoredJobOffers();
+    const index = offers.findIndex(o => o.id === id);
+    if (index > -1) {
+      const updatedOffer: JobOffer = {
+        ...offers[index],
+        status,
+        feedback: feedback !== undefined ? feedback : offers[index].feedback,
+        updatedAt: new Date().toISOString()
+      };
+      offers[index] = updatedOffer;
+      safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
+      
+      const result = await syncToCloud('job_offers', updatedOffer);
+      if (!result.success) {
+        console.warn("updateJobOfferStatus: Falha na atualização cloud (salvo localmente):", result.error);
+      }
+      return true;
+    }
+    return false;
+  } catch (err) {
+    console.error("updateJobOfferStatus error:", err);
+    return false;
+  }
+};
+
 // Helper para buscar dados de forma resiliente tentando diferentes nomes de coluna para o ID da empresa
 export const fetchResilient = async (table: string, companyId: string, orderCol?: string, select = '*') => {
   const columns = ['companyId', 'company_id', 'companyid'];
@@ -740,10 +846,10 @@ export const fetchResilient = async (table: string, companyId: string, orderCol?
   return { data: null, error: lastError };
 };
 
-export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Budget[], orders: StoreOrder[], messages: SupportMessage[], customOrders: CustomOrderRequest[] }> => {
+export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Budget[], orders: StoreOrder[], messages: SupportMessage[], customOrders: CustomOrderRequest[], jobOffers?: JobOffer[] }> => {
   if (!companyId) {
     console.warn("[Hydrate] companyId não fornecido. Abortando hidratação.");
-    return { budgets: [], orders: [], messages: [], customOrders: [] };
+    return { budgets: [], orders: [], messages: [], customOrders: [], jobOffers: [] };
   }
   let fetchedBudgets: Budget[] = getStoredBudgets(companyId);
   let fetchedOrders: StoreOrder[] = getStoredStoreOrders(companyId);
@@ -768,7 +874,7 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const companies = getStoredCompanies();
       const filtered = companies.filter(c => String(c.id) !== String(companyId));
       safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(filtered));
-      return { budgets: [], orders: [], messages: [], customOrders: [] }; 
+      return { budgets: [], orders: [], messages: [], customOrders: [], jobOffers: [] }; 
     }
 
     if (companyData) {
@@ -939,10 +1045,44 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       }
     }
     
-    return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };
+    // 8. Hidratar Vagas de Trabalho
+    let fetchedJobOffers: JobOffer[] = getStoredJobOffers(companyId);
+    try {
+      console.log(`[Hydrate] Buscando vagas de trabalho para a empresa ${companyId}...`);
+      const { data: jobOffersRemote } = await fetchResilient('job_offers', companyId, undefined, '*');
+      const allJobs = getStoredJobOffers();
+      const currentCompanyLocalJobs = allJobs.filter(j => String(j.companyId) === String(companyId));
+      const otherJobs = allJobs.filter(j => String(j.companyId) !== String(companyId));
+
+      if (jobOffersRemote && jobOffersRemote.length > 0) {
+        const mapped = jobOffersRemote.map(mapJobOfferFromSupabase);
+        const mergedJobs = [...mapped];
+        currentCompanyLocalJobs.forEach(localJob => {
+          if (!mergedJobs.some(m => String(m.id) === String(localJob.id))) {
+            mergedJobs.push(localJob);
+            syncToCloud('job_offers', localJob).catch(error => {
+              console.warn("[Hydrate] Erro ao re-sincronizar vaga local para Supabase:", error);
+            });
+          }
+        });
+        safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify([...otherJobs, ...mergedJobs]));
+        fetchedJobOffers = mergedJobs;
+      } else if (currentCompanyLocalJobs.length > 0) {
+        // Se ainda não há dados remotos, enviar as vagas locais para a nuvem
+        currentCompanyLocalJobs.forEach(localJob => {
+          syncToCloud('job_offers', localJob).catch(error => {
+            console.warn("[Hydrate] Erro ao enviar vaga local inicial para Supabase:", error);
+          });
+        });
+      }
+    } catch (e) {
+      console.warn("[Hydrate] Aviso ao carregar vagas de trabalho remota:", e);
+    }
+    
+    return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders, jobOffers: fetchedJobOffers };
   } catch (err) {
     console.warn("Falha ao recuperar dados remotos (esperado em modo offline/sandboxed):", err);
-    return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders };
+    return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders, jobOffers: getStoredJobOffers(companyId) };
   }
 };
 

@@ -39,7 +39,12 @@ import {
   PieChart as PieChartIcon,
   Clock,
   Activity,
-  Key
+  Key,
+  HardHat,
+  MapPin,
+  Euro,
+  Phone,
+  LogOut
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -53,7 +58,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification, JobOffer, JobOfferStatus } from '../types';
 import { generateCompanyQrCode } from '../services/qrcode';
 import { 
   getStoredCompanies, 
@@ -80,6 +85,11 @@ import {
   mapMessageFromSupabase,
   mapOrderFromSupabase,
   mapCustomOrderFromSupabase,
+  getStoredJobOffers,
+  updateJobOfferStatus,
+  deleteJobOffer,
+  mapJobOfferFromSupabase,
+  mapJobOfferToSupabasePayload,
   safeSetItem
 } from '../services/storage';
 import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/supabase';
@@ -205,10 +215,17 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
+  
+  // Job Offers State for Master
+  const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
+  const [jobStatusFilter, setJobStatusFilter] = useState<'all' | JobOfferStatus>('all');
+  const [jobSearch, setJobSearch] = useState('');
+  const [jobFeedbackModal, setJobFeedbackModal] = useState<{ id: string; status: JobOfferStatus; companyId: string; title: string } | null>(null);
+  const [jobFeedbackText, setJobFeedbackText] = useState('');
   
   // Custom Push notifications composer states
   const [pushTitle, setPushTitle] = useState('');
@@ -616,6 +633,36 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       }
     }
 
+    // Buscar Vagas de Trabalho
+    console.log("MasterPanel: Buscando vagas de trabalho no Supabase...");
+    const { data: cloudJobOffers } = await safeFetch<any[]>(supabase.from('job_offers').select('*'));
+    const localJobs = getStoredJobOffers();
+    let finalJobs: JobOffer[] = [];
+
+    if (cloudJobOffers && cloudJobOffers.length > 0) {
+      const mappedJobs = cloudJobOffers.map(mapJobOfferFromSupabase);
+      const merged = [...mappedJobs];
+      localJobs.forEach(lj => {
+        if (!merged.some(mj => String(mj.id) === String(lj.id))) {
+          merged.push(lj);
+          syncToCloud('job_offers', lj).catch(e => console.warn("MasterPanel: Erro ao re-sincronizar vaga local:", e));
+        }
+      });
+      finalJobs = merged;
+    } else {
+      finalJobs = localJobs;
+      localJobs.forEach(lj => {
+        syncToCloud('job_offers', lj).catch(e => console.warn("MasterPanel: Erro ao enviar vaga local inicial:", e));
+      });
+    }
+
+    safeSetItem('atrios_job_offers', JSON.stringify(finalJobs));
+    setJobOffers(finalJobs.sort((a, b) => {
+      const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
+      const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
+      return dateB - dateA;
+    }));
+
     // Buscar transações no Supabase
     let allTransactions: Transaction[] = [];
     try {
@@ -892,6 +939,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         console.log('Master custom orders subscription status:', status);
       });
 
+    // Subscrição para vagas de trabalho
+    const jobOffersChannel = supabase
+      .channel('master-job-offers')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'job_offers' },
+        (payload) => {
+          console.log("Master job offer change detected:", payload.eventType, payload);
+          loadData();
+        }
+      )
+      .subscribe();
+
     // Fallback polling para o Master (4 segundos para chat em tempo real)
     const fallback = setInterval(loadData, 4000);
 
@@ -910,10 +970,70 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       supabase.removeChannel(companyChannel);
       supabase.removeChannel(storeOrdersChannel);
       supabase.removeChannel(customOrdersChannel);
+      supabase.removeChannel(jobOffersChannel);
       window.removeEventListener('storage', handleStorageChange);
       clearInterval(fallback);
     };
   }, [activeTab, selectedCompanyId]);
+
+  const pendingJobsCount = useMemo(() => jobOffers.filter(j => j.status === 'pending').length, [jobOffers]);
+
+  const handleApproveJob = async (job: JobOffer) => {
+    const ok = await updateJobOfferStatus(job.id, 'approved', '');
+    if (ok) {
+      setJobOffers(prev => prev.map(j => j.id === job.id ? { ...j, status: 'approved', feedback: '' } : j));
+      fetch('/api/push/notify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: job.companyId,
+          title: 'Vaga de Trabalho Aprovada! 🎉',
+          body: `A sua vaga para "${job.specialty}" em ${job.location} foi aprovada e já se encontra ativa no Átrios Work.`
+        })
+      }).catch(err => console.warn("Push notify user failed:", err));
+    }
+  };
+
+  const handleOpenJobFeedbackModal = (job: JobOffer, status: JobOfferStatus) => {
+    setJobFeedbackModal({
+      id: job.id,
+      status,
+      companyId: job.companyId,
+      title: status === 'adjustment_requested' ? 'Solicitar Ajuste na Vaga' : 'Desaprovar Vaga de Trabalho'
+    });
+    setJobFeedbackText(job.feedback || '');
+  };
+
+  const handleConfirmJobFeedback = async () => {
+    if (!jobFeedbackModal) return;
+    const { id, status, companyId } = jobFeedbackModal;
+    const ok = await updateJobOfferStatus(id, status, jobFeedbackText);
+    if (ok) {
+      setJobOffers(prev => prev.map(j => j.id === id ? { ...j, status, feedback: jobFeedbackText } : j));
+      const isAdjustment = status === 'adjustment_requested';
+      fetch('/api/push/notify-user', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          companyId: companyId,
+          title: isAdjustment ? 'Ajuste Solicitado na Vaga ⚠️' : 'Vaga de Trabalho Desaprovada ❌',
+          body: isAdjustment
+            ? `O suporte solicitou um ajuste na sua vaga de trabalho: "${jobFeedbackText}"`
+            : `A sua vaga de trabalho não foi aprovada. Motivo: "${jobFeedbackText}"`
+        })
+      }).catch(err => console.warn("Push notify user failed:", err));
+    }
+    setJobFeedbackModal(null);
+    setJobFeedbackText('');
+  };
+
+  const handleDeleteJob = async (id: string) => {
+    if (!window.confirm("Excluir esta vaga de trabalho permanentemente?")) return;
+    const ok = await deleteJobOffer(id);
+    if (ok) {
+      setJobOffers(prev => prev.filter(j => j.id !== id));
+    }
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -2041,12 +2161,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
       <div className="max-w-7xl mx-auto space-y-10">
         <div className="flex flex-col md:flex-row justify-between items-center border-b border-white/10 pb-8 gap-8">
-          <div className="flex items-center gap-4"><div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20"><ShieldCheck size={32} className="text-slate-950" /></div><div><h1 className="text-4xl font-black tracking-tighter italic uppercase">{t.masterPanelTitle}</h1><p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.masterPanelSub}</p></div></div>
-          <nav className="flex flex-wrap bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
+          <div className="flex items-center justify-between w-full md:w-auto gap-4">
+            <div className="flex items-center gap-4">
+              <div className="bg-amber-500 p-3 rounded-2xl shadow-lg shadow-amber-500/20"><ShieldCheck size={32} className="text-slate-950" /></div>
+              <div><h1 className="text-4xl font-black tracking-tighter italic uppercase">{t.masterPanelTitle}</h1><p className="text-slate-400 font-bold uppercase tracking-widest text-xs">{t.masterPanelSub}</p></div>
+            </div>
+            <button 
+              onClick={onLogout} 
+              className="md:hidden flex items-center gap-2 px-4 py-2.5 rounded-xl bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 transition-all font-black text-xs uppercase tracking-wider shrink-0 cursor-pointer"
+            >
+              <LogOut size={16} /> {t.logout}
+            </button>
+          </div>
+          <div className="flex items-center gap-4 w-full md:w-auto justify-between md:justify-end">
+            <nav className="flex flex-wrap bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
             {[
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
+              { id: 'jobs', label: 'Vagas de Trabalho', icon: HardHat },
               { id: 'store', label: t.masterStoreTab, icon: ShoppingBag },
               { id: 'products', label: 'Produtos', icon: Package },
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
@@ -2074,6 +2207,15 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   </span>
                 )}
 
+                {tab.id === 'jobs' && pendingJobsCount > 0 && (
+                  <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-amber-500 text-slate-950 items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
+                      +{pendingJobsCount}
+                    </span>
+                  </span>
+                )}
+
                 {tab.id === 'store' && pendingStoreOrdersCount > 0 && (
                   <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-amber-400 opacity-75" />
@@ -2085,10 +2227,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               </button>
             ))}
 
-            <button onClick={onLogout} className="px-6 py-2.5 hover:bg-red-500/20 text-red-400 rounded-xl transition-all font-black text-xs uppercase flex items-center gap-2">
-              <ArrowLeft size={16} /> {t.logout}
+            <button onClick={onLogout} className="px-5 py-2.5 bg-red-500/10 hover:bg-red-500/20 text-red-400 border border-red-500/20 rounded-xl transition-all font-black text-xs uppercase flex items-center gap-2 cursor-pointer shadow-sm">
+              <LogOut size={15} /> {t.logout}
             </button>
           </nav>
+          </div>
         </div>
 
         {pendingUnlockCompanies.length > 0 && (
@@ -3368,6 +3511,237 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     </div>
                   ))
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeTab === 'jobs' && (
+          <div className="space-y-8 animate-in fade-in">
+            {/* Top Bar / Stats */}
+            <div className="bg-white/5 border border-white/10 p-8 rounded-[3rem] flex flex-col md:flex-row items-center justify-between gap-6">
+              <div className="space-y-2">
+                <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
+                  <HardHat size={14} /> Átrios Build ➔ Átrios Work
+                </div>
+                <h2 className="text-3xl font-black italic text-white uppercase flex items-center gap-3">
+                  Aprovação de Vagas de Trabalho
+                </h2>
+                <p className="text-slate-400 text-xs font-semibold max-w-xl">
+                  Gerencie e analise as oportunidades de trabalho submetidas pelas empresas no **Átrios Build** para a rede de trabalhadores no **Átrios Work**.
+                </p>
+              </div>
+
+              {/* Status Filter Badges */}
+              <div className="flex flex-wrap items-center gap-2 bg-slate-950/60 p-2 rounded-2xl border border-white/10">
+                {[
+                  { id: 'all', label: 'Todas', count: jobOffers.length },
+                  { id: 'pending', label: 'Pendentes', count: jobOffers.filter(j => j.status === 'pending').length },
+                  { id: 'approved', label: 'Aprovadas', count: jobOffers.filter(j => j.status === 'approved').length },
+                  { id: 'adjustment_requested', label: 'Ajuste Solicitado', count: jobOffers.filter(j => j.status === 'adjustment_requested').length },
+                  { id: 'rejected', label: 'Desaprovadas', count: jobOffers.filter(j => j.status === 'rejected').length }
+                ].map(tab => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setJobStatusFilter(tab.id as any)}
+                    className={`px-4 py-2 rounded-xl text-xs font-black uppercase transition-all flex items-center gap-2 ${
+                      jobStatusFilter === tab.id
+                        ? 'bg-amber-500 text-slate-950 shadow-lg'
+                        : 'text-slate-400 hover:text-white hover:bg-white/5'
+                    }`}
+                  >
+                    {tab.label}
+                    {tab.count > 0 && (
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] ${
+                        jobStatusFilter === tab.id ? 'bg-slate-950 text-white' : 'bg-white/10 text-slate-300'
+                      }`}>
+                        {tab.count}
+                      </span>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* List of Job Offers */}
+            {jobOffers.filter(j => jobStatusFilter === 'all' || j.status === jobStatusFilter).length === 0 ? (
+              <div className="bg-white/5 border border-white/10 rounded-[3rem] p-16 text-center space-y-4">
+                <div className="w-16 h-16 bg-amber-500/10 text-amber-500 rounded-2xl flex items-center justify-center mx-auto">
+                  <HardHat size={32} />
+                </div>
+                <h3 className="text-xl font-black text-white italic uppercase">Nenhuma vaga nesta categoria</h3>
+                <p className="text-xs text-slate-400 font-medium">Não existem vagas de trabalho com o estado selecionado.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {jobOffers
+                  .filter(j => jobStatusFilter === 'all' || j.status === jobStatusFilter)
+                  .map(job => (
+                    <div
+                      key={job.id}
+                      className="bg-white/5 border border-white/10 hover:border-amber-500/40 p-6 rounded-[2.5rem] space-y-5 transition-all flex flex-col justify-between"
+                    >
+                      <div className="space-y-4">
+                        {/* Company & Status */}
+                        <div className="flex items-start justify-between gap-3 border-b border-white/10 pb-4">
+                          <div>
+                            <span className="text-[10px] font-black uppercase tracking-widest text-amber-400 block mb-1">
+                              {job.companyName}
+                            </span>
+                            <h3 className="text-lg font-black text-white italic uppercase flex items-center gap-2">
+                              <HardHat size={18} className="text-amber-500 shrink-0" />
+                              {job.specialty}
+                            </h3>
+                          </div>
+                          <div>
+                            {job.status === 'approved' && (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30">
+                                Aprovada
+                              </span>
+                            )}
+                            {job.status === 'pending' && (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/20 text-amber-400 border border-amber-500/30 animate-pulse">
+                                Pendente
+                              </span>
+                            )}
+                            {job.status === 'adjustment_requested' && (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-amber-500/30 text-amber-300 border border-amber-400">
+                                Ajuste Solicitado
+                              </span>
+                            )}
+                            {job.status === 'rejected' && (
+                              <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase bg-rose-500/20 text-rose-400 border border-rose-500/30">
+                                Desaprovada
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Details */}
+                        <div className="grid grid-cols-2 gap-2 text-xs">
+                          <div className="bg-white/5 p-2.5 rounded-xl border border-white/5 text-slate-300 font-semibold truncate flex items-center gap-2">
+                            <MapPin size={14} className="text-amber-400 shrink-0" /> {job.location}
+                          </div>
+                          <div className="bg-white/5 p-2.5 rounded-xl border border-white/5 text-emerald-400 font-black truncate flex items-center gap-2">
+                            <Euro size={14} className="shrink-0" /> {job.salary}
+                          </div>
+                          <div className="bg-white/5 p-2.5 rounded-xl border border-white/5 text-slate-300 font-semibold truncate flex items-center gap-2">
+                            <Calendar size={14} className="text-amber-400 shrink-0" /> Início: {job.startDate}
+                          </div>
+                          <div className="bg-white/5 p-2.5 rounded-xl border border-white/5 text-slate-300 font-semibold truncate flex items-center gap-2">
+                            <Clock size={14} className="text-amber-400 shrink-0" /> Duração: {job.duration}
+                          </div>
+                        </div>
+
+                        {/* Description */}
+                        <div className="space-y-1">
+                          <span className="text-[9px] font-black uppercase tracking-widest text-slate-500">Descrição</span>
+                          <p className="text-xs text-slate-300 leading-relaxed font-medium bg-slate-950/40 p-3 rounded-xl border border-white/5 whitespace-pre-line">
+                            {job.description}
+                          </p>
+                        </div>
+
+                        {/* Contact */}
+                        <div className="flex items-center gap-2 text-xs font-bold text-amber-300">
+                          <Phone size={14} /> Contacto: {job.contact}
+                        </div>
+
+                        {/* Existing feedback if any */}
+                        {job.feedback && (
+                          <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/20 text-xs text-amber-200">
+                            <span className="font-black uppercase text-[9px] tracking-wider block mb-1">Observações / Ajustes solicitados:</span>
+                            {job.feedback}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Action Buttons for Master */}
+                      <div className="pt-4 border-t border-white/10 space-y-2">
+                        <div className="grid grid-cols-3 gap-2">
+                          <button
+                            onClick={() => handleApproveJob(job)}
+                            className="py-2.5 px-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase flex items-center justify-center gap-1 transition-all shadow-lg shadow-emerald-500/10"
+                            title="Aprovar e publicar no Átrios Work"
+                          >
+                            <CheckCircle size={14} /> Aprovar
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenJobFeedbackModal(job, 'adjustment_requested')}
+                            className="py-2.5 px-2 rounded-xl bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 border border-amber-500/30 font-black text-xs uppercase flex items-center justify-center gap-1 transition-all"
+                            title="Solicitar alterações ao utilizador"
+                          >
+                            <AlertCircle size={14} /> Ajuste
+                          </button>
+
+                          <button
+                            onClick={() => handleOpenJobFeedbackModal(job, 'rejected')}
+                            className="py-2.5 px-2 rounded-xl bg-rose-500/20 hover:bg-rose-500 text-rose-300 hover:text-white border border-rose-500/30 font-black text-xs uppercase flex items-center justify-center gap-1 transition-all"
+                            title="Desaprovar vaga"
+                          >
+                            <X size={14} /> Rejeitar
+                          </button>
+                        </div>
+
+                        <div className="flex justify-between items-center text-[10px] text-slate-500 pt-1">
+                          <span>Publicado: {new Date(job.createdAt).toLocaleDateString('pt-PT')}</span>
+                          <button
+                            onClick={() => handleDeleteJob(job.id)}
+                            className="text-rose-400 hover:text-rose-300 flex items-center gap-1 font-bold"
+                          >
+                            <Trash2 size={12} /> Excluir Vaga
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal for Master Feedback / Rejection reason */}
+        {jobFeedbackModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 p-6 backdrop-blur-sm animate-in fade-in">
+            <div className="bg-slate-900 w-full max-w-lg rounded-[2.5rem] border border-white/10 shadow-2xl p-8 space-y-6">
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                <h3 className="text-xl font-black italic text-amber-400 uppercase flex items-center gap-2">
+                  <AlertCircle size={22} /> {jobFeedbackModal.title}
+                </h3>
+                <button
+                  onClick={() => { setJobFeedbackModal(null); setJobFeedbackText(''); }}
+                  className="p-2 text-slate-400 hover:text-white rounded-full"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="space-y-3">
+                <label className="block text-xs font-bold text-slate-300">
+                  Descreva o motivo ou a informação que o utilizador precisa de ajustar:
+                </label>
+                <textarea
+                  rows={4}
+                  value={jobFeedbackText}
+                  onChange={e => setJobFeedbackText(e.target.value)}
+                  placeholder="Ex: Por favor indique se o alojamento está incluído e adicione um número de contacto direto..."
+                  className="w-full bg-white/5 border border-white/10 rounded-2xl p-4 text-xs font-medium text-white outline-none focus:border-amber-500 transition-all resize-none"
+                />
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => { setJobFeedbackModal(null); setJobFeedbackText(''); }}
+                  className="flex-1 py-3.5 bg-white/5 text-slate-300 rounded-xl font-black text-xs uppercase hover:bg-white/10"
+                >
+                  Cancelar
+                </button>
+                <button
+                  onClick={handleConfirmJobFeedback}
+                  className="flex-1 py-3.5 bg-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase hover:bg-amber-400 shadow-lg shadow-amber-500/20"
+                >
+                  Confirmar e Notificar Utilizador
+                </button>
               </div>
             </div>
           </div>

@@ -148,8 +148,7 @@ async function pruneOldSubscriptionsFromSupabase() {
       .lt("created_at", sevenDaysAgo)
       .then(({ error }) => {
         if (!error) console.log("[Supabase Prune] Subscrições antigas limpas com sucesso.");
-      })
-      .catch(e => console.warn("[Supabase Prune Async Error]", e));
+      }, e => console.warn("[Supabase Prune Async Error]", e));
   } catch (err: any) {
     console.error("[Supabase Prune Exception]", err.message || err);
   }
@@ -225,7 +224,7 @@ async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[
           cachedPushSubs = parseSubRows(data);
           lastSubCacheTime = Date.now();
         }
-      }).catch(() => {});
+      }, () => {});
 
       return cachedPushSubs || empty;
     }
@@ -727,7 +726,7 @@ async function startServer() {
 
       if (process.env.SUPABASE_URL) {
         for (const endpoint of deadWebEndpoints) {
-          supabase.from("push_subscriptions").delete().eq("id", endpoint).catch(() => {});
+          supabase.from("push_subscriptions").delete().eq("id", endpoint).then(() => {}, () => {});
         }
       }
     }
@@ -744,7 +743,7 @@ async function startServer() {
 
       if (process.env.SUPABASE_URL) {
         for (const token of fcmTokensToRemove) {
-          supabase.from("push_subscriptions").delete().eq("id", token).catch(() => {});
+          supabase.from("push_subscriptions").delete().eq("id", token).then(() => {}, () => {});
         }
       }
     }

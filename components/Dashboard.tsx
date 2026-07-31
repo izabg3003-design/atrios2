@@ -63,16 +63,26 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
       const monthName = t[monthKeys[monthIndex]] as string;
       const monthKey = `${d.getFullYear()}-${d.getMonth()}`;
       
-      const monthlyTotal = budgets
-        .filter(b => {
-          const bDate = new Date(b.created_at);
-          return bDate.getFullYear() === d.getFullYear() && bDate.getMonth() === d.getMonth();
-        })
-        .reduce((sum, b) => sum + b.totalAmount, 0);
+      const monthBudgets = budgets.filter(b => {
+        const bDate = new Date(b.created_at || b.createdAt);
+        return !isNaN(bDate.getTime()) && bDate.getFullYear() === d.getFullYear() && bDate.getMonth() === d.getMonth();
+      });
+
+      const approvedTotal = monthBudgets
+        .filter(b => b.status === BudgetStatus.APPROVED || b.status === BudgetStatus.COMPLETED)
+        .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+
+      const pendingTotal = monthBudgets
+        .filter(b => b.status === BudgetStatus.PENDING)
+        .reduce((sum, b) => sum + (b.totalAmount || 0), 0);
+
+      const monthlyTotal = monthBudgets.reduce((sum, b) => sum + (b.totalAmount || 0), 0);
 
       lastSixMonths.push({
         name: monthName,
         value: monthlyTotal * currencyInfo.rate,
+        aprovados: approvedTotal * currencyInfo.rate,
+        pendentes: pendingTotal * currencyInfo.rate,
         key: monthKey
       });
     }
@@ -227,10 +237,26 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
         
         <div className={`grid grid-cols-1 lg:grid-cols-2 gap-6 lg:gap-8 ${!isPremium ? 'blur-[4px] pointer-events-none grayscale' : ''}`}>
           <div className="bg-white p-5 sm:p-8 lg:p-10 rounded-[2rem] lg:rounded-[3rem] shadow-sm border border-slate-100">
-            <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 mb-6 lg:mb-10 flex items-center gap-2 lg:gap-3 uppercase tracking-tight">
-              <TrendingUp size={18} className="text-blue-500 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
-              {t.volumeChartTitle}
-            </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between mb-4 lg:mb-6 gap-2">
+              <h3 className="text-base sm:text-lg lg:text-xl font-black text-slate-900 flex items-center gap-2 lg:gap-3 uppercase tracking-tight">
+                <TrendingUp size={18} className="text-blue-500 sm:w-5 sm:h-5 lg:w-6 lg:h-6" />
+                {t.volumeChartTitle}
+              </h3>
+              <div className="flex flex-wrap items-center gap-2.5 sm:gap-4">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-emerald-500"></div>
+                  <span className="text-[7.5px] sm:text-[8.5px] lg:text-[9.5px] font-black text-slate-400 uppercase">{t.statusApproved}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-amber-500"></div>
+                  <span className="text-[7.5px] sm:text-[8.5px] lg:text-[9.5px] font-black text-slate-400 uppercase">{t.statusPending}</span>
+                </div>
+                <div className="flex items-center gap-1.5">
+                  <div className="w-2.5 h-2.5 rounded-full bg-blue-500"></div>
+                  <span className="text-[7.5px] sm:text-[8.5px] lg:text-[9.5px] font-black text-slate-400 uppercase">{dLocal.totalVolume}</span>
+                </div>
+              </div>
+            </div>
 
             <div className="grid grid-cols-3 gap-2 sm:gap-4 bg-slate-50 p-3 sm:p-4 rounded-2xl mb-6">
               <div>
@@ -261,14 +287,19 @@ const Dashboard: React.FC<DashboardProps> = ({ budgets, plan, locale, currencyCo
                   <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 8, fontWeight: 'bold'}} />
                   <Tooltip 
                     cursor={{fill: '#f8fafc'}}
-                    formatter={(value: any) => [value.toLocaleString(locale, { style: 'currency', currency: currencyCode }), t.chartVolumeLabel]}
-                    contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)', padding: '8px', fontWeight: 'bold', fontSize: '10px'}}
+                    formatter={(val: any, name: any) => {
+                      const labelMap: Record<string, string> = {
+                        aprovados: t.statusApproved,
+                        pendentes: t.statusPending,
+                        value: dLocal.totalVolume
+                      };
+                      return [Number(val).toLocaleString(locale, { style: 'currency', currency: currencyCode }), labelMap[name] || name];
+                    }}
+                    contentStyle={{borderRadius: '15px', border: 'none', boxShadow: '0 25px 50px -12px rgb(0 0 0 / 0.1)', padding: '10px', fontWeight: 'bold', fontSize: '10px'}}
                   />
-                  <Bar dataKey="value" radius={[6, 6, 0, 0]} barSize={20} sm:barSize={30} lg:barSize={40}>
-                    {chartData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={index === chartData.length - 1 ? '#3b82f6' : '#94a3b8'} />
-                    ))}
-                  </Bar>
+                  <Bar dataKey="aprovados" name={t.statusApproved} fill="#10b981" radius={[4, 4, 0, 0]} barSize={8} sm:barSize={14} lg:barSize={20} />
+                  <Bar dataKey="pendentes" name={t.statusPending} fill="#f59e0b" radius={[4, 4, 0, 0]} barSize={8} sm:barSize={14} lg:barSize={20} />
+                  <Bar dataKey="value" name={dLocal.totalVolume} fill="#3b82f6" radius={[4, 4, 0, 0]} barSize={8} sm:barSize={14} lg:barSize={20} />
                 </BarChart>
               </ResponsiveContainer>
             </div>

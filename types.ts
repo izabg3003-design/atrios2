@@ -219,3 +219,22 @@ export interface AuthState {
   user: Company | null;
   isAuthenticated: boolean;
 }
+
+export type JobOfferStatus = 'pending' | 'approved' | 'rejected' | 'adjustment_requested';
+
+export interface JobOffer {
+  id: string;
+  companyId: string;
+  companyName: string;
+  location: string;
+  specialty: string;
+  salary: string;
+  startDate: string;
+  duration: string;
+  description: string;
+  contact: string;
+  status: JobOfferStatus;
+  feedback?: string;
+  createdAt: string;
+  updatedAt?: string;
+}

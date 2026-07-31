@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
 import { Store } from './components/Store';
+import { JobOffers } from './components/JobOffers';
 import { InstallPWA } from './components/InstallPWA';
 import { requestFcmToken, onMessageListener } from './services/firebase';
 import { 
@@ -43,12 +44,14 @@ import {
   ShieldCheck,
   Mail,
   ShoppingBag,
+  HardHat,
   Palette,
   RefreshCw,
   Trash2,
   Facebook,
   Twitter,
-  Smartphone
+  Smartphone,
+  Sparkles
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -313,7 +316,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -343,8 +346,25 @@ const App: React.FC = () => {
   });
 
   const [showUnblockGuideModal, setShowUnblockGuideModal] = useState<boolean>(false);
+  const [showJobsComingSoonModal, setShowJobsComingSoonModal] = useState<boolean>(false);
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  // Verificação de permissão para aba de Vagas (Livre apenas para a empresa/usuário teste "Átrios Build")
+  const isAtriosBuildUser = useMemo(() => {
+    if (!currentUser) return false;
+    const name = (currentUser.name || '').toLowerCase().trim();
+    const email = (currentUser.email || '').toLowerCase().trim();
+    const code = (currentUser.code || '').toLowerCase().trim();
+    return (
+      name.includes('átrios build') || 
+      name.includes('atrios build') || 
+      name.includes('átrioswork') || 
+      name.includes('atrios work') || 
+      email.includes('atriosbuild') || 
+      code.includes('atriosbuild')
+    );
+  }, [currentUser]);
 
   // Certificado Átrios State & Handling
   const [certificateCompany, setCertificateCompany] = useState<Company | null>(null);
@@ -1434,7 +1454,7 @@ const App: React.FC = () => {
       .from('companies')
       .update({ unlock_requested: true, unlockrequested: true })
       .or(`id.eq.${currentUser.id},email.eq.${currentUser.email}`)
-      .catch(e => console.warn("Direct update for unlock_requested:", e));
+      .then(() => {}, e => console.warn("Direct update for unlock_requested:", e));
   };
 
   const normalizeForPdf = (text: string | undefined): string => {
@@ -3467,55 +3487,73 @@ const App: React.FC = () => {
           )}
 
           <aside className={`fixed inset-y-0 left-0 w-72 sm:w-80 bg-white border-r border-slate-100 flex flex-col shrink-0 shadow-2xl lg:shadow-sm z-[70] transition-transform duration-300 lg:relative lg:translate-x-0 ${isMobileMenuOpen ? 'translate-x-0' : '-translate-x-full'}`}>
-            <div className="p-4 sm:p-6 lg:p-8 pb-1 sm:pb-2 lg:pb-3">
-              <div className="flex items-center justify-between mb-4 sm:mb-8 lg:mb-10">
-                <div className="flex items-center gap-3">
-                  <div className="bg-amber-500 p-2 rounded-xl"><Construction className="text-white" size={20} /></div>
-                  <span className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tighter">{t.appName}</span>
+            <div className="flex-1 overflow-y-auto no-scrollbar p-4 sm:p-5 lg:p-6 pb-2">
+              <div className="flex items-center justify-between mb-4 sm:mb-6 lg:mb-8">
+                <div className="flex items-center gap-2.5">
+                  <div className="bg-amber-500 p-2 rounded-xl"><Construction className="text-white" size={18} /></div>
+                  <span className="text-xl sm:text-2xl font-black tracking-tighter">{t.appName}</span>
                 </div>
                 <button onClick={() => setIsMobileMenuOpen(false)} className="lg:hidden p-2 text-slate-400 hover:text-slate-900">
-                  <X size={24} />
+                  <X size={20} />
                 </button>
               </div>
-              <nav className="space-y-1 sm:space-y-2 lg:space-y-3">
+              <nav className="space-y-1 sm:space-y-1.5 lg:space-y-2">
                 {[
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
+                  { id: 'jobs', label: locale.startsWith('pt') ? 'Vagas de Trabalho' : 'Job Offers', icon: HardHat },
                   { id: 'store', label: t.store, icon: ShoppingBag },
                   { id: 'plans', label: t.plans, icon: Crown },
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
+                  const isJobsLocked = item.id === 'jobs' && !isAtriosBuildUser;
                   const hasPendingUnlock = item.id === 'settings' && currentUser?.unlockRequested;
                   
                   return (
                     <button 
                       key={item.id} 
-                      onClick={() => { setActiveTab(item.id as any); setIsMobileMenuOpen(false); }} 
-                      className={`w-full flex items-center gap-3 sm:gap-4 lg:gap-5 px-4 sm:px-5 lg:px-6 py-3 sm:py-3.5 lg:py-4 rounded-xl sm:rounded-[1.25rem] lg:rounded-[1.5rem] font-black transition-all ${activeTab === item.id ? 'bg-slate-900 text-white shadow-2xl' : 'text-slate-400 hover:bg-slate-50'}`}
+                      onClick={() => { 
+                        if (item.id === 'jobs' && !isAtriosBuildUser) {
+                          setShowJobsComingSoonModal(true);
+                          setIsMobileMenuOpen(false);
+                          return;
+                        }
+                        setActiveTab(item.id as any); 
+                        setIsMobileMenuOpen(false); 
+                      }} 
+                      className={`w-full flex items-center justify-between px-3.5 sm:px-4 py-2.5 sm:py-3 rounded-xl lg:rounded-2xl font-black transition-all text-xs sm:text-sm ${activeTab === item.id ? 'bg-slate-900 text-white shadow-lg' : 'text-slate-400 hover:bg-slate-50 hover:text-slate-900'}`}
                     >
-                      <div className="relative">
-                        <item.icon size={18} className="sm:w-[18px] sm:h-[18px] lg:w-5 lg:h-5" />
-                        {isReportsLocked && <Lock size={10} className="absolute -top-1 -right-1 text-amber-500" />}
-                        {hasPendingUnlock && <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-amber-500 rounded-full border-2 border-white animate-pulse" />}
+                      <div className="flex items-center gap-3">
+                        <div className="relative">
+                          <item.icon size={16} className="w-4 h-4 shrink-0" />
+                          {isReportsLocked && <Lock size={9} className="absolute -top-1 -right-1 text-amber-500" />}
+                          {isJobsLocked && <Lock size={9} className="absolute -top-1 -right-1 text-amber-500" />}
+                          {hasPendingUnlock && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white animate-pulse" />}
+                        </div>
+                        <span>{item.label}</span>
                       </div>
-                      <span className="text-xs sm:text-sm lg:text-base">{item.label}</span>
+                      {isJobsLocked && (
+                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
+                          <Sparkles size={9} /> Breve
+                        </span>
+                      )}
                     </button>
                   );
                 })}
               </nav>
             </div>
-            <div className="mt-0 p-2 sm:p-3 border-t border-slate-50 space-y-1">
+            <div className="shrink-0 p-3 sm:p-4 border-t border-slate-100 bg-white space-y-2">
               <div className="lg:hidden flex flex-col gap-2 animate-in slide-in-from-bottom duration-500">
-                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 shadow-sm">
-                  <Coins size={14} className="text-white/60" />
+                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 shadow-sm">
+                  <Coins size={13} className="text-white/60" />
                   <select value={currencyCode} onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest w-full">
                     {Object.values(CURRENCIES).map(curr => <option key={curr.code} value={curr.code} className="text-slate-900">{curr.label}</option>)}
                   </select>
                 </div>
-                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-4 py-2.5 shadow-sm">
-                  <Globe size={14} className="text-white/60" />
+                <div className="flex items-center gap-2 bg-slate-900 border border-white/10 rounded-xl px-3.5 py-2 shadow-sm">
+                  <Globe size={13} className="text-white/60" />
                   <select value={locale} onChange={(e) => setLocale(e.target.value as Locale)} className="bg-transparent text-[10px] font-black text-white uppercase outline-none cursor-pointer tracking-widest w-full">
                     <option value="pt-PT" className="text-slate-900">🇵🇹 PT (Portugal)</option>
                     <option value="pt-BR" className="text-slate-900">🇧🇷 PT (Brasil)</option>
@@ -3529,13 +3567,13 @@ const App: React.FC = () => {
                   </select>
                 </div>
               </div>
-              <div className="bg-slate-50 p-1.5 sm:p-2 rounded-xl sm:rounded-2xl lg:rounded-3xl flex items-center gap-2 relative">
-                <div className="w-8 h-8 sm:w-10 sm:h-10 lg:w-12 lg:h-12 bg-slate-900 rounded-lg sm:rounded-xl lg:rounded-2xl flex items-center justify-center font-black text-white uppercase overflow-hidden shrink-0">
+              <div className="bg-slate-50 p-2 rounded-xl flex items-center gap-2.5 relative">
+                <div className="w-9 h-9 bg-slate-900 rounded-lg flex items-center justify-center font-black text-white text-xs uppercase overflow-hidden shrink-0">
                   {currentUser?.logo ? <img src={currentUser.logo} className="w-full h-full object-cover" alt="Logo" /> : (currentUser?.name?.charAt(0) || '')}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="font-black text-slate-900 truncate text-[10px] sm:text-xs lg:text-sm">{currentUser?.name}</p>
-                  <p className="text-[8px] sm:text-[10px] lg:text-xs font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p>
+                  <p className="font-black text-slate-900 truncate text-xs">{currentUser?.name}</p>
+                  <p className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">{getTranslatedPlan(currentUser?.plan || PlanType.FREE)}</p>
                 </div>
                 {unreadCount > 0 && (
                   <span className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 text-white text-[10px] font-black rounded-full flex items-center justify-center border-2 border-white animate-bounce">
@@ -3545,9 +3583,10 @@ const App: React.FC = () => {
               </div>
               <button 
                 onClick={handleLogout} 
-                className="w-full flex items-center gap-3 sm:gap-4 px-4 sm:px-6 py-1 sm:py-1.5 text-slate-400 hover:text-red-500 transition-colors font-black uppercase tracking-widest text-[8px] sm:text-[9px] lg:text-[10px]"
+                className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-600 border border-rose-100 transition-all font-black uppercase tracking-wider text-xs shadow-xs active:scale-95 cursor-pointer"
               >
-                <LogOut size={14} className="sm:w-4 sm:h-4 lg:w-[18px] lg:h-[18px]" /> {t.logout}
+                <LogOut size={15} />
+                <span>{t.logout}</span>
               </button>
             </div>
           </aside>
@@ -3624,7 +3663,17 @@ const App: React.FC = () => {
                          <p className="text-sm lg:text-base text-slate-500 max-w-md mx-auto mb-8 lg:mb-10 font-medium leading-relaxed">{t.premiumAnalysisDesc}</p>
                          <button onClick={() => setActiveTab('plans')} className="px-8 lg:px-12 py-4 lg:py-5 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black hover:bg-slate-800 transition-all shadow-2xl flex items-center gap-3 lg:gap-4 text-sm lg:text-base"><Crown size={20} className="text-amber-400 lg:w-6 lg:h-6" /> {t.viewPremiumPlans}</button>
                       </div>
-                    ) : <Reports budgets={budgets} locale={locale} currencyCode={currencyCode} onExportPdf={exportToPDF} />
+                    ) : (
+                      <Reports 
+                        budgets={budgets} 
+                        locale={locale} 
+                        currencyCode={currencyCode} 
+                        onExportPdf={exportToPDF} 
+                        onSaveBudget={handleSaveBudget}
+                        plan={currentUser?.plan || PlanType.FREE}
+                        onUpgrade={() => setActiveTab('plans')}
+                      />
+                    )
                   )}
 
                   {activeTab === 'store' && currentUser && (
@@ -3636,6 +3685,35 @@ const App: React.FC = () => {
                       companyEmail={currentUser.email}
                       orders={orders}
                     />
+                  )}
+
+                  {activeTab === 'jobs' && currentUser && (
+                    isAtriosBuildUser ? (
+                      <JobOffers company={currentUser} />
+                    ) : (
+                      <div className="bg-white rounded-2xl lg:rounded-3xl p-8 lg:p-12 border border-slate-100 shadow-xl text-center max-w-2xl mx-auto my-12 space-y-6 animate-in zoom-in-95 duration-300">
+                        <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner border border-amber-500/20">
+                          <Sparkles size={40} className="animate-pulse" />
+                        </div>
+                        <div className="space-y-3">
+                          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-black uppercase tracking-wider border border-amber-500/20">
+                            <HardHat size={14} /> Vêm aí Novidades! ✨
+                          </div>
+                          <h2 className="text-2xl lg:text-3xl font-black text-slate-900">Vagas de Trabalho (Átrios Work)</h2>
+                          <p className="text-slate-500 text-sm leading-relaxed max-w-lg mx-auto font-medium">
+                            A funcionalidade de <strong>Vagas de Trabalho</strong> é de utilização exclusiva para a conta de testes <strong>Átrios Build</strong> nesta fase. Muito em breve estará disponível para todas as empresas da plataforma!
+                          </p>
+                        </div>
+                        <div className="pt-2 flex justify-center gap-3">
+                          <button
+                            onClick={() => setActiveTab('dashboard')}
+                            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95"
+                          >
+                            Voltar ao Painel Principal
+                          </button>
+                        </div>
+                      </div>
+                    )
                   )}
 
                   {activeTab === 'budgets' && (
@@ -4320,6 +4398,64 @@ const App: React.FC = () => {
                     className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95"
                   >
                     Fechar
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Vêm Aí Novidades - Vagas de Trabalho */}
+          {showJobsComingSoonModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="w-full max-w-md bg-white rounded-3xl p-6 md:p-8 shadow-2xl border border-slate-100 relative overflow-hidden text-slate-900 animate-in zoom-in-95 duration-300">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-orange-500/10 blur-3xl rounded-full pointer-events-none" />
+
+                <button 
+                  onClick={() => setShowJobsComingSoonModal(false)}
+                  className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
+                  title="Fechar"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-gradient-to-tr from-amber-500 to-amber-400 rounded-3xl flex items-center justify-center text-slate-950 shadow-xl shadow-amber-500/25">
+                      <HardHat size={38} className="text-slate-950" />
+                    </div>
+                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-slate-900 text-amber-400 rounded-full flex items-center justify-center shadow-md animate-bounce">
+                      <Sparkles size={14} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-500/20">
+                      <Sparkles size={12} /> Vêm aí Novidades! ✨
+                    </span>
+                    <h3 className="text-2xl font-black text-slate-900 tracking-tight">
+                      Vagas de Trabalho
+                    </h3>
+                    <p className="text-[11px] font-black text-amber-600 uppercase tracking-widest">
+                      Exclusivo Átrios Work
+                    </p>
+                  </div>
+
+                  <div className="bg-slate-50 border border-slate-100 p-4 rounded-2xl text-left space-y-2 text-xs text-slate-600 leading-relaxed font-medium w-full">
+                    <p>
+                      A funcionalidade de <strong>Vagas de Trabalho</strong> encontra-se em fase de testes exclusiva para a conta <strong>Átrios Build</strong>.
+                    </p>
+                    <p className="text-slate-500">
+                      Muito em breve todas as empresas poderão publicar e encontrar profissionais qualificados para a construção civil diretamente na plataforma! 🚀
+                    </p>
+                  </div>
+
+                  <button
+                    onClick={() => setShowJobsComingSoonModal(false)}
+                    className="w-full py-3.5 px-6 bg-slate-900 hover:bg-slate-800 text-white font-black uppercase tracking-wider text-xs rounded-2xl transition-all shadow-lg active:scale-95 flex items-center justify-center gap-2"
+                  >
+                    <CheckCircle2 size={16} className="text-emerald-400" />
+                    Entendi, Aguardar Lançamento!
                   </button>
                 </div>
               </div>

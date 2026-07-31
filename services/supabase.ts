@@ -51,6 +51,33 @@ export interface SyncResult {
   try {
     // 1. Clone data to avoid modifying the original object
     const rawData = { ...data };
+
+    // Função recursiva para tentar upsert e remover colunas inexistentes
+    const performUpsert = async (payload: any): Promise<SyncResult> => {
+      const { error } = await safeFetch<any>(supabase.from(table).upsert(payload));
+      
+      if (!error) return { success: true };
+
+      console.warn(`syncToCloud: Erro ao sincronizar ${table}:`, {
+        message: error.message,
+        code: error.code,
+        dataSent: payload
+      });
+
+      // Fallback: se falhar por coluna não encontrada (PGRST204), tentamos remover a coluna problemática e repetir
+      if (error.code === 'PGRST204') {
+        const match = error.message.match(/Could not find the '(.+)' column/);
+        const missingColumn = match ? match[1] : null;
+        if (missingColumn && payload[missingColumn] !== undefined) {
+          console.warn(`syncToCloud: Removendo coluna inexistente '${missingColumn}' e tentando novamente...`);
+          const nextPayload = { ...payload };
+          delete nextPayload[missingColumn];
+          return await performUpsert(nextPayload);
+        }
+      }
+      
+      return { success: false, error };
+    };
     
     // 2. Tratamento de imagens grandes para evitar erro de payload
     if (table === 'products' || table === 'store_orders' || table === 'companies') {
@@ -61,6 +88,31 @@ export interface SyncResult {
           delete rawData[field];
         }
       });
+    }
+
+    // Tratamento específico para job_offers (vagas de trabalho)
+    if (table === 'job_offers') {
+      const jobPayload: any = {
+        id: rawData.id,
+        company_id: rawData.company_id || rawData.companyId || rawData.companyid,
+        company_name: rawData.company_name || rawData.companyName || rawData.companyname,
+        location: rawData.location,
+        specialty: rawData.specialty,
+        salary: rawData.salary,
+        start_date: rawData.start_date || rawData.startDate || rawData.startdate,
+        duration: rawData.duration,
+        description: rawData.description,
+        contact: rawData.contact,
+        status: rawData.status,
+        feedback: rawData.feedback || null,
+        created_at: rawData.created_at || rawData.createdAt || rawData.timestamp || new Date().toISOString(),
+        updated_at: rawData.updated_at || rawData.updatedAt || new Date().toISOString()
+      };
+      Object.keys(jobPayload).forEach(k => {
+        if (jobPayload[k] === undefined) delete jobPayload[k];
+      });
+      console.log(`syncToCloud: Sincronizando vaga de trabalho ${jobPayload.id} no Supabase...`);
+      return await performUpsert(jobPayload);
     }
 
     // 3. Mapeamento Automático: Mantém as chaves originais (camelCase) E adiciona versões snake_case e lowercase
@@ -127,33 +179,6 @@ export interface SyncResult {
 
     console.log(`syncToCloud: Tentando sincronizar ${table} (ID: ${cleanData.id || cleanData.company_id}) no Supabase...`);
     
-    // 6. Função recursiva para tentar upsert e remover colunas inexistentes
-    const performUpsert = async (payload: any): Promise<SyncResult> => {
-      const { error } = await safeFetch<any>(supabase.from(table).upsert(payload));
-      
-      if (!error) return { success: true };
-
-      console.warn(`syncToCloud: Erro ao sincronizar ${table}:`, {
-        message: error.message,
-        code: error.code,
-        dataSent: payload
-      });
-
-      // Fallback: se falhar por coluna não encontrada (PGRST204), tentamos remover a coluna problemática e repetir
-      if (error.code === 'PGRST204') {
-        const match = error.message.match(/Could not find the '(.+)' column/);
-        const missingColumn = match ? match[1] : null;
-        if (missingColumn && payload[missingColumn] !== undefined) {
-          console.warn(`syncToCloud: Removendo coluna inexistente '${missingColumn}' e tentando novamente...`);
-          const nextPayload = { ...payload };
-          delete nextPayload[missingColumn];
-          return await performUpsert(nextPayload);
-        }
-      }
-      
-      return { success: false, error };
-    };
-
     return await performUpsert(cleanData);
   } catch (err) {
     console.warn(`syncToCloud: Erro inesperado em ${table}:`, err);
