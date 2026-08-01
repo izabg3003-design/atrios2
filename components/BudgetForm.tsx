@@ -43,7 +43,7 @@ import {
   FREE_PAYMENT_LIMIT 
 } from '../constants';
 import { Locale, translations, Translation } from '../translations';
-import { generateShortId, saveBudget, getStoredBudgets } from '../services/storage';
+import { generateShortId, saveBudget, getStoredBudgets, saveCompany } from '../services/storage';
 import { v4 as uuidv4 } from 'uuid';
 
 interface BudgetFormProps {
@@ -94,37 +94,50 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
 
   const [customCategories, setCustomCategories] = useState<{ id: string; name: string }[]>(() => {
     try {
-      const stored = localStorage.getItem('atrios_custom_service_categories');
-      const parsed = stored ? JSON.parse(stored) : [];
       const defaultIds = SERVICE_CATEGORIES.map(c => c.id.toLowerCase());
-      const parsedIds = parsed.map((c: any) => c.id.toLowerCase());
-      
-      // Extract from current initialData if editing
-      if (initialData?.servicesSelected) {
-        initialData.servicesSelected.forEach(sId => {
-          if (!defaultIds.includes(sId.toLowerCase()) && !parsedIds.includes(sId.toLowerCase())) {
-            parsed.push({ id: sId, name: sId });
-            parsedIds.push(sId.toLowerCase());
-          }
-        });
+      const parsed: { id: string; name: string }[] = [];
+      const parsedIds: string[] = [];
+
+      const addCategory = (id: string, name: string) => {
+        if (!id || !name) return;
+        const normId = id.toLowerCase();
+        if (!defaultIds.includes(normId) && !parsedIds.includes(normId)) {
+          parsed.push({ id, name });
+          parsedIds.push(normId);
+        }
+      };
+
+      // 1. Prioridade para serviços salvos no objeto da empresa (sincronizado com Supabase)
+      if (company?.customServices && Array.isArray(company.customServices)) {
+        company.customServices.forEach(cs => addCategory(cs.id, cs.name));
       }
 
-      // Also scan all local company budgets (hydrated from Supabase) to find any custom services
+      // 2. Cache local do localStorage
+      const stored = localStorage.getItem('atrios_custom_service_categories');
+      if (stored) {
+        try {
+          const localParsed = JSON.parse(stored);
+          if (Array.isArray(localParsed)) {
+            localParsed.forEach((cs: any) => addCategory(cs.id || cs.name, cs.name || cs.id));
+          }
+        } catch (e) {}
+      }
+
+      // 3. Extrai do orçamento atual se estiver editando
+      if (initialData?.servicesSelected) {
+        initialData.servicesSelected.forEach(sId => addCategory(sId, sId));
+      }
+
+      // 4. Também examina orçamentos locais da empresa
       if (company?.id) {
         const companyBudgets = getStoredBudgets(company.id);
         companyBudgets.forEach(b => {
           if (b.servicesSelected) {
-            b.servicesSelected.forEach(sId => {
-              if (!defaultIds.includes(sId.toLowerCase()) && !parsedIds.includes(sId.toLowerCase())) {
-                parsed.push({ id: sId, name: sId });
-                parsedIds.push(sId.toLowerCase());
-              }
-            });
+            b.servicesSelected.forEach(sId => addCategory(sId, sId));
           }
         });
       }
 
-      // Save to localStorage to keep local cache updated
       try {
         localStorage.setItem('atrios_custom_service_categories', JSON.stringify(parsed));
       } catch (e) {
@@ -136,6 +149,32 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
       return [];
     }
   });
+
+  // Atualizar as categorias customizadas se a empresa trouxer novos serviços do Supabase
+  React.useEffect(() => {
+    if (company?.customServices && Array.isArray(company.customServices)) {
+      const defaultIds = SERVICE_CATEGORIES.map(c => c.id.toLowerCase());
+      setCustomCategories(prev => {
+        const updated = [...prev];
+        let changed = false;
+        company.customServices?.forEach(cs => {
+          if (!cs.id || !cs.name) return;
+          const normId = cs.id.toLowerCase();
+          if (!defaultIds.includes(normId) && !updated.some(item => item.id.toLowerCase() === normId)) {
+            updated.push({ id: cs.id, name: cs.name });
+            changed = true;
+          }
+        });
+        if (changed) {
+          try {
+            localStorage.setItem('atrios_custom_service_categories', JSON.stringify(updated));
+          } catch (e) {}
+          return updated;
+        }
+        return prev;
+      });
+    }
+  }, [company?.customServices]);
   const [showAddCategoryModal, setShowAddCategoryModal] = useState(false);
   const [newCategoryName, setNewCategoryName] = useState('');
 
@@ -167,8 +206,8 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
 
   const totalExpenses = useMemo(() => expenses.reduce((sum, exp) => sum + exp.amount, 0), [expenses]);
   const totalPaid = useMemo(() => payments.reduce((sum, p) => sum + p.amount, 0), [payments]);
-  const estimatedProfit = totalAmount - totalExpenses;
-  const remainingToPay = totalAmount - totalPaid;
+  const estimatedProfit = subtotalAmount - totalExpenses;
+  const remainingToPay = subtotalAmount - totalPaid;
 
   const addItem = () => {
     if (!canAddItem) return;
@@ -351,6 +390,15 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
       console.error(err);
     }
 
+    // Sincroniza com a conta do usuário no Supabase
+    if (company) {
+      const updatedCompany = {
+        ...company,
+        customServices: updated
+      };
+      saveCompany(updatedCompany).catch(err => console.error("Erro ao sincronizar novo serviço com o Supabase:", err));
+    }
+
     if (canAddService(id)) {
       setSelectedServices(prev => [...prev, id]);
     } else {
@@ -359,6 +407,28 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
 
     setNewCategoryName('');
     setShowAddCategoryModal(false);
+  };
+
+  const handleRemoveCustomCategory = (categoryId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!confirm("Tem certeza que deseja remover esta categoria de serviço?")) return;
+
+    const updated = customCategories.filter(c => c.id.toLowerCase() !== categoryId.toLowerCase());
+    setCustomCategories(updated);
+    setSelectedServices(prev => prev.filter(s => s.toLowerCase() !== categoryId.toLowerCase()));
+    try {
+      localStorage.setItem('atrios_custom_service_categories', JSON.stringify(updated));
+    } catch (err) {
+      console.error(err);
+    }
+
+    if (company) {
+      const updatedCompany = {
+        ...company,
+        customServices: updated
+      };
+      saveCompany(updatedCompany).catch(err => console.error("Erro ao sincronizar remoção de serviço com o Supabase:", err));
+    }
   };
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -485,8 +555,22 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
             </button>
           </div>
         </div>
-        <button type="button" onClick={onCancel} className="p-2 hover:bg-white/10 rounded-full transition-colors hidden lg:block"><X size={24} /></button>
-        <button type="button" onClick={onCancel} className="absolute top-4 right-4 p-2 hover:bg-white/10 rounded-full transition-colors lg:hidden"><X size={24} /></button>
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="p-2.5 bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white rounded-full transition-all shadow-lg animate-pulse hover:animate-none hover:scale-110 active:scale-95 cursor-pointer hidden lg:flex items-center justify-center border border-rose-400/30"
+          title={t.cancel || "Sair"}
+        >
+          <X size={24} />
+        </button>
+        <button 
+          type="button" 
+          onClick={onCancel} 
+          className="absolute top-4 right-4 p-2.5 bg-rose-500/20 text-rose-300 hover:bg-rose-600 hover:text-white rounded-full transition-all shadow-lg animate-pulse hover:animate-none hover:scale-110 active:scale-95 cursor-pointer lg:hidden flex items-center justify-center border border-rose-400/30 z-10"
+          title={t.cancel || "Sair"}
+        >
+          <X size={24} />
+        </button>
       </div>
 
       <form onSubmit={handleSubmit} className="p-5 sm:p-10 space-y-8 sm:space-y-12">
@@ -590,24 +674,38 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
             <section className="space-y-6">
               <h4 className="text-xs font-black text-slate-400 uppercase tracking-widest flex items-center gap-2 px-1"><Briefcase size={16} /> {t.servicesIncluded}</h4>
               <div className="grid grid-cols-2 sm:grid-cols-4 md:grid-cols-8 gap-4">
-                {allCategories.map(category => (
-                  <button 
-                    key={category.id} 
-                    type="button" 
-                    onClick={() => toggleService(category.id)} 
-                    disabled={isLocked}
-                    className={`flex flex-col items-center justify-center p-4 rounded-[1.5rem] border-2 transition-all group ${
-                      selectedServices.includes(category.id) 
-                      ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/10' 
-                      : canAddService(category.id) 
-                        ? 'border-slate-100 bg-white text-slate-500 hover:border-slate-300'
-                        : 'border-slate-50 bg-slate-50 text-slate-200 cursor-not-allowed'
-                    } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
-                  >
-                    <div className="mb-2">{category.icon}</div>
-                    <span className="text-[9px] font-black uppercase">{getTranslatedServiceLabel(category.id)}</span>
-                  </button>
-                ))}
+                {allCategories.map(category => {
+                  const isCustom = customCategories.some(c => c.id.toLowerCase() === category.id.toLowerCase());
+                  return (
+                    <div key={category.id} className="relative group/card">
+                      <button 
+                        type="button" 
+                        onClick={() => toggleService(category.id)} 
+                        disabled={isLocked}
+                        className={`w-full h-full flex flex-col items-center justify-center p-4 rounded-[1.5rem] border-2 transition-all group ${
+                          selectedServices.includes(category.id) 
+                          ? 'border-slate-900 bg-slate-900 text-white shadow-xl shadow-slate-900/10' 
+                          : canAddService(category.id) 
+                            ? 'border-slate-100 bg-white text-slate-500 hover:border-slate-300'
+                            : 'border-slate-50 bg-slate-50 text-slate-200 cursor-not-allowed'
+                        } ${isLocked ? 'opacity-50 cursor-not-allowed' : ''}`}
+                      >
+                        <div className="mb-2">{category.icon}</div>
+                        <span className="text-[9px] font-black uppercase text-center break-words max-w-full">{getTranslatedServiceLabel(category.id)}</span>
+                      </button>
+                      {isCustom && !isLocked && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleRemoveCustomCategory(category.id, e)}
+                          title="Remover serviço"
+                          className="absolute -top-1.5 -right-1.5 p-1 bg-red-100 hover:bg-red-500 text-red-600 hover:text-white rounded-full transition-colors opacity-0 group-hover/card:opacity-100 shadow-sm"
+                        >
+                          <X size={12} />
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
                 {!isLocked && (
                   <button 
                     type="button" 
@@ -1007,7 +1105,9 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               </div>
               <div className="p-8 bg-slate-900 rounded-[2rem] border border-slate-800 flex items-center justify-between text-white">
                 <div>
-                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">{t.remaining}</p>
+                  <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1">
+                    {t.remaining} ({locale.startsWith('pt') ? 's/ IVA' : 'excl. VAT'})
+                  </p>
                   <p className="text-3xl font-black text-white">{formatValue(remainingToPay)}</p>
                 </div>
                 <div className="p-4 bg-white/10 rounded-2xl"><DollarSign className="text-amber-400" size={32} /></div>
@@ -1047,7 +1147,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                        <td className="p-5 text-center">
                          <div className="flex items-center justify-center gap-1">
                            <span className="inline-block px-3 py-1 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black">
-                             {totalAmount > 0 ? ((payment.amount / totalAmount) * 100).toFixed(1) : '0'}%
+                             {subtotalAmount > 0 ? ((payment.amount / subtotalAmount) * 100).toFixed(1) : '0'}%
                            </span>
                          </div>
                        </td>
@@ -1123,7 +1223,13 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
         )}
 
         <div className="flex flex-col xl:flex-row justify-between items-start xl:items-stretch p-8 bg-slate-50 rounded-[2.5rem] border border-slate-100 gap-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-y-6 gap-x-12 w-full">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-y-6 gap-x-8 w-full">
+            <div className="space-y-1">
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {locale.startsWith('pt') ? 'Valor do Pedido (s/ IVA)' : 'Order Value (excl. VAT)'}
+              </p>
+              <p className="text-2xl font-black text-slate-800 break-all">{formatValue(subtotalAmount)}</p>
+            </div>
             {includeIva && (
               <div className="space-y-1">
                 <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.ivaValue} ({ivaPercentage}%)</p>
@@ -1131,8 +1237,10 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               </div>
             )}
             <div className="space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.total}</p>
-              <p className="text-4xl font-black text-slate-900 break-all">{formatValue(totalAmount)}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {includeIva ? (locale.startsWith('pt') ? 'Total c/ IVA' : 'Total (incl. VAT)') : t.total}
+              </p>
+              <p className="text-3xl font-black text-slate-900 break-all">{formatValue(totalAmount)}</p>
             </div>
             <div className="space-y-1">
               <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.totalExpenses}</p>
@@ -1143,7 +1251,9 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               <p className="text-2xl font-black text-emerald-600 break-all">{formatValue(totalPaid)}</p>
             </div>
             <div className="space-y-1">
-              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">{t.profitEstimate}</p>
+              <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                {t.profitEstimate} ({locale.startsWith('pt') ? 's/ IVA' : 'excl. VAT'})
+              </p>
               <p className="text-2xl font-black text-blue-600 break-all">{formatValue(estimatedProfit)}</p>
             </div>
           </div>

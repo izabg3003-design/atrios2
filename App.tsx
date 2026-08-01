@@ -3781,10 +3781,52 @@ const App: React.FC = () => {
                                     </div>
                                   )}
                                 </div>
-                                <div className="sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0 flex sm:flex-col justify-between items-center sm:items-end">
-                                  <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">{t.total}</p>
-                                  <p className="text-lg sm:text-xl lg:text-3xl font-black text-slate-900">{(budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}</p>
-                                </div>
+                                {(() => {
+                                  const subtotalWithoutIva = budget.items && budget.items.length > 0
+                                    ? budget.items.reduce((sum, item) => sum + (item.total || 0), 0)
+                                    : (budget.includeIva 
+                                        ? budget.totalAmount / (1 + (budget.ivaPercentage || 23) / 100) 
+                                        : budget.totalAmount);
+
+                                  const formattedSubtotal = (subtotalWithoutIva * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode });
+                                  const formattedTotalWithIva = (budget.totalAmount * CURRENCIES[currencyCode].rate).toLocaleString(locale, { style: 'currency', currency: currencyCode });
+
+                                  const labelSemIva = locale.startsWith('pt') 
+                                    ? 'Total (s/ IVA)' 
+                                    : locale.startsWith('en') 
+                                    ? 'Total (excl. VAT)' 
+                                    : locale.startsWith('es') 
+                                    ? 'Total (sin IVA)' 
+                                    : locale.startsWith('fr') 
+                                    ? 'Total (HT)' 
+                                    : 'Total (s/ IVA)';
+
+                                  const labelComIva = locale.startsWith('pt') 
+                                    ? `c/ IVA (${budget.ivaPercentage || 23}%): ${formattedTotalWithIva}` 
+                                    : locale.startsWith('en') 
+                                    ? `incl. VAT (${budget.ivaPercentage || 23}%): ${formattedTotalWithIva}` 
+                                    : locale.startsWith('es') 
+                                    ? `con IVA (${budget.ivaPercentage || 23}%): ${formattedTotalWithIva}` 
+                                    : locale.startsWith('fr') 
+                                    ? `TTC (${budget.ivaPercentage || 23}%): ${formattedTotalWithIva}` 
+                                    : `c/ IVA (${budget.ivaPercentage || 23}%): ${formattedTotalWithIva}`;
+
+                                  return (
+                                    <div className="sm:text-right w-full sm:w-auto border-t sm:border-t-0 border-slate-50 pt-3 sm:pt-0 flex sm:flex-col justify-between items-center sm:items-end">
+                                      <p className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">{labelSemIva}</p>
+                                      <p className="text-lg sm:text-xl lg:text-3xl font-black text-slate-900">{formattedSubtotal}</p>
+                                      {budget.includeIva ? (
+                                        <p className="text-[10px] sm:text-xs font-bold text-slate-500 mt-0.5">
+                                          {labelComIva}
+                                        </p>
+                                      ) : (
+                                        <p className="text-[9px] sm:text-[10px] font-bold text-emerald-600/80 mt-0.5">
+                                          {locale.startsWith('pt') ? '(Isento de IVA)' : '(No VAT)'}
+                                        </p>
+                                      )}
+                                    </div>
+                                  );
+                                })()}
                                 <div className="flex gap-2 lg:gap-3 sm:opacity-0 sm:group-hover:opacity-100 transition-all transform sm:translate-x-2 sm:group-hover:translate-x-0 w-full sm:w-auto justify-center sm:justify-end mt-2 sm:mt-0">
                                    <button 
                                     onClick={(e) => { 

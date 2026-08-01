@@ -151,6 +151,7 @@ export interface Company {
   stripe_subscription_id?: string;
   lastSeenAt?: string;
   last_seen_at?: string;
+  customServices?: { id: string; name: string }[];
 }
 
 export type AudienceType = 'all' | 'free' | 'premium_monthly' | 'premium_annual' | 'all_premium' | 'monthly_purchase' | 'annual_purchase';

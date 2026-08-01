@@ -32,7 +32,9 @@ import {
   Filter,
   Plus,
   X,
-  Info
+  Info,
+  Pencil,
+  Trash2
 } from 'lucide-react';
 import { Budget, BudgetStatus, CurrencyCode, CURRENCIES, ExpenseRecord, PlanType } from '../types';
 import { Locale, translations } from '../translations';
@@ -68,6 +70,18 @@ const Reports: React.FC<ReportsProps> = ({
   const [selectedBudgetId, setSelectedBudgetId] = useState<string | null>(null);
   const [managingExpensesBudget, setManagingExpensesBudget] = useState<Budget | null>(null);
 
+  // States for Editing Expense
+  const [editingExpense, setEditingExpense] = useState<{
+    expense: ExpenseRecord;
+    budgetId: string;
+  } | null>(null);
+
+  const [editDescription, setEditDescription] = useState('');
+  const [editQuantity, setEditQuantity] = useState<number>(1);
+  const [editUnit, setEditUnit] = useState<string>('un');
+  const [editPricePerUnit, setEditPricePerUnit] = useState<number>(0);
+  const [editDate, setEditDate] = useState<string>('');
+
   const currencyInfo = CURRENCIES[currencyCode];
 
   const monthNames: (keyof typeof t)[] = [
@@ -102,18 +116,79 @@ const Reports: React.FC<ReportsProps> = ({
   }, [budgets, selectedPeriod, reportMonth, reportYear]);
 
   const periodExpenses = useMemo(() => {
-    const allExpenses: (ExpenseRecord & { clientName: string })[] = [];
+    const allExpenses: (ExpenseRecord & { clientName: string; budgetId: string })[] = [];
     budgets.forEach(budget => {
       if (budget.expenses) {
         budget.expenses.forEach(exp => {
           if (isInPeriod(exp.date)) {
-            allExpenses.push({ ...exp, clientName: budget.clientName });
+            allExpenses.push({ ...exp, clientName: budget.clientName, budgetId: budget.id });
           }
         });
       }
     });
     return allExpenses.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   }, [budgets, selectedPeriod, reportMonth, reportYear]);
+
+  const handleStartEditExpense = (expense: ExpenseRecord & { budgetId: string }) => {
+    setEditingExpense({ expense, budgetId: expense.budgetId });
+    setEditDescription(expense.description);
+    setEditQuantity(expense.quantity || 1);
+    setEditUnit(expense.unit || 'un');
+    setEditPricePerUnit(Number((expense.pricePerUnit * currencyInfo.rate).toFixed(2)));
+    setEditDate(expense.date ? expense.date.split('T')[0] : new Date().toISOString().split('T')[0]);
+  };
+
+  const handleSaveEditExpense = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingExpense || !onSaveBudget) return;
+
+    const targetBudget = budgets.find(b => b.id === editingExpense.budgetId);
+    if (!targetBudget) return;
+
+    const eurPricePerUnit = editPricePerUnit / currencyInfo.rate;
+    const eurTotalAmount = (editQuantity * editPricePerUnit) / currencyInfo.rate;
+
+    const updatedExpenses = (targetBudget.expenses || []).map(exp => {
+      if (exp.id === editingExpense.expense.id) {
+        return {
+          ...exp,
+          description: editDescription,
+          quantity: editQuantity,
+          unit: editUnit,
+          pricePerUnit: eurPricePerUnit,
+          amount: eurTotalAmount,
+          date: editDate
+        };
+      }
+      return exp;
+    });
+
+    const updatedBudget = {
+      ...targetBudget,
+      expenses: updatedExpenses
+    };
+
+    onSaveBudget(updatedBudget);
+    setEditingExpense(null);
+  };
+
+  const handleDeleteExpense = (expenseId: string, budgetId: string) => {
+    if (!onSaveBudget) return;
+    const targetBudget = budgets.find(b => b.id === budgetId);
+    if (!targetBudget) return;
+
+    const confirmMsg = locale.startsWith('pt') 
+      ? 'Deseja realmente excluir esta despesa?' 
+      : 'Are you sure you want to delete this expense?';
+
+    if (window.confirm(confirmMsg)) {
+      const updatedBudget = {
+        ...targetBudget,
+        expenses: (targetBudget.expenses || []).filter(e => e.id !== expenseId)
+      };
+      onSaveBudget(updatedBudget);
+    }
+  };
 
   const selectedBudget = useMemo(() => {
     if (!selectedBudgetId) return null;
@@ -766,12 +841,158 @@ const Reports: React.FC<ReportsProps> = ({
                       {new Date(expense.date).toLocaleDateString(locale)}
                     </p>
                   </div>
+
+                  {onSaveBudget && (
+                    <div className="flex items-center gap-1 sm:gap-2 shrink-0 border-l border-slate-100 pl-2 lg:pl-3">
+                      <button
+                        type="button"
+                        onClick={() => handleStartEditExpense(expense)}
+                        className="p-1.5 sm:p-2 text-slate-400 hover:text-amber-600 hover:bg-amber-50 rounded-xl transition-all cursor-pointer"
+                        title={locale.startsWith('pt') ? 'Editar despesa' : 'Edit expense'}
+                      >
+                        <Pencil size={16} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleDeleteExpense(expense.id, expense.budgetId)}
+                        className="p-1.5 sm:p-2 text-slate-400 hover:text-red-600 hover:bg-red-50 rounded-xl transition-all cursor-pointer"
+                        title={locale.startsWith('pt') ? 'Excluir despesa' : 'Delete expense'}
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
+                  )}
                 </div>
               ))
             )}
           </div>
         </div>
       </div>
+
+      {/* Modal de Editar Despesa */}
+      {editingExpense && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white w-full max-w-lg rounded-[2rem] shadow-2xl overflow-hidden border border-slate-100 flex flex-col">
+            <div className="px-6 py-4 bg-slate-900 text-white flex justify-between items-center">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/20 text-amber-400 rounded-xl">
+                  <Pencil size={20} />
+                </div>
+                <div>
+                  <h3 className="font-bold text-base sm:text-lg">
+                    {locale.startsWith('pt') ? 'Editar Despesa' : 'Edit Expense'}
+                  </h3>
+                  <p className="text-[10px] text-slate-400 uppercase tracking-widest">
+                    {editingExpense.expense.description}
+                  </p>
+                </div>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setEditingExpense(null)}
+                className="p-2 hover:bg-white/10 rounded-full transition-colors text-slate-400 hover:text-white cursor-pointer"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveEditExpense} className="p-6 space-y-4">
+              <div>
+                <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                  {t.expenseDescription || (locale.startsWith('pt') ? 'Descrição' : 'Description')}
+                </label>
+                <input
+                  required
+                  type="text"
+                  value={editDescription}
+                  onChange={e => setEditDescription(e.target.value)}
+                  className="w-full px-4 py-2.5 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-slate-900 font-bold text-sm"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    {t.quantity || (locale.startsWith('pt') ? 'Qtd.' : 'Qty.')}
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    min="1"
+                    value={editQuantity === 0 ? '' : editQuantity}
+                    onChange={e => setEditQuantity(e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm"
+                  />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    {t.unit || (locale.startsWith('pt') ? 'Unid.' : 'Unit')}
+                  </label>
+                  <input
+                    required
+                    type="text"
+                    value={editUnit}
+                    onChange={e => setEditUnit(e.target.value)}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm"
+                  />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    {t.unitPrice || 'Preço Un.'} ({currencyCode})
+                  </label>
+                  <input
+                    required
+                    type="number"
+                    step="0.01"
+                    value={editPricePerUnit === 0 ? '' : editPricePerUnit}
+                    onChange={e => setEditPricePerUnit(e.target.value === '' ? 0 : Number(e.target.value))}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 pt-2">
+                <div>
+                  <label className="block text-[10px] font-black text-slate-500 uppercase tracking-widest mb-1.5">
+                    {t.expenseDate || (locale.startsWith('pt') ? 'Data' : 'Date')}
+                  </label>
+                  <input
+                    required
+                    type="date"
+                    value={editDate}
+                    onChange={e => setEditDate(e.target.value)}
+                    className="w-full px-4 py-2 rounded-xl border border-slate-200 outline-none font-bold text-sm"
+                  />
+                </div>
+                <div className="flex flex-col justify-end text-right">
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {t.total || 'Total'}
+                  </p>
+                  <p className="text-xl font-black text-slate-900">
+                    {(editQuantity * editPricePerUnit).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-4 border-t border-slate-100">
+                <button
+                  type="button"
+                  onClick={() => setEditingExpense(null)}
+                  className="flex-1 py-3 bg-slate-100 text-slate-600 rounded-xl font-bold hover:bg-slate-200 transition-all text-sm cursor-pointer"
+                >
+                  {t.cancel || 'Cancelar'}
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 py-3 bg-amber-500 text-slate-950 font-black rounded-xl hover:bg-amber-400 transition-all text-sm shadow-md cursor-pointer"
+                >
+                  {t.saveChanges || 'Salvar Alterações'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {managingExpensesBudget && (
         <ExpenseManager

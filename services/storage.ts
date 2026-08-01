@@ -112,6 +112,20 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     canEdit = false;
   }
 
+  let parsedCustomServices: { id: string; name: string }[] = [];
+  const rawCS = raw.customServices || raw.custom_services || (localComp as any)?.customServices;
+  if (typeof rawCS === 'string') {
+    try {
+      parsedCustomServices = JSON.parse(rawCS);
+    } catch (e) {
+      parsedCustomServices = [];
+    }
+  } else if (Array.isArray(rawCS)) {
+    parsedCustomServices = rawCS;
+  } else if (localComp?.customServices && Array.isArray(localComp.customServices)) {
+    parsedCustomServices = localComp.customServices;
+  }
+
   const mapped: Company = {
     ...localComp,
     ...raw,
@@ -134,7 +148,8 @@ export const mapCompanyFromSupabase = (data: any): Company => {
     canEditSensitiveData: canEdit,
     unlockRequested: unlockReq,
     isBlocked: Boolean(raw.isBlocked || raw.is_blocked || localComp?.isBlocked),
-    verified: raw.verified !== undefined ? Boolean(raw.verified) : (localComp?.verified !== undefined ? localComp.verified : true)
+    verified: raw.verified !== undefined ? Boolean(raw.verified) : (localComp?.verified !== undefined ? localComp.verified : true),
+    customServices: parsedCustomServices
   };
 
   return mapped;

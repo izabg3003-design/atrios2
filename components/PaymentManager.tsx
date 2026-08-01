@@ -41,9 +41,15 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
   const [proofUrl, setProofUrl] = useState<string>('');
   const [showForm, setShowForm] = useState(false);
 
+  const subtotalWithoutIva = budget.items && budget.items.length > 0
+    ? budget.items.reduce((sum, item) => sum + (item.total || 0), 0)
+    : (budget.includeIva 
+        ? budget.totalAmount / (1 + (budget.ivaPercentage || 23) / 100) 
+        : budget.totalAmount);
+
   const totalPaid = (budget.payments || []).reduce((sum, p) => sum + p.amount, 0);
-  const remaining = budget.totalAmount - totalPaid;
-  const percentage = budget.totalAmount > 0 ? Math.min(100, Math.round((totalPaid / budget.totalAmount) * 100)) : 0;
+  const remaining = subtotalWithoutIva - totalPaid;
+  const percentage = subtotalWithoutIva > 0 ? Math.min(100, Math.round((totalPaid / subtotalWithoutIva) * 100)) : 0;
 
   const formatValue = (val: number) => {
     return (val * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode });
@@ -144,17 +150,25 @@ const PaymentManager: React.FC<PaymentManagerProps> = ({ budget, plan, onSave, o
             </div>
           </div>
 
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-4 gap-3 sm:gap-4">
             <div className="p-3 lg:p-4 bg-slate-50 rounded-xl lg:rounded-2xl border border-slate-100">
-              <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">{t.total}</p>
-              <p className="text-base lg:text-lg font-bold text-slate-900">{formatValue(budget.totalAmount)}</p>
+              <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">
+                {locale.startsWith('pt') ? 'Valor s/ IVA' : 'Value excl. VAT'}
+              </p>
+              <p className="text-base lg:text-lg font-bold text-slate-900">{formatValue(subtotalWithoutIva)}</p>
             </div>
+            {budget.includeIva && (
+              <div className="p-3 lg:p-4 bg-slate-50 rounded-xl lg:rounded-2xl border border-slate-100">
+                <p className="text-[8px] lg:text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-0.5 lg:mb-1">Total c/ IVA</p>
+                <p className="text-base lg:text-lg font-bold text-slate-700">{formatValue(budget.totalAmount)}</p>
+              </div>
+            )}
             <div className="p-3 lg:p-4 bg-emerald-50 rounded-xl lg:rounded-2xl border border-emerald-100">
               <p className="text-[8px] lg:text-[10px] font-bold text-emerald-600 uppercase tracking-widest mb-0.5 lg:mb-1">{t.totalReceived}</p>
               <p className="text-base lg:text-lg font-bold text-emerald-700">{formatValue(totalPaid)}</p>
             </div>
             <div className="p-3 lg:p-4 bg-amber-50 rounded-xl lg:rounded-2xl border border-amber-100">
-              <p className="text-[8px] lg:text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5 lg:mb-1">{t.remaining}</p>
+              <p className="text-[8px] lg:text-[10px] font-bold text-amber-600 uppercase tracking-widest mb-0.5 lg:mb-1">{t.remaining} (s/ IVA)</p>
               <p className="text-base lg:text-lg font-bold text-amber-700">{formatValue(remaining)}</p>
             </div>
           </div>

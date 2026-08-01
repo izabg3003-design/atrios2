@@ -177,7 +177,7 @@ export interface SyncResult {
 
     // 5. Garantir que arrays/objetos sejam enviados como string se necessário
     // Algumas tabelas no Supabase podem estar como TEXT em vez de JSONB
-    const jsonFields = ['items', 'expenses', 'payments', 'services_selected', 'project_files', 'pdf_template', 'additionalImages', 'additional_images'];
+    const jsonFields = ['items', 'expenses', 'payments', 'services_selected', 'project_files', 'pdf_template', 'additionalImages', 'additional_images', 'customServices', 'custom_services'];
     jsonFields.forEach(field => {
       if (cleanData[field] && typeof cleanData[field] === 'object') {
         // Se for um array de strings simples, não stringify (deixa o Supabase lidar como array do Postgres)
