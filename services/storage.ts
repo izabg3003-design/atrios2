@@ -197,6 +197,37 @@ export const saveCompany = async (company: Company) => {
   return await syncToCloud('companies', updatedCompany);
 };
 
+export const saveCustomServiceToCloud = async (companyId: string, service: { id: string; name: string }) => {
+  if (!companyId || !service?.id) return;
+  try {
+    const record = {
+      id: `${companyId}_${service.id.toLowerCase()}`,
+      company_id: companyId,
+      service_id: service.id,
+      name: service.name,
+      created_at: new Date().toISOString()
+    };
+    await safeFetch(supabase.from('company_services').upsert(record));
+  } catch (e) {
+    console.warn("[Storage] Erro ao sincronizar serviço para company_services:", e);
+  }
+};
+
+export const removeCustomServiceFromCloud = async (companyId: string, serviceId: string) => {
+  if (!companyId || !serviceId) return;
+  try {
+    const recId = `${companyId}_${serviceId.toLowerCase()}`;
+    await safeFetch(
+      supabase.from('company_services')
+        .delete()
+        .eq('company_id', companyId)
+        .or(`id.eq.${recId},service_id.eq.${serviceId}`)
+    );
+  } catch (e) {
+    console.warn("[Storage] Erro ao remover serviço de company_services:", e);
+  }
+};
+
 export const removeCompany = async (id: string, email?: string) => {
   const normEmail = email ? email.toLowerCase().trim() : '';
   const companies = getStoredCompanies().filter(c => c.id !== id && (!normEmail || c.email?.toLowerCase().trim() !== normEmail));
@@ -1122,6 +1153,73 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       }
     } catch (e) {
       console.warn("[Hydrate] Aviso ao carregar vagas de trabalho remota:", e);
+    }
+    
+    // 9. Consolidar e Hidratar Categorias de Serviços Customizados da Empresa
+    try {
+      const customServicesList: { id: string; name: string }[] = [];
+      const customServicesIds: string[] = [];
+
+      const addCustomService = (id: string, name: string) => {
+        if (!id || !name) return;
+        const norm = id.toLowerCase();
+        if (!customServicesIds.includes(norm)) {
+          customServicesIds.push(norm);
+          customServicesList.push({ id, name });
+        }
+      };
+
+      // a. Do objeto companyData / mappedCompany
+      if (mappedCompany?.customServices && Array.isArray(mappedCompany.customServices)) {
+        mappedCompany.customServices.forEach(cs => addCustomService(cs.id, cs.name));
+      }
+
+      // b. Da tabela 'company_services' no Supabase
+      const { data: cloudServices } = await safeFetch<any[]>(
+        supabase.from('company_services').select('*').eq('company_id', companyId)
+      );
+      if (cloudServices && Array.isArray(cloudServices)) {
+        cloudServices.forEach((s: any) => {
+          const sId = s.service_id || s.name || (s.id ? String(s.id).replace(`${companyId}_`, '') : null);
+          const sName = s.name || sId;
+          if (sId && sName) addCustomService(sId, sName);
+        });
+      }
+
+      // c. Dos orçamentos buscados no Supabase para esta empresa
+      if (fetchedBudgets && Array.isArray(fetchedBudgets)) {
+        fetchedBudgets.forEach(b => {
+          if (b.servicesSelected && Array.isArray(b.servicesSelected)) {
+            b.servicesSelected.forEach(sId => addCustomService(sId, sId));
+          }
+        });
+      }
+
+      // d. Do cache do localStorage anterior
+      const storedLocalCats = localStorage.getItem('atrios_custom_service_categories');
+      if (storedLocalCats) {
+        try {
+          const parsedLocal = JSON.parse(storedLocalCats);
+          if (Array.isArray(parsedLocal)) {
+            parsedLocal.forEach((cs: any) => addCustomService(cs.id || cs.name, cs.name || cs.id));
+          }
+        } catch (e) {}
+      }
+
+      if (customServicesList.length > 0) {
+        if (mappedCompany) {
+          mappedCompany.customServices = customServicesList;
+          const companies = getStoredCompanies();
+          const idx = companies.findIndex(c => String(c.id) === String(companyId));
+          if (idx > -1) {
+            companies[idx] = mappedCompany;
+            safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
+          }
+        }
+        safeSetItem('atrios_custom_service_categories', JSON.stringify(customServicesList));
+      }
+    } catch (e) {
+      console.warn("[Hydrate] Erro ao consolidar serviços customizados:", e);
     }
     
     return { budgets: fetchedBudgets, orders: fetchedOrders, messages: fetchedMessages, customOrders: fetchedCustomOrders, jobOffers: fetchedJobOffers };
