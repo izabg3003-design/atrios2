@@ -23,13 +23,16 @@ import {
 } from 'lucide-react';
 import { Company, JobOffer, JobOfferStatus } from '../types';
 import { getStoredJobOffers, saveJobOffer, deleteJobOffer, generateShortId, fetchResilient, mapJobOfferFromSupabase, safeSetItem } from '../services/storage';
-import { supabase } from '../services/supabase';
+import { supabase, syncToCloud } from '../services/supabase';
+import { Locale, jobOffersTranslations } from '../translations';
 
 interface JobOffersProps {
   company: Company;
+  locale?: Locale;
 }
 
-export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
+export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' }) => {
+  const t = jobOffersTranslations[locale] || jobOffersTranslations['pt-PT'];
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
   const [showModal, setShowModal] = useState(false);
   const [editingOffer, setEditingOffer] = useState<JobOffer | null>(null);
@@ -59,16 +62,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
         const allLocal = getStoredJobOffers();
         const otherCompaniesJobs = allLocal.filter(j => String(j.companyId) !== String(company.id));
         
-        // Mesclar
-        const merged = [...mappedRemote];
-        localData.forEach(lj => {
-          if (!merged.some(rj => String(rj.id) === String(lj.id))) {
-            merged.push(lj);
-          }
-        });
+        // As vagas remota vindas do Supabase são a fonte de verdade para a empresa
+        const unsyncedLocal = localData.filter(lj => (lj as any).synced === false && !mappedRemote.some(rj => String(rj.id) === String(lj.id)));
+        const finalCompanyJobs = [...mappedRemote, ...unsyncedLocal];
         
-        safeSetItem('atrios_job_offers', JSON.stringify([...otherCompaniesJobs, ...merged]));
-        setJobOffers(merged);
+        safeSetItem('atrios_job_offers', JSON.stringify([...otherCompaniesJobs, ...finalCompanyJobs]));
+        setJobOffers(finalCompanyJobs);
       }
     } catch (e) {
       console.warn("[JobOffers] Erro ao carregar vagas remota:", e);
@@ -131,7 +130,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
     e.preventDefault();
 
     if (!location.trim() || !specialty.trim() || !salary.trim() || !startDate.trim() || !duration.trim() || !description.trim() || !contact.trim()) {
-      alert("Por favor preencha todos os campos obrigatórios da vaga de trabalho.");
+      alert(t.fillRequiredFieldsAlert);
       return;
     }
 
@@ -154,40 +153,71 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
       updatedAt: now
     };
 
-    const success = await saveJobOffer(offer);
+    const isEditing = !!editingOffer;
+    const isAdjustment = editingOffer && editingOffer.status === 'adjustment_requested';
+
+    const result = await saveJobOffer(offer);
     setIsSubmitting(false);
 
-    if (success) {
-      loadOffers();
-      handleCloseModal();
+    loadOffers();
+    handleCloseModal();
 
-      // Notificar Master via Push API
-      try {
-        fetch('/api/push/notify-master', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            title: `Nova Vaga Publicada - ${company.name}`,
-            body: `Nova vaga de ${offer.specialty} em ${offer.location} pendente de aprovação.`,
-            type: 'job_offer'
-          })
-        }).catch(err => console.warn("Notificação master falhou:", err));
-      } catch (e) {
-        // Ignore push failure
-      }
+    // Notificar Master via Push API imediatamente (funciona mesmo com o app fechado)
+    try {
+      fetch('/api/push/notify-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: isAdjustment ? 'job_adjustment' : 'job_offer',
+          details: {
+            companyName: company.name || 'Empresa',
+            specialty: offer.specialty,
+            location: offer.location,
+            isAdjustment,
+            isEditing,
+            title: isAdjustment 
+              ? `🛠️ Ajuste Efetuado na Vaga! (${company.name})`
+              : (isEditing ? `💼 Vaga Atualizada! (${company.name})` : `💼 Nova Vaga Publicada! (${company.name})`),
+            body: isAdjustment
+              ? `A empresa "${company.name}" efetuou o ajuste na vaga de ${offer.specialty} em ${offer.location}. Clique para analisar.`
+              : `A vaga de ${offer.specialty} em ${offer.location} foi publicada por "${company.name}" e aguarda aprovação.`
+          }
+        })
+      }).catch(err => console.warn("Notificação push para o master falhou:", err));
+    } catch (e) {
+      console.warn("Erro no envio push master:", e);
+    }
 
-      alert(editingOffer ? "Vaga de trabalho atualizada e reenviada para aprovação com sucesso!" : "Vaga de trabalho publicada com sucesso! A equipa irá analisar e aprovar em breve.");
+    if (result.success) {
+      alert(editingOffer ? t.updateSuccessAlert : t.createSuccessAlert);
     } else {
-      alert("Erro ao salvar a vaga de trabalho. Tente novamente.");
+      const err = result.error;
+      if (err?.code === '42501' || String(err?.message || '').includes('row-level security')) {
+        alert(`A vaga foi salva localmente, mas a sincronização cloud com o Supabase falhou por permissões de RLS (Row Level Security).\n\nCertifique-se de que a tabela 'job_offers' no Supabase tem permissão de INSERT/UPDATE desativando o RLS ou adicionando uma política de acesso.`);
+      } else {
+        alert(`Vaga salva localmente! Aviso de sincronização cloud: ${err?.message || 'Erro de rede'}`);
+      }
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!window.confirm("Tem certeza que deseja excluir esta vaga de trabalho?")) return;
-    const ok = await deleteJobOffer(id);
-    if (ok) {
-      loadOffers();
+    if (!window.confirm(t.deleteConfirm)) return;
+    
+    // Atualiza o estado local imediatamente
+    setJobOffers(prev => prev.filter(offer => String(offer.id) !== String(id)));
+    
+    const result = await deleteJobOffer(id);
+    if (result.success) {
+      alert(t.deleteSuccessAlert);
+    } else {
+      const err = result.error;
+      if (err?.code === '42501' || String(err?.message || '').includes('row-level security')) {
+        alert(`A vaga foi removida localmente, mas a exclusão no Supabase falhou por permissões de RLS (Row Level Security).\n\nCertifique-se de que a tabela 'job_offers' tem permissão para DELETE no Supabase ou desative o RLS.`);
+      } else {
+        alert(`Vaga removida localmente! Aviso de sincronização Supabase: ${err?.message || 'Erro de conexão'}`);
+      }
     }
+    loadOffers();
   };
 
   const filteredOffers = jobOffers.filter(offer => {
@@ -204,26 +234,26 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
       case 'approved':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-emerald-50 text-emerald-700 border border-emerald-200 shadow-sm">
-            <CheckCircle2 size={13} className="text-emerald-600" /> Aprovada
+            <CheckCircle2 size={13} className="text-emerald-600" /> {t.badgeApproved}
           </span>
         );
       case 'rejected':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-rose-50 text-rose-700 border border-rose-200 shadow-sm">
-            <XCircle size={13} className="text-rose-600" /> Desaprovada
+            <XCircle size={13} className="text-rose-600" /> {t.badgeRejected}
           </span>
         );
       case 'adjustment_requested':
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-50 text-amber-800 border border-amber-300 shadow-sm animate-pulse">
-            <AlertTriangle size={13} className="text-amber-600" /> Ajuste Solicitado
+            <AlertTriangle size={13} className="text-amber-600" /> {t.badgeAdjustmentRequested}
           </span>
         );
       case 'pending':
       default:
         return (
           <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-slate-100 text-slate-700 border border-slate-200 shadow-sm">
-            <Clock size={13} className="text-slate-500" /> Pendente de Aprovação
+            <Clock size={13} className="text-slate-500" /> {t.badgePending}
           </span>
         );
     }
@@ -237,14 +267,14 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
           <div className="space-y-2">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 text-xs font-bold border border-amber-500/30">
-              <Building2 size={14} /> Átrios Build ➔ Átrios Work
+              <Building2 size={14} /> {t.jobsHeaderTag}
             </div>
             <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-white flex items-center gap-3">
               <HardHat className="text-amber-400 shrink-0" size={32} />
-              Vagas de Trabalho
+              {t.jobsTitle}
             </h1>
             <p className="text-slate-300 text-xs sm:text-sm max-w-2xl font-medium leading-relaxed">
-              Publique oportunidades de emprego no **Átrios Build** para a rede de trabalhadores qualificados do **Átrios Work**. Todas as vagas passam por validação e aprovação da equipa.
+              {t.jobsDesc}
             </p>
           </div>
 
@@ -252,7 +282,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
             onClick={() => handleOpenModal()}
             className="inline-flex items-center justify-center gap-2 px-6 py-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black shadow-lg shadow-amber-500/20 transition-all active:scale-95 text-sm shrink-0"
           >
-            <Plus size={18} /> Publicar Vaga
+            <Plus size={18} /> {t.publishJob}
           </button>
         </div>
       </div>
@@ -262,11 +292,11 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
         {/* Filter Badges */}
         <div className="flex items-center gap-1.5 sm:gap-2 overflow-x-auto pb-2 sm:pb-0 scrollbar-none">
           {[
-            { id: 'all', label: 'Todas' },
-            { id: 'pending', label: 'Pendentes' },
-            { id: 'approved', label: 'Aprovadas' },
-            { id: 'adjustment_requested', label: 'Ajuste Solicitado' },
-            { id: 'rejected', label: 'Desaprovadas' }
+            { id: 'all', label: t.filterAll },
+            { id: 'pending', label: t.filterPending },
+            { id: 'approved', label: t.filterApproved },
+            { id: 'adjustment_requested', label: t.filterAdjustmentRequested },
+            { id: 'rejected', label: t.filterRejected }
           ].map(tab => (
             <button
               key={tab.id}
@@ -287,7 +317,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
           <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" size={16} />
           <input
             type="text"
-            placeholder="Pesquisar especialidade ou local..."
+            placeholder={t.searchPlaceholder}
             value={searchTerm}
             onChange={e => setSearchTerm(e.target.value)}
             className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs font-bold text-slate-900 placeholder:text-slate-400 outline-none focus:border-slate-900 transition-all"
@@ -302,11 +332,11 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
             <Briefcase size={32} />
           </div>
           <div className="space-y-1 max-w-md mx-auto">
-            <h3 className="text-base font-black text-slate-900">Nenhuma vaga de trabalho encontrada</h3>
+            <h3 className="text-base font-black text-slate-900">{t.noJobsFound}</h3>
             <p className="text-xs text-slate-500 font-medium">
               {statusFilter !== 'all' || searchTerm !== ''
-                ? "Nenhuma vaga corresponde aos filtros selecionados."
-                : "Ainda não publicou nenhuma vaga de trabalho. Clique no botão acima para criar a sua primeira oferta!"}
+                ? t.noJobsFilterMatch
+                : t.noJobsCreatedYet}
             </p>
           </div>
           {statusFilter === 'all' && searchTerm === '' && (
@@ -314,7 +344,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
               onClick={() => handleOpenModal()}
               className="inline-flex items-center gap-2 px-5 py-3 rounded-xl bg-slate-900 text-white text-xs font-black hover:bg-slate-800 transition-all"
             >
-              <Plus size={16} /> Publicar Nova Vaga
+              <Plus size={16} /> {t.publishFirstJob}
             </button>
           )}
         </div>
@@ -351,7 +381,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   }`}>
                     <div className="font-black flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
                       <AlertTriangle size={12} /> 
-                      {offer.status === 'adjustment_requested' ? 'Ajuste Necessário Solicitado pelo Suporte' : 'Motivo da Não Aprovação'}
+                      {offer.status === 'adjustment_requested' ? t.adjustmentNeededTitle : t.rejectionReasonTitle}
                     </div>
                     <p className="text-xs leading-relaxed font-semibold">{offer.feedback}</p>
                   </div>
@@ -369,17 +399,17 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   </div>
                   <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
                     <Calendar size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate">Início: {offer.startDate}</span>
+                    <span className="truncate">{t.startDateLabel} {offer.startDate}</span>
                   </div>
                   <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
                     <Clock size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate">Duração: {offer.duration}</span>
+                    <span className="truncate">{t.durationLabel} {offer.duration}</span>
                   </div>
                 </div>
 
                 {/* Description */}
                 <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">Descrição da vaga</span>
+                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t.jobDescriptionLabel}</span>
                   <p className="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50/70 p-3 rounded-xl border border-slate-100 whitespace-pre-line">
                     {offer.description}
                   </p>
@@ -388,14 +418,14 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                 {/* Contact */}
                 <div className="flex items-center gap-2 text-xs font-bold text-slate-800 pt-1">
                   <Phone size={14} className="text-amber-500 shrink-0" />
-                  <span>Contacto: {offer.contact}</span>
+                  <span>{t.contactLabel} {offer.contact}</span>
                 </div>
               </div>
 
               {/* Actions */}
               <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
                 <span className="text-[10px] font-bold text-slate-400">
-                  Publicado em: {new Date(offer.createdAt).toLocaleDateString('pt-PT')}
+                  {t.publishedOn} {new Date(offer.createdAt).toLocaleDateString(locale)}
                 </span>
 
                 <div className="flex items-center gap-2">
@@ -403,12 +433,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                     onClick={() => handleOpenModal(offer)}
                     className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white font-bold text-slate-700 transition-colors"
                   >
-                    <Edit size={13} /> {offer.status === 'adjustment_requested' ? 'Corrigir Vaga' : 'Editar'}
+                    <Edit size={13} /> {offer.status === 'adjustment_requested' ? t.fixJobBtn : t.editBtn}
                   </button>
                   <button
                     onClick={() => handleDelete(offer.id)}
                     className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title="Excluir Vaga"
+                    title={t.deleteJobTitle}
                   >
                     <Trash2 size={15} />
                   </button>
@@ -437,10 +467,10 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   </div>
                   <div>
                     <h2 className="text-lg font-black">
-                      {editingOffer ? 'Editar Vaga de Trabalho' : 'Publicar Vaga de Trabalho'}
+                      {editingOffer ? t.editModalTitle : t.createModalTitle}
                     </h2>
                     <p className="text-xs text-slate-300 font-medium">
-                      Preencha os detalhes da oferta para a rede de trabalhadores.
+                      {t.modalDesc}
                     </p>
                   </div>
                 </div>
@@ -458,12 +488,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 📍 Local da obra */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <MapPin size={14} className="text-amber-500" /> Local da obra *
+                      <MapPin size={14} className="text-amber-500" /> {t.workLocationLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Lisboa (Parque das Nações)"
+                      placeholder={t.workLocationPlaceholder}
                       value={location}
                       onChange={e => setLocation(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -473,12 +503,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 👷 Especialidade */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <HardHat size={14} className="text-amber-500" /> Especialidade *
+                      <HardHat size={14} className="text-amber-500" /> {t.specialtyLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Pedreiro de 1ª / Servente"
+                      placeholder={t.specialtyPlaceholder}
                       value={specialty}
                       onChange={e => setSpecialty(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -488,12 +518,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 💶 Salário/Valor diário */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <Euro size={14} className="text-amber-500" /> Salário / Valor diário *
+                      <Euro size={14} className="text-amber-500" /> {t.salaryLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: 80€ / dia ou 1.600€ / mês"
+                      placeholder={t.salaryPlaceholder}
                       value={salary}
                       onChange={e => setSalary(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -503,12 +533,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 📅 Data de início */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <Calendar size={14} className="text-amber-500" /> Data de início *
+                      <Calendar size={14} className="text-amber-500" /> {t.startDateInputLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: Entrada Imediata ou 10/08/2026"
+                      placeholder={t.startDatePlaceholder}
                       value={startDate}
                       onChange={e => setStartDate(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -518,12 +548,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 📅 Duração prevista */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <Clock size={14} className="text-amber-500" /> Duração prevista *
+                      <Clock size={14} className="text-amber-500" /> {t.durationInputLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: 3 Meses / Obra Completa"
+                      placeholder={t.durationPlaceholder}
                       value={duration}
                       onChange={e => setDuration(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -533,12 +563,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                   {/* 📞 Contacto */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                      <Phone size={14} className="text-amber-500" /> Contacto *
+                      <Phone size={14} className="text-amber-500" /> {t.contactInputLabel}
                     </label>
                     <input
                       type="text"
                       required
-                      placeholder="Ex: +351 912 345 678 ou obra@empresa.com"
+                      placeholder={t.contactPlaceholder}
                       value={contact}
                       onChange={e => setContact(e.target.value)}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all"
@@ -549,12 +579,12 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                 {/* 📝 Descrição */}
                 <div>
                   <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2 flex items-center gap-1.5">
-                    <FileText size={14} className="text-amber-500" /> Descrição da vaga *
+                    <FileText size={14} className="text-amber-500" /> {t.jobDescriptionInputLabel}
                   </label>
                   <textarea
                     required
                     rows={4}
-                    placeholder="Descreva os detalhes dos trabalhos a realizar, requisitos técnicos, ferramentas necessárias e outras informações relevantes..."
+                    placeholder={t.jobDescriptionPlaceholder}
                     value={description}
                     onChange={e => setDescription(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border border-slate-200 outline-none font-bold text-sm text-slate-900 focus:border-slate-900 transition-all resize-none"
@@ -565,7 +595,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                 <div className="bg-amber-50 border border-amber-200 p-4 rounded-xl text-xs text-amber-900 flex items-start gap-3">
                   <HelpCircle size={16} className="text-amber-600 shrink-0 mt-0.5" />
                   <p className="leading-relaxed font-medium">
-                    A sua vaga de trabalho será enviada para análise e aprovação. Assim que for validada pela nossa equipa, ficará imediatamente visível no **Átrios Work**.
+                    {t.noticeBoxText}
                   </p>
                 </div>
 
@@ -576,7 +606,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                     onClick={handleCloseModal}
                     className="px-5 py-3 rounded-xl bg-slate-100 text-slate-700 text-xs font-black hover:bg-slate-200 transition-colors"
                   >
-                    Cancelar
+                    {t.cancelBtn}
                   </button>
                   <button
                     type="submit"
@@ -584,7 +614,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company }) => {
                     className="inline-flex items-center gap-2 px-6 py-3 rounded-xl bg-slate-900 text-white text-xs font-black hover:bg-slate-800 transition-all disabled:opacity-50 shadow-lg"
                   >
                     <Send size={15} />
-                    {isSubmitting ? 'A Publicar...' : (editingOffer ? 'Salvar e Enviar' : 'Publicar vaga')}
+                    {isSubmitting ? t.publishingBtn : (editingOffer ? t.saveAndSendBtn : t.publishJobModalBtn)}
                   </button>
                 </div>
               </form>

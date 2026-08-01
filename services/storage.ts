@@ -694,28 +694,46 @@ export const mapCustomOrderFromSupabase = (c: any): CustomOrderRequest => {
 };
 
 export const mapJobOfferFromSupabase = (j: any): JobOffer => {
+  if (!j) return j;
   const mapped: any = { ...j };
-  if (j.company_id && !j.companyId) mapped.companyId = j.company_id;
-  if (j.company_name && !j.companyName) mapped.companyName = j.company_name;
-  if (j.start_date && !j.startDate) mapped.startDate = j.start_date;
-  if (j.created_at && !j.createdAt) mapped.createdAt = j.created_at;
-  if (j.updated_at && !j.updatedAt) mapped.updatedAt = j.updated_at;
+  
+  const cId = j.companyId || j.company_id || j.companyid;
+  const cName = j.companyName || j.company_name || j.companyname;
+  const sDate = j.startDate || j.start_date || j.startdate;
+  const cAt = j.createdAt || j.created_at || j.createdat || j.timestamp;
+  const uAt = j.updatedAt || j.updated_at || j.updatedat;
+
+  mapped.id = String(j.id || '');
+  mapped.companyId = String(cId || '');
+  mapped.companyName = String(cName || 'Empresa');
+  mapped.location = String(j.location || '');
+  mapped.specialty = String(j.specialty || '');
+  mapped.salary = String(j.salary || '');
+  mapped.startDate = String(sDate || '');
+  mapped.duration = String(j.duration || '');
+  mapped.description = String(j.description || '');
+  mapped.contact = String(j.contact || '');
+  mapped.status = (j.status || 'pending') as JobOfferStatus;
+  mapped.feedback = j.feedback || '';
+  mapped.createdAt = String(cAt || new Date().toISOString());
+  mapped.updatedAt = String(uAt || new Date().toISOString());
+
   return mapped as JobOffer;
 };
 
 export const mapJobOfferToSupabasePayload = (offer: JobOffer) => {
   return {
-    id: offer.id,
-    company_id: offer.companyId,
-    company_name: offer.companyName,
-    location: offer.location,
-    specialty: offer.specialty,
-    salary: offer.salary,
-    start_date: offer.startDate,
-    duration: offer.duration,
-    description: offer.description,
-    contact: offer.contact,
-    status: offer.status,
+    id: String(offer.id),
+    company_id: String(offer.companyId || ''),
+    company_name: String(offer.companyName || 'Empresa'),
+    location: String(offer.location || ''),
+    specialty: String(offer.specialty || ''),
+    salary: String(offer.salary || ''),
+    start_date: String(offer.startDate || ''),
+    duration: String(offer.duration || ''),
+    description: String(offer.description || ''),
+    contact: String(offer.contact || ''),
+    status: String(offer.status || 'pending'),
     feedback: offer.feedback || null,
     created_at: offer.createdAt || new Date().toISOString(),
     updated_at: offer.updatedAt || new Date().toISOString()
@@ -731,10 +749,10 @@ export const getStoredJobOffers = (companyId?: string): JobOffer[] => {
   return offers;
 };
 
-export const saveJobOffer = async (offer: JobOffer): Promise<boolean> => {
+export const saveJobOffer = async (offer: JobOffer): Promise<{ success: boolean; error?: any }> => {
   try {
     const offers = getStoredJobOffers();
-    const index = offers.findIndex(o => o.id === offer.id);
+    const index = offers.findIndex(o => String(o.id) === String(offer.id));
     if (index > -1) {
       offers[index] = offer;
     } else {
@@ -749,52 +767,77 @@ export const saveJobOffer = async (offer: JobOffer): Promise<boolean> => {
     } else {
       console.log("saveJobOffer: Vaga de trabalho sincronizada no Supabase com sucesso!");
     }
-    return true;
+    return result;
   } catch (err) {
     console.error("saveJobOffer error:", err);
-    return false;
+    return { success: false, error: err };
   }
 };
 
-export const deleteJobOffer = async (id: string): Promise<boolean> => {
+export const deleteJobOffer = async (id: string): Promise<{ success: boolean; error?: any }> => {
   try {
-    const offers = getStoredJobOffers().filter(o => o.id !== id);
+    console.log(`[deleteJobOffer] Deletando vaga ${id} localmente e no Supabase...`);
+    const offers = getStoredJobOffers().filter(o => String(o.id) !== String(id));
     safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
-    const { error } = await safeFetch<any>(supabase.from('job_offers').delete().eq('id', id));
+
+    const { error } = await safeFetch<any>(supabase.from('job_offers').delete().eq('id', String(id)));
     if (error) {
-      console.warn("deleteJobOffer: Aviso ao deletar no Supabase:", error);
+      console.warn("[deleteJobOffer] Erro/Aviso ao deletar no Supabase:", error);
+      return { success: false, error };
     }
-    return true;
+    console.log(`[deleteJobOffer] Vaga ${id} deletada no Supabase!`);
+    return { success: true };
   } catch (err) {
-    console.error("deleteJobOffer error:", err);
-    return false;
+    console.error("[deleteJobOffer] Exceção ao deletar vaga:", err);
+    return { success: false, error: err };
   }
 };
 
-export const updateJobOfferStatus = async (id: string, status: JobOfferStatus, feedback?: string): Promise<boolean> => {
+export const updateJobOfferStatus = async (id: string, status: JobOfferStatus, feedback?: string): Promise<{ success: boolean; error?: any }> => {
   try {
     const offers = getStoredJobOffers();
-    const index = offers.findIndex(o => o.id === id);
+    const index = offers.findIndex(o => String(o.id) === String(id));
+    let updatedOffer: JobOffer;
     if (index > -1) {
-      const updatedOffer: JobOffer = {
+      updatedOffer = {
         ...offers[index],
         status,
         feedback: feedback !== undefined ? feedback : offers[index].feedback,
         updatedAt: new Date().toISOString()
       };
       offers[index] = updatedOffer;
-      safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
-      
-      const result = await syncToCloud('job_offers', updatedOffer);
-      if (!result.success) {
-        console.warn("updateJobOfferStatus: Falha na atualização cloud (salvo localmente):", result.error);
-      }
-      return true;
+    } else {
+      updatedOffer = {
+        id: String(id),
+        companyId: '',
+        companyName: '',
+        location: '',
+        specialty: '',
+        salary: '',
+        startDate: '',
+        duration: '',
+        description: '',
+        contact: '',
+        status,
+        feedback: feedback || '',
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      offers.unshift(updatedOffer);
     }
-    return false;
+    safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify(offers));
+    
+    // Envia o objeto de vaga completo atualizado para preservar colunas NOT NULL
+    const result = await syncToCloud('job_offers', updatedOffer);
+    if (!result.success) {
+      console.warn("updateJobOfferStatus: Falha na atualização cloud (salvo localmente):", result.error);
+    } else {
+      console.log("updateJobOfferStatus: Atualizado no Supabase com sucesso!");
+    }
+    return result;
   } catch (err) {
     console.error("updateJobOfferStatus error:", err);
-    return false;
+    return { success: false, error: err };
   }
 };
 
@@ -1054,26 +1097,13 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       const currentCompanyLocalJobs = allJobs.filter(j => String(j.companyId) === String(companyId));
       const otherJobs = allJobs.filter(j => String(j.companyId) !== String(companyId));
 
-      if (jobOffersRemote && jobOffersRemote.length > 0) {
+      if (jobOffersRemote && Array.isArray(jobOffersRemote)) {
         const mapped = jobOffersRemote.map(mapJobOfferFromSupabase);
-        const mergedJobs = [...mapped];
-        currentCompanyLocalJobs.forEach(localJob => {
-          if (!mergedJobs.some(m => String(m.id) === String(localJob.id))) {
-            mergedJobs.push(localJob);
-            syncToCloud('job_offers', localJob).catch(error => {
-              console.warn("[Hydrate] Erro ao re-sincronizar vaga local para Supabase:", error);
-            });
-          }
-        });
-        safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify([...otherJobs, ...mergedJobs]));
-        fetchedJobOffers = mergedJobs;
-      } else if (currentCompanyLocalJobs.length > 0) {
-        // Se ainda não há dados remotos, enviar as vagas locais para a nuvem
-        currentCompanyLocalJobs.forEach(localJob => {
-          syncToCloud('job_offers', localJob).catch(error => {
-            console.warn("[Hydrate] Erro ao enviar vaga local inicial para Supabase:", error);
-          });
-        });
+        // Apenas manter vagas locais não sincronizadas (rascunhos offline)
+        const unsyncedLocal = currentCompanyLocalJobs.filter(lj => (lj as any).synced === false && !mapped.some(m => String(m.id) === String(lj.id)));
+        const finalCompanyJobs = [...mapped, ...unsyncedLocal];
+        safeSetItem(STORAGE_KEY_JOB_OFFERS, JSON.stringify([...otherJobs, ...finalCompanyJobs]));
+        fetchedJobOffers = finalCompanyJobs;
       }
     } catch (e) {
       console.warn("[Hydrate] Aviso ao carregar vagas de trabalho remota:", e);

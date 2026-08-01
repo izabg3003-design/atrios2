@@ -3508,18 +3508,12 @@ const App: React.FC = () => {
                   { id: 'settings', label: t.settings, icon: Settings }
                 ].map(item => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
-                  const isJobsLocked = item.id === 'jobs' && !isAtriosBuildUser;
                   const hasPendingUnlock = item.id === 'settings' && currentUser?.unlockRequested;
                   
                   return (
                     <button 
                       key={item.id} 
                       onClick={() => { 
-                        if (item.id === 'jobs' && !isAtriosBuildUser) {
-                          setShowJobsComingSoonModal(true);
-                          setIsMobileMenuOpen(false);
-                          return;
-                        }
                         setActiveTab(item.id as any); 
                         setIsMobileMenuOpen(false); 
                       }} 
@@ -3529,16 +3523,10 @@ const App: React.FC = () => {
                         <div className="relative">
                           <item.icon size={16} className="w-4 h-4 shrink-0" />
                           {isReportsLocked && <Lock size={9} className="absolute -top-1 -right-1 text-amber-500" />}
-                          {isJobsLocked && <Lock size={9} className="absolute -top-1 -right-1 text-amber-500" />}
                           {hasPendingUnlock && <span className="absolute -top-1 -right-1 w-2 h-2 bg-amber-500 rounded-full border border-white animate-pulse" />}
                         </div>
                         <span>{item.label}</span>
                       </div>
-                      {isJobsLocked && (
-                        <span className="inline-flex items-center gap-1 text-[9px] font-black uppercase px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 border border-amber-500/20 shrink-0">
-                          <Sparkles size={9} /> Breve
-                        </span>
-                      )}
                     </button>
                   );
                 })}
@@ -3638,11 +3626,10 @@ const App: React.FC = () => {
                     setSelectedBudget(undefined); 
                     setIsEditingBudget(true); 
                   }} 
-                  className="px-2.5 sm:px-4 lg:px-8 py-2 sm:py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black flex items-center gap-1.5 sm:gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-xl text-[10px] sm:text-xs lg:text-base shrink-0"
+                  className="hidden sm:flex px-4 lg:px-8 py-2.5 lg:py-4 bg-slate-900 text-white rounded-xl lg:rounded-[1.5rem] font-black items-center gap-2 lg:gap-3 hover:bg-slate-800 transition-all shadow-xl text-xs lg:text-base shrink-0"
                 >
-                  <PlusCircle size={15} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" /> 
-                  <span className="hidden xs:inline">{t.newBudget}</span>
-                  <span className="xs:hidden">+</span>
+                  <PlusCircle size={18} className="lg:w-[22px] lg:h-[22px]" /> 
+                  <span>{t.newBudget}</span>
                 </button>
               </div>
             </header>
@@ -3651,7 +3638,26 @@ const App: React.FC = () => {
               {isEditingBudget ? (
                 <BudgetForm locale={locale} currencyCode={currencyCode} company={currentUser || ({} as Company)} onSave={handleSaveBudget} onCancel={() => setIsEditingBudget(false)} onUpgrade={() => { setIsEditingBudget(false); setActiveTab('plans'); }} initialData={selectedBudget} />
               ) : (
-                <div className="max-w-6xl mx-auto space-y-8 lg:space-y-12">
+                <div className="max-w-6xl mx-auto space-y-6 sm:space-y-8 lg:space-y-12">
+                  {/* Botão Novo Orçamento para Mobile (Posicionado abaixo dos selecionadores e acima do banner laranja) */}
+                  <div className="sm:hidden">
+                    <button 
+                      onClick={() => { 
+                        if (!canCreateBudget) {
+                          alert(t.budgetLimitReached);
+                          setActiveTab('plans');
+                          return;
+                        }
+                        setSelectedBudget(undefined); 
+                        setIsEditingBudget(true); 
+                      }} 
+                      className="w-full py-3.5 px-4 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-lg active:scale-95 border border-slate-800"
+                    >
+                      <PlusCircle size={18} className="text-amber-400" /> 
+                      <span>{t.newBudget}</span>
+                    </button>
+                  </div>
+
                   {currentUser?.plan === PlanType.FREE && activeTab === 'dashboard' && <PremiumBanner locale={locale} onUpgrade={() => setActiveTab('plans')} />}
                   {activeTab === 'dashboard' && <Dashboard locale={locale} currencyCode={currencyCode} budgets={budgets} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => setActiveTab('plans')} />}
                   
@@ -3688,32 +3694,7 @@ const App: React.FC = () => {
                   )}
 
                   {activeTab === 'jobs' && currentUser && (
-                    isAtriosBuildUser ? (
-                      <JobOffers company={currentUser} />
-                    ) : (
-                      <div className="bg-white rounded-2xl lg:rounded-3xl p-8 lg:p-12 border border-slate-100 shadow-xl text-center max-w-2xl mx-auto my-12 space-y-6 animate-in zoom-in-95 duration-300">
-                        <div className="w-20 h-20 bg-amber-500/10 text-amber-500 rounded-3xl flex items-center justify-center mx-auto shadow-inner border border-amber-500/20">
-                          <Sparkles size={40} className="animate-pulse" />
-                        </div>
-                        <div className="space-y-3">
-                          <div className="inline-flex items-center gap-2 px-3.5 py-1 rounded-full bg-amber-500/10 text-amber-600 text-[11px] font-black uppercase tracking-wider border border-amber-500/20">
-                            <HardHat size={14} /> Vêm aí Novidades! ✨
-                          </div>
-                          <h2 className="text-2xl lg:text-3xl font-black text-slate-900">Vagas de Trabalho (Átrios Work)</h2>
-                          <p className="text-slate-500 text-sm leading-relaxed max-w-lg mx-auto font-medium">
-                            A funcionalidade de <strong>Vagas de Trabalho</strong> é de utilização exclusiva para a conta de testes <strong>Átrios Build</strong> nesta fase. Muito em breve estará disponível para todas as empresas da plataforma!
-                          </p>
-                        </div>
-                        <div className="pt-2 flex justify-center gap-3">
-                          <button
-                            onClick={() => setActiveTab('dashboard')}
-                            className="px-6 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95"
-                          >
-                            Voltar ao Painel Principal
-                          </button>
-                        </div>
-                      </div>
-                    )
+                    <JobOffers company={currentUser} locale={locale} />
                   )}
 
                   {activeTab === 'budgets' && (

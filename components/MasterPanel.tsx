@@ -224,7 +224,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
   const [jobStatusFilter, setJobStatusFilter] = useState<'all' | JobOfferStatus>('all');
   const [jobSearch, setJobSearch] = useState('');
-  const [jobFeedbackModal, setJobFeedbackModal] = useState<{ id: string; status: JobOfferStatus; companyId: string; title: string } | null>(null);
+  const [jobFeedbackModal, setJobFeedbackModal] = useState<{ id: string; status: JobOfferStatus; companyId: string; specialty?: string; title: string } | null>(null);
   const [jobFeedbackText, setJobFeedbackText] = useState('');
   
   // Custom Push notifications composer states
@@ -639,21 +639,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     const localJobs = getStoredJobOffers();
     let finalJobs: JobOffer[] = [];
 
-    if (cloudJobOffers && cloudJobOffers.length > 0) {
+    if (cloudJobOffers && Array.isArray(cloudJobOffers)) {
       const mappedJobs = cloudJobOffers.map(mapJobOfferFromSupabase);
-      const merged = [...mappedJobs];
-      localJobs.forEach(lj => {
-        if (!merged.some(mj => String(mj.id) === String(lj.id))) {
-          merged.push(lj);
-          syncToCloud('job_offers', lj).catch(e => console.warn("MasterPanel: Erro ao re-sincronizar vaga local:", e));
-        }
-      });
-      finalJobs = merged;
+      const unsyncedLocal = localJobs.filter(lj => (lj as any).synced === false && !mappedJobs.some(mj => String(mj.id) === String(lj.id)));
+      finalJobs = [...mappedJobs, ...unsyncedLocal];
     } else {
       finalJobs = localJobs;
-      localJobs.forEach(lj => {
-        syncToCloud('job_offers', lj).catch(e => console.warn("MasterPanel: Erro ao enviar vaga local inicial:", e));
-      });
     }
 
     safeSetItem('atrios_job_offers', JSON.stringify(finalJobs));
@@ -979,19 +970,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const pendingJobsCount = useMemo(() => jobOffers.filter(j => j.status === 'pending').length, [jobOffers]);
 
   const handleApproveJob = async (job: JobOffer) => {
-    const ok = await updateJobOfferStatus(job.id, 'approved', '');
-    if (ok) {
-      setJobOffers(prev => prev.map(j => j.id === job.id ? { ...j, status: 'approved', feedback: '' } : j));
-      fetch('/api/push/notify-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: job.companyId,
-          title: 'Vaga de Trabalho Aprovada! 🎉',
-          body: `A sua vaga para "${job.specialty}" em ${job.location} foi aprovada e já se encontra ativa no Átrios Work.`
-        })
-      }).catch(err => console.warn("Push notify user failed:", err));
+    setJobOffers(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, status: 'approved', feedback: '' } : j));
+    const result = await updateJobOfferStatus(job.id, 'approved', '');
+    if (!result.success) {
+      console.warn("Aviso na atualização da vaga em nuvem:", result.error);
     }
+    fetch('/api/push/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId: job.companyId,
+        title: 'Vaga de Trabalho Aprovada! 🎉',
+        body: `A sua vaga para "${job.specialty}" em ${job.location} foi aprovada e já se encontra ativa no Átrios Work.`
+      })
+    }).catch(err => console.warn("Push notify user failed:", err));
   };
 
   const handleOpenJobFeedbackModal = (job: JobOffer, status: JobOfferStatus) => {
@@ -999,6 +991,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       id: job.id,
       status,
       companyId: job.companyId,
+      specialty: job.specialty,
       title: status === 'adjustment_requested' ? 'Solicitar Ajuste na Vaga' : 'Desaprovar Vaga de Trabalho'
     });
     setJobFeedbackText(job.feedback || '');
@@ -1006,32 +999,42 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
   const handleConfirmJobFeedback = async () => {
     if (!jobFeedbackModal) return;
-    const { id, status, companyId } = jobFeedbackModal;
-    const ok = await updateJobOfferStatus(id, status, jobFeedbackText);
-    if (ok) {
-      setJobOffers(prev => prev.map(j => j.id === id ? { ...j, status, feedback: jobFeedbackText } : j));
-      const isAdjustment = status === 'adjustment_requested';
-      fetch('/api/push/notify-user', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          companyId: companyId,
-          title: isAdjustment ? 'Ajuste Solicitado na Vaga ⚠️' : 'Vaga de Trabalho Desaprovada ❌',
-          body: isAdjustment
-            ? `O suporte solicitou um ajuste na sua vaga de trabalho: "${jobFeedbackText}"`
-            : `A sua vaga de trabalho não foi aprovada. Motivo: "${jobFeedbackText}"`
-        })
-      }).catch(err => console.warn("Push notify user failed:", err));
+    const { id, status, companyId, specialty } = jobFeedbackModal;
+    setJobOffers(prev => prev.map(j => String(j.id) === String(id) ? { ...j, status, feedback: jobFeedbackText } : j));
+    const result = await updateJobOfferStatus(id, status, jobFeedbackText);
+    if (!result.success) {
+      console.warn("Aviso na atualização da vaga em nuvem:", result.error);
     }
+    const isAdjustment = status === 'adjustment_requested';
+    const specStr = specialty ? ` ("${specialty}")` : '';
+    fetch('/api/push/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId: companyId,
+        title: isAdjustment ? 'Ajuste Solicitado na Vaga ⚠️' : 'Vaga de Trabalho Desaprovada ❌',
+        body: isAdjustment
+          ? `O suporte solicitou um ajuste na sua vaga${specStr}: "${jobFeedbackText}"`
+          : `A sua vaga de trabalho${specStr} não foi aprovada. Motivo: "${jobFeedbackText}"`
+      })
+    }).catch(err => console.warn("Push notify user failed:", err));
     setJobFeedbackModal(null);
     setJobFeedbackText('');
   };
 
   const handleDeleteJob = async (id: string) => {
     if (!window.confirm("Excluir esta vaga de trabalho permanentemente?")) return;
-    const ok = await deleteJobOffer(id);
-    if (ok) {
-      setJobOffers(prev => prev.filter(j => j.id !== id));
+    setJobOffers(prev => prev.filter(j => String(j.id) !== String(id)));
+    const result = await deleteJobOffer(id);
+    if (result.success) {
+      alert("Vaga excluída com sucesso!");
+    } else {
+      const err = result.error;
+      if (err?.code === '42501' || String(err?.message || '').includes('row-level security')) {
+        alert(`Vaga removida localmente, mas a exclusão no Supabase falhou por RLS (Row Level Security).\n\nCertifique-se de que a tabela 'job_offers' tem permissão de DELETE no Supabase.`);
+      } else {
+        alert(`Vaga removida localmente! Aviso Supabase: ${err?.message || 'Erro de conexão'}`);
+      }
     }
   };
 

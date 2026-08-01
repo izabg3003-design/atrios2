@@ -623,8 +623,15 @@ async function startServer() {
       if (targetAudience === 'premium_annual' && plan === 'premium_annual') return true;
 
       // Se for um ID de empresa ou email específico:
-      const targetLower = String(targetAudience).toLowerCase();
-      if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) {
+      const targetLower = String(targetAudience).toLowerCase().trim();
+      if (
+        cId === targetLower || 
+        email === targetLower || 
+        (cId && targetLower.includes(cId)) || 
+        (cId && cId.includes(targetLower)) ||
+        (email && targetLower.includes(email)) ||
+        (email && email.includes(targetLower))
+      ) {
         return true;
       }
 
@@ -802,6 +809,9 @@ async function startServer() {
     } else if (type === "unlock_request" || type === "unlock") {
       title = "🔑 Solicitação de Desbloqueio!";
       body = `A empresa "${details.companyName || details.name || details.email || 'Cliente'}" solicitou autorização para alterar os dados nas Definições.`;
+    } else if (type === "job_offer" || type === "job_adjustment") {
+      title = details.title || (type === "job_adjustment" ? "🛠️ Ajuste Efetuado na Vaga!" : "💼 Nova Vaga Publicada!");
+      body = details.body || `A empresa "${details.companyName || 'Cliente'}" publicou/ajustou a vaga de ${details.specialty || 'Trabalho'}.`;
     } else {
       title = details.title || "Notificação da Loja 🛍️";
       body = details.body || details.content || JSON.stringify(details);

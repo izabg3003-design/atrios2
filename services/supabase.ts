@@ -58,15 +58,20 @@ export interface SyncResult {
       
       if (!error) return { success: true };
 
+      const errorMsg = String(error.message || error.details || error.hint || '');
       console.warn(`syncToCloud: Erro ao sincronizar ${table}:`, {
-        message: error.message,
+        message: errorMsg,
         code: error.code,
         dataSent: payload
       });
 
-      // Fallback: se falhar por coluna não encontrada (PGRST204), tentamos remover a coluna problemática e repetir
-      if (error.code === 'PGRST204') {
-        const match = error.message.match(/Could not find the '(.+)' column/);
+      // Fallback: se falhar por coluna não encontrada, tentamos remover a coluna problemática e repetir
+      if (error.code === 'PGRST204' || error.code === '42703' || errorMsg.includes('column') || errorMsg.includes('Could not find') || errorMsg.includes('does not exist')) {
+        const match = errorMsg.match(/Could not find the ['"](.+?)['"] column/i) || 
+                      errorMsg.match(/column ['"](.+?)['"] of relation/i) || 
+                      errorMsg.match(/column ['"](.+?)['"] does not exist/i) ||
+                      errorMsg.match(/column ['"](.+?)['"]/i) ||
+                      errorMsg.match(/['"](.+?)['"] column/i);
         const missingColumn = match ? match[1] : null;
         if (missingColumn && payload[missingColumn] !== undefined) {
           console.warn(`syncToCloud: Removendo coluna inexistente '${missingColumn}' e tentando novamente...`);
@@ -92,26 +97,39 @@ export interface SyncResult {
 
     // Tratamento específico para job_offers (vagas de trabalho)
     if (table === 'job_offers') {
+      const cId = rawData.company_id || rawData.companyId || rawData.companyid;
+      const cName = rawData.company_name || rawData.companyName || rawData.companyname || 'Empresa';
+      const sDate = rawData.start_date || rawData.startDate || rawData.startdate;
+      const cAt = rawData.created_at || rawData.createdAt || rawData.createdat || rawData.timestamp;
+      const uAt = rawData.updated_at || rawData.updatedAt || rawData.updatedat;
+
+      const formatTimestamp = (val: any) => {
+        if (!val) return new Date().toISOString();
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      };
+
       const jobPayload: any = {
-        id: rawData.id,
-        company_id: rawData.company_id || rawData.companyId || rawData.companyid,
-        company_name: rawData.company_name || rawData.companyName || rawData.companyname,
-        location: rawData.location,
-        specialty: rawData.specialty,
-        salary: rawData.salary,
-        start_date: rawData.start_date || rawData.startDate || rawData.startdate,
-        duration: rawData.duration,
-        description: rawData.description,
-        contact: rawData.contact,
-        status: rawData.status,
-        feedback: rawData.feedback || null,
-        created_at: rawData.created_at || rawData.createdAt || rawData.timestamp || new Date().toISOString(),
-        updated_at: rawData.updated_at || rawData.updatedAt || new Date().toISOString()
+        id: String(rawData.id),
+        company_id: String(cId || ''),
+        company_name: String(cName || 'Empresa'),
+        location: String(rawData.location || ''),
+        specialty: String(rawData.specialty || ''),
+        salary: String(rawData.salary || ''),
+        start_date: String(sDate || ''),
+        duration: String(rawData.duration || ''),
+        description: String(rawData.description || ''),
+        contact: String(rawData.contact || ''),
+        status: String(rawData.status || 'pending'),
+        feedback: rawData.feedback ? String(rawData.feedback) : null,
+        created_at: formatTimestamp(cAt),
+        updated_at: formatTimestamp(uAt)
       };
       Object.keys(jobPayload).forEach(k => {
         if (jobPayload[k] === undefined) delete jobPayload[k];
       });
-      console.log(`syncToCloud: Sincronizando vaga de trabalho ${jobPayload.id} no Supabase...`);
+
+      console.log(`syncToCloud: Sincronizando vaga de trabalho ${jobPayload.id} no Supabase...`, jobPayload);
       return await performUpsert(jobPayload);
     }
 

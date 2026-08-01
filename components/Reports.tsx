@@ -144,6 +144,16 @@ const Reports: React.FC<ReportsProps> = ({
     return 0;
   }, [selectedBudget]);
 
+  const selectedBudgetSubtotal = useMemo(() => {
+    if (selectedBudget) {
+      if (selectedBudget.includeIva && selectedBudget.ivaPercentage > 0) {
+        return selectedBudget.totalAmount / (1 + selectedBudget.ivaPercentage / 100);
+      }
+      return selectedBudget.totalAmount;
+    }
+    return 0;
+  }, [selectedBudget]);
+
   const chartData = useMemo(() => {
     const data: any[] = [];
 
@@ -552,6 +562,8 @@ const Reports: React.FC<ReportsProps> = ({
                 const isSelected = selectedBudgetId === budget.id;
                 const clientExpCount = (budget.expenses || []).length;
                 const clientExpSum = (budget.expenses || []).reduce((s, e) => s + (e.amount || 0), 0);
+                const hasIva = budget.includeIva && budget.ivaPercentage > 0;
+                const subtotal = hasIva ? budget.totalAmount / (1 + budget.ivaPercentage / 100) : budget.totalAmount;
 
                 return (
                   <div
@@ -596,8 +608,14 @@ const Reports: React.FC<ReportsProps> = ({
                     <div className="flex items-center justify-between sm:justify-end gap-4 shrink-0 border-t sm:border-t-0 pt-2 sm:pt-0 border-slate-100">
                       <div className="text-left sm:text-right">
                         <p className="font-black text-slate-900 text-sm lg:text-base">
-                          {(budget.totalAmount * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                          {(subtotal * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                          {hasIva && <span className="text-[9px] text-slate-400 font-bold ml-1 font-sans">s/ IVA</span>}
                         </p>
+                        {hasIva && (
+                          <p className="text-[9px] font-bold text-slate-400 uppercase tracking-wider">
+                            c/ IVA: {(budget.totalAmount * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                          </p>
+                        )}
                         <button
                           type="button"
                           onClick={(e) => {
@@ -680,13 +698,18 @@ const Reports: React.FC<ReportsProps> = ({
 
               {selectedBudget && (
                 <div className="bg-white/10 p-3.5 rounded-2xl border border-white/10 text-right min-w-[170px] w-full sm:w-auto shrink-0">
-                  <div className="text-[9px] font-bold text-white/60 uppercase">Valor da Venda</div>
+                  <div className="text-[9px] font-bold text-white/60 uppercase">Venda (sem IVA)</div>
                   <div className="text-sm font-black text-emerald-400">
-                    {(selectedBudget.totalAmount * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                    {(selectedBudgetSubtotal * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
                   </div>
+                  {selectedBudget.includeIva && selectedBudget.ivaPercentage > 0 && (
+                    <div className="text-[8px] font-medium text-white/40">
+                      Total c/ IVA: {(selectedBudget.totalAmount * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                    </div>
+                  )}
                   <div className="text-[9px] font-bold text-white/60 uppercase mt-1.5">Lucro Estimado</div>
-                  <div className={`text-sm font-black ${(selectedBudget.totalAmount - displayedExpensesTotal - selectedBudgetIva) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                    {((selectedBudget.totalAmount - displayedExpensesTotal - selectedBudgetIva) * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+                  <div className={`text-sm font-black ${(selectedBudgetSubtotal - displayedExpensesTotal) >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                    {((selectedBudgetSubtotal - displayedExpensesTotal) * currencyInfo.rate).toLocaleString(locale, { style: 'currency', currency: currencyCode })}
                   </div>
                 </div>
               )}
