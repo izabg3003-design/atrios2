@@ -966,9 +966,10 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       return { budgets: [], orders: [], messages: [], customOrders: [], jobOffers: [] }; 
     }
 
+    let mappedCompany: Company | null = null;
     if (companyData) {
       // Mapeamento de campos da empresa
-      const mappedCompany = mapCompanyFromSupabase(companyData);
+      mappedCompany = mapCompanyFromSupabase(companyData);
       
       const companies = getStoredCompanies();
       const idx = companies.findIndex(c => String(c.id) === String(companyId));

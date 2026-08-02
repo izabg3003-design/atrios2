@@ -324,12 +324,22 @@ const Reports: React.FC<ReportsProps> = ({
       return sum;
     }, 0);
 
+    const revenueWithoutIva = periodSales.reduce((sum, b) => {
+      if (b.items && b.items.length > 0) {
+        return sum + b.items.reduce((itemSum, item) => itemSum + (item.total || 0), 0);
+      } else if (b.includeIva && b.ivaPercentage > 0) {
+        return sum + (b.totalAmount / (1 + b.ivaPercentage / 100));
+      }
+      return sum + b.totalAmount;
+    }, 0);
+
     const profit = revenue - expenses - totalIva;
     const margin = revenue > 0 ? (profit / revenue) * 100 : 0;
     const avgTicket = periodSales.length > 0 ? revenue / periodSales.length : 0;
 
     return {
       revenue: revenue * currencyInfo.rate,
+      revenueWithoutIva: revenueWithoutIva * currencyInfo.rate,
       expenses: expenses * currencyInfo.rate,
       totalIva: totalIva * currencyInfo.rate,
       profit: profit * currencyInfo.rate,
@@ -523,6 +533,10 @@ const Reports: React.FC<ReportsProps> = ({
                 <span className="text-[10px] sm:text-xs font-black text-slate-900 shrink-0">{stats.revenue.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</span>
               </div>
               <div className="flex justify-between items-center gap-2">
+                <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase truncate">{t.reportRevenueWithoutIva}</span>
+                <span className="text-[10px] sm:text-xs font-black text-blue-600 shrink-0">{stats.revenueWithoutIva.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</span>
+              </div>
+              <div className="flex justify-between items-center gap-2">
                 <span className="text-[7px] sm:text-[8px] lg:text-[10px] font-black text-slate-400 uppercase truncate">{t.reportExpensesTotal}</span>
                 <span className="text-[10px] sm:text-xs font-black text-red-500 shrink-0">-{stats.expenses.toLocaleString(locale, { style: 'currency', currency: currencyCode })}</span>
               </div>
@@ -534,7 +548,7 @@ const Reports: React.FC<ReportsProps> = ({
         </div>
       </div>
 
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-3 lg:gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 lg:gap-4">
         <div className="bg-white p-3.5 sm:p-4 lg:p-5 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2rem] border border-slate-100 shadow-sm space-y-2 group hover:shadow-xl transition-all overflow-hidden">
           <div className="flex justify-between items-start">
             <div className="p-1.5 sm:p-2 bg-emerald-50 text-emerald-600 rounded-lg shrink-0"><ArrowUpRight size={16} /></div>
@@ -543,6 +557,19 @@ const Reports: React.FC<ReportsProps> = ({
           <div className="min-w-0">
             <p className="text-xs sm:text-sm lg:text-base font-black text-slate-900 leading-tight tracking-tight truncate" title={stats.revenue.toLocaleString(locale, { style: 'currency', currency: currencyCode })}>
               {stats.revenue.toLocaleString(locale, { style: 'currency', currency: currencyCode })}
+            </p>
+            <p className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{stats.salesCount} {t.salesInPeriod}</p>
+          </div>
+        </div>
+
+        <div className="bg-white p-3.5 sm:p-4 lg:p-5 rounded-[1.25rem] sm:rounded-[1.5rem] lg:rounded-[2rem] border border-slate-100 shadow-sm space-y-2 group hover:shadow-xl transition-all overflow-hidden">
+          <div className="flex justify-between items-start">
+            <div className="p-1.5 sm:p-2 bg-blue-50 text-blue-600 rounded-lg shrink-0"><TrendingUp size={16} /></div>
+            <span className="text-[7px] sm:text-[8px] font-black text-blue-500 bg-blue-50 px-2 py-0.5 rounded-full uppercase">{t.reportRevenueWithoutIva}</span>
+          </div>
+          <div className="min-w-0">
+            <p className="text-xs sm:text-sm lg:text-base font-black text-slate-900 leading-tight tracking-tight truncate" title={stats.revenueWithoutIva.toLocaleString(locale, { style: 'currency', currency: currencyCode })}>
+              {stats.revenueWithoutIva.toLocaleString(locale, { style: 'currency', currency: currencyCode })}
             </p>
             <p className="text-[7px] sm:text-[8px] font-bold text-slate-400 uppercase tracking-widest mt-0.5">{stats.salesCount} {t.salesInPeriod}</p>
           </div>

@@ -51,7 +51,8 @@ import {
   Facebook,
   Twitter,
   Smartphone,
-  Sparkles
+  Sparkles,
+  Gift
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -347,6 +348,7 @@ const App: React.FC = () => {
 
   const [showUnblockGuideModal, setShowUnblockGuideModal] = useState<boolean>(false);
   const [showJobsComingSoonModal, setShowJobsComingSoonModal] = useState<boolean>(false);
+  const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState<boolean>(false);
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
@@ -764,7 +766,7 @@ const App: React.FC = () => {
     if (currentUser && view === 'app') {
       currentUserRef.current = currentUser;
 
-      // Subscrição para Notificações Push Globais enviadas pelo Master
+      // Subscrição para Notificações Push Globais enviadas pelo Master ou Backend
       const pushChannel = supabase
         .channel('global-push-notifications')
         .on(
@@ -776,18 +778,33 @@ const App: React.FC = () => {
             
             const { title, body, targetAudience } = payload.payload;
             const currentU = currentUserRef.current;
-            if (!currentU) return;
-            
-            // Check if user matches targetAudience
-            const isMatch = 
-              targetAudience === 'all' ||
-              (targetAudience === 'free' && currentU.plan === PlanType.FREE) ||
-              (targetAudience === 'all_premium' && currentU.plan !== PlanType.FREE) ||
-              (targetAudience === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) ||
-              (targetAudience === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL);
+            const isMasterView = view === 'master';
+            if (!currentU && !isMasterView) return;
+
+            const cId = String(currentU?.id || '').toLowerCase();
+            const email = String(currentU?.email || '').toLowerCase();
+            const plan = String(currentU?.plan || '').toLowerCase();
+            const targetLower = String(targetAudience || 'all').toLowerCase().trim();
+
+            const isMasterUser = isMasterView || cId === 'master' || plan === 'master' || 
+              email.includes('izarellebraga') || email.includes('jeferson') || email.includes('atriossoftware');
+
+            // Check if user or master matches targetAudience
+            let isMatch = false;
+            if (targetLower === 'all') {
+              isMatch = true;
+            } else if (targetLower === 'master' && isMasterUser) {
+              isMatch = true;
+            } else if (currentU) {
+              if (targetLower === 'free' && currentU.plan === PlanType.FREE) isMatch = true;
+              else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
+              else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
+              else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
+              else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
+            }
               
             if (isMatch) {
-              console.log('Push matched user plan. Displaying notification:', title, body);
+              console.log('Push matched user/master. Displaying notification:', title, body);
               triggerPushNotificationSubmit(title, body);
             }
           }
@@ -837,7 +854,7 @@ const App: React.FC = () => {
             
             if (payload.eventType === 'DELETE') {
               console.warn('Sua conta foi excluída do servidor. Fazendo logout...');
-              handleLogout();
+              forceLogout();
               return;
             }
 
@@ -1348,7 +1365,7 @@ const App: React.FC = () => {
             currentUserRef.current = updated;
           } else {
             console.warn("Conta não encontrada no Supabase após hidratação. Fazendo logout.");
-            handleLogout();
+            forceLogout();
           }
         } catch (error) {
           console.warn("Erro durante a hidratação inicial:", error);
@@ -2176,13 +2193,18 @@ const App: React.FC = () => {
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
-  const handleLogout = () => {
+  const forceLogout = () => {
     saveSession(null);
     setView('landing');
     setCurrentUser(null);
     currentUserRef.current = null;
     setBudgets([]);
     setSearchTerm('');
+    setShowLogoutConfirmModal(false);
+  };
+
+  const handleLogout = () => {
+    setShowLogoutConfirmModal(true);
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -4480,6 +4502,80 @@ const App: React.FC = () => {
                     <CheckCircle2 size={16} className="text-emerald-400" />
                     Entendi, Aguardar Lançamento!
                   </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Modal Informativo de Confirmação de Logout */}
+          {showLogoutConfirmModal && (
+            <div className="fixed inset-0 z-[99999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-300">
+              <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl border border-slate-100 relative overflow-hidden text-slate-900 animate-in zoom-in-95 duration-300">
+                <div className="absolute top-0 right-0 w-40 h-40 bg-amber-500/10 blur-3xl rounded-full pointer-events-none" />
+                <div className="absolute bottom-0 left-0 w-40 h-40 bg-rose-500/10 blur-3xl rounded-full pointer-events-none" />
+
+                <button 
+                  onClick={() => setShowLogoutConfirmModal(false)}
+                  className="absolute top-4 right-4 p-2 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                  title="Fechar"
+                >
+                  <X size={20} />
+                </button>
+
+                <div className="flex flex-col items-center text-center space-y-4">
+                  <div className="relative">
+                    <div className="w-20 h-20 bg-gradient-to-tr from-amber-400 via-amber-500 to-rose-500 rounded-3xl flex items-center justify-center text-white shadow-xl shadow-amber-500/25">
+                      <Gift size={38} className="text-white animate-pulse" />
+                    </div>
+                    <div className="absolute -top-1.5 -right-1.5 w-7 h-7 bg-slate-900 text-amber-400 rounded-full flex items-center justify-center shadow-md animate-bounce">
+                      <Sparkles size={14} />
+                    </div>
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-50 text-amber-700 text-[10px] font-black uppercase tracking-wider border border-amber-200/80">
+                      <Sparkles size={12} className="text-amber-500" /> Sorteios & Benefícios Exclusivos ✨
+                    </span>
+                    <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight leading-tight">
+                      {t.logoutConfirmTitle}
+                    </h3>
+                  </div>
+
+                  <div className="bg-gradient-to-br from-amber-50/80 to-orange-50/80 border border-amber-200/70 p-4.5 rounded-2xl text-left space-y-2.5 text-xs text-slate-700 leading-relaxed font-medium w-full shadow-inner">
+                    <p className="font-bold text-slate-900 leading-snug">
+                      {t.logoutConfirmMessage}
+                    </p>
+                    
+                    <div className="pt-2 border-t border-amber-200/60 space-y-2">
+                      <p className="text-[11px] text-emerald-800 font-semibold flex items-center gap-1.5">
+                        <span className="w-2 h-2 rounded-full bg-emerald-500 shrink-0 animate-ping" />
+                        Manter a sessão ativa garante o recebimento de novidades e notificações instantâneas dos seus orçamentos.
+                      </p>
+
+                      <div className="p-2.5 bg-emerald-50/90 border border-emerald-200/80 rounded-xl flex items-start gap-2 text-[11px] text-emerald-900 leading-snug font-medium">
+                        <ShieldCheck size={16} className="text-emerald-600 shrink-0 mt-0.5" />
+                        <span>{t.logoutConfirmSafetyNote}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="w-full space-y-2.5 pt-2">
+                    <button
+                      onClick={() => setShowLogoutConfirmModal(false)}
+                      className="w-full py-3.5 px-6 bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 hover:from-emerald-700 hover:to-teal-800 text-white font-black uppercase tracking-wider text-xs rounded-2xl transition-all shadow-lg shadow-emerald-600/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <CheckCircle2 size={16} className="text-white" />
+                      {t.logoutConfirmKeep}
+                    </button>
+
+                    <button
+                      onClick={forceLogout}
+                      className="w-full py-2.5 px-5 bg-slate-100 hover:bg-rose-50 text-slate-600 hover:text-rose-600 font-bold text-xs rounded-2xl transition-all border border-slate-200 hover:border-rose-200 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    >
+                      <LogOut size={14} />
+                      {t.logoutConfirmExit}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>

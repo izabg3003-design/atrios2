@@ -563,10 +563,28 @@ async function startServer() {
     }
   });
 
-  // Helper to trigger push broadcast (Web Push + FCM)
+  // Helper to trigger push broadcast (Realtime Broadcast + Web Push + FCM)
   const sendPushBroadcast = async (title: string, body: string, targetAudience: string) => {
     let successCount = 0;
     let failureCount = 0;
+
+    // 0. Disparo Instantâneo em tempo real via Supabase Realtime WebSocket (para dispositivos online)
+    try {
+      const channel = supabase.channel('global-push-notifications');
+      channel.send({
+        type: 'broadcast',
+        event: 'push',
+        payload: {
+          id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+          title,
+          body,
+          targetAudience,
+          createdAt: new Date().toISOString()
+        }
+      }).catch(err => console.warn('[Supabase Realtime Push Broadcast Error]', err));
+    } catch (realtimeErr) {
+      console.warn('[Supabase Realtime Channel Exception]', realtimeErr);
+    }
 
     // Buscar subscrições do Supabase
     const dbSubs = await fetchSubscriptionsFromSupabase();
@@ -652,7 +670,10 @@ async function startServer() {
 
     const webPromises = filteredWeb.map(async (sub) => {
       try {
-        await webPush.sendNotification(sub.subscription, webPayload);
+        await webPush.sendNotification(sub.subscription, webPayload, {
+          TTL: 86400,
+          urgency: 'high'
+        });
         successCount++;
       } catch (err: any) {
         console.error(`[PWA Push Send Error] ${sub.subscription?.endpoint}:`, err.message);

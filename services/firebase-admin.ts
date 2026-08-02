@@ -93,7 +93,19 @@ export const sendFcmNotification = async (
         ...data,
         click_action: '/',
       },
+      android: {
+        priority: 'high',
+        notification: {
+          priority: 'max',
+          defaultSound: true,
+          channelId: 'atrios_notifications'
+        }
+      },
       webpush: {
+        headers: {
+          Urgency: 'high',
+          TTL: '86400',
+        },
         notification: {
           title,
           body,
