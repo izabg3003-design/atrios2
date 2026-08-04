@@ -44,7 +44,8 @@ import {
   MapPin,
   Euro,
   Phone,
-  LogOut
+  LogOut,
+  Code
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -86,6 +87,7 @@ import {
   mapOrderFromSupabase,
   mapCustomOrderFromSupabase,
   getStoredJobOffers,
+  saveJobOffer,
   updateJobOfferStatus,
   deleteJobOffer,
   mapJobOfferFromSupabase,
@@ -3656,6 +3658,118 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                             {job.feedback}
                           </div>
                         )}
+
+                        {/* Interested Candidates JSON codes */}
+                        <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-2xl border border-white/10">
+                          <div className="flex items-center justify-between">
+                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                              <Code size={13} /> Candidatos (Código JSON)
+                            </span>
+                            {job.candidatesJson && (() => {
+                              try {
+                                const parsed = JSON.parse(job.candidatesJson);
+                                const count = Array.isArray(parsed) ? parsed.length : (typeof parsed === 'object' && parsed !== null ? Object.keys(parsed).length : 1);
+                                return (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    {count} {count === 1 ? 'candidato' : 'candidatos'}
+                                  </span>
+                                );
+                              } catch {
+                                return (
+                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
+                                    JSON Inválido ⚠️
+                                  </span>
+                                );
+                              }
+                            })()}
+                          </div>
+                          <textarea
+                            value={job.candidatesJson || ''}
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setJobOffers(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, candidatesJson: val } : j));
+                            }}
+                            placeholder={`Cole aqui o código JSON dos candidatos interessados (ex: [{"id": "1", "name": "Carlos"}, {"id": "2", "name": "Ana"}]) - Pode inserir vários`}
+                            className="w-full h-24 bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500 resize-y"
+                          />
+                          <div className="flex justify-between items-center text-[10px] text-slate-400">
+                            <span>Permite múltiplos códigos/candidatos por JSON.</span>
+                            <button
+                              onClick={async () => {
+                                const result = await saveJobOffer(job);
+                                if (result.success) {
+                                  alert('Candidatos JSON salvos e sincronizados com sucesso!');
+                                } else {
+                                  alert('Salvo localmente (aviso de sincronização cloud).');
+                                }
+                              }}
+                              className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg uppercase tracking-wider text-[10px] transition-all shadow"
+                            >
+                              Salvar JSON
+                            </button>
+                          </div>
+
+                          {/* Preview parsed candidates */}
+                          {job.candidatesJson && (() => {
+                            try {
+                              const parsed = JSON.parse(job.candidatesJson);
+                              const list = Array.isArray(parsed) ? parsed : (typeof parsed === 'object' && parsed !== null ? [parsed] : []);
+                              if (list.length === 0) return null;
+                              return (
+                                <div className="mt-3 space-y-2 pt-3 border-t border-white/10">
+                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">Lista de Candidatos Analisados ({list.length}):</span>
+                                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
+                                    {list.map((c: any, idx: number) => (
+                                      <div key={idx} className="p-2.5 rounded-xl bg-slate-900 border border-white/5 text-xs text-slate-300 flex items-start gap-3">
+                                        {c.photo_url ? (
+                                          <img src={c.photo_url} alt={c.full_name || 'Candidato'} className="w-9 h-9 rounded-full object-cover border border-amber-500/30 flex-shrink-0" referrerPolicy="no-referrer" />
+                                        ) : (
+                                          <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center font-black text-amber-400 flex-shrink-0 text-xs">
+                                            {(c.full_name || 'C').charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0 space-y-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold text-white truncate">{c.full_name || 'Sem Nome'}</span>
+                                            {c.phone && <span className="text-[10px] text-slate-400">{c.phone}</span>}
+                                          </div>
+                                          {c.email && <div className="text-[10px] text-amber-300/90 truncate">{c.email}</div>}
+                                          {c.cover_letter && (
+                                            <p className="text-[10px] text-slate-400 italic line-clamp-2 mt-1">"{c.cover_letter}"</p>
+                                          )}
+                                          <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {c.experience_duration && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-white/10 font-mono">
+                                                Exp: {c.experience_duration} anos
+                                              </span>
+                                            )}
+                                            {c.has_residence_permit && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                                Permissão Residência
+                                              </span>
+                                            )}
+                                            {c.has_drivers_license && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                                Carta Condução
+                                              </span>
+                                            )}
+                                            {c.has_construction_experience && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                Exp. Construção
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            } catch {
+                              return null;
+                            }
+                          })()}
+                        </div>
                       </div>
 
                       {/* Action Buttons for Master */}

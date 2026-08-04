@@ -122,6 +122,7 @@ export interface SyncResult {
         contact: String(rawData.contact || ''),
         status: String(rawData.status || 'pending'),
         feedback: rawData.feedback ? String(rawData.feedback) : null,
+        candidates_json: rawData.candidatesJson || rawData.candidates_json || rawData.candidatesjson ? String(rawData.candidatesJson || rawData.candidates_json || rawData.candidatesjson) : null,
         created_at: formatTimestamp(cAt),
         updated_at: formatTimestamp(uAt)
       };

@@ -236,6 +236,7 @@ export interface JobOffer {
   contact: string;
   status: JobOfferStatus;
   feedback?: string;
+  candidatesJson?: string;
   createdAt: string;
   updatedAt?: string;
 }

@@ -748,6 +748,7 @@ export const mapJobOfferFromSupabase = (j: any): JobOffer => {
   const sDate = j.startDate || j.start_date || j.startdate;
   const cAt = j.createdAt || j.created_at || j.createdat || j.timestamp;
   const uAt = j.updatedAt || j.updated_at || j.updatedat;
+  const cJson = j.candidatesJson || j.candidates_json || j.candidatesjson;
 
   mapped.id = String(j.id || '');
   mapped.companyId = String(cId || '');
@@ -761,6 +762,7 @@ export const mapJobOfferFromSupabase = (j: any): JobOffer => {
   mapped.contact = String(j.contact || '');
   mapped.status = (j.status || 'pending') as JobOfferStatus;
   mapped.feedback = j.feedback || '';
+  mapped.candidatesJson = cJson ? String(cJson) : '';
   mapped.createdAt = String(cAt || new Date().toISOString());
   mapped.updatedAt = String(uAt || new Date().toISOString());
 
@@ -781,6 +783,7 @@ export const mapJobOfferToSupabasePayload = (offer: JobOffer) => {
     contact: String(offer.contact || ''),
     status: String(offer.status || 'pending'),
     feedback: offer.feedback || null,
+    candidates_json: offer.candidatesJson || null,
     created_at: offer.createdAt || new Date().toISOString(),
     updated_at: offer.updatedAt || new Date().toISOString()
   };
