@@ -762,7 +762,15 @@ export const mapJobOfferFromSupabase = (j: any): JobOffer => {
   mapped.contact = String(j.contact || '');
   mapped.status = (j.status || 'pending') as JobOfferStatus;
   mapped.feedback = j.feedback || '';
-  mapped.candidatesJson = cJson ? String(cJson) : '';
+  if (cJson) {
+    if (typeof cJson === 'object') {
+      mapped.candidatesJson = JSON.stringify(cJson);
+    } else {
+      mapped.candidatesJson = String(cJson);
+    }
+  } else {
+    mapped.candidatesJson = '';
+  }
   mapped.createdAt = String(cAt || new Date().toISOString());
   mapped.updatedAt = String(uAt || new Date().toISOString());
 
@@ -1158,6 +1166,21 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
     } catch (e) {
       console.warn("[Hydrate] Aviso ao carregar vagas de trabalho remota:", e);
     }
+
+    // 8.5 Hidratar Candidatos da Tabela Remote
+    try {
+      const { data: remoteCandidates } = await safeFetch<any[]>(supabase.from('candidates').select('*'));
+      if (remoteCandidates && Array.isArray(remoteCandidates)) {
+        const mappedCand = remoteCandidates.map(mapCandidateFromSupabase);
+        const localCandidates = getStoredCandidates();
+        const candMap = new Map<string, Candidate>();
+        localCandidates.forEach(cand => candMap.set(String(cand.id), cand));
+        mappedCand.forEach(cand => candMap.set(String(cand.id), cand));
+        safeSetItem(STORAGE_KEY_CANDIDATES, JSON.stringify(Array.from(candMap.values())));
+      }
+    } catch (e) {
+      console.warn("[Hydrate] Erro ao carregar candidatos remotos:", e);
+    }
     
     // 9. Consolidar e Hidratar Categorias de Serviços Customizados da Empresa
     try {
@@ -1298,8 +1321,8 @@ export const getStoredCandidates = (jobOfferId?: string): Candidate[] => {
 export const mapCandidateFromSupabase = (c: any): Candidate => {
   return {
     id: String(c.id || generateShortId()),
-    jobOfferId: String(c.job_offer_id || c.jobOfferId || ''),
-    full_name: String(c.full_name || c.fullName || ''),
+    jobOfferId: String(c.job_offer_id || c.jobOfferId || c.job_id || c.jobId || c.jobofferid || ''),
+    full_name: String(c.full_name || c.fullName || c.name || ''),
     email: String(c.email || ''),
     phone: String(c.phone || ''),
     cover_letter: String(c.cover_letter || c.coverLetter || ''),
@@ -1313,10 +1336,77 @@ export const mapCandidateFromSupabase = (c: any): Candidate => {
   };
 };
 
-export const saveCandidate = async (candidate: Candidate): Promise<{ success: boolean; error?: any }> => {
+export const notifyJobOwnerNewCandidate = async (candidate: Partial<Candidate>, jobOfferId?: string, customJobOffer?: JobOffer) => {
+  try {
+    const targetJobId = jobOfferId || candidate.jobOfferId;
+    let job: JobOffer | null = customJobOffer || null;
+
+    if (!job && targetJobId) {
+      const allJobs = getStoredJobOffers();
+      job = allJobs.find(j => String(j.id) === String(targetJobId)) || null;
+
+      if (!job) {
+        const { data } = await safeFetch<any>(supabase.from('job_offers').select('*').eq('id', targetJobId).single());
+        if (data) {
+          job = mapJobOfferFromSupabase(data);
+        }
+      }
+    }
+
+    if (!job || !job.companyId) {
+      console.warn('[Push Candidate] Vaga ou empresa criadora não encontrada para notificar candidato.');
+      return;
+    }
+
+    const candidateName = candidate.full_name || (candidate as any).name || 'Novo Candidato';
+    const specialty = job.specialty || 'Trabalho';
+    const location = job.location ? ` (${job.location})` : '';
+
+    const title = `Novo Candidato para Vaga de ${specialty}! 👷‍♂️`;
+    const body = `O candidato "${candidateName}" foi atribuído à sua vaga (${specialty}${location}). Clique para ver a ficha completa!`;
+
+    console.log(`[Push Candidate] Notificando empresa '${job.companyId}' sobre o candidato '${candidateName}'...`);
+
+    // 1. Notificação Push no servidor (Web Push VAPID + Firebase FCM)
+    fetch('/api/push/notify-user', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        companyId: job.companyId,
+        title,
+        body
+      })
+    }).catch(err => console.warn('[Push Candidate Error]', err));
+
+    // 2. Transmissão em tempo real via Supabase Realtime Channel
+    try {
+      const channel = supabase.channel(`company-job-offers-${job.companyId}`);
+      channel.send({
+        type: 'broadcast',
+        event: 'new-candidate-push',
+        payload: {
+          jobId: job.id,
+          jobSpecialty: job.specialty,
+          candidateName,
+          title,
+          body,
+          createdAt: new Date().toISOString()
+        }
+      }).catch(err => console.warn('[Realtime Candidate Error]', err));
+    } catch (rtErr) {
+      console.warn('[Realtime Candidate Exception]', rtErr);
+    }
+  } catch (err) {
+    console.error('[notifyJobOwnerNewCandidate Exception]', err);
+  }
+};
+
+export const saveCandidate = async (candidate: Candidate, skipNotification = false): Promise<{ success: boolean; error?: any }> => {
   try {
     const candidates = getStoredCandidates();
     const existingIndex = candidates.findIndex(c => String(c.id) === String(candidate.id));
+    const isNew = existingIndex === -1;
+
     if (existingIndex >= 0) {
       candidates[existingIndex] = candidate;
     } else {
@@ -1341,6 +1431,11 @@ export const saveCandidate = async (candidate: Candidate): Promise<{ success: bo
     };
 
     const result = await syncToCloud('candidates', payload);
+
+    if (isNew && !skipNotification && candidate.jobOfferId) {
+      notifyJobOwnerNewCandidate(candidate, candidate.jobOfferId);
+    }
+
     return result;
   } catch (err) {
     console.error('saveCandidate error:', err);

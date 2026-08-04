@@ -102,7 +102,8 @@ import {
   getStoredCandidates,
   saveCandidate,
   deleteCandidate,
-  mapCandidateFromSupabase
+  mapCandidateFromSupabase,
+  notifyJobOwnerNewCandidate
 } from '../services/storage';
 import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/supabase';
 import { Locale, translations } from '../translations';

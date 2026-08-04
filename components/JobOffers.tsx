@@ -28,7 +28,7 @@ import {
 } from 'lucide-react';
 import { Company, JobOffer, JobOfferStatus, Candidate } from '../types';
 import { getStoredJobOffers, saveJobOffer, deleteJobOffer, generateShortId, fetchResilient, mapJobOfferFromSupabase, safeSetItem, getStoredCandidates, mapCandidateFromSupabase } from '../services/storage';
-import { supabase, syncToCloud } from '../services/supabase';
+import { supabase, syncToCloud, safeFetch } from '../services/supabase';
 import { Locale, jobOffersTranslations } from '../translations';
 
 interface JobOffersProps {
@@ -49,6 +49,7 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
   const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
   const [selectedJobCandidatesModal, setSelectedJobCandidatesModal] = useState<JobOffer | null>(null);
   const [selectedCandidateProfile, setSelectedCandidateProfile] = useState<Partial<Candidate> | null>(null);
+  const [candidateNotification, setCandidateNotification] = useState<{ title: string; body: string } | null>(null);
 
   // Form State
   const [location, setLocation] = useState('');
@@ -60,38 +61,67 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
   const [contact, setContact] = useState('');
 
   const loadCandidates = async () => {
-    // 1. Carregar local
+    // 1. Carregar local e criar mapa
     const localCands = getStoredCandidates();
-    setAllCandidates(localCands);
+    const candMap = new Map<string, Candidate>();
+    localCands.forEach(c => {
+      const key = String(c.id || c.email || c.full_name);
+      if (key) candMap.set(key, c);
+    });
 
     // 2. Carregar do Supabase remoto
     try {
-      const { data, error } = await supabase.from('candidates').select('*');
+      const { data, error } = await safeFetch<any[]>(supabase.from('candidates').select('*'));
       if (data && Array.isArray(data)) {
-        const mapped = data.map(mapCandidateFromSupabase);
-        setAllCandidates(mapped);
+        data.forEach(item => {
+          const mapped = mapCandidateFromSupabase(item);
+          const key = String(mapped.id || mapped.email || mapped.full_name);
+          if (key) candMap.set(key, mapped);
+        });
       }
     } catch (e) {
       console.warn("[JobOffers] Erro ao carregar candidatos remotos:", e);
     }
+
+    const merged = Array.from(candMap.values());
+    setAllCandidates(merged);
+    safeSetItem('atrios_candidates', JSON.stringify(merged));
   };
 
   const getCandidatesForJob = (job: JobOffer, candidates: Candidate[]): Candidate[] => {
     const map = new Map<string, Candidate>();
+    const targetJobId = String(job.id || '').trim().toLowerCase();
 
     // 1. Tabela 'candidates' no Supabase/localStorage
-    const fromTable = candidates.filter(c => String(c.jobOfferId || (c as any).job_offer_id) === String(job.id));
-    fromTable.forEach(c => {
-      const key = c.id || c.email || c.full_name;
-      if (key) map.set(key, c);
+    candidates.forEach(c => {
+      const cJobId = String(c.jobOfferId || (c as any).job_offer_id || (c as any).job_id || '').trim().toLowerCase();
+      if (cJobId && targetJobId && cJobId === targetJobId) {
+        const key = String(c.id || c.email || c.full_name);
+        if (key) map.set(key, c);
+      }
     });
 
     // 2. Campo 'candidatesJson' gravado na própria vaga
     if (job.candidatesJson) {
       try {
-        const parsed = typeof job.candidatesJson === 'string' ? JSON.parse(job.candidatesJson) : job.candidatesJson;
-        const arr = Array.isArray(parsed) ? parsed : (parsed.candidates || parsed.candidatos || [parsed]);
+        let parsed: any = job.candidatesJson;
+        if (typeof parsed === 'string') {
+          try {
+            parsed = JSON.parse(parsed);
+          } catch (e1) {}
+        }
+        if (typeof parsed === 'string') {
+          try {
+            parsed = JSON.parse(parsed);
+          } catch (e2) {}
+        }
+
+        const arr = Array.isArray(parsed) 
+          ? parsed 
+          : (parsed?.candidates || parsed?.candidatos || (typeof parsed === 'object' && parsed !== null ? [parsed] : []));
+
         arr.forEach((item: any, index: number) => {
+          if (!item) return;
           const mapped: Candidate = {
             id: String(item.id || item.job_offer_id || `json-${job.id}-${index}`),
             jobOfferId: String(job.id),
@@ -165,6 +195,20 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
         () => {
           loadCandidates();
           loadOffers();
+        }
+      )
+      .on(
+        'broadcast',
+        { event: 'new-candidate-push' },
+        (payload) => {
+          loadCandidates();
+          loadOffers();
+          if (payload?.payload?.title || payload?.payload?.candidateName) {
+            const title = payload.payload.title || 'Novo Candidato Recebido!';
+            const body = payload.payload.body || `Um novo candidato (${payload.payload.candidateName}) foi disponibilizado para a sua vaga.`;
+            setCandidateNotification({ title, body });
+            setTimeout(() => setCandidateNotification(null), 10000);
+          }
         }
       )
       .subscribe();
@@ -341,6 +385,38 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
 
   return (
     <div className="space-y-6 sm:space-y-8">
+      {/* Toast Alert para Notificação Push de Novo Candidato */}
+      <AnimatePresence>
+        {candidateNotification && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: -20, scale: 0.95 }}
+            className="bg-gradient-to-r from-emerald-600 via-teal-600 to-emerald-700 text-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl shadow-2xl border border-emerald-400/50 flex items-start justify-between gap-4 z-50 relative"
+          >
+            <div className="flex items-start gap-3.5">
+              <div className="p-2.5 bg-white/20 rounded-2xl shrink-0 mt-0.5">
+                <Users className="w-6 h-6 text-white animate-bounce" />
+              </div>
+              <div>
+                <h4 className="font-black text-sm uppercase tracking-wide flex items-center gap-2">
+                  <span>🔔 {candidateNotification.title}</span>
+                </h4>
+                <p className="text-xs text-emerald-50 mt-1 font-medium leading-relaxed">
+                  {candidateNotification.body}
+                </p>
+              </div>
+            </div>
+            <button
+              onClick={() => setCandidateNotification(null)}
+              className="p-1.5 hover:bg-white/20 rounded-xl text-white/80 hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header Banner */}
       <div className="bg-gradient-to-r from-slate-900 via-amber-950 to-slate-900 rounded-2xl sm:rounded-3xl p-6 sm:p-8 text-white shadow-xl relative overflow-hidden border border-amber-500/20">
         <div className="absolute right-0 top-0 translate-x-1/4 -translate-y-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
