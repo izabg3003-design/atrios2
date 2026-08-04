@@ -45,7 +45,13 @@ import {
   Euro,
   Phone,
   LogOut,
-  Code
+  Code,
+  Eye,
+  User,
+  Mail,
+  FileText,
+  Award,
+  Briefcase
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -59,7 +65,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification, JobOffer, JobOfferStatus } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification, JobOffer, JobOfferStatus, Candidate } from '../types';
 import { generateCompanyQrCode } from '../services/qrcode';
 import { 
   getStoredCompanies, 
@@ -92,7 +98,11 @@ import {
   deleteJobOffer,
   mapJobOfferFromSupabase,
   mapJobOfferToSupabasePayload,
-  safeSetItem
+  safeSetItem,
+  getStoredCandidates,
+  saveCandidate,
+  deleteCandidate,
+  mapCandidateFromSupabase
 } from '../services/storage';
 import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -228,6 +238,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [jobSearch, setJobSearch] = useState('');
   const [jobFeedbackModal, setJobFeedbackModal] = useState<{ id: string; status: JobOfferStatus; companyId: string; specialty?: string; title: string } | null>(null);
   const [jobFeedbackText, setJobFeedbackText] = useState('');
+  
+  // Candidates and JSON draft state
+  const [candidatesList, setCandidatesList] = useState<Candidate[]>([]);
+  const [candidateJsonInputs, setCandidateJsonInputs] = useState<Record<string, string>>({});
+  const candidateJsonInputsRef = useRef<Record<string, string>>({});
+  candidateJsonInputsRef.current = candidateJsonInputs;
+  const [selectedCandidatePreview, setSelectedCandidatePreview] = useState<Partial<Candidate> | null>(null);
   
   // Custom Push notifications composer states
   const [pushTitle, setPushTitle] = useState('');
@@ -649,12 +666,44 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       finalJobs = localJobs;
     }
 
+    // Retain candidatesJson from local storage if cloud version is empty
+    const localJobsMap = new Map(localJobs.map(lj => [String(lj.id), lj]));
+    finalJobs = finalJobs.map(fj => {
+      const localVer = localJobsMap.get(String(fj.id));
+      if (!fj.candidatesJson && localVer?.candidatesJson) {
+        return { ...fj, candidatesJson: localVer.candidatesJson };
+      }
+      return fj;
+    });
+
     safeSetItem('atrios_job_offers', JSON.stringify(finalJobs));
     setJobOffers(finalJobs.sort((a, b) => {
       const dateA = a.createdAt ? new Date(a.createdAt).getTime() : 0;
       const dateB = b.createdAt ? new Date(b.createdAt).getTime() : 0;
       return dateB - dateA;
+    }).map(j => {
+      if (candidateJsonInputsRef.current[j.id] !== undefined) {
+        return { ...j, candidatesJson: candidateJsonInputsRef.current[j.id] };
+      }
+      return j;
     }));
+
+    // Buscar Candidatos na Tabela candidates
+    console.log("MasterPanel: Buscando candidatos no Supabase...");
+    const { data: cloudCandidates } = await safeFetch<any[]>(supabase.from('candidates').select('*'));
+    const localCandidates = getStoredCandidates();
+    let finalCandidates: Candidate[] = [];
+
+    if (cloudCandidates && Array.isArray(cloudCandidates)) {
+      const mappedCand = cloudCandidates.map(mapCandidateFromSupabase);
+      const candMap = new Map<string, Candidate>();
+      localCandidates.forEach(c => candMap.set(String(c.id), c));
+      mappedCand.forEach(c => candMap.set(String(c.id), c));
+      finalCandidates = Array.from(candMap.values());
+    } else {
+      finalCandidates = localCandidates;
+    }
+    setCandidatesList(finalCandidates);
 
     // Buscar transações no Supabase
     let allTransactions: Transaction[] = [];
@@ -3659,101 +3708,178 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           </div>
                         )}
 
-                        {/* Interested Candidates JSON codes */}
-                        <div className="space-y-2 bg-slate-950/60 p-3.5 rounded-2xl border border-white/10">
-                          <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
-                              <Code size={13} /> Candidatos (Código JSON)
-                            </span>
-                            {job.candidatesJson && (() => {
-                              try {
-                                const parsed = JSON.parse(job.candidatesJson);
-                                const count = Array.isArray(parsed) ? parsed.length : (typeof parsed === 'object' && parsed !== null ? Object.keys(parsed).length : 1);
-                                return (
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                                    {count} {count === 1 ? 'candidato' : 'candidatos'}
-                                  </span>
-                                );
-                              } catch {
-                                return (
-                                  <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                                    JSON Inválido ⚠️
-                                  </span>
-                                );
-                              }
-                            })()}
-                          </div>
-                          <textarea
-                            value={job.candidatesJson || ''}
-                            onChange={(e) => {
-                              const val = e.target.value;
-                              setJobOffers(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, candidatesJson: val } : j));
-                            }}
-                            placeholder={`Cole aqui o código JSON dos candidatos interessados (ex: [{"id": "1", "name": "Carlos"}, {"id": "2", "name": "Ana"}]) - Pode inserir vários`}
-                            className="w-full h-24 bg-slate-900 border border-white/10 rounded-xl p-2.5 text-xs text-white font-mono focus:outline-none focus:border-amber-500 resize-y"
-                          />
-                          <div className="flex justify-between items-center text-[10px] text-slate-400">
-                            <span>Permite múltiplos códigos/candidatos por JSON.</span>
-                            <button
-                              onClick={async () => {
-                                const result = await saveJobOffer(job);
-                                if (result.success) {
-                                  alert('Candidatos JSON salvos e sincronizados com sucesso!');
-                                } else {
-                                  alert('Salvo localmente (aviso de sincronização cloud).');
-                                }
-                              }}
-                              className="px-3 py-1 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-lg uppercase tracking-wider text-[10px] transition-all shadow"
-                            >
-                              Salvar JSON
-                            </button>
-                          </div>
-
-                          {/* Preview parsed candidates */}
-                          {job.candidatesJson && (() => {
+                        {/* Interested Candidates JSON & Table Candidates */}
+                        {(() => {
+                          const currentJson = candidateJsonInputs[job.id] !== undefined ? candidateJsonInputs[job.id] : (job.candidatesJson || '');
+                          
+                          // Parse helper function
+                          const parseJsonInfo = (rawStr: string) => {
+                            if (!rawStr || !rawStr.trim()) return { valid: true, list: [], count: 0, isEmpty: true };
                             try {
-                              const parsed = JSON.parse(job.candidatesJson);
-                              const list = Array.isArray(parsed) ? parsed : (typeof parsed === 'object' && parsed !== null ? [parsed] : []);
-                              if (list.length === 0) return null;
-                              return (
+                              const cleaned = rawStr.trim();
+                              const parsed = JSON.parse(cleaned);
+                              if (Array.isArray(parsed)) {
+                                return { valid: true, list: parsed, count: parsed.length, isEmpty: false };
+                              } else if (typeof parsed === 'object' && parsed !== null) {
+                                return { valid: true, list: [parsed], count: 1, isEmpty: false };
+                              } else {
+                                return { valid: false, list: [], count: 0, isEmpty: false, error: 'O JSON precisa ser um objeto {...} ou uma lista [...] de candidatos.' };
+                              }
+                            } catch (err: any) {
+                              return { valid: false, list: [], count: 0, isEmpty: false, error: err?.message || 'Formato JSON incompleto ou inválido.' };
+                            }
+                          };
+
+                          const parseStatus = parseJsonInfo(currentJson);
+                          const jobCandidatesFromTable = candidatesList.filter(c => String(c.jobOfferId) === String(job.id));
+
+                          return (
+                            <div className="space-y-3 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                              <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                                  <Code size={13} /> Candidatos (Código JSON)
+                                </span>
+                                <div>
+                                  {parseStatus.isEmpty ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-slate-800 text-slate-400 border border-white/10">
+                                      Nenhum JSON inserido
+                                    </span>
+                                  ) : parseStatus.valid ? (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                      ✓ JSON Válido ({parseStatus.count} candidato{parseStatus.count === 1 ? '' : 's'})
+                                    </span>
+                                  ) : (
+                                    <span className="px-2 py-0.5 rounded-full text-[9px] font-black uppercase bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                      ⚠️ Digitando / JSON Incompleto
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <textarea
+                                value={currentJson}
+                                onChange={(e) => {
+                                  const val = e.target.value;
+                                  setCandidateJsonInputs(prev => ({ ...prev, [job.id]: val }));
+                                  setJobOffers(prev => prev.map(j => String(j.id) === String(job.id) ? { ...j, candidatesJson: val } : j));
+                                  const localJobs = getStoredJobOffers();
+                                  const updatedLocal = localJobs.map(lj => String(lj.id) === String(job.id) ? { ...lj, candidatesJson: val } : lj);
+                                  safeSetItem('atrios_job_offers', JSON.stringify(updatedLocal));
+                                }}
+                                placeholder={`Cole aqui o código JSON dos candidatos interessados (ex: {"full_name": "Ana", "email": "ana@email.com", ...})`}
+                                className="w-full h-28 bg-slate-900 border border-white/10 rounded-xl p-3 text-xs text-white font-mono focus:outline-none focus:border-amber-500 resize-y"
+                              />
+
+                              <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 text-[10px] text-slate-400">
+                                <span>Salva os candidatos diretamente na tabela <strong>candidates</strong> e na vaga.</span>
+                                <button
+                                  onClick={async () => {
+                                    if (currentJson.trim() && !parseStatus.valid) {
+                                      alert(`⚠️ Não foi possível guardar. ${parseStatus.error || 'Verifique se o código JSON tem fecho de aspas/chaves válido.'}`);
+                                      return;
+                                    }
+
+                                    const updatedJob = { ...job, candidatesJson: currentJson };
+                                    await saveJobOffer(updatedJob);
+
+                                    let savedCount = 0;
+                                    if (parseStatus.valid && parseStatus.list.length > 0) {
+                                      for (const c of parseStatus.list) {
+                                        const candidateRecord: Candidate = {
+                                          id: String(c.id || 'cand_' + Math.random().toString(36).substring(2, 9)),
+                                          jobOfferId: String(job.id),
+                                          full_name: String(c.full_name || c.fullName || c.name || 'Candidato Sem Nome'),
+                                          email: String(c.email || ''),
+                                          phone: String(c.phone || ''),
+                                          cover_letter: String(c.cover_letter || c.coverLetter || c.notes || ''),
+                                          has_residence_permit: Boolean(c.has_residence_permit ?? c.hasResidencePermit ?? false),
+                                          document_type: String(c.document_type || c.documentType || ''),
+                                          has_drivers_license: Boolean(c.has_drivers_license ?? c.hasDriversLicense ?? false),
+                                          has_construction_experience: Boolean(c.has_construction_experience ?? c.hasConstructionExperience ?? false),
+                                          experience_duration: String(c.experience_duration || c.experienceDuration || ''),
+                                          photo_url: String(c.photo_url || c.photoUrl || ''),
+                                          created_at: new Date().toISOString()
+                                        };
+                                        const resCand = await saveCandidate(candidateRecord);
+                                        if (resCand.success) savedCount++;
+                                      }
+                                    }
+
+                                    // Refresh stored candidates
+                                    const { data: cloudCandidates } = await safeFetch<any[]>(supabase.from('candidates').select('*'));
+                                    const localCandidates = getStoredCandidates();
+                                    if (cloudCandidates && Array.isArray(cloudCandidates)) {
+                                      const mappedCand = cloudCandidates.map(mapCandidateFromSupabase);
+                                      const candMap = new Map<string, Candidate>();
+                                      localCandidates.forEach(cand => candMap.set(String(cand.id), cand));
+                                      mappedCand.forEach(cand => candMap.set(String(cand.id), cand));
+                                      setCandidatesList(Array.from(candMap.values()));
+                                    } else {
+                                      setCandidatesList(localCandidates);
+                                    }
+
+                                    alert(`✅ Vaga guardada com sucesso! ${savedCount > 0 ? `${savedCount} candidato(s) inserido(s) na tabela 'candidates'.` : ''}`);
+                                  }}
+                                  className="px-3.5 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl uppercase tracking-wider text-[10px] transition-all shadow flex items-center gap-1.5 self-end sm:self-auto"
+                                >
+                                  Salvar Candidato(s) & Vaga
+                                </button>
+                              </div>
+
+                              {/* Preview Parsed JSON Candidates */}
+                              {parseStatus.valid && parseStatus.list.length > 0 && (
                                 <div className="mt-3 space-y-2 pt-3 border-t border-white/10">
-                                  <span className="text-[10px] font-black text-slate-300 uppercase tracking-wider block">Lista de Candidatos Analisados ({list.length}):</span>
-                                  <div className="max-h-48 overflow-y-auto space-y-2 pr-1">
-                                    {list.map((c: any, idx: number) => (
-                                      <div key={idx} className="p-2.5 rounded-xl bg-slate-900 border border-white/5 text-xs text-slate-300 flex items-start gap-3">
+                                  <span className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center justify-between">
+                                    <span>Pré-Visualização do JSON ({parseStatus.list.length} candidato{parseStatus.list.length === 1 ? '' : 's'}):</span>
+                                    <span className="text-[9px] text-slate-400 font-normal">Clique para ver ficha completa</span>
+                                  </span>
+                                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                                    {parseStatus.list.map((c: any, idx: number) => (
+                                      <div 
+                                        key={idx} 
+                                        onClick={() => setSelectedCandidatePreview(c)}
+                                        className="p-3 rounded-xl bg-slate-900 hover:bg-slate-850 border border-white/10 hover:border-amber-500/50 text-xs text-slate-300 flex items-start gap-3 cursor-pointer transition-all group"
+                                      >
                                         {c.photo_url ? (
-                                          <img src={c.photo_url} alt={c.full_name || 'Candidato'} className="w-9 h-9 rounded-full object-cover border border-amber-500/30 flex-shrink-0" referrerPolicy="no-referrer" />
+                                          <img src={c.photo_url} alt={c.full_name || 'Candidato'} className="w-11 h-11 rounded-full object-cover border border-amber-500/30 flex-shrink-0 group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
                                         ) : (
-                                          <div className="w-9 h-9 rounded-full bg-slate-800 flex items-center justify-center font-black text-amber-400 flex-shrink-0 text-xs">
-                                            {(c.full_name || 'C').charAt(0).toUpperCase()}
+                                          <div className="w-11 h-11 rounded-full bg-slate-800 flex items-center justify-center font-black text-amber-400 flex-shrink-0 text-xs border border-white/10 group-hover:border-amber-500/30">
+                                            {(c.full_name || c.name || 'C').charAt(0).toUpperCase()}
                                           </div>
                                         )}
                                         <div className="flex-1 min-w-0 space-y-1">
                                           <div className="flex items-center justify-between">
-                                            <span className="font-bold text-white truncate">{c.full_name || 'Sem Nome'}</span>
-                                            {c.phone && <span className="text-[10px] text-slate-400">{c.phone}</span>}
+                                            <span className="font-bold text-white truncate group-hover:text-amber-300 transition-colors">
+                                              {c.full_name || c.fullName || c.name || 'Sem Nome'}
+                                            </span>
+                                            <span className="text-[10px] text-amber-400 font-bold flex items-center gap-1 bg-amber-500/10 px-2 py-0.5 rounded-full border border-amber-500/20">
+                                              <Eye size={11} /> Ver Perfil
+                                            </span>
                                           </div>
-                                          {c.email && <div className="text-[10px] text-amber-300/90 truncate">{c.email}</div>}
-                                          {c.cover_letter && (
-                                            <p className="text-[10px] text-slate-400 italic line-clamp-2 mt-1">"{c.cover_letter}"</p>
+                                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
+                                            {c.email && <span className="text-amber-300/90">{c.email}</span>}
+                                            {c.phone && <span>Tel: {c.phone}</span>}
+                                          </div>
+                                          {(c.cover_letter || c.coverLetter || c.notes) && (
+                                            <p className="text-[10px] text-slate-400 italic line-clamp-2 mt-1">"{c.cover_letter || c.coverLetter || c.notes}"</p>
                                           )}
                                           <div className="flex flex-wrap gap-1.5 pt-1">
-                                            {c.experience_duration && (
+                                            {(c.experience_duration || c.experienceDuration) && (
                                               <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-white/10 font-mono">
-                                                Exp: {c.experience_duration} anos
+                                                Exp: {c.experience_duration || c.experienceDuration} anos
                                               </span>
                                             )}
-                                            {c.has_residence_permit && (
+                                            {(c.has_residence_permit ?? c.hasResidencePermit) && (
                                               <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
                                                 Permissão Residência
                                               </span>
                                             )}
-                                            {c.has_drivers_license && (
+                                            {(c.has_drivers_license ?? c.hasDriversLicense) && (
                                               <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
                                                 Carta Condução
                                               </span>
                                             )}
-                                            {c.has_construction_experience && (
+                                            {(c.has_construction_experience ?? c.hasConstructionExperience) && (
                                               <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
                                                 Exp. Construção
                                               </span>
@@ -3764,12 +3890,88 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                                     ))}
                                   </div>
                                 </div>
-                              );
-                            } catch {
-                              return null;
-                            }
-                          })()}
-                        </div>
+                              )}
+
+                              {/* Saved Candidates in Candidates Table */}
+                              {jobCandidatesFromTable.length > 0 && (
+                                <div className="mt-3 space-y-2 pt-3 border-t border-emerald-500/20">
+                                  <span className="text-[10px] font-black text-emerald-400 uppercase tracking-wider block">
+                                    Candidatos Guardados na Tabela 'candidates' ({jobCandidatesFromTable.length}):
+                                  </span>
+                                  <div className="max-h-56 overflow-y-auto space-y-2 pr-1">
+                                    {jobCandidatesFromTable.map((cand) => (
+                                      <div 
+                                        key={cand.id} 
+                                        onClick={() => setSelectedCandidatePreview(cand)}
+                                        className="p-3 rounded-xl bg-slate-900/90 hover:bg-slate-850 border border-emerald-500/20 hover:border-emerald-500/50 text-xs text-slate-300 flex items-start gap-3 cursor-pointer transition-all group"
+                                      >
+                                        {cand.photo_url ? (
+                                          <img src={cand.photo_url} alt={cand.full_name} className="w-11 h-11 rounded-full object-cover border border-emerald-500/40 flex-shrink-0 group-hover:scale-105 transition-transform" referrerPolicy="no-referrer" />
+                                        ) : (
+                                          <div className="w-11 h-11 rounded-full bg-emerald-950 flex items-center justify-center font-black text-emerald-400 border border-emerald-500/30 flex-shrink-0 text-xs">
+                                            {(cand.full_name || 'C').charAt(0).toUpperCase()}
+                                          </div>
+                                        )}
+                                        <div className="flex-1 min-w-0 space-y-1">
+                                          <div className="flex items-center justify-between">
+                                            <span className="font-bold text-white truncate group-hover:text-emerald-300 transition-colors">{cand.full_name}</span>
+                                            <div className="flex items-center gap-1.5">
+                                              <span className="text-[10px] text-emerald-400 font-bold flex items-center gap-1 bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+                                                <Eye size={11} /> Ver Ficha
+                                              </span>
+                                              <button
+                                                onClick={async (e) => {
+                                                  e.stopPropagation();
+                                                  if (confirm(`Remover candidato ${cand.full_name} da tabela candidates?`)) {
+                                                    await deleteCandidate(cand.id);
+                                                    setCandidatesList(prev => prev.filter(c => c.id !== cand.id));
+                                                  }
+                                                }}
+                                                className="text-[10px] text-rose-400 hover:text-rose-300 p-1 rounded hover:bg-rose-500/10 transition-all"
+                                                title="Remover Candidato"
+                                              >
+                                                <Trash2 size={12} />
+                                              </button>
+                                            </div>
+                                          </div>
+                                          <div className="flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[10px] text-slate-400">
+                                            {cand.email && <span className="text-emerald-300/90">{cand.email}</span>}
+                                            {cand.phone && <span>Tel: {cand.phone}</span>}
+                                          </div>
+                                          {cand.cover_letter && (
+                                            <p className="text-[10px] text-slate-400 italic line-clamp-2 mt-1">"{cand.cover_letter}"</p>
+                                          )}
+                                          <div className="flex flex-wrap gap-1.5 pt-1">
+                                            {cand.experience_duration && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-slate-800 text-slate-300 border border-white/10 font-mono">
+                                                Exp: {cand.experience_duration} anos
+                                              </span>
+                                            )}
+                                            {cand.has_residence_permit && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                                Permissão Residência
+                                              </span>
+                                            )}
+                                            {cand.has_drivers_license && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                                                Carta Condução
+                                              </span>
+                                            )}
+                                            {cand.has_construction_experience && (
+                                              <span className="px-1.5 py-0.5 rounded text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                                                Exp. Construção
+                                              </span>
+                                            )}
+                                          </div>
+                                        </div>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                          );
+                        })()}
                       </div>
 
                       {/* Action Buttons for Master */}
@@ -3858,6 +4060,171 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   className="flex-1 py-3.5 bg-amber-500 text-slate-950 rounded-xl font-black text-xs uppercase hover:bg-amber-400 shadow-lg shadow-amber-500/20"
                 >
                   Confirmar e Notificar Utilizador
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+        {/* Modal for Master Candidate Profile Preview */}
+        {selectedCandidatePreview && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 w-full max-w-xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 p-6 border-b border-white/10 flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  {selectedCandidatePreview.photo_url ? (
+                    <img 
+                      src={selectedCandidatePreview.photo_url} 
+                      alt={selectedCandidatePreview.full_name || 'Candidato'} 
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500/50 shadow-lg"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black text-2xl shadow-lg">
+                      {(selectedCandidatePreview.full_name || (selectedCandidatePreview as any).name || 'C').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                      {selectedCandidatePreview.full_name || (selectedCandidatePreview as any).name || 'Candidato Sem Nome'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                      <User size={13} className="text-amber-400" /> ID: {selectedCandidatePreview.id || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCandidatePreview(null)}
+                  className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto space-y-5 text-slate-200">
+                {/* Contact information */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {selectedCandidatePreview.email && (
+                    <a 
+                      href={`mailto:${selectedCandidatePreview.email}`}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-white/10 hover:border-amber-500/50 transition-all text-xs group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
+                        <Mail size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-slate-400 uppercase font-black block">Email</span>
+                        <span className="font-medium text-white truncate block">{selectedCandidatePreview.email}</span>
+                      </div>
+                    </a>
+                  )}
+
+                  {selectedCandidatePreview.phone && (
+                    <a 
+                      href={`tel:${selectedCandidatePreview.phone}`}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-white/10 hover:border-emerald-500/50 transition-all text-xs group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                        <Phone size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-slate-400 uppercase font-black block">Telefone</span>
+                        <span className="font-medium text-white truncate block">{selectedCandidatePreview.phone}</span>
+                      </div>
+                    </a>
+                  )}
+                </div>
+
+                {/* Candidate attributes & badges */}
+                <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block mb-2">
+                    Informações e Qualificações
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {/* Residence permit */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Permissão de Residência:</span>
+                      {(selectedCandidatePreview.has_residence_permit ?? (selectedCandidatePreview as any).hasResidencePermit) ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Driver's license */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Carta de Condução:</span>
+                      {(selectedCandidatePreview.has_drivers_license ?? (selectedCandidatePreview as any).hasDriversLicense) ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Construction experience */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Exp. em Construção:</span>
+                      {(selectedCandidatePreview.has_construction_experience ?? (selectedCandidatePreview as any).hasConstructionExperience) ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Duration of experience */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Tempo de Experiência:</span>
+                      <span className="font-mono text-amber-400 font-bold">
+                        {selectedCandidatePreview.experience_duration || (selectedCandidatePreview as any).experienceDuration || 'Não especificado'} {selectedCandidatePreview.experience_duration ? 'anos' : ''}
+                      </span>
+                    </div>
+
+                    {/* Document Type */}
+                    {(selectedCandidatePreview.document_type || (selectedCandidatePreview as any).documentType) && (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5 sm:col-span-2">
+                        <span className="text-slate-400 text-[11px]">Tipo de Documento:</span>
+                        <span className="font-semibold text-white">
+                          {selectedCandidatePreview.document_type || (selectedCandidatePreview as any).documentType}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Cover letter / notes */}
+                {(selectedCandidatePreview.cover_letter || (selectedCandidatePreview as any).coverLetter || (selectedCandidatePreview as any).notes) && (
+                  <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <FileText size={13} /> Apresentação / Carta de Motivação
+                    </span>
+                    <p className="text-xs text-slate-300 leading-relaxed italic whitespace-pre-wrap bg-slate-900 p-3 rounded-xl border border-white/5">
+                      "{selectedCandidatePreview.cover_letter || (selectedCandidatePreview as any).coverLetter || (selectedCandidatePreview as any).notes}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={() => setSelectedCandidatePreview(null)}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg"
+                >
+                  Fechar Ficha
                 </button>
               </div>
             </div>

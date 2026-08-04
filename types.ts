@@ -240,3 +240,19 @@ export interface JobOffer {
   createdAt: string;
   updatedAt?: string;
 }
+
+export interface Candidate {
+  id: string;
+  jobOfferId: string;
+  full_name: string;
+  email: string;
+  phone: string;
+  cover_letter: string;
+  has_residence_permit: boolean;
+  document_type: string;
+  has_drivers_license: boolean;
+  has_construction_experience: boolean;
+  experience_duration: string;
+  photo_url: string;
+  created_at: string;
+}

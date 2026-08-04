@@ -1,4 +1,4 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
@@ -1283,4 +1283,80 @@ export const fetchCompanyForVerification = async (companyId: string): Promise<Co
 
   return localMatch || null;
 };
+
+const STORAGE_KEY_CANDIDATES = 'atrios_candidates';
+
+export const getStoredCandidates = (jobOfferId?: string): Candidate[] => {
+  const data = localStorage.getItem(STORAGE_KEY_CANDIDATES);
+  const candidates: Candidate[] = data ? JSON.parse(data) : [];
+  if (jobOfferId) {
+    return candidates.filter(c => String(c.jobOfferId) === String(jobOfferId));
+  }
+  return candidates;
+};
+
+export const mapCandidateFromSupabase = (c: any): Candidate => {
+  return {
+    id: String(c.id || generateShortId()),
+    jobOfferId: String(c.job_offer_id || c.jobOfferId || ''),
+    full_name: String(c.full_name || c.fullName || ''),
+    email: String(c.email || ''),
+    phone: String(c.phone || ''),
+    cover_letter: String(c.cover_letter || c.coverLetter || ''),
+    has_residence_permit: Boolean(c.has_residence_permit ?? c.hasResidencePermit ?? false),
+    document_type: String(c.document_type || c.documentType || ''),
+    has_drivers_license: Boolean(c.has_drivers_license ?? c.hasDriversLicense ?? false),
+    has_construction_experience: Boolean(c.has_construction_experience ?? c.hasConstructionExperience ?? false),
+    experience_duration: String(c.experience_duration || c.experienceDuration || ''),
+    photo_url: String(c.photo_url || c.photoUrl || ''),
+    created_at: String(c.created_at || c.createdAt || new Date().toISOString())
+  };
+};
+
+export const saveCandidate = async (candidate: Candidate): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const candidates = getStoredCandidates();
+    const existingIndex = candidates.findIndex(c => String(c.id) === String(candidate.id));
+    if (existingIndex >= 0) {
+      candidates[existingIndex] = candidate;
+    } else {
+      candidates.push(candidate);
+    }
+    safeSetItem(STORAGE_KEY_CANDIDATES, JSON.stringify(candidates));
+
+    const payload = {
+      id: String(candidate.id),
+      job_offer_id: String(candidate.jobOfferId),
+      full_name: String(candidate.full_name),
+      email: String(candidate.email),
+      phone: String(candidate.phone),
+      cover_letter: String(candidate.cover_letter),
+      has_residence_permit: Boolean(candidate.has_residence_permit),
+      document_type: String(candidate.document_type),
+      has_drivers_license: Boolean(candidate.has_drivers_license),
+      has_construction_experience: Boolean(candidate.has_construction_experience),
+      experience_duration: String(candidate.experience_duration),
+      photo_url: String(candidate.photo_url),
+      created_at: candidate.created_at || new Date().toISOString()
+    };
+
+    const result = await syncToCloud('candidates', payload);
+    return result;
+  } catch (err) {
+    console.error('saveCandidate error:', err);
+    return { success: false, error: err };
+  }
+};
+
+export const deleteCandidate = async (id: string): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const candidates = getStoredCandidates().filter(c => String(c.id) !== String(id));
+    safeSetItem(STORAGE_KEY_CANDIDATES, JSON.stringify(candidates));
+    const { error } = await safeFetch<any>(supabase.from('candidates').delete().eq('id', String(id)));
+    return { success: !error, error };
+  } catch (err) {
+    return { success: false, error: err };
+  }
+};
+
 

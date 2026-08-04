@@ -134,6 +134,30 @@ export interface SyncResult {
       return await performUpsert(jobPayload);
     }
 
+    if (table === 'candidates') {
+      const formatTimestamp = (val: any) => {
+        if (!val) return new Date().toISOString();
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      };
+      const cPayload: any = {
+        id: String(rawData.id || 'cand_' + Math.random().toString(36).substring(2, 9)),
+        job_offer_id: String(rawData.job_offer_id || rawData.jobOfferId || ''),
+        full_name: String(rawData.full_name || rawData.fullName || ''),
+        email: String(rawData.email || ''),
+        phone: String(rawData.phone || ''),
+        cover_letter: String(rawData.cover_letter || rawData.coverLetter || ''),
+        has_residence_permit: Boolean(rawData.has_residence_permit ?? rawData.hasResidencePermit ?? false),
+        document_type: String(rawData.document_type || rawData.documentType || ''),
+        has_drivers_license: Boolean(rawData.has_drivers_license ?? rawData.hasDriversLicense ?? false),
+        has_construction_experience: Boolean(rawData.has_construction_experience ?? rawData.hasConstructionExperience ?? false),
+        experience_duration: String(rawData.experience_duration || rawData.experienceDuration || ''),
+        photo_url: String(rawData.photo_url || rawData.photoUrl || ''),
+        created_at: formatTimestamp(rawData.created_at || rawData.createdAt)
+      };
+      return await performUpsert(cPayload);
+    }
+
     // 3. Mapeamento Automático: Mantém as chaves originais (camelCase) E adiciona versões snake_case e lowercase
     const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     

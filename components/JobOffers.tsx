@@ -19,10 +19,15 @@ import {
   X, 
   Send,
   Building2,
-  HelpCircle
+  HelpCircle,
+  Users,
+  Eye,
+  Mail,
+  User,
+  Award
 } from 'lucide-react';
-import { Company, JobOffer, JobOfferStatus } from '../types';
-import { getStoredJobOffers, saveJobOffer, deleteJobOffer, generateShortId, fetchResilient, mapJobOfferFromSupabase, safeSetItem } from '../services/storage';
+import { Company, JobOffer, JobOfferStatus, Candidate } from '../types';
+import { getStoredJobOffers, saveJobOffer, deleteJobOffer, generateShortId, fetchResilient, mapJobOfferFromSupabase, safeSetItem, getStoredCandidates, mapCandidateFromSupabase } from '../services/storage';
 import { supabase, syncToCloud } from '../services/supabase';
 import { Locale, jobOffersTranslations } from '../translations';
 
@@ -40,6 +45,11 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
   const [searchTerm, setSearchTerm] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // States para candidatos atribuídos às vagas
+  const [allCandidates, setAllCandidates] = useState<Candidate[]>([]);
+  const [selectedJobCandidatesModal, setSelectedJobCandidatesModal] = useState<JobOffer | null>(null);
+  const [selectedCandidateProfile, setSelectedCandidateProfile] = useState<Partial<Candidate> | null>(null);
+
   // Form State
   const [location, setLocation] = useState('');
   const [specialty, setSpecialty] = useState('');
@@ -48,6 +58,67 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
   const [duration, setDuration] = useState('');
   const [description, setDescription] = useState('');
   const [contact, setContact] = useState('');
+
+  const loadCandidates = async () => {
+    // 1. Carregar local
+    const localCands = getStoredCandidates();
+    setAllCandidates(localCands);
+
+    // 2. Carregar do Supabase remoto
+    try {
+      const { data, error } = await supabase.from('candidates').select('*');
+      if (data && Array.isArray(data)) {
+        const mapped = data.map(mapCandidateFromSupabase);
+        setAllCandidates(mapped);
+      }
+    } catch (e) {
+      console.warn("[JobOffers] Erro ao carregar candidatos remotos:", e);
+    }
+  };
+
+  const getCandidatesForJob = (job: JobOffer, candidates: Candidate[]): Candidate[] => {
+    const map = new Map<string, Candidate>();
+
+    // 1. Tabela 'candidates' no Supabase/localStorage
+    const fromTable = candidates.filter(c => String(c.jobOfferId || (c as any).job_offer_id) === String(job.id));
+    fromTable.forEach(c => {
+      const key = c.id || c.email || c.full_name;
+      if (key) map.set(key, c);
+    });
+
+    // 2. Campo 'candidatesJson' gravado na própria vaga
+    if (job.candidatesJson) {
+      try {
+        const parsed = typeof job.candidatesJson === 'string' ? JSON.parse(job.candidatesJson) : job.candidatesJson;
+        const arr = Array.isArray(parsed) ? parsed : (parsed.candidates || parsed.candidatos || [parsed]);
+        arr.forEach((item: any, index: number) => {
+          const mapped: Candidate = {
+            id: String(item.id || item.job_offer_id || `json-${job.id}-${index}`),
+            jobOfferId: String(job.id),
+            full_name: String(item.full_name || item.fullName || item.name || 'Candidato'),
+            email: String(item.email || ''),
+            phone: String(item.phone || ''),
+            cover_letter: String(item.cover_letter || item.coverLetter || item.notes || ''),
+            has_residence_permit: Boolean(item.has_residence_permit ?? item.hasResidencePermit ?? false),
+            document_type: String(item.document_type || item.documentType || ''),
+            has_drivers_license: Boolean(item.has_drivers_license ?? item.hasDriversLicense ?? false),
+            has_construction_experience: Boolean(item.has_construction_experience ?? item.hasConstructionExperience ?? false),
+            experience_duration: String(item.experience_duration || item.experienceDuration || ''),
+            photo_url: String(item.photo_url || item.photoUrl || ''),
+            created_at: String(item.created_at || item.createdAt || new Date().toISOString())
+          };
+          const key = mapped.id || mapped.email || mapped.full_name;
+          if (key && (!map.has(key) || !map.get(key)?.full_name)) {
+            map.set(key, mapped);
+          }
+        });
+      } catch (e) {
+        console.warn("[JobOffers] Erro ao ler candidatesJson para vaga:", job.id, e);
+      }
+    }
+
+    return Array.from(map.values());
+  };
 
   const loadOffers = async () => {
     // 1. Carregar do armazenamento local
@@ -76,14 +147,23 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
 
   useEffect(() => {
     loadOffers();
+    loadCandidates();
 
-    // Inscrição Supabase Realtime para atualização instantânea (aprovação/feedback do Master)
+    // Inscrição Supabase Realtime para vagas e candidatos
     const channel = supabase
       .channel(`company-job-offers-${company.id}`)
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'job_offers' },
         () => {
+          loadOffers();
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'candidates' },
+        () => {
+          loadCandidates();
           loadOffers();
         }
       )
@@ -350,102 +430,136 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-6">
-          {filteredOffers.map(offer => (
-            <motion.div
-              key={offer.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative group"
-            >
-              <div className="space-y-3">
-                {/* Header card info */}
-                <div className="flex items-start justify-between gap-3">
-                  <div>
-                    <span className="text-[10px] font-black tracking-widest uppercase text-amber-600 block mb-1">
-                      {offer.companyName}
-                    </span>
-                    <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
-                      <HardHat size={18} className="text-slate-600 shrink-0" />
-                      {offer.specialty}
-                    </h3>
-                  </div>
-                  <div>{getStatusBadge(offer.status)}</div>
-                </div>
-
-                {/* Feedback block from support if adjustment requested or rejected */}
-                {(offer.status === 'adjustment_requested' || offer.status === 'rejected') && offer.feedback && (
-                  <div className={`p-3.5 rounded-xl text-xs font-medium space-y-1 border ${
-                    offer.status === 'adjustment_requested' 
-                      ? 'bg-amber-50 border-amber-200 text-amber-900' 
-                      : 'bg-rose-50 border-rose-200 text-rose-900'
-                  }`}>
-                    <div className="font-black flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
-                      <AlertTriangle size={12} /> 
-                      {offer.status === 'adjustment_requested' ? t.adjustmentNeededTitle : t.rejectionReasonTitle}
+          {filteredOffers.map(offer => {
+            const offerCandidates = getCandidatesForJob(offer, allCandidates);
+            return (
+              <motion.div
+                key={offer.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="bg-white rounded-2xl border border-slate-100 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between space-y-4 relative group"
+              >
+                <div className="space-y-3">
+                  {/* Header card info */}
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <span className="text-[10px] font-black tracking-widest uppercase text-amber-600 block mb-1">
+                        {offer.companyName}
+                      </span>
+                      <h3 className="text-base sm:text-lg font-black text-slate-900 leading-snug flex items-center gap-2">
+                        <HardHat size={18} className="text-slate-600 shrink-0" />
+                        {offer.specialty}
+                      </h3>
                     </div>
-                    <p className="text-xs leading-relaxed font-semibold">{offer.feedback}</p>
+                    <div>{getStatusBadge(offer.status)}</div>
                   </div>
-                )}
 
-                {/* Field Details Grid */}
-                <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
-                    <MapPin size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{offer.location}</span>
+                  {/* Feedback block from support if adjustment requested or rejected */}
+                  {(offer.status === 'adjustment_requested' || offer.status === 'rejected') && offer.feedback && (
+                    <div className={`p-3.5 rounded-xl text-xs font-medium space-y-1 border ${
+                      offer.status === 'adjustment_requested' 
+                        ? 'bg-amber-50 border-amber-200 text-amber-900' 
+                        : 'bg-rose-50 border-rose-200 text-rose-900'
+                    }`}>
+                      <div className="font-black flex items-center gap-1.5 uppercase text-[10px] tracking-wider">
+                        <AlertTriangle size={12} /> 
+                        {offer.status === 'adjustment_requested' ? t.adjustmentNeededTitle : t.rejectionReasonTitle}
+                      </div>
+                      <p className="text-xs leading-relaxed font-semibold">{offer.feedback}</p>
+                    </div>
+                  )}
+
+                  {/* Field Details Grid */}
+                  <div className="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
+                      <MapPin size={14} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{offer.location}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
+                      <Euro size={14} className="text-emerald-600 shrink-0" />
+                      <span className="truncate font-bold text-slate-900">{offer.salary}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
+                      <Calendar size={14} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{t.startDateLabel} {offer.startDate}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
+                      <Clock size={14} className="text-slate-400 shrink-0" />
+                      <span className="truncate">{t.durationLabel} {offer.duration}</span>
+                    </div>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
-                    <Euro size={14} className="text-emerald-600 shrink-0" />
-                    <span className="truncate font-bold text-slate-900">{offer.salary}</span>
+
+                  {/* Description */}
+                  <div className="space-y-1">
+                    <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t.jobDescriptionLabel}</span>
+                    <p className="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50/70 p-3 rounded-xl border border-slate-100 whitespace-pre-line">
+                      {offer.description}
+                    </p>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
-                    <Calendar size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{t.startDateLabel} {offer.startDate}</span>
+
+                  {/* Contact */}
+                  <div className="flex items-center gap-2 text-xs font-bold text-slate-800 pt-1">
+                    <Phone size={14} className="text-amber-500 shrink-0" />
+                    <span>{t.contactLabel} {offer.contact}</span>
                   </div>
-                  <div className="flex items-center gap-2 text-slate-600 font-semibold bg-slate-50 p-2 rounded-lg">
-                    <Clock size={14} className="text-slate-400 shrink-0" />
-                    <span className="truncate">{t.durationLabel} {offer.duration}</span>
+
+                  {/* Seção / Botão de Candidatos Atribuídos pelo Master */}
+                  <div className="pt-3 border-t border-slate-100 flex items-center justify-between bg-slate-50/80 p-3 rounded-2xl">
+                    <div className="flex items-center gap-2.5">
+                      <div className={`w-9 h-9 rounded-xl flex items-center justify-center font-black transition-colors ${
+                        offerCandidates.length > 0 ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20' : 'bg-slate-200 text-slate-600'
+                      }`}>
+                        <Users size={18} />
+                      </div>
+                      <div>
+                        <span className="text-[10px] uppercase font-black tracking-wider text-slate-400 block">
+                          Candidatos
+                        </span>
+                        <span className="text-xs font-black text-slate-900">
+                          {offerCandidates.length} candidato{offerCandidates.length === 1 ? '' : 's'} {offerCandidates.length > 0 ? 'enviado(s)' : 'atribuído(s)'}
+                        </span>
+                      </div>
+                    </div>
+
+                    <button
+                      onClick={() => setSelectedJobCandidatesModal(offer)}
+                      className={`inline-flex items-center gap-1.5 px-3.5 py-2 rounded-xl text-xs font-black transition-all shadow-sm active:scale-95 ${
+                        offerCandidates.length > 0
+                          ? 'bg-amber-500 hover:bg-amber-400 text-slate-950 shadow-amber-500/20 animate-pulse'
+                          : 'bg-slate-900 hover:bg-slate-800 text-white'
+                      }`}
+                    >
+                      <Eye size={14} />
+                      <span>Ver Candidatos</span>
+                    </button>
                   </div>
                 </div>
 
-                {/* Description */}
-                <div className="space-y-1">
-                  <span className="text-[10px] font-black uppercase text-slate-400 tracking-wider">{t.jobDescriptionLabel}</span>
-                  <p className="text-xs text-slate-600 leading-relaxed font-medium bg-slate-50/70 p-3 rounded-xl border border-slate-100 whitespace-pre-line">
-                    {offer.description}
-                  </p>
-                </div>
+                {/* Actions */}
+                <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
+                  <span className="text-[10px] font-bold text-slate-400">
+                    {t.publishedOn} {new Date(offer.createdAt).toLocaleDateString(locale)}
+                  </span>
 
-                {/* Contact */}
-                <div className="flex items-center gap-2 text-xs font-bold text-slate-800 pt-1">
-                  <Phone size={14} className="text-amber-500 shrink-0" />
-                  <span>{t.contactLabel} {offer.contact}</span>
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => handleOpenModal(offer)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white font-bold text-slate-700 transition-colors"
+                    >
+                      <Edit size={13} /> {offer.status === 'adjustment_requested' ? t.fixJobBtn : t.editBtn}
+                    </button>
+                    <button
+                      onClick={() => handleDelete(offer.id)}
+                      className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
+                      title={t.deleteJobTitle}
+                    >
+                      <Trash2 size={15} />
+                    </button>
+                  </div>
                 </div>
-              </div>
-
-              {/* Actions */}
-              <div className="flex items-center justify-between pt-3 border-t border-slate-100 text-xs">
-                <span className="text-[10px] font-bold text-slate-400">
-                  {t.publishedOn} {new Date(offer.createdAt).toLocaleDateString(locale)}
-                </span>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOpenModal(offer)}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 hover:bg-slate-900 hover:text-white font-bold text-slate-700 transition-colors"
-                  >
-                    <Edit size={13} /> {offer.status === 'adjustment_requested' ? t.fixJobBtn : t.editBtn}
-                  </button>
-                  <button
-                    onClick={() => handleDelete(offer.id)}
-                    className="p-1.5 rounded-lg text-slate-400 hover:text-rose-600 hover:bg-rose-50 transition-colors"
-                    title={t.deleteJobTitle}
-                  >
-                    <Trash2 size={15} />
-                  </button>
-                </div>
-              </div>
-            </motion.div>
-          ))}
+              </motion.div>
+            );
+          })}
         </div>
       )}
 
@@ -618,6 +732,343 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal / Nova Janela: Lista de Candidatos da Vaga Selecionada */}
+      <AnimatePresence>
+        {selectedJobCandidatesModal && (
+          <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-[120] flex items-center justify-center p-4 sm:p-6 overflow-y-auto animate-in fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-slate-900 text-white rounded-3xl shadow-2xl border border-white/10 w-full max-w-3xl overflow-hidden my-6 flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-6 bg-gradient-to-r from-amber-500/20 via-slate-900 to-amber-500/10 border-b border-white/10 flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-amber-500 rounded-2xl text-slate-950 shadow-lg shrink-0">
+                    <Users size={26} />
+                  </div>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 bg-amber-500/10 px-2.5 py-0.5 rounded-full border border-amber-500/20">
+                        Candidatos da Vaga
+                      </span>
+                      <span className="text-[10px] text-slate-400 font-mono">
+                        ID: {selectedJobCandidatesModal.id}
+                      </span>
+                    </div>
+                    <h2 className="text-xl font-black text-white mt-1">
+                      {selectedJobCandidatesModal.specialty}
+                    </h2>
+                    <p className="text-xs text-slate-300 font-medium flex items-center gap-2 mt-0.5">
+                      <MapPin size={13} className="text-amber-400 shrink-0" />
+                      {selectedJobCandidatesModal.location} • {selectedJobCandidatesModal.companyName}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedJobCandidatesModal(null)}
+                  className="p-2.5 text-slate-400 hover:text-white hover:bg-white/10 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Modal Body */}
+              <div className="p-6 overflow-y-auto space-y-4">
+                {(() => {
+                  const jobCands = getCandidatesForJob(selectedJobCandidatesModal, allCandidates);
+                  if (jobCands.length === 0) {
+                    return (
+                      <div className="py-12 text-center space-y-3 bg-slate-950/60 rounded-2xl border border-white/5 p-6">
+                        <div className="w-16 h-16 bg-amber-500/10 text-amber-400 rounded-2xl flex items-center justify-center mx-auto border border-amber-500/20">
+                          <Users size={32} />
+                        </div>
+                        <h4 className="text-base font-bold text-white">Nenhum candidato atribuído ainda</h4>
+                        <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                          Assim que a equipa Master disponibilizar candidatos para esta vaga ({selectedJobCandidatesModal.specialty}), eles ficarão visíveis nesta janela.
+                        </p>
+                      </div>
+                    );
+                  }
+
+                  return (
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-xs font-bold text-slate-400 px-1">
+                        <span>Total de candidatos disponíveis: <strong className="text-amber-400">{jobCands.length}</strong></span>
+                        <span className="text-[10px] text-slate-500">Clique em um candidato para ver a ficha completa</span>
+                      </div>
+
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                        {jobCands.map((c, i) => (
+                          <div
+                            key={c.id || i}
+                            onClick={() => setSelectedCandidateProfile(c)}
+                            className="p-4 rounded-2xl bg-slate-950/80 hover:bg-slate-850 border border-white/10 hover:border-amber-500/50 text-xs text-slate-300 flex flex-col justify-between space-y-3 cursor-pointer transition-all group shadow-md"
+                          >
+                            <div className="flex items-start gap-3">
+                              {c.photo_url ? (
+                                <img
+                                  src={c.photo_url}
+                                  alt={c.full_name || 'Candidato'}
+                                  className="w-12 h-12 rounded-2xl object-cover border-2 border-amber-500/40 shrink-0 group-hover:scale-105 transition-transform"
+                                  referrerPolicy="no-referrer"
+                                />
+                              ) : (
+                                <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 text-slate-950 font-black text-lg flex items-center justify-center shrink-0 shadow-md">
+                                  {(c.full_name || 'C').charAt(0).toUpperCase()}
+                                </div>
+                              )}
+
+                              <div className="min-w-0 flex-1 space-y-0.5">
+                                <h4 className="font-black text-sm text-white truncate group-hover:text-amber-300 transition-colors">
+                                  {c.full_name || 'Candidato Sem Nome'}
+                                </h4>
+                                {c.email && (
+                                  <span className="text-[11px] text-amber-300/90 truncate block">
+                                    {c.email}
+                                  </span>
+                                )}
+                                {c.phone && (
+                                  <span className="text-[11px] text-slate-400 block font-mono">
+                                    Tel: {c.phone}
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Presentation note */}
+                            {c.cover_letter && (
+                              <p className="text-[11px] text-slate-300 italic line-clamp-2 bg-slate-900 p-2.5 rounded-xl border border-white/5">
+                                "{c.cover_letter}"
+                              </p>
+                            )}
+
+                            {/* Attribute tags */}
+                            <div className="flex flex-wrap gap-1.5 pt-1">
+                              {c.experience_duration && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] bg-slate-800 text-slate-300 border border-white/10 font-mono">
+                                  Exp: {c.experience_duration} anos
+                                </span>
+                              )}
+                              {c.has_residence_permit && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 font-bold">
+                                  Permissão Residência ✓
+                                </span>
+                              )}
+                              {c.has_drivers_license && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] bg-blue-500/20 text-blue-300 border border-blue-500/30 font-bold">
+                                  Carta Condução ✓
+                                </span>
+                              )}
+                              {c.has_construction_experience && (
+                                <span className="px-2 py-0.5 rounded-lg text-[10px] bg-amber-500/20 text-amber-300 border border-amber-500/30 font-bold">
+                                  Exp. Construção ✓
+                                </span>
+                              )}
+                            </div>
+
+                            {/* View profile button */}
+                            <div className="pt-2 border-t border-white/5 flex justify-end">
+                              <span className="text-[11px] text-amber-400 font-bold flex items-center gap-1 group-hover:translate-x-1 transition-transform">
+                                <Eye size={13} /> Ver Ficha Completa &rarr;
+                              </span>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+              </div>
+
+              {/* Modal Footer */}
+              <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={() => setSelectedJobCandidatesModal(null)}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg"
+                >
+                  Fechar Janela
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal / Ficha Completa do Candidato Selecionado */}
+      <AnimatePresence>
+        {selectedCandidateProfile && (
+          <div className="fixed inset-0 z-[130] flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md animate-in fade-in">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 w-full max-w-xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Header */}
+              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 p-6 border-b border-white/10 flex items-start justify-between">
+                <div className="flex items-center gap-4">
+                  {selectedCandidateProfile.photo_url ? (
+                    <img 
+                      src={selectedCandidateProfile.photo_url} 
+                      alt={selectedCandidateProfile.full_name || 'Candidato'} 
+                      className="w-16 h-16 rounded-2xl object-cover border-2 border-amber-500/50 shadow-lg"
+                      referrerPolicy="no-referrer"
+                    />
+                  ) : (
+                    <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-amber-500 to-amber-700 flex items-center justify-center text-slate-950 font-black text-2xl shadow-lg">
+                      {(selectedCandidateProfile.full_name || 'C').charAt(0).toUpperCase()}
+                    </div>
+                  )}
+                  <div>
+                    <h3 className="text-xl font-black text-white tracking-tight flex items-center gap-2">
+                      {selectedCandidateProfile.full_name || 'Candidato Sem Nome'}
+                    </h3>
+                    <p className="text-xs text-slate-400 font-mono flex items-center gap-1.5 mt-0.5">
+                      <User size={13} className="text-amber-400" /> ID: {selectedCandidateProfile.id || 'N/A'}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setSelectedCandidateProfile(null)}
+                  className="p-2 text-slate-400 hover:text-white rounded-full bg-white/5 hover:bg-white/10 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Body */}
+              <div className="p-6 overflow-y-auto space-y-5 text-slate-200">
+                {/* Contact options */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  {selectedCandidateProfile.email && (
+                    <a 
+                      href={`mailto:${selectedCandidateProfile.email}`}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-white/10 hover:border-amber-500/50 transition-all text-xs group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-amber-500/10 text-amber-400 flex items-center justify-center group-hover:bg-amber-500 group-hover:text-slate-950 transition-colors">
+                        <Mail size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-slate-400 uppercase font-black block">Email</span>
+                        <span className="font-medium text-white truncate block">{selectedCandidateProfile.email}</span>
+                      </div>
+                    </a>
+                  )}
+
+                  {selectedCandidateProfile.phone && (
+                    <a 
+                      href={`tel:${selectedCandidateProfile.phone}`}
+                      className="flex items-center gap-3 p-3 rounded-2xl bg-slate-950 border border-white/10 hover:border-emerald-500/50 transition-all text-xs group"
+                    >
+                      <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                        <Phone size={16} />
+                      </div>
+                      <div className="min-w-0">
+                        <span className="text-[10px] text-slate-400 uppercase font-black block">Telefone</span>
+                        <span className="font-medium text-white truncate block">{selectedCandidateProfile.phone}</span>
+                      </div>
+                    </a>
+                  )}
+                </div>
+
+                {/* Candidate details */}
+                <div className="space-y-2 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 block mb-2">
+                    Informações e Qualificações
+                  </span>
+
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
+                    {/* Residence permit */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Permissão de Residência:</span>
+                      {selectedCandidateProfile.has_residence_permit ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Driver's license */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Carta de Condução:</span>
+                      {selectedCandidateProfile.has_drivers_license ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Construction experience */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Exp. em Construção:</span>
+                      {selectedCandidateProfile.has_construction_experience ? (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/30">
+                          Sim ✓
+                        </span>
+                      ) : (
+                        <span className="px-2 py-0.5 rounded-full text-[10px] bg-slate-800 text-slate-400">
+                          Não / Não indicado
+                        </span>
+                      )}
+                    </div>
+
+                    {/* Duration of experience */}
+                    <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5">
+                      <span className="text-slate-400 text-[11px]">Tempo de Experiência:</span>
+                      <span className="font-mono text-amber-400 font-bold">
+                        {selectedCandidateProfile.experience_duration || 'Não especificado'} {selectedCandidateProfile.experience_duration ? 'anos' : ''}
+                      </span>
+                    </div>
+
+                    {/* Document Type */}
+                    {selectedCandidateProfile.document_type && (
+                      <div className="flex items-center justify-between p-2.5 rounded-xl bg-slate-900 border border-white/5 sm:col-span-2">
+                        <span className="text-slate-400 text-[11px]">Tipo de Documento:</span>
+                        <span className="font-semibold text-white">
+                          {selectedCandidateProfile.document_type}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Presentation letter */}
+                {selectedCandidateProfile.cover_letter && (
+                  <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                      <FileText size={13} /> Apresentação / Carta de Motivação
+                    </span>
+                    <p className="text-xs text-slate-300 leading-relaxed italic whitespace-pre-wrap bg-slate-900 p-3 rounded-xl border border-white/5">
+                      "{selectedCandidateProfile.cover_letter}"
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              {/* Footer */}
+              <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={() => setSelectedCandidateProfile(null)}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg"
+                >
+                  Fechar Ficha
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
