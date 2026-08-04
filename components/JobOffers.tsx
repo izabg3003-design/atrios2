@@ -94,7 +94,14 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
 
     // 1. Tabela 'candidates' no Supabase/localStorage
     candidates.forEach(c => {
-      const cJobId = String(c.jobOfferId || (c as any).job_offer_id || (c as any).job_id || '').trim().toLowerCase();
+      let cJobId = String(c.jobOfferId || (c as any).job_offer_id || (c as any).job_id || '').trim().toLowerCase();
+      if (!cJobId && c.cover_letter) {
+        const match = c.cover_letter.match(/\[JOB_OFFER_ID:(.+?)\]/);
+        if (match) {
+          cJobId = match[1].trim().toLowerCase();
+        }
+      }
+
       if (cJobId && targetJobId && cJobId === targetJobId) {
         const key = String(c.id || c.email || c.full_name);
         if (key) map.set(key, c);
@@ -145,6 +152,21 @@ export const JobOffers: React.FC<JobOffersProps> = ({ company, locale = 'pt-PT' 
       } catch (e) {
         console.warn("[JobOffers] Erro ao ler candidatesJson para vaga:", job.id, e);
       }
+    }
+
+    // 3. Fallback inteligente: se nenhum candidato foi associado especificamente a uma vaga (ex: sincronização inicial), atribui candidatos órfãos
+    if (map.size === 0 && candidates.length > 0) {
+      candidates.forEach(c => {
+        let cJobId = String(c.jobOfferId || (c as any).job_offer_id || (c as any).job_id || '').trim().toLowerCase();
+        if (!cJobId && c.cover_letter) {
+          const match = c.cover_letter.match(/\[JOB_OFFER_ID:(.+?)\]/);
+          if (match) cJobId = match[1].trim().toLowerCase();
+        }
+        if (!cJobId) {
+          const key = String(c.id || c.email || c.full_name);
+          if (key) map.set(key, c);
+        }
+      });
     }
 
     return Array.from(map.values());

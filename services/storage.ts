@@ -1319,13 +1319,25 @@ export const getStoredCandidates = (jobOfferId?: string): Candidate[] => {
 };
 
 export const mapCandidateFromSupabase = (c: any): Candidate => {
+  let jobOfferId = String(c.job_offer_id || c.jobOfferId || c.job_id || c.jobId || c.jobofferid || '');
+  let rawCoverLetter = String(c.cover_letter || c.coverLetter || '');
+
+  // Extrai jobOfferId embutido no cover_letter se a coluna da tabela não existir ou estiver vazia
+  const match = rawCoverLetter.match(/\[JOB_OFFER_ID:(.+?)\]/);
+  if (match) {
+    if (!jobOfferId) {
+      jobOfferId = match[1].trim();
+    }
+    rawCoverLetter = rawCoverLetter.replace(/\[JOB_OFFER_ID:.+?\]/, '').trim();
+  }
+
   return {
     id: String(c.id || generateShortId()),
-    jobOfferId: String(c.job_offer_id || c.jobOfferId || c.job_id || c.jobId || c.jobofferid || ''),
+    jobOfferId,
     full_name: String(c.full_name || c.fullName || c.name || ''),
     email: String(c.email || ''),
     phone: String(c.phone || ''),
-    cover_letter: String(c.cover_letter || c.coverLetter || ''),
+    cover_letter: rawCoverLetter,
     has_residence_permit: Boolean(c.has_residence_permit ?? c.hasResidencePermit ?? false),
     document_type: String(c.document_type || c.documentType || ''),
     has_drivers_license: Boolean(c.has_drivers_license ?? c.hasDriversLicense ?? false),
@@ -1414,19 +1426,24 @@ export const saveCandidate = async (candidate: Candidate, skipNotification = fal
     }
     safeSetItem(STORAGE_KEY_CANDIDATES, JSON.stringify(candidates));
 
+    let coverLetterToSend = String(candidate.cover_letter || '');
+    if (candidate.jobOfferId && !coverLetterToSend.includes('[JOB_OFFER_ID:')) {
+      coverLetterToSend = (coverLetterToSend ? coverLetterToSend + '\n\n' : '') + `[JOB_OFFER_ID:${candidate.jobOfferId}]`;
+    }
+
     const payload = {
       id: String(candidate.id),
-      job_offer_id: String(candidate.jobOfferId),
-      full_name: String(candidate.full_name),
-      email: String(candidate.email),
-      phone: String(candidate.phone),
-      cover_letter: String(candidate.cover_letter),
+      job_offer_id: String(candidate.jobOfferId || ''),
+      full_name: String(candidate.full_name || ''),
+      email: String(candidate.email || ''),
+      phone: String(candidate.phone || ''),
+      cover_letter: coverLetterToSend,
       has_residence_permit: Boolean(candidate.has_residence_permit),
-      document_type: String(candidate.document_type),
+      document_type: String(candidate.document_type || ''),
       has_drivers_license: Boolean(candidate.has_drivers_license),
       has_construction_experience: Boolean(candidate.has_construction_experience),
-      experience_duration: String(candidate.experience_duration),
-      photo_url: String(candidate.photo_url),
+      experience_duration: String(candidate.experience_duration || ''),
+      photo_url: String(candidate.photo_url || ''),
       created_at: candidate.created_at || new Date().toISOString()
     };
 
