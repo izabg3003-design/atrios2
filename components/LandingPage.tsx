@@ -220,17 +220,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     <div className="min-h-screen w-full bg-white text-slate-900 selection:bg-amber-500 selection:text-slate-950 font-sans">
       
       {/* 1. TOP NAVBAR */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-2 sm:py-3' : 'bg-white/90 backdrop-blur-sm py-2.5 sm:py-5'}`}>
-        <div className="max-w-7xl mx-auto px-2.5 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-1.5 sm:gap-4">
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-1.5 sm:py-3' : 'bg-white/90 backdrop-blur-sm py-2 sm:py-5'}`}>
+        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-1 sm:gap-4">
             
             {/* Brand Logo */}
-            <div className="flex items-center gap-1.5 sm:gap-2.5 cursor-pointer shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="bg-amber-500 p-1.5 sm:p-2 rounded-lg sm:rounded-xl text-white shadow-md shadow-amber-500/20 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2.5 cursor-pointer shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
+              <div className="bg-amber-500 p-1 sm:p-2 rounded-lg sm:rounded-xl text-white shadow-md shadow-amber-500/20 shrink-0">
                 <Construction className="w-4 h-4 sm:w-6 sm:h-6" />
               </div>
               <div className="flex flex-col">
-                <span className="text-base sm:text-2xl font-black tracking-tight italic text-slate-900 leading-none">
+                <span className="text-sm sm:text-2xl font-black tracking-tight italic text-slate-900 leading-none">
                   ÁTRIOS<span className="text-amber-500">BUILD</span>
                 </span>
                 <span className="hidden sm:block text-[8px] font-black uppercase tracking-widest text-slate-400">Software Pro</span>
@@ -257,17 +257,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </nav>
 
             {/* Language & Currency Selectors + Auth Buttons */}
-            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0">
+            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 max-w-full">
               
-              {/* Selectors Pill */}
+              {/* Selectors Pill - On mobile only show language or compact dropdowns */}
               <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-100/90 border border-slate-200/80 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 shadow-inner">
-                {/* Currency */}
-                <div className="flex items-center gap-0.5 sm:gap-1">
-                  <Coins size={11} className="text-amber-600 shrink-0" />
+                {/* Currency - hidden on very small mobile to give room, visible in tablet/desktop and in mobile dropdown drawer */}
+                <div className="hidden xs:flex items-center gap-0.5">
+                  <Coins size={10} className="text-amber-600 shrink-0" />
                   <select
                     value={currencyCode}
                     onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)}
-                    className="bg-transparent text-[9px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer pr-0.5"
+                    className="bg-transparent text-[8px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer pr-0.5"
                     title={t.currencyLabel}
                   >
                     {Object.values(CURRENCIES).map(curr => (
@@ -278,15 +278,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </select>
                 </div>
 
-                <div className="w-[1px] h-3 sm:h-3.5 bg-slate-300 mx-0.5 shrink-0" />
+                <div className="hidden xs:block w-[1px] h-3 bg-slate-300 mx-0.5 shrink-0" />
 
                 {/* Language */}
-                <div className="flex items-center gap-0.5 sm:gap-1">
-                  <Globe size={11} className="text-amber-600 shrink-0" />
+                <div className="flex items-center gap-0.5">
+                  <Globe size={10} className="text-amber-600 shrink-0" />
                   <select
                     value={locale}
                     onChange={(e) => setLocale(e.target.value as Locale)}
-                    className="bg-transparent text-[9px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer"
+                    className="bg-transparent text-[8px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer max-w-[42px] xs:max-w-none"
                     title="Idioma / Language"
                   >
                     <option value="pt-PT" className="text-slate-900 font-bold">🇵🇹 PT</option>
@@ -305,7 +305,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {/* Login Button */}
               <button
                 onClick={onLogin}
-                className="px-1.5 sm:px-3 py-1 sm:py-2 text-[10px] sm:text-xs font-black uppercase tracking-wider text-slate-700 hover:text-slate-950 transition-colors shrink-0"
+                className="px-1 sm:px-3 py-1 sm:py-2 text-[9px] sm:text-xs font-black uppercase tracking-wider text-slate-700 hover:text-slate-950 transition-colors shrink-0"
               >
                 {lt.nav.login || t.loginBtn}
               </button>
@@ -313,16 +313,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {/* Start Free CTA */}
               <button
                 onClick={onStartFree}
-                className="px-2 sm:px-4 py-1.5 sm:py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg sm:rounded-xl font-black text-[10px] sm:text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                className="px-2 sm:px-4 py-1 sm:py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
               >
                 <span className="hidden sm:inline">{lt.nav.startFree}</span>
-                <span className="sm:hidden">Começar</span>
+                <span className="sm:hidden">Grátis</span>
               </button>
 
               {/* Mobile Menu Hamburger */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1 sm:p-1.5 text-slate-700 hover:text-slate-950 rounded-lg hover:bg-slate-100 transition-colors shrink-0"
+                className="lg:hidden p-1 text-slate-700 hover:text-slate-950 rounded-lg hover:bg-slate-100 transition-colors shrink-0 ml-0.5"
                 aria-label="Menu"
               >
                 {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
