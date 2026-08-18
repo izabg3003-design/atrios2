@@ -28,12 +28,14 @@ import {
   Youtube,
   Film,
   Menu,
-  LogIn
+  LogIn,
+  Sparkles
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
 import { landingTranslations } from './landingTranslations';
 import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId } from '../services/storage';
+import { ClientRequestModal } from './ClientRequestModal';
 
 // Direct asset imports to guarantee bundling across all deployment platforms and subdomains
 import imgContractors from '../src/assets/images/icon_contractors_3d_1786791815873.jpg';
@@ -68,6 +70,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenLegal
 }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
+  const [showClientRequestModal, setShowClientRequestModal] = useState(false);
   const [demoStep, setDemoStep] = useState(0);
   const [isScrolled, setIsScrolled] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
@@ -418,7 +421,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </p>
 
               {/* Primary & Secondary Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-8">
+              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
                 <button
                   onClick={onStartFree}
                   className="px-6 sm:px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider transition-all shadow-xl shadow-amber-500/25 active:scale-95 flex items-center justify-center gap-3 text-center"
@@ -433,6 +436,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 >
                   <Play size={16} className="text-amber-500 fill-amber-500" />
                   <span>{lt.hero.ctaSecondary}</span>
+                </button>
+              </div>
+
+              {/* Special CTA for Common Clients / Homeowners */}
+              <div className="mb-8 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                    <Wrench size={20} />
+                  </div>
+                  <div>
+                    <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                      Precisa de uma Obra ou Reparação? <span className="bg-amber-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase">Novo</span>
+                    </div>
+                    <div className="text-[11px] text-slate-600 font-medium">
+                      Pintura, portas, janelas, eletricidade, canalização ou construir do zero.
+                    </div>
+                  </div>
+                </div>
+
+                <button
+                  onClick={() => setShowClientRequestModal(true)}
+                  className="px-4 py-2.5 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 shrink-0 flex items-center justify-center gap-2"
+                >
+                  <Sparkles size={14} className="text-amber-400" /> Pedir Orçamento Grátis
                 </button>
               </div>
 
@@ -1539,6 +1566,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         )}
       </AnimatePresence>
+
+      {/* 12. MODAL DE PEDIDO DE ORÇAMENTO (PARTICULARES / CLIENTES COMUNS) */}
+      <ClientRequestModal
+        isOpen={showClientRequestModal}
+        onClose={() => setShowClientRequestModal(false)}
+        locale={locale}
+      />
 
     </div>
   );

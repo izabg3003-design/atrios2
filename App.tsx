@@ -3,6 +3,7 @@ import ReactGA from 'react-ga4';
 import { motion } from 'framer-motion';
 import { Store } from './components/Store';
 import { JobOffers } from './components/JobOffers';
+import { ClientRequestsHub } from './components/ClientRequestsHub';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
@@ -55,7 +56,8 @@ import {
   Sparkles,
   Gift,
   Volume2,
-  VolumeX
+  VolumeX,
+  Wrench
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -292,7 +294,7 @@ const App: React.FC = () => {
   const t = translations[locale];
 
   const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs'>(session?.activeTab as any || 'dashboard');
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs' | 'client_requests'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -3259,6 +3261,7 @@ const App: React.FC = () => {
                 {[
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
+                  { id: 'client_requests', label: locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests', icon: Wrench, isNew: true },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
                   { id: 'jobs', label: locale.startsWith('pt') ? 'Vagas de Trabalho' : 'Job Offers', icon: HardHat },
                   { id: 'store', label: t.store, icon: ShoppingBag },
@@ -3286,6 +3289,11 @@ const App: React.FC = () => {
                         </div>
                         <span>{item.label}</span>
                       </div>
+                      {(item as any).isNew && (
+                        <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950">
+                          Novo
+                        </span>
+                      )}
                     </button>
                   );
                 })}
@@ -3454,6 +3462,45 @@ const App: React.FC = () => {
 
                   {activeTab === 'jobs' && currentUser && (
                     <JobOffers company={currentUser} locale={locale} />
+                  )}
+
+                  {activeTab === 'client_requests' && currentUser && (
+                    <ClientRequestsHub
+                      currentUser={currentUser}
+                      onCreateBudgetForClient={(clientData) => {
+                        if (!canCreateBudget) {
+                          alert(t.budgetLimitReached);
+                          setActiveTab('plans');
+                          return;
+                        }
+                        setSelectedBudget({
+                          id: generateShortId(),
+                          companyId: currentUser.id,
+                          clientName: clientData.clientName,
+                          contactName: clientData.clientName,
+                          contactPhone: clientData.clientPhone || '',
+                          workLocation: clientData.clientAddress || '',
+                          status: BudgetStatus.PENDING,
+                          items: [
+                            {
+                              id: generateShortId(),
+                              description: clientData.projectTitle + (clientData.projectDescription ? ` - ${clientData.projectDescription}` : ''),
+                              quantity: 1,
+                              unit: t.unitDefault,
+                              pricePerUnit: 0,
+                              total: 0
+                            }
+                          ],
+                          servicesSelected: [clientData.category],
+                          expenses: [],
+                          payments: [],
+                          projectFiles: [],
+                          createdAt: new Date().toISOString()
+                        } as any);
+                        setIsEditingBudget(true);
+                      }}
+                      onUpgrade={() => setActiveTab('plans')}
+                    />
                   )}
 
                   {activeTab === 'budgets' && (

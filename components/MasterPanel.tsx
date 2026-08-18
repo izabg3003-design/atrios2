@@ -53,7 +53,10 @@ import {
   Award,
   Briefcase,
   Film,
-  Video
+  Video,
+  Wrench,
+  Hammer,
+  Sparkles
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -67,7 +70,7 @@ import {
   PieChart,
   Pie
 } from 'recharts';
-import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification, JobOffer, JobOfferStatus, Candidate } from '../types';
+import { Company, PlanType, AudienceType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, PushNotification, JobOffer, JobOfferStatus, Candidate, ClientServiceRequest, ServiceCategory } from '../types';
 import { generateCompanyQrCode } from '../services/qrcode';
 import { 
   getStoredCompanies, 
@@ -106,7 +109,11 @@ import {
   saveCandidate,
   deleteCandidate,
   mapCandidateFromSupabase,
-  notifyJobOwnerNewCandidate
+  notifyJobOwnerNewCandidate,
+  getStoredClientRequests,
+  fetchClientRequestsFromSupabase,
+  saveClientServiceRequest,
+  deleteClientServiceRequest
 } from '../services/storage';
 import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/supabase';
 import { Locale, translations } from '../translations';
@@ -202,10 +209,17 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'client_requests'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
+  
+  // Client Service Requests (Obras & Clientes) State for Master
+  const [clientRequestsList, setClientRequestsList] = useState<ClientServiceRequest[]>([]);
+  const [clientRequestStatusFilter, setClientRequestStatusFilter] = useState<'all' | string>('all');
+  const [clientRequestCategoryFilter, setClientRequestCategoryFilter] = useState<'all' | string>('all');
+  const [clientRequestSearch, setClientRequestSearch] = useState('');
+  const [selectedClientRequestModal, setSelectedClientRequestModal] = useState<ClientServiceRequest | null>(null);
   
   // Job Offers State for Master
   const [jobOffers, setJobOffers] = useState<JobOffer[]>([]);
@@ -734,6 +748,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       finalCandidates = localCandidates;
     }
     setCandidatesList(finalCandidates);
+
+    // Buscar Pedidos de Obras / Serviços de Clientes Particulares
+    console.log("MasterPanel: Buscando pedidos de orçamento de particulares...");
+    const cloudRequests = await fetchClientRequestsFromSupabase();
+    setClientRequestsList(cloudRequests);
 
     // Buscar transações no Supabase
     let allTransactions: Transaction[] = [];
@@ -2523,6 +2542,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             {[
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'hero_video', label: locale.startsWith('pt') ? 'Vídeos da Landing' : 'Landing Videos', icon: Film },
+              { id: 'client_requests', label: locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests', icon: Wrench },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
               { id: 'jobs', label: 'Vagas de Trabalho', icon: HardHat },
@@ -4398,6 +4418,333 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
           <MasterHeroVideoSettings 
             onSuccessToast={(msg) => triggerPushNotificationSubmit('Vídeo Hero', msg)} 
           />
+        )}
+
+        {/* TAB: Obras & Clientes (Pedidos de Orçamento Particulares) */}
+        {activeTab === 'client_requests' && (
+          <div className="space-y-8 animate-in fade-in duration-500">
+            {/* Header & Controls */}
+            <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 space-y-6">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                  <h2 className="text-2xl font-black italic uppercase text-white flex items-center gap-3">
+                    <Wrench className="text-amber-400" />
+                    Pedidos de Obras e Serviços de Particulares
+                  </h2>
+                  <p className="text-slate-400 text-xs font-medium mt-1">
+                    Gerencie e acompanhe todos os pedidos de orçamento submetidos por clientes particulares na Landing Page.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <button
+                    onClick={async () => {
+                      setIsSyncing(true);
+                      const reqs = await fetchClientRequestsFromSupabase();
+                      setClientRequestsList(reqs);
+                      setIsSyncing(false);
+                    }}
+                    className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-2 border border-white/10 transition-all cursor-pointer"
+                  >
+                    <Activity size={14} className={isSyncing ? "animate-spin text-amber-400" : "text-amber-400"} />
+                    Atualizar Lista
+                  </button>
+                </div>
+              </div>
+
+              {/* Filters & Search */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+                <div className="relative">
+                  <Search size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
+                  <input
+                    type="text"
+                    value={clientRequestSearch}
+                    onChange={(e) => setClientRequestSearch(e.target.value)}
+                    placeholder="Pesquisar por título, cliente, cidade..."
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl pl-10 pr-4 py-2.5 text-xs text-white placeholder:text-slate-600 focus:border-amber-500 outline-none"
+                  />
+                </div>
+
+                <div>
+                  <select
+                    value={clientRequestStatusFilter}
+                    onChange={(e) => setClientRequestStatusFilter(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:border-amber-500 outline-none cursor-pointer"
+                  >
+                    <option value="all">Todos os Estados</option>
+                    <option value="open">Aberto (Disponível)</option>
+                    <option value="in_progress">Em Andamento</option>
+                    <option value="completed">Concluído</option>
+                    <option value="cancelled">Cancelado</option>
+                  </select>
+                </div>
+
+                <div>
+                  <select
+                    value={clientRequestCategoryFilter}
+                    onChange={(e) => setClientRequestCategoryFilter(e.target.value)}
+                    className="w-full bg-slate-950 border border-white/10 rounded-xl px-3 py-2.5 text-xs text-white focus:border-amber-500 outline-none cursor-pointer"
+                  >
+                    <option value="all">Todas as Categorias</option>
+                    <option value="remodelacao">Remodelação Geral</option>
+                    <option value="pintura">Pintura & Acabamentos</option>
+                    <option value="eletricidade">Eletricidade</option>
+                    <option value="canalizacao">Canalização & Plumber</option>
+                    <option value="carpintaria">Carpintaria & Portas/Janelas</option>
+                    <option value="construcao_raiz">Construção do Zero</option>
+                    <option value="pladur">Pladur & Tetos Falsos</option>
+                    <option value="telhados">Telhados & Coberturas</option>
+                    <option value="jardim">Jardins & Exteriores</option>
+                    <option value="outro">Outro Serviço</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* List Cards */}
+            {clientRequestsList.length === 0 ? (
+              <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-[2.5rem] p-12 text-center">
+                <Wrench size={40} className="text-slate-600 mx-auto mb-3 animate-bounce" />
+                <h3 className="text-lg font-black text-white">Nenhum pedido registado ainda</h3>
+                <p className="text-xs text-slate-500 max-w-md mx-auto mt-1">
+                  Os pedidos submetidos por clientes particulares na Landing Page aparecerão aqui em tempo real.
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {clientRequestsList
+                  .filter((req) => {
+                    const matchesSearch =
+                      clientRequestSearch === '' ||
+                      req.projectTitle?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      req.clientName?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      req.city?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      req.projectDescription?.toLowerCase().includes(clientRequestSearch.toLowerCase());
+                    const matchesStatus = clientRequestStatusFilter === 'all' || req.status === clientRequestStatusFilter;
+                    const matchesCategory = clientRequestCategoryFilter === 'all' || req.category === clientRequestCategoryFilter;
+                    return matchesSearch && matchesStatus && matchesCategory;
+                  })
+                  .map((req) => (
+                    <div
+                      key={req.id}
+                      className="bg-slate-900 border border-white/10 hover:border-amber-500/40 rounded-[2rem] p-5 space-y-4 transition-all flex flex-col justify-between"
+                    >
+                      <div className="space-y-3">
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            {req.category}
+                          </span>
+                          <span
+                            className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              req.status === 'open'
+                                ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                                : req.status === 'in_progress'
+                                ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
+                                : req.status === 'completed'
+                                ? 'bg-purple-500/20 text-purple-300 border border-purple-500/30'
+                                : 'bg-slate-800 text-slate-400'
+                            }`}
+                          >
+                            {req.status === 'open' ? 'Aberto' : req.status === 'in_progress' ? 'Em Andamento' : req.status === 'completed' ? 'Concluído' : 'Cancelado'}
+                          </span>
+                        </div>
+
+                        <div>
+                          <h3 className="text-base font-black text-white tracking-tight leading-snug line-clamp-1">
+                            {req.projectTitle}
+                          </h3>
+                          <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
+                            {req.projectDescription}
+                          </p>
+                        </div>
+
+                        <div className="bg-slate-950/60 p-3 rounded-xl border border-white/5 space-y-1.5 text-xs text-slate-300">
+                          <div className="flex items-center gap-2">
+                            <User size={13} className="text-slate-500 shrink-0" />
+                            <span className="font-bold text-white truncate">{req.clientName}</span>
+                          </div>
+                          {req.clientPhone && (
+                            <div className="flex items-center gap-2">
+                              <Phone size={13} className="text-emerald-400 shrink-0" />
+                              <a href={`tel:${req.clientPhone}`} className="hover:underline font-mono text-[11px] text-emerald-300">{req.clientPhone}</a>
+                            </div>
+                          )}
+                          {req.clientEmail && (
+                            <div className="flex items-center gap-2">
+                              <Mail size={13} className="text-amber-400 shrink-0" />
+                              <a href={`mailto:${req.clientEmail}`} className="hover:underline text-[11px] text-slate-300 truncate">{req.clientEmail}</a>
+                            </div>
+                          )}
+                          <div className="flex items-center gap-2">
+                            <MapPin size={13} className="text-rose-400 shrink-0" />
+                            <span className="truncate text-slate-400 text-[11px]">{req.city || req.location || 'Local não indicado'}</span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="pt-2 border-t border-white/5 space-y-2">
+                        <div className="flex items-center justify-between text-[10px] text-slate-500">
+                          <span>Submetido: {new Date(req.createdAt).toLocaleDateString('pt-PT')}</span>
+                          {req.estimatedBudget ? <span className="font-bold text-amber-400">{req.estimatedBudget}</span> : null}
+                        </div>
+
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => setSelectedClientRequestModal(req)}
+                            className="flex-1 py-2 bg-amber-500/20 hover:bg-amber-500 text-amber-300 hover:text-slate-950 rounded-xl text-xs font-black uppercase transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                          >
+                            <Eye size={13} /> Ver Detalhes
+                          </button>
+                          <button
+                            onClick={async () => {
+                              if (confirm(`Deseja excluir o pedido de "${req.clientName}"?`)) {
+                                await deleteClientServiceRequest(req.id);
+                                setClientRequestsList(prev => prev.filter(r => r.id !== req.id));
+                              }
+                            }}
+                            className="p-2 bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 rounded-xl text-xs font-black transition-all cursor-pointer"
+                            title="Eliminar Pedido"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Modal de Detalhes do Pedido de Cliente (Master) */}
+        {selectedClientRequestModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 p-4 sm:p-6 backdrop-blur-md animate-in fade-in">
+            <div className="bg-slate-900 w-full max-w-2xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
+              <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 p-6 border-b border-white/10 flex items-start justify-between">
+                <div>
+                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 inline-block mb-2">
+                    {selectedClientRequestModal.category}
+                  </span>
+                  <h3 className="text-xl font-black text-white tracking-tight">
+                    {selectedClientRequestModal.projectTitle}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-0.5">
+                    Submetido em {new Date(selectedClientRequestModal.createdAt).toLocaleString('pt-PT')}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setSelectedClientRequestModal(null)}
+                  className="p-2 text-slate-400 hover:text-white rounded-full hover:bg-white/10 cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <div className="p-6 space-y-6 overflow-y-auto max-h-[60vh]">
+                {/* Description */}
+                <div className="space-y-1.5 bg-slate-950/60 p-4 rounded-2xl border border-white/10">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <FileText size={13} /> Descrição da Obra / Serviço
+                  </span>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">
+                    {selectedClientRequestModal.projectDescription}
+                  </p>
+                </div>
+
+                {/* Client Info Grid */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">Nome do Cliente</span>
+                    <p className="text-xs font-black text-white">{selectedClientRequestModal.clientName}</p>
+                  </div>
+                  <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">Telemóvel</span>
+                    <p className="text-xs font-mono font-bold text-emerald-400">
+                      {selectedClientRequestModal.clientPhone ? (
+                        <a href={`tel:${selectedClientRequestModal.clientPhone}`} className="hover:underline">{selectedClientRequestModal.clientPhone}</a>
+                      ) : 'Não fornecido'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">Email</span>
+                    <p className="text-xs font-bold text-amber-400 truncate">
+                      {selectedClientRequestModal.clientEmail ? (
+                        <a href={`mailto:${selectedClientRequestModal.clientEmail}`} className="hover:underline">{selectedClientRequestModal.clientEmail}</a>
+                      ) : 'Não fornecido'}
+                    </p>
+                  </div>
+                  <div className="p-3 bg-slate-950/60 rounded-xl border border-white/5 space-y-1">
+                    <span className="text-[10px] uppercase font-bold text-slate-500">Localização / Cidade</span>
+                    <p className="text-xs font-bold text-white truncate">
+                      {selectedClientRequestModal.city || selectedClientRequestModal.location || 'Não especificado'}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Photos */}
+                {selectedClientRequestModal.photos && selectedClientRequestModal.photos.length > 0 && (
+                  <div className="space-y-2">
+                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+                      Fotografias Anexadas ({selectedClientRequestModal.photos.length})
+                    </span>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                      {selectedClientRequestModal.photos.map((photo, idx) => (
+                        <a
+                          key={idx}
+                          href={photo}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="rounded-xl overflow-hidden border border-white/10 block aspect-video hover:opacity-80 transition-opacity"
+                        >
+                          <img
+                            src={photo}
+                            alt={`Foto ${idx + 1}`}
+                            className="w-full h-full object-cover"
+                            referrerPolicy="no-referrer"
+                          />
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                )}
+
+                {/* Status changer */}
+                <div className="p-4 bg-slate-950 rounded-2xl border border-white/10 space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                    Alterar Estado do Pedido
+                  </span>
+                  <div className="flex flex-wrap gap-2">
+                    {(['open', 'in_progress', 'completed', 'cancelled'] as const).map((st) => (
+                      <button
+                        key={st}
+                        onClick={async () => {
+                          const updated = { ...selectedClientRequestModal, status: st };
+                          await saveClientServiceRequest(updated);
+                          setClientRequestsList(prev => prev.map(r => r.id === updated.id ? updated : r));
+                          setSelectedClientRequestModal(updated);
+                        }}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-black uppercase transition-all cursor-pointer ${
+                          selectedClientRequestModal.status === st
+                            ? 'bg-amber-500 text-slate-950 shadow-lg'
+                            : 'bg-white/5 text-slate-400 hover:text-white'
+                        }`}
+                      >
+                        {st === 'open' ? 'Aberto' : st === 'in_progress' ? 'Em Andamento' : st === 'completed' ? 'Concluído' : 'Cancelado'}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-end">
+                <button
+                  onClick={() => setSelectedClientRequestModal(null)}
+                  className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Modal for Master Feedback / Rejection reason */}

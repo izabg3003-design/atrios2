@@ -1,5 +1,14 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
+
+export const safeGetItem = (key: string): string | null => {
+  try {
+    return localStorage.getItem(key);
+  } catch (e) {
+    console.warn(`[Storage] Erro ao ler '${key}' do localStorage:`, e);
+    return null;
+  }
+};
 
 const STORAGE_KEY_COMPANIES = 'atrios_companies';
 const STORAGE_KEY_BUDGETS = 'atrios_budgets';
@@ -1683,6 +1692,183 @@ export const saveActionVideoConfig = async (config: ActionVideoConfig): Promise<
 
 export const resetActionVideoConfig = async (): Promise<{ success: boolean; error?: any }> => {
   return await saveActionVideoConfig(DEFAULT_ACTION_VIDEO_CONFIG);
+};
+
+// ==========================================
+// CLIENT SERVICE REQUESTS (PEDIDOS DE ORÇAMENTO / OBRAS DE PARTICULARES)
+// ==========================================
+export const STORAGE_KEY_CLIENT_REQUESTS = 'atrios_client_service_requests';
+
+export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest => {
+  return {
+    id: String(item.id || generateShortId()),
+    clientName: String(item.client_name || item.clientName || item.name || ''),
+    clientEmail: String(item.client_email || item.clientEmail || item.email || ''),
+    clientPhone: String(item.client_phone || item.clientPhone || item.phone || ''),
+    category: (item.category || item.service_category || 'other') as ServiceCategory,
+    title: String(item.title || ''),
+    description: String(item.description || ''),
+    location: String(item.location || item.city || ''),
+    postalCode: item.postal_code || item.postalCode || undefined,
+    propertyType: item.property_type || item.propertyType || undefined,
+    urgency: item.urgency || undefined,
+    budgetRange: item.budget_range || item.budgetRange || undefined,
+    photos: Array.isArray(item.photos) ? item.photos : (typeof item.photos === 'string' ? JSON.parse(item.photos || '[]') : []),
+    status: (item.status || 'pending') as ClientRequestStatus,
+    proposalsCount: Number(item.proposals_count || item.proposalsCount || 0),
+    assignedCompanyId: item.assigned_company_id || item.assignedCompanyId || undefined,
+    assignedCompanyName: item.assigned_company_name || item.assignedCompanyName || undefined,
+    createdAt: String(item.created_at || item.createdAt || new Date().toISOString()),
+    updatedAt: item.updated_at || item.updatedAt || undefined
+  };
+};
+
+export const getStoredClientRequests = (): ClientServiceRequest[] => {
+  const local = safeGetItem(STORAGE_KEY_CLIENT_REQUESTS);
+  if (!local) return [];
+  try {
+    const parsed = JSON.parse(local);
+    return Array.isArray(parsed) ? parsed.map(mapClientRequestFromSupabase) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const saveClientRequestLocally = (requests: ClientServiceRequest[]) => {
+  safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(requests));
+};
+
+export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRequest[]> => {
+  try {
+    const { data, error } = await safeFetch<any[]>(
+      supabase.from('client_service_requests').select('*').order('created_at', { ascending: false })
+    );
+
+    if (error) {
+      console.warn('[Storage] Erro ao buscar client_service_requests no Supabase:', error.message);
+      return getStoredClientRequests();
+    }
+
+    if (data && Array.isArray(data)) {
+      const mapped = data.map(mapClientRequestFromSupabase);
+      saveClientRequestLocally(mapped);
+      return mapped;
+    }
+    return getStoredClientRequests();
+  } catch (err) {
+    console.warn('[Storage] Exceção ao buscar client_service_requests:', err);
+    return getStoredClientRequests();
+  }
+};
+
+export const saveClientServiceRequest = async (
+  request: Partial<ClientServiceRequest>
+): Promise<{ success: boolean; data?: ClientServiceRequest; error?: any }> => {
+  try {
+    const newReq: ClientServiceRequest = {
+      id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
+      clientName: request.clientName || '',
+      clientEmail: request.clientEmail || '',
+      clientPhone: request.clientPhone || '',
+      category: request.category || 'other',
+      title: request.title || '',
+      description: request.description || '',
+      location: request.location || '',
+      postalCode: request.postalCode,
+      propertyType: request.propertyType,
+      urgency: request.urgency,
+      budgetRange: request.budgetRange,
+      photos: request.photos || [],
+      status: request.status || 'pending',
+      proposalsCount: request.proposalsCount || 0,
+      assignedCompanyId: request.assignedCompanyId,
+      assignedCompanyName: request.assignedCompanyName,
+      createdAt: request.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    // 1. Guardar localmente
+    const current = getStoredClientRequests();
+    const existingIndex = current.findIndex(r => r.id === newReq.id);
+    let updated: ClientServiceRequest[];
+    if (existingIndex >= 0) {
+      updated = [...current];
+      updated[existingIndex] = newReq;
+    } else {
+      updated = [newReq, ...current];
+    }
+    saveClientRequestLocally(updated);
+
+    // 2. Disparar evento para a UI atualizar em tempo real
+    window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: newReq }));
+
+    // 3. Sincronizar com Supabase
+    try {
+      const supabasePayload = {
+        id: newReq.id,
+        client_name: newReq.clientName,
+        client_email: newReq.clientEmail,
+        client_phone: newReq.clientPhone,
+        service_category: newReq.category,
+        category: newReq.category,
+        title: newReq.title,
+        description: newReq.description,
+        location: newReq.location,
+        city: newReq.location,
+        postal_code: newReq.postalCode,
+        property_type: newReq.propertyType,
+        urgency: newReq.urgency,
+        budget_range: newReq.budgetRange,
+        photos: JSON.stringify(newReq.photos || []),
+        status: newReq.status,
+        proposals_count: newReq.proposalsCount || 0,
+        assigned_company_id: newReq.assignedCompanyId,
+        assigned_company_name: newReq.assignedCompanyName,
+        created_at: newReq.createdAt,
+        updated_at: newReq.updatedAt
+      };
+
+      await supabase.from('client_service_requests').upsert(supabasePayload);
+    } catch (sbErr) {
+      console.warn('[Storage] Erro ao sincronizar client_service_requests no Supabase:', sbErr);
+    }
+
+    // 4. Notificar administradores / construtores via push e som
+    try {
+      fetch('/api/push/notify-all', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: `Novo Pedido de Orçamento: ${newReq.title} 🛠️`,
+          body: `${newReq.clientName} em ${newReq.location} está a solicitar orçamento para "${newReq.title}". Clique para ver!`,
+          url: '/'
+        })
+      }).catch(() => {});
+    } catch (e) {}
+
+    return { success: true, data: newReq };
+  } catch (err) {
+    console.error('saveClientServiceRequest error:', err);
+    return { success: false, error: err };
+  }
+};
+
+export const deleteClientServiceRequest = async (id: string): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const current = getStoredClientRequests();
+    const filtered = current.filter(r => r.id !== id);
+    saveClientRequestLocally(filtered);
+
+    window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: { id, deleted: true } }));
+
+    try {
+      await supabase.from('client_service_requests').delete().eq('id', id);
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err };
+  }
 };
 
 /**

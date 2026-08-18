@@ -261,6 +261,7 @@ export interface Candidate {
 }
 
 export type HeroVideoType = 'default' | 'youtube' | 'upload';
+export type ActionVideoType = HeroVideoType;
 
 export interface HeroVideoConfig {
   type: HeroVideoType;
@@ -274,19 +275,56 @@ export interface HeroVideoConfig {
   showControls?: boolean;
   updatedAt?: string;
 }
+export type ActionVideoConfig = HeroVideoConfig;
 
-export type ActionVideoType = 'default' | 'youtube' | 'upload';
+export type ClientRequestStatus = 'pending' | 'approved' | 'open' | 'in_progress' | 'completed' | 'cancelled';
 
-export interface ActionVideoConfig {
-  type: ActionVideoType;
-  youtubeUrl?: string;
-  youtubeId?: string;
-  videoUrl?: string;
+export type ServiceCategory = 
+  | 'painting'           // Pintura
+  | 'electrical'         // Eletricidade & Fichas
+  | 'doors_windows'      // Portas & Janelas
+  | 'plumbing'           // Canalização
+  | 'construction'       // Construção do Zero / Alvenaria
+  | 'renovation'         // Remodelação Geral
+  | 'plasterboard'       // Pladur & Teto Falso
+  | 'roofing'            // Telhados & Isolamentos
+  | 'flooring'           // Pisos & Revestimentos
+  | 'carpentry'          // Carpintaria & Marcenaria
+  | 'remodelacao'
+  | 'pintura'
+  | 'eletricidade'
+  | 'canalizacao'
+  | 'carpintaria'
+  | 'construcao_raiz'
+  | 'pladur'
+  | 'telhados'
+  | 'jardim'
+  | 'outro'
+  | 'other';             // Outro Serviço
+
+export interface ClientServiceRequest {
+  id: string;
+  clientName: string;
+  clientEmail: string;
+  clientPhone: string;
+  category: ServiceCategory | string;
   title?: string;
-  autoPlay?: boolean;
-  muted?: boolean;
-  loop?: boolean;
-  showControls?: boolean;
+  projectTitle?: string;
+  description?: string;
+  projectDescription?: string;
+  location?: string;
+  city?: string;
+  postalCode?: string;
+  propertyType?: 'apartment' | 'house' | 'commercial' | 'land' | 'other' | string;
+  urgency?: 'immediate' | 'few_weeks' | 'flexible' | string;
+  budgetRange?: string;
+  estimatedBudget?: string;
+  photos?: string[];
+  status: ClientRequestStatus | string;
+  proposalsCount?: number;
+  assignedCompanyId?: string;
+  assignedCompanyName?: string;
+  createdAt: string;
   updatedAt?: string;
 }
 
