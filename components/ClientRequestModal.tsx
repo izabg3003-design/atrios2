@@ -12,6 +12,7 @@ interface ClientRequestModalProps {
   onClose: () => void;
   locale?: string;
   onSuccess?: (request: ClientServiceRequest) => void;
+  onOpenPortal?: () => void;
 }
 
 const CATEGORIES: { id: ServiceCategory; label: string; icon: React.FC<{ size?: number; className?: string }>; description: string }[] = [
@@ -31,7 +32,8 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   isOpen,
   onClose,
   locale = 'pt-PT',
-  onSuccess
+  onSuccess,
+  onOpenPortal
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [category, setCategory] = useState<ServiceCategory>('doors_windows');
@@ -105,6 +107,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
       if (result.success && result.data) {
         setCreatedRequestId(result.data.id);
+        if (clientPhone) {
+          localStorage.setItem('atrios_client_session_phone', clientPhone.trim());
+        }
         setIsSuccess(true);
         if (onSuccess) onSuccess(result.data);
       } else {
@@ -186,10 +191,21 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 </ul>
               </div>
 
-              <div className="pt-4">
+              <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-center">
+                {onOpenPortal && (
+                  <button
+                    onClick={() => {
+                      handleReset();
+                      onOpenPortal();
+                    }}
+                    className="px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <Sparkles size={16} /> Acompanhar Orçamentos Recebidos
+                  </button>
+                )}
                 <button
                   onClick={handleReset}
-                  className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95"
+                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   Concluir
                 </button>

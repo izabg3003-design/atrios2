@@ -56,6 +56,7 @@ interface LandingPageProps {
   onLogin: () => void;
   onDownloadApp: () => void;
   onOpenLegal: (type: 'terms' | 'privacy') => void;
+  onOpenClientPortal?: () => void;
 }
 
 export const LandingPage: React.FC<LandingPageProps> = ({
@@ -67,7 +68,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onStartFree,
   onLogin,
   onDownloadApp,
-  onOpenLegal
+  onOpenLegal,
+  onOpenClientPortal
 }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showClientRequestModal, setShowClientRequestModal] = useState(false);
@@ -305,6 +307,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
               </div>
 
+              {/* Client Portal Button (Para quem pediu orçamento) */}
+              {onOpenClientPortal && (
+                <button
+                  onClick={onOpenClientPortal}
+                  className="hidden md:flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-2 text-[9px] sm:text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg sm:rounded-xl transition-all shrink-0 cursor-pointer shadow-xs"
+                  title="Acompanhe os seus orçamentos recebidos"
+                >
+                  <FileText size={13} className="text-amber-600" />
+                  <span>Área do Cliente</span>
+                </button>
+              )}
+
               {/* Login Button */}
               <button
                 onClick={onLogin}
@@ -375,19 +389,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   {lt.nav.testimonials}
                 </button>
 
-                <div className="pt-3 border-t border-slate-100 flex gap-2">
-                  <button
-                    onClick={() => { onLogin(); setMobileMenuOpen(false); }}
-                    className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-xs uppercase tracking-wider text-center"
-                  >
-                    {lt.nav.login || t.loginBtn}
-                  </button>
-                  <button
-                    onClick={() => { onStartFree(); setMobileMenuOpen(false); }}
-                    className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow-md text-center"
-                  >
-                    {lt.nav.startFree}
-                  </button>
+                <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                  {onOpenClientPortal && (
+                    <button
+                      onClick={() => { onOpenClientPortal(); setMobileMenuOpen(false); }}
+                      className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl font-black text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2"
+                    >
+                      <FileText size={14} className="text-amber-600" />
+                      Área do Cliente (Ver Orçamentos)
+                    </button>
+                  )}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => { onLogin(); setMobileMenuOpen(false); }}
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-xs uppercase tracking-wider text-center"
+                    >
+                      {lt.nav.login || t.loginBtn}
+                    </button>
+                    <button
+                      onClick={() => { onStartFree(); setMobileMenuOpen(false); }}
+                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow-md text-center"
+                    >
+                      {lt.nav.startFree}
+                    </button>
+                  </div>
                 </div>
               </div>
             </motion.div>
@@ -1572,6 +1597,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         isOpen={showClientRequestModal}
         onClose={() => setShowClientRequestModal(false)}
         locale={locale}
+        onOpenPortal={() => {
+          setShowClientRequestModal(false);
+          if (onOpenClientPortal) onOpenClientPortal();
+        }}
       />
 
     </div>

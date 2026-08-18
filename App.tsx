@@ -4,6 +4,7 @@ import { motion } from 'framer-motion';
 import { Store } from './components/Store';
 import { JobOffers } from './components/JobOffers';
 import { ClientRequestsHub } from './components/ClientRequestsHub';
+import { ClientPortal } from './components/ClientPortal';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
@@ -293,7 +294,7 @@ const App: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(session?.currencyCode as any || 'EUR');
   const t = translations[locale];
 
-  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master'>(session?.view as any || 'landing');
+  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master' | 'client-portal'>(session?.view as any || 'landing');
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs' | 'client_requests'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
@@ -3080,7 +3081,12 @@ const App: React.FC = () => {
 
       <InstallPWA view={view} />
 
-      {view === 'landing' ? (
+      {view === 'client-portal' ? (
+        <ClientPortal
+          onBackToHome={() => setView('landing')}
+          currencyCode={currencyCode}
+        />
+      ) : view === 'landing' ? (
         <LandingPage
           t={t}
           locale={locale}
@@ -3091,6 +3097,7 @@ const App: React.FC = () => {
           onLogin={() => setView('login')}
           onDownloadApp={handlePwaDownload}
           onOpenLegal={(type) => setShowLegalModal(type)}
+          onOpenClientPortal={() => setView('client-portal')}
         />
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">

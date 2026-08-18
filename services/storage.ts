@@ -1734,6 +1734,20 @@ export const getStoredClientRequests = (): ClientServiceRequest[] => {
   }
 };
 
+export const fetchBudgetsFromSupabase = async (): Promise<Budget[]> => {
+  try {
+    const { data, error } = await safeFetch<any[]>(
+      supabase.from('budgets').select('*').order('created_at', { ascending: false })
+    );
+    if (error || !data || !Array.isArray(data)) {
+      return getAllStoredBudgets();
+    }
+    return data.map(mapBudgetFromSupabase);
+  } catch (e) {
+    return getAllStoredBudgets();
+  }
+};
+
 export const saveClientRequestLocally = (requests: ClientServiceRequest[]) => {
   safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(requests));
 };
