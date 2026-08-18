@@ -50,7 +50,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   const [phoneInput, setPhoneInput] = useState('');
   const [accessCodeInput, setAccessCodeInput] = useState('');
   const [loginStep, setLoginStep] = useState<'phone' | 'otp'>('phone');
-  const [simulatedOtp, setSimulatedOtp] = useState<string | null>(null);
   const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [loginError, setLoginError] = useState<string | null>(null);
 
@@ -121,30 +120,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
     setIsLoggingIn(true);
     try {
-      // 1. Fetch requests for this phone from Supabase / Storage to retrieve the exact accessCode
-      const allRequests = await fetchClientRequestsFromSupabase();
-      const clientReqs = allRequests.filter(req => {
-        const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
-        return (
-          reqPhoneClean === clean ||
-          (clean.length >= 7 && reqPhoneClean.includes(clean)) ||
-          (reqPhoneClean.length >= 7 && clean.includes(reqPhoneClean))
-        );
-      });
-
-      // Retrieve existing code if present in Supabase or local storage
-      const savedCode = clientReqs.find(r => r.accessCode)?.accessCode 
-        || localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
-        || (clientReqs.length > 0 ? '1234' : null);
-
-      if (savedCode) {
-        setSimulatedOtp(savedCode);
-      } else {
-        // If it's a new or unlisted phone, generate a 4-digit code
-        const newCode = Math.floor(1000 + Math.random() * 9000).toString();
-        setSimulatedOtp(newCode);
-      }
-
       setLoginStep('otp');
     } catch (err) {
       setLoginError('Não foi possível verificar o contacto. Tente novamente.');
@@ -172,10 +147,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     });
 
     const matchingCode = clientReqs.some(r => r.accessCode === entered)
-      || entered === simulatedOtp
-      || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
-      || entered === '1234'
-      || (simulatedOtp && entered === simulatedOtp);
+      || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`);
 
     if (matchingCode) {
       const finalPhone = phoneInput.trim();
@@ -187,9 +159,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       setLoginStep('phone');
       setPhoneInput('');
       setAccessCodeInput('');
-      setSimulatedOtp(null);
     } else {
-      setLoginError('Código incorreto. Por favor insira o código fornecido no momento do pedido ou fale com o suporte.');
+      setLoginError('Código incorreto. Por favor insira o código fornecido no momento do pedido ou contacte o suporte.');
     }
   };
 
@@ -312,13 +283,18 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 </form>
               ) : (
                 <form onSubmit={handleVerifyAccessCode} className="space-y-4 animate-in fade-in">
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 space-y-1 text-center">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                      Código de Verificação Rápido
-                    </span>
-                    <p className="text-xs text-slate-300">
-                      Seu código de acesso instantâneo é: <span className="font-mono font-black text-amber-400 text-base">{simulatedOtp}</span>
-                    </p>
+                  <div className="bg-slate-950/60 border border-white/10 rounded-2xl p-3.5 flex items-center justify-between text-xs">
+                    <div className="flex items-center gap-2 text-slate-300">
+                      <Phone size={14} className="text-amber-400" />
+                      <span className="font-mono">{phoneInput}</span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => { setLoginStep('phone'); setLoginError(null); }}
+                      className="text-amber-400 hover:text-amber-300 text-[11px] font-bold underline cursor-pointer"
+                    >
+                      Alterar Número
+                    </button>
                   </div>
 
                   <div>
@@ -330,24 +306,28 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       maxLength={4}
                       required
                       value={accessCodeInput}
-                      onChange={(e) => setAccessCodeInput(e.target.value)}
-                      placeholder="0000"
-                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-center text-xl font-mono font-black tracking-widest text-amber-400 focus:border-amber-500 outline-none"
+                      onChange={(e) => setAccessCodeInput(e.target.value.replace(/\D/g, ''))}
+                      placeholder="••••"
+                      className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-center text-2xl font-mono font-black tracking-widest text-amber-400 focus:border-amber-500 outline-none"
                       autoFocus
                     />
+                    <p className="text-[11px] text-slate-500 mt-1.5 text-center">
+                      Insira o código de 4 dígitos recebido ao submeter o seu pedido.
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       type="button"
-                      onClick={() => setLoginStep('phone')}
+                      onClick={() => { setLoginStep('phone'); setLoginError(null); }}
                       className="w-1/3 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl text-xs uppercase transition-all"
                     >
-                      Alterar Número
+                      Voltar
                     </button>
                     <button
                       type="submit"
-                      className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer"
+                      disabled={accessCodeInput.length < 4}
+                      className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                     >
                       Validar & Entrar
                     </button>
