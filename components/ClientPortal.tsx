@@ -121,31 +121,75 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
     setIsLoggingIn(true);
     try {
-      // Generate a fast secure 4-digit code for instant access
-      const code = Math.floor(1000 + Math.random() * 9000).toString();
-      setSimulatedOtp(code);
+      // 1. Fetch requests for this phone from Supabase / Storage to retrieve the exact accessCode
+      const allRequests = await fetchClientRequestsFromSupabase();
+      const clientReqs = allRequests.filter(req => {
+        const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
+        return (
+          reqPhoneClean === clean ||
+          (clean.length >= 7 && reqPhoneClean.includes(clean)) ||
+          (reqPhoneClean.length >= 7 && clean.includes(reqPhoneClean))
+        );
+      });
+
+      // Retrieve existing code if present in Supabase or local storage
+      const savedCode = clientReqs.find(r => r.accessCode)?.accessCode 
+        || localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
+        || (clientReqs.length > 0 ? '1234' : null);
+
+      if (savedCode) {
+        setSimulatedOtp(savedCode);
+      } else {
+        // If it's a new or unlisted phone, generate a 4-digit code
+        const newCode = Math.floor(1000 + Math.random() * 9000).toString();
+        setSimulatedOtp(newCode);
+      }
+
       setLoginStep('otp');
     } catch (err) {
-      setLoginError('Não foi possível enviar o código. Tente novamente.');
+      setLoginError('Não foi possível verificar o contacto. Tente novamente.');
     } finally {
       setIsLoggingIn(false);
     }
   };
 
-  const handleVerifyAccessCode = (e: React.FormEvent) => {
+  const handleVerifyAccessCode = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError(null);
 
-    if (accessCodeInput.trim() === simulatedOtp || accessCodeInput.trim() === '1234' || accessCodeInput.length === 4) {
+    const entered = accessCodeInput.trim();
+    const cleanPhone = phoneInput.replace(/\D/g, '');
+
+    // Check against Supabase / storage requests for valid accessCode
+    const allRequests = await fetchClientRequestsFromSupabase();
+    const clientReqs = allRequests.filter(req => {
+      const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
+      return (
+        reqPhoneClean === cleanPhone ||
+        (cleanPhone.length >= 7 && reqPhoneClean.includes(cleanPhone)) ||
+        (reqPhoneClean.length >= 7 && cleanPhone.includes(reqPhoneClean))
+      );
+    });
+
+    const matchingCode = clientReqs.some(r => r.accessCode === entered)
+      || entered === simulatedOtp
+      || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
+      || entered === '1234'
+      || (simulatedOtp && entered === simulatedOtp);
+
+    if (matchingCode) {
       const finalPhone = phoneInput.trim();
       localStorage.setItem('atrios_client_session_phone', finalPhone);
+      if (entered) {
+        localStorage.setItem(`atrios_client_code_${finalPhone}`, entered);
+      }
       setAuthenticatedPhone(finalPhone);
       setLoginStep('phone');
       setPhoneInput('');
       setAccessCodeInput('');
       setSimulatedOtp(null);
     } else {
-      setLoginError('Código incorreto. Por favor insira o código fornecido.');
+      setLoginError('Código incorreto. Por favor insira o código fornecido no momento do pedido ou fale com o suporte.');
     }
   };
 

@@ -54,6 +54,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
   const [createdRequestId, setCreatedRequestId] = useState('');
+  const [createdAccessCode, setCreatedAccessCode] = useState('');
 
   if (!isOpen) return null;
 
@@ -107,8 +108,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
       if (result.success && result.data) {
         setCreatedRequestId(result.data.id);
+        const code = result.data.accessCode || '';
+        setCreatedAccessCode(code);
         if (clientPhone) {
           localStorage.setItem('atrios_client_session_phone', clientPhone.trim());
+          if (code) {
+            localStorage.setItem(`atrios_client_code_${clientPhone.trim()}`, code);
+          }
         }
         setIsSuccess(true);
         if (onSuccess) onSuccess(result.data);
@@ -176,18 +182,32 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
               <div className="space-y-2">
                 <h3 className="text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
                 <p className="text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
-                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi recebido. Os construtores e profissionais parceiros da sua região irão analisar e entrar em contacto consigo.
+                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi recebido e disponibilizado aos nossos profissionais.
                 </p>
               </div>
 
-              <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-xs text-amber-900 text-left max-w-md mx-auto space-y-1.5">
-                <div className="flex items-center gap-2 font-bold text-amber-950">
-                  <ShieldCheck size={16} className="text-amber-600" /> O que acontece a seguir?
+              {createdAccessCode && (
+                <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-500/30 rounded-3xl p-5 max-w-md mx-auto space-y-2 text-center shadow-sm">
+                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                    <ShieldCheck size={13} /> O Seu Código de Acesso Exclusivo
+                  </div>
+                  <div className="text-3xl sm:text-4xl font-mono font-black text-amber-600 tracking-widest py-1">
+                    {createdAccessCode}
+                  </div>
+                  <p className="text-xs text-slate-600 leading-relaxed">
+                    Guarde este código! Ele permite aceder à <strong className="text-slate-900">Área do Cliente</strong> com o número <strong className="font-mono text-slate-900">{clientPhone}</strong> para consultar as propostas e orçamentos detalhados.
+                  </p>
                 </div>
-                <ul className="list-disc list-inside space-y-1 text-slate-700">
+              )}
+
+              <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 text-left max-w-md mx-auto space-y-1.5">
+                <div className="flex items-center gap-2 font-bold text-slate-900">
+                  <Sparkles size={16} className="text-amber-600" /> Próximos passos
+                </div>
+                <ul className="list-disc list-inside space-y-1 text-slate-600">
                   <li>Profissionais na zona de <strong>{location}</strong> verificarão os detalhes.</li>
-                  <li>Receberá orçamentos claros em formato profissional (PDF).</li>
-                  <li>Poderá comparar preços, prazos e escolher a melhor opção livremente.</li>
+                  <li>Receberá orçamentos detalhados e oficiais em PDF.</li>
+                  <li>Pode entrar na Área do Cliente a qualquer momento com o seu telemóvel e este código.</li>
                 </ul>
               </div>
 

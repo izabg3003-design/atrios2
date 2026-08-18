@@ -340,31 +340,44 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                 <div className="border-t border-slate-100 pt-4 space-y-3">
                   
                   {/* Contact Preview / Reveal */}
-                  <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 flex items-center justify-between gap-2">
-                    <div className="flex items-center gap-2.5 overflow-hidden">
-                      <div className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-700 flex items-center justify-center font-black text-xs shrink-0">
-                        {req.clientName ? req.clientName.charAt(0).toUpperCase() : 'C'}
-                      </div>
-                      <div className="overflow-hidden">
-                        <div className="text-xs font-black text-slate-900 truncate">{req.clientName}</div>
-                        <div className="text-[11px] text-slate-500 font-medium truncate">
-                          {isRevealed ? (
-                            <span className="text-emerald-700 font-bold flex items-center gap-1">
-                              <Phone size={10} /> {req.clientPhone} {req.clientEmail && `• ${req.clientEmail}`}
-                            </span>
-                          ) : (
-                            <span>{req.clientPhone.slice(0, 6)}•••••</span>
-                          )}
+                  <div className="bg-slate-50/80 p-3 rounded-2xl border border-slate-100 space-y-2">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2.5 overflow-hidden">
+                        <div className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-700 flex items-center justify-center font-black text-xs shrink-0">
+                          {req.clientName ? req.clientName.charAt(0).toUpperCase() : 'C'}
+                        </div>
+                        <div className="overflow-hidden">
+                          <div className="text-xs font-black text-slate-900 truncate">{req.clientName}</div>
+                          <div className="text-[11px] text-slate-500 font-medium truncate">
+                            {isRevealed ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1">
+                                <Phone size={10} /> {req.clientPhone} {req.clientEmail && `• ${req.clientEmail}`}
+                              </span>
+                            ) : (
+                              <span>{req.clientPhone.slice(0, 6)}•••••</span>
+                            )}
+                          </div>
                         </div>
                       </div>
+
+                      <button
+                        onClick={() => toggleContactReveal(req.id)}
+                        className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
+                      >
+                        {isRevealed ? 'Ocultar' : 'Ver Contacto'}
+                      </button>
                     </div>
 
-                    <button
-                      onClick={() => toggleContactReveal(req.id)}
-                      className="text-[10px] font-black uppercase tracking-wider px-2.5 py-1 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors shrink-0"
-                    >
-                      {isRevealed ? 'Ocultar' : 'Ver Contacto'}
-                    </button>
+                    {isRevealed && req.accessCode && (
+                      <div className="pt-1.5 border-t border-slate-200/60 flex items-center justify-between text-[11px] bg-amber-50/70 px-2.5 py-1.5 rounded-xl border border-amber-200/50">
+                        <span className="text-slate-600 font-bold flex items-center gap-1">
+                          <ShieldCheck size={13} className="text-amber-600" /> Código de Acesso do Cliente:
+                        </span>
+                        <span className="font-mono font-black text-amber-700 bg-amber-100/80 px-2 py-0.5 rounded text-xs tracking-wider">
+                          {req.accessCode}
+                        </span>
+                      </div>
+                    )}
                   </div>
 
                   {/* Create Estimate Button */}

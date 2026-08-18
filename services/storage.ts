@@ -1705,6 +1705,7 @@ export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest =>
     clientName: String(item.client_name || item.clientName || item.name || ''),
     clientEmail: String(item.client_email || item.clientEmail || item.email || ''),
     clientPhone: String(item.client_phone || item.clientPhone || item.phone || ''),
+    accessCode: item.access_code || item.accessCode || undefined,
     category: (item.category || item.service_category || 'other') as ServiceCategory,
     title: String(item.title || ''),
     description: String(item.description || ''),
@@ -1779,11 +1780,14 @@ export const saveClientServiceRequest = async (
   request: Partial<ClientServiceRequest>
 ): Promise<{ success: boolean; data?: ClientServiceRequest; error?: any }> => {
   try {
+    const accessCode = request.accessCode || Math.floor(1000 + Math.random() * 9000).toString();
+
     const newReq: ClientServiceRequest = {
       id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
       clientName: request.clientName || '',
       clientEmail: request.clientEmail || '',
       clientPhone: request.clientPhone || '',
+      accessCode: accessCode,
       category: request.category || 'other',
       title: request.title || '',
       description: request.description || '',
@@ -1823,6 +1827,7 @@ export const saveClientServiceRequest = async (
         client_name: newReq.clientName,
         client_email: newReq.clientEmail,
         client_phone: newReq.clientPhone,
+        access_code: newReq.accessCode,
         service_category: newReq.category,
         category: newReq.category,
         title: newReq.title,

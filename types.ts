@@ -307,6 +307,7 @@ export interface ClientServiceRequest {
   clientName: string;
   clientEmail: string;
   clientPhone: string;
+  accessCode?: string;
   category: ServiceCategory | string;
   title?: string;
   projectTitle?: string;
