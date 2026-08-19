@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { 
   X, Wrench, Paintbrush, Zap, Home, Hammer, Sparkles, Send, 
   MapPin, Phone, Mail, User, AlertCircle, CheckCircle2, ShieldCheck, 
-  HelpCircle, Camera, Upload, Layers, Calendar, ChevronRight
+  HelpCircle, Camera, Upload, Layers, Calendar, ChevronRight, ArrowLeft
 } from 'lucide-react';
 import { ClientServiceRequest, ServiceCategory } from '../types';
 import { saveClientServiceRequest } from '../services/storage';
@@ -36,20 +36,21 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   onOpenPortal
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
-  const [category, setCategory] = useState<ServiceCategory>('doors_windows');
-  const [title, setTitle] = useState('');
-  const [description, setDescription] = useState('');
-  const [location, setLocation] = useState('');
-  const [postalCode, setPostalCode] = useState('');
-  const [propertyType, setPropertyType] = useState<'apartment' | 'house' | 'commercial' | 'land' | 'other'>('apartment');
-  const [urgency, setUrgency] = useState<'immediate' | 'few_weeks' | 'flexible'>('few_weeks');
-  const [budgetRange, setBudgetRange] = useState('500€ - 2.000€');
-  const [photos, setPhotos] = useState<string[]>([]);
   
-  // Contact Info
+  // Step 1: Personal & Location Details
   const [clientName, setClientName] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientEmail, setClientEmail] = useState('');
+  const [location, setLocation] = useState('');
+  const [postalCode, setPostalCode] = useState('');
+  const [propertyType, setPropertyType] = useState<'apartment' | 'house' | 'commercial' | 'land' | 'other'>('apartment');
+
+  // Step 2: Service Details
+  const [category, setCategory] = useState<ServiceCategory>('doors_windows');
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [urgency, setUrgency] = useState<'immediate' | 'few_weeks' | 'flexible'>('few_weeks');
+  const [photos, setPhotos] = useState<string[]>([]);
   
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -81,10 +82,26 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     setPhotos(prev => prev.filter((_, i) => i !== index));
   };
 
+  const handleAdvanceStep1 = () => {
+    if (!clientName.trim()) {
+      alert('Por favor introduza o seu Nome.');
+      return;
+    }
+    if (!clientPhone.trim()) {
+      alert('Por favor introduza o seu Telemóvel / WhatsApp para envio dos orçamentos.');
+      return;
+    }
+    if (!location.trim()) {
+      alert('Por favor introduza a Cidade ou Concelho da obra.');
+      return;
+    }
+    setStep(2);
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!title.trim() || !clientName.trim() || !clientPhone.trim() || !location.trim()) {
-      alert('Por favor preencha todos os campos obrigatórios (Nome, Telefone, Localidade e Título do Pedido).');
+    if (!title.trim()) {
+      alert('Por favor indique um resumo ou título para o seu pedido de serviço.');
       return;
     }
 
@@ -101,7 +118,6 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         postalCode: postalCode.trim() || undefined,
         propertyType,
         urgency,
-        budgetRange,
         photos,
         status: 'pending'
       });
@@ -147,26 +163,44 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       <div className="bg-white text-slate-900 w-full max-w-2xl rounded-3xl sm:rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between shrink-0 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-orange-500 via-amber-500 to-amber-600 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between shrink-0 relative overflow-hidden">
           <div className="absolute -right-6 -bottom-6 opacity-15">
             <Hammer size={120} />
           </div>
 
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider mb-1.5">
-              <Sparkles size={12} /> 100% Gratuito & Sem Compromisso
+          <div className="relative z-10 flex-1 pr-3 sm:pr-4">
+            <div className="flex flex-wrap items-center gap-2.5 mb-2">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-[11px] font-black uppercase tracking-wider">
+                <Sparkles size={13} /> 100% Gratuito & Sem Compromisso
+              </div>
+
+              {onOpenPortal && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    onClose();
+                    onOpenPortal();
+                  }}
+                  className="inline-flex items-center gap-2 px-4 py-1.5 sm:py-2 rounded-full bg-slate-950 hover:bg-black text-amber-300 hover:text-amber-200 text-xs sm:text-sm font-black tracking-wide transition-all border-2 border-amber-400 shadow-md hover:shadow-lg active:scale-95 cursor-pointer ring-2 ring-amber-400/30"
+                  title="Aceder à Área do Cliente para ver orçamentos"
+                >
+                  <ShieldCheck size={16} className="text-amber-400 shrink-0" />
+                  <span>Já tem código? Fazer Login</span>
+                  <ChevronRight size={15} className="text-amber-400 shrink-0" />
+                </button>
+              )}
             </div>
             <h2 className="text-xl sm:text-2xl font-black tracking-tight">
-              Pedir Orçamento para Obra ou Reparação
+              Pedir Orçamento Grátis
             </h2>
-            <p className="text-white/85 text-xs sm:text-sm font-medium mt-0.5">
-              Receba propostas detalhadas de profissionais qualificados do ÁTRIOS BUILD
+            <p className="text-white/90 text-xs sm:text-sm font-medium mt-0.5">
+              Receba propostas e orçamentos detalhados de profissionais qualificados
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0"
+            className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0 cursor-pointer"
           >
             <X size={22} />
           </button>
@@ -175,27 +209,27 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         {/* Modal Content */}
         <div className="p-5 sm:p-8 overflow-y-auto flex-1 space-y-6">
           {isSuccess ? (
-            <div className="text-center py-8 space-y-5 animate-in zoom-in-95 duration-300">
+            <div className="text-center py-6 space-y-5 animate-in zoom-in-95 duration-300">
               <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
                 <CheckCircle2 size={46} />
               </div>
               <div className="space-y-2">
                 <h3 className="text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
                 <p className="text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
-                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi recebido e disponibilizado aos nossos profissionais.
+                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi registado e enviado para os profissionais da sua zona.
                 </p>
               </div>
 
               {createdAccessCode && (
-                <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-500/30 rounded-3xl p-5 max-w-md mx-auto space-y-2 text-center shadow-sm">
-                  <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
-                    <ShieldCheck size={13} /> O Seu Código de Acesso Exclusivo
+                <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-slate-50 border-2 border-amber-500/40 rounded-3xl p-6 max-w-md mx-auto space-y-3 text-center shadow-md">
+                  <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
+                    <ShieldCheck size={14} /> O Seu Código de Acesso Exclusivo
                   </div>
-                  <div className="text-3xl sm:text-4xl font-mono font-black text-amber-600 tracking-widest py-1">
+                  <div className="text-3xl sm:text-4xl font-mono font-black text-amber-600 tracking-widest py-1 bg-white rounded-2xl border border-amber-200 shadow-inner">
                     {createdAccessCode}
                   </div>
-                  <p className="text-xs text-slate-600 leading-relaxed">
-                    Guarde este código! Ele permite aceder à <strong className="text-slate-900">Área do Cliente</strong> com o número <strong className="font-mono text-slate-900">{clientPhone}</strong> para consultar as propostas e orçamentos detalhados.
+                  <p className="text-xs text-slate-600 leading-relaxed font-medium">
+                    Guarde este código! Ele dá-lhe acesso imediato à área exclusiva do <strong className="text-slate-950">Portal do Cliente ÁTRIOS</strong> para acompanhar orçamentos, aprovar propostas e falar com os profissionais.
                   </p>
                 </div>
               )}
@@ -205,27 +239,27 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   <Sparkles size={16} className="text-amber-600" /> Próximos passos
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-slate-600">
-                  <li>Profissionais na zona de <strong>{location}</strong> verificarão os detalhes.</li>
-                  <li>Receberá orçamentos detalhados e oficiais em PDF.</li>
-                  <li>Pode entrar na Área do Cliente a qualquer momento com o seu telemóvel e este código.</li>
+                  <li>Profissionais na zona de <strong>{location}</strong> vão analisar o seu pedido.</li>
+                  <li>Receberá notificações no telemóvel <strong>{clientPhone}</strong> quando tiver novos orçamentos.</li>
+                  <li>Pode aceder ao Portal do Cliente a qualquer momento para ver os orçamentos em PDF.</li>
                 </ul>
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-center">
+              <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
                 {onOpenPortal && (
                   <button
                     onClick={() => {
                       handleReset();
                       onOpenPortal();
                     }}
-                    className="px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-orange-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Sparkles size={16} /> Acompanhar Orçamentos Recebidos
+                    <Sparkles size={16} /> Aceder ao Portal do Cliente ÁTRIOS
                   </button>
                 )}
                 <button
                   onClick={handleReset}
-                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   Concluir
                 </button>
@@ -237,27 +271,199 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
               {/* Step indicator */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-4">
                 <div className="flex items-center gap-2">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${step === 1 ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-white'}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-colors ${step === 1 ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-white'}`}>
                     1
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800">O que precisa de fazer?</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800">1. Informações Pessoais</span>
                 </div>
                 <div className="w-12 h-[2px] bg-slate-200" />
                 <div className="flex items-center gap-2">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${step === 2 ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-500'}`}>
+                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black transition-colors ${step === 2 ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-500'}`}>
                     2
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800">Localização e Contacto</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800">2. Detalhes do Serviço</span>
                 </div>
               </div>
 
+              {/* STEP 1: Personal & Contact Information */}
               {step === 1 && (
+                <div className="space-y-5 animate-in fade-in duration-300">
+                  
+                  {/* Option for clients who already have a request / code */}
+                  <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-slate-800">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+                        <ShieldCheck size={22} />
+                      </div>
+                      <div className="text-left">
+                        <p className="text-xs font-black text-white">Já fez uma solicitação anteriormente?</p>
+                        <p className="text-[11px] text-slate-300">Aceda ao Portal do Cliente para consultar e aprovar orçamentos.</p>
+                      </div>
+                    </div>
+                    {onOpenPortal && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenPortal();
+                        }}
+                        className="w-full sm:w-auto px-4 py-2.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white text-xs font-black uppercase tracking-wider rounded-xl transition-all shadow-sm shrink-0 flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
+                      >
+                        Entrar no Portal <ChevronRight size={14} />
+                      </button>
+                    )}
+                  </div>
+
+                  <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
+                    <User size={18} className="text-amber-600 shrink-0 mt-0.5" />
+                    <div>
+                      <p className="font-bold">Novo Pedido: Identificação do Cliente</p>
+                      <p className="text-amber-800 mt-0.5 leading-relaxed">
+                        Indique os seus dados para que os profissionais da sua zona possam entrar em contacto e enviar-lhe orçamentos detalhados.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Name and Phone */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        O seu Nome Completo *
+                      </label>
+                      <div className="relative">
+                        <User size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={clientName}
+                          onChange={e => setClientName(e.target.value)}
+                          placeholder="Ex: João Santos"
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        Telemóvel / WhatsApp *
+                      </label>
+                      <div className="relative">
+                        <Phone size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                        <input
+                          type="tel"
+                          required
+                          value={clientPhone}
+                          onChange={e => setClientPhone(e.target.value)}
+                          placeholder="Ex: 912 345 678"
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Email */}
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                      Email (Opcional — para receber orçamentos em PDF)
+                    </label>
+                    <div className="relative">
+                      <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                      <input
+                        type="email"
+                        value={clientEmail}
+                        onChange={e => setClientEmail(e.target.value)}
+                        placeholder="Ex: seuemail@exemplo.com"
+                        className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Location & Postal Code */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="sm:col-span-2">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        Cidade / Concelho da Obra *
+                      </label>
+                      <div className="relative">
+                        <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
+                        <input
+                          type="text"
+                          required
+                          value={location}
+                          onChange={e => setLocation(e.target.value)}
+                          placeholder="Ex: Lisboa, Porto, Sintra, Braga..."
+                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
+                        />
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                        Código Postal
+                      </label>
+                      <input
+                        type="text"
+                        value={postalCode}
+                        onChange={e => setPostalCode(e.target.value)}
+                        placeholder="Ex: 1000-001"
+                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
+                      />
+                    </div>
+                  </div>
+
+                  {/* Property Type */}
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                      Tipo de Imóvel
+                    </label>
+                    <select
+                      value={propertyType}
+                      onChange={e => setPropertyType(e.target.value as any)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                    >
+                      <option value="apartment">Apartamento</option>
+                      <option value="house">Moradia</option>
+                      <option value="commercial">Comércio / Escritório</option>
+                      <option value="land">Terreno</option>
+                      <option value="other">Outro</option>
+                    </select>
+                  </div>
+
+                  <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
+                    {onOpenPortal ? (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          onClose();
+                          onOpenPortal();
+                        }}
+                        className="text-xs font-bold text-slate-500 hover:text-orange-600 transition-colors flex items-center gap-1 cursor-pointer order-2 sm:order-1"
+                      >
+                        <ShieldCheck size={14} className="text-amber-500" /> Já tem código? Aceder ao Portal do Cliente
+                      </button>
+                    ) : (
+                      <div className="order-2 sm:order-1" />
+                    )}
+
+                    <button
+                      type="button"
+                      onClick={handleAdvanceStep1}
+                      className="w-full sm:w-auto px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer order-1 sm:order-2"
+                    >
+                      Avançar para Detalhes do Serviço <ChevronRight size={16} />
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* STEP 2: Service Details */}
+              {step === 2 && (
                 <div className="space-y-5 animate-in fade-in duration-300">
                   
                   {/* Category Selection */}
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2.5">
-                      1. Selecione o Tipo de Serviço *
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2.5">
+                      1. Selecione o Tipo de Serviço Desejado *
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       {CATEGORIES.map(cat => {
@@ -268,13 +474,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                             type="button"
                             key={cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                            className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                               isSelected
-                                ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 shadow-sm'
+                                ? 'border-orange-500 bg-orange-50/80 text-orange-950 ring-2 ring-orange-500/20 shadow-sm'
                                 : 'border-slate-200 hover:border-slate-300 bg-slate-50/60 text-slate-700'
                             }`}
                           >
-                            <div className={`p-2 rounded-xl w-fit mb-2 ${isSelected ? 'bg-amber-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
+                            <div className={`p-2 rounded-xl w-fit mb-2 ${isSelected ? 'bg-orange-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
                               <Icon size={18} />
                             </div>
                             <div>
@@ -297,7 +503,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       required
                       value={title}
                       onChange={e => setTitle(e.target.value)}
-                      placeholder="Ex: Troca de 1 porta de entrada e reparação de tomada na cozinha"
+                      placeholder="Ex: Troca de 2 janelas em alumínio e pintura da sala"
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
                     />
                   </div>
@@ -311,15 +517,31 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       rows={3}
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder="Explique com mais detalhe o que precisa (medidas aproximadas, estado atual, se já comprou o material ou precisa com fornecimento incluído)..."
+                      placeholder="Explique o que precisa (medidas aproximadas, estado atual, se inclui materiais ou só mão de obra)..."
                       className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none"
                     />
+                  </div>
+
+                  {/* Urgency */}
+                  <div>
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
+                      4. Urgência do Serviço
+                    </label>
+                    <select
+                      value={urgency}
+                      onChange={e => setUrgency(e.target.value as any)}
+                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                    >
+                      <option value="few_weeks">Nas próximas semanas</option>
+                      <option value="immediate">Urgente / O mais rápido possível</option>
+                      <option value="flexible">Apenas a consultar preços / Sem pressa</option>
+                    </select>
                   </div>
 
                   {/* Photo Upload (Optional) */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                      4. Fotografias do Local (Opcional - Ajuda a orçamentar melhor)
+                      5. Fotografias do Local (Opcional - Ajuda a orçamentar melhor)
                     </label>
                     <div className="flex flex-wrap items-center gap-3">
                       {photos.map((p, idx) => (
@@ -344,166 +566,26 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     </div>
                   </div>
 
-                  <div className="pt-2 flex justify-end">
-                    <button
-                      type="button"
-                      disabled={!title.trim()}
-                      onClick={() => setStep(2)}
-                      className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
-                    >
-                      Avançar para Contacto <ChevronRight size={16} />
-                    </button>
-                  </div>
-                </div>
-              )}
-
-              {step === 2 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
-                  
-                  {/* Property & Urgency */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Tipo de Imóvel
-                      </label>
-                      <select
-                        value={propertyType}
-                        onChange={e => setPropertyType(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
-                      >
-                        <option value="apartment">Apartamento</option>
-                        <option value="house">Moradia</option>
-                        <option value="commercial">Comércio / Escritório</option>
-                        <option value="land">Terreno</option>
-                        <option value="other">Outro</option>
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Urgência do Serviço
-                      </label>
-                      <select
-                        value={urgency}
-                        onChange={e => setUrgency(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
-                      >
-                        <option value="few_weeks">Nas próximas semanas</option>
-                        <option value="immediate">Urgente / O mais rápido possível</option>
-                        <option value="flexible">Apenas a consultar preços / Sem pressa</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  {/* Location */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                    <div className="sm:col-span-2">
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Cidade / Concelho da Obra *
-                      </label>
-                      <div className="relative">
-                        <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                        <input
-                          type="text"
-                          required
-                          value={location}
-                          onChange={e => setLocation(e.target.value)}
-                          placeholder="Ex: Lisboa, Porto, Sintra, Braga..."
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Código Postal
-                      </label>
-                      <input
-                        type="text"
-                        value={postalCode}
-                        onChange={e => setPostalCode(e.target.value)}
-                        placeholder="Ex: 1000-001"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                      >
-                      </input>
-                    </div>
-                  </div>
-
-                  {/* Contact details */}
-                  <div className="border-t border-slate-100 pt-4 space-y-4">
-                    <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                      <User size={14} className="text-amber-600" /> Os seus dados de contacto para envio de orçamentos
-                    </h4>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          O seu Nome *
-                        </label>
-                        <input
-                          type="text"
-                          required
-                          value={clientName}
-                          onChange={e => setClientName(e.target.value)}
-                          placeholder="Nome e Sobrenome"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Telemóvel / WhatsApp *
-                        </label>
-                        <div className="relative">
-                          <Phone size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                          <input
-                            type="tel"
-                            required
-                            value={clientPhone}
-                            onChange={e => setClientPhone(e.target.value)}
-                            placeholder="Ex: +351 912 345 678"
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                          />
-                        </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Email (Opcional - para receber cópia em PDF)
-                      </label>
-                      <div className="relative">
-                        <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
-                        <input
-                          type="email"
-                          value={clientEmail}
-                          onChange={e => setClientEmail(e.target.value)}
-                          placeholder="seuemail@exemplo.com"
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                        />
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="pt-2 flex items-center justify-between gap-3">
+                  {/* Navigation Buttons */}
+                  <div className="pt-3 flex items-center justify-between gap-3">
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="px-4 py-3 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors"
+                      className="px-5 py-3 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors flex items-center gap-2 cursor-pointer"
                     >
-                      Voltar
+                      <ArrowLeft size={16} /> Voltar aos Contactos
                     </button>
 
                     <button
                       type="submit"
-                      disabled={submitting || !clientName.trim() || !clientPhone.trim() || !location.trim()}
-                      className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center gap-2"
+                      disabled={submitting || !title.trim()}
+                      className="px-8 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 disabled:opacity-50 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-orange-500/25 active:scale-95 flex items-center gap-2 cursor-pointer"
                     >
                       {submitting ? (
-                        'A enviar pedido...'
+                        'A registar pedido...'
                       ) : (
                         <>
-                          <Send size={16} /> Submeter Pedido de Orçamento
+                          <Send size={16} /> Submeter Pedido & Obter Código 🚀
                         </>
                       )}
                     </button>
@@ -518,4 +600,5 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     </div>
   );
 };
+
 export default ClientRequestModal;

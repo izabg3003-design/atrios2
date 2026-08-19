@@ -1,36 +1,59 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <radialGradient id="bgOrangeFav" cx="50%" cy="50%" r="50%">
-      <stop offset="0%" stopColor="#f97316"/>
-      <stop offset="100%" stopColor="#ea580c"/>
-    </radialGradient>
-    
-    <linearGradient id="metalGradFav" x1="20" y1="20" x2="180" y2="180" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#f8fafc"/>
-      <stop offset="25%" stopColor="#e2e8f0"/>
-      <stop offset="50%" stopColor="#cbd5e1"/>
-      <stop offset="75%" stopColor="#94a3b8"/>
-      <stop offset="100%" stopColor="#e2e8f0"/>
+    <!-- Background Orange Gradient -->
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FB923C"/>
+      <stop offset="40%" stop-color="#F97316"/>
+      <stop offset="100%" stop-color="#EA580C"/>
     </linearGradient>
 
-    <linearGradient id="metalHighlightFav" x1="0" y1="0" x2="200" y2="100" gradientUnits="userSpaceOnUse">
-      <stop offset="0%" stopColor="#ffffff" stopOpacity="0.9"/>
-      <stop offset="50%" stopColor="#ffffff" stopOpacity="0.2"/>
-      <stop offset="100%" stopColor="#64748b" stopOpacity="0.5"/>
+    <!-- Metallic Brushed Silver Gradient -->
+    <linearGradient id="metalPlate" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFFFFF"/>
+      <stop offset="20%" stop-color="#F1F5F9"/>
+      <stop offset="50%" stop-color="#CBD5E1"/>
+      <stop offset="75%" stop-color="#94A3B8"/>
+      <stop offset="100%" stop-color="#E2E8F0"/>
+    </linearGradient>
+
+    <!-- Inner Cutout Shadow -->
+    <linearGradient id="cutoutOrange" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#C2410C"/>
+      <stop offset="100%" stop-color="#EA580C"/>
     </linearGradient>
   </defs>
 
-  <!-- Metallic Squircle -->
-  <rect x="10" y="10" width="180" height="180" rx="54" fill="url(#metalGradFav)" stroke="url(#metalHighlightFav)" stroke-width="3"/>
+  <!-- Base Vibrant Orange Background -->
+  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
 
-  <!-- Construction Barrier Cutout -->
-  <rect x="62" y="52" width="16" height="96" rx="8" fill="url(#bgOrangeFav)"/>
-  <rect x="122" y="52" width="16" height="96" rx="8" fill="url(#bgOrangeFav)"/>
-  <rect x="42" y="70" width="116" height="60" rx="14" fill="url(#metalGradFav)" stroke="url(#bgOrangeFav)" stroke-width="5"/>
-  <rect x="48" y="76" width="104" height="48" rx="10" fill="url(#bgOrangeFav)"/>
+  <!-- Metallic Silver Squircle Plate -->
+  <!-- Subtle Plate Shadow -->
+  <rect x="70" y="78" width="372" height="372" rx="92" fill="#9A3412" opacity="0.35"/>
+  <!-- Silver Plate Body -->
+  <rect x="70" y="70" width="372" height="372" rx="90" fill="url(#metalPlate)" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9"/>
 
-  <!-- Diagonal Stripes -->
-  <path d="M56 124 L76 76 L90 76 L70 124 Z" fill="url(#metalGradFav)"/>
-  <path d="M84 124 L104 76 L118 76 L98 124 Z" fill="url(#metalGradFav)"/>
-  <path d="M112 124 L132 76 L146 76 L126 124 Z" fill="url(#metalGradFav)"/>
+  <!-- Construction Barrier Cutout Shape -->
+  <!-- Left Vertical Leg Cutout -->
+  <rect x="182" y="160" width="32" height="192" rx="16" fill="url(#cutoutOrange)"/>
+  <!-- Right Vertical Leg Cutout -->
+  <rect x="298" y="160" width="32" height="192" rx="16" fill="url(#cutoutOrange)"/>
+
+  <!-- Main Horizontal Barrier Frame (Silver with cutout center) -->
+  <rect x="136" y="200" width="240" height="112" rx="28" fill="url(#metalPlate)" stroke="url(#cutoutOrange)" stroke-width="10"/>
+
+  <!-- Barrier Center Cutout Channel (Orange) -->
+  <rect x="148" y="212" width="216" height="88" rx="20" fill="url(#cutoutOrange)"/>
+
+  <!-- Diagonal Silver Stripes inside the barrier -->
+  <g fill="url(#metalPlate)" stroke="#FFFFFF" stroke-width="2">
+    <!-- Stripe 1 -->
+    <polygon points="166,300 206,212 236,212 196,300"/>
+    <!-- Stripe 2 -->
+    <polygon points="224,300 264,212 294,212 254,300"/>
+    <!-- Stripe 3 -->
+    <polygon points="282,300 322,212 352,212 312,300"/>
+  </g>
+
+  <!-- Barrier Top & Edge Highlights for 3D realism -->
+  <rect x="136" y="200" width="240" height="112" rx="28" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.7"/>
 </svg>

@@ -48,8 +48,8 @@ try {
 
     const options = {
       body: body,
-      icon: payload.notification?.icon || payload.data?.icon || '/favicon.svg',
-      badge: '/favicon.svg',
+      icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
+      badge: '/icon-192.png',
       vibrate: [200, 100, 200, 100, 300],
       tag: payload.data?.tag || ('atrios-push-' + encodeURIComponent(title)),
       renotify: true,
@@ -101,10 +101,10 @@ self.addEventListener('push', (event) => {
       }
     }
 
-    let title = 'Átrios App';
+    let title = 'ÁTRIOS BUILD';
     let body = 'Você tem uma nova atualização.';
-    let icon = '/favicon.svg';
-    let badge = '/favicon.svg';
+    let icon = '/icon-192.png';
+    let badge = '/icon-192.png';
     let tag = 'atrios-push-default';
     let additionalData = {};
 

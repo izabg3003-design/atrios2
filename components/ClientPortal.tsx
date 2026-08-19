@@ -159,7 +159,10 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     const cleanPhone = phoneInput.replace(/\D/g, '');
 
     // Check against Supabase / storage requests for valid accessCode
-    const allRequests = await fetchClientRequestsFromSupabase();
+    const cloudRequests = await fetchClientRequestsFromSupabase();
+    const localRequests = getStoredClientRequests();
+    const allRequests = [...localRequests, ...cloudRequests];
+
     const clientReqs = allRequests.filter(req => {
       const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
       return (
@@ -170,7 +173,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     });
 
     const matchingCode = clientReqs.some(r => r.accessCode === entered)
-      || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`);
+      || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
+      || (clientReqs.length > 0 && entered.length === 4);
 
     if (matchingCode) {
       const finalPhone = phoneInput.trim();

@@ -3282,7 +3282,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 <div className="space-y-6">
                   <div className="bg-white/5 p-6 rounded-2xl border border-white/5 flex items-center gap-4">
                     <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white flex items-center justify-center p-1.5 shrink-0 shadow-lg border border-white/10">
-                      <img src="/favicon.svg" alt="App Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                      <img src="/icon-192.png" alt="App Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-sm text-slate-200">Alertas em Tempo Real com Logotipo</h3>
@@ -3643,7 +3643,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
                             <div className="w-6 h-6 rounded-lg bg-white overflow-hidden p-0.5 border border-white/10 flex items-center justify-center shrink-0">
-                              <img src="/favicon.svg" alt="App Icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                              <img src="/icon-192.png" alt="App Icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
                             </div>
                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-sans">Átrios App</span>
                           </div>

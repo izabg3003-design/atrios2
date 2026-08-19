@@ -116,11 +116,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   }, []);
 
   const handleOpenClientRequest = () => {
-    if (onOpenClientPortal) {
-      onOpenClientPortal();
-    } else {
-      setShowClientRequestModal(true);
-    }
+    setShowClientRequestModal(true);
   };
 
   const scrollToSection = (id: string) => {
@@ -229,6 +225,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               )}
             </div>
 
+            {/* Portal do Cliente Login Button */}
+            {onOpenClientPortal && (
+              <button
+                onClick={onOpenClientPortal}
+                className="px-3.5 py-2 text-xs font-black text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100/90 border border-amber-200/90 rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm"
+                title="Aceder à área de orçamentos do cliente"
+              >
+                <ShieldCheck size={14} className="text-amber-600" />
+                <span>Portal do Cliente</span>
+              </button>
+            )}
+
             {/* Login Button */}
             <button
               onClick={onLogin}
@@ -312,6 +320,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </nav>
 
             <div className="pt-4 border-t border-slate-100 flex flex-col gap-2.5">
+              {onOpenClientPortal && (
+                <button
+                  onClick={() => { setMobileMenuOpen(false); onOpenClientPortal(); }}
+                  className="w-full py-3 text-xs font-black text-amber-700 bg-amber-50 border border-amber-200 rounded-xl uppercase tracking-wider flex items-center justify-center gap-2 cursor-pointer shadow-sm"
+                >
+                  <ShieldCheck size={16} className="text-amber-600" /> Portal do Cliente (Login)
+                </button>
+              )}
               <button
                 onClick={() => { setMobileMenuOpen(false); onLogin(); }}
                 className="w-full py-3 text-xs font-black text-slate-800 bg-slate-100 rounded-xl uppercase tracking-wider"
@@ -846,13 +862,24 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* CTA Button */}
-            <button
-              onClick={handleOpenClientRequest}
-              className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
-            >
-              <span>{lt.dualCards.client.cta}</span>
-              <ArrowRight size={18} />
-            </button>
+            <div className="space-y-2">
+              <button
+                onClick={handleOpenClientRequest}
+                className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+              >
+                <span>{lt.dualCards.client.cta}</span>
+                <ArrowRight size={18} />
+              </button>
+              {onOpenClientPortal && (
+                <button
+                  onClick={onOpenClientPortal}
+                  className="w-full py-2.5 text-xs font-bold text-amber-700 hover:text-amber-800 bg-amber-50/80 hover:bg-amber-100/90 border border-amber-200/70 rounded-xl transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                >
+                  <ShieldCheck size={14} className="text-amber-600" />
+                  <span>Já pediu orçamento? Entrar no Portal do Cliente</span>
+                </button>
+              )}
+            </div>
 
           </div>
 
@@ -1298,6 +1325,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     <span>Instalar App Mobile</span>
                   </button>
                 </li>
+                {onOpenClientPortal && (
+                  <li>
+                    <button 
+                      onClick={onOpenClientPortal} 
+                      className="hover:text-amber-600 text-amber-700 font-black transition-colors text-left flex items-center gap-1.5"
+                    >
+                      <ShieldCheck size={13} className="text-amber-600" />
+                      <span>Portal do Cliente (Login)</span>
+                    </button>
+                  </li>
+                )}
               </ul>
             </div>
 
@@ -1321,8 +1359,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         <ClientRequestModal
           isOpen={showClientRequestModal}
           onClose={() => setShowClientRequestModal(false)}
-          onRequestSubmitted={() => {
+          locale={locale}
+          onOpenPortal={() => {
             setShowClientRequestModal(false);
+            if (onOpenClientPortal) onOpenClientPortal();
           }}
         />
       )}
