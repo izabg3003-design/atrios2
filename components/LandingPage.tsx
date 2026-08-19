@@ -1,50 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
-  Construction, 
-  ArrowRight, 
-  Check, 
-  X, 
-  Play, 
-  FileText, 
-  ClipboardList, 
-  BarChart3, 
-  CreditCard, 
-  Smartphone, 
-  Globe, 
-  Coins, 
-  Star, 
-  Zap, 
-  Paintbrush, 
-  Wrench, 
-  Hammer, 
-  Home, 
-  Plus, 
-  Download, 
-  CheckCircle2, 
-  Facebook, 
-  Twitter, 
-  Mail,
-  Youtube,
-  Film,
-  Menu,
-  LogIn,
-  Sparkles
+  ArrowRight, Check, X, ChevronDown, 
+  FileText, Hammer, Users, Layers, 
+  CreditCard, BarChart3, Inbox, Send, 
+  FolderArchive, Smartphone, ShieldCheck, 
+  UserCheck, Laptop, Globe, MessageCircle, 
+  FileSpreadsheet, Folder, Clock, CheckCircle2, 
+  TrendingUp, HardHat, FileCheck2, Headphones, 
+  Sparkles, RefreshCw, Star, Menu, ExternalLink,
+  ChevronRight, Building2, MapPin, Search,
+  Play, Pause, Maximize2, Volume2, VolumeX,
+  Video, Eye, CheckCircle
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
-import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
+import { CurrencyCode, HeroVideoConfig } from '../types';
 import { landingTranslations } from './landingTranslations';
-import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId } from '../services/storage';
 import { ClientRequestModal } from './ClientRequestModal';
-
-// Direct asset imports to guarantee bundling across all deployment platforms and subdomains
-import imgContractors from '../src/assets/images/icon_contractors_3d_1786791815873.jpg';
-import imgMasons from '../src/assets/images/icon_masons_3d_1786791826121.jpg';
-import imgPainters from '../src/assets/images/icon_painters_3d_1786791837702.jpg';
-import imgElectricians from '../src/assets/images/icon_electricians_3d_1786791848583.jpg';
-import imgPlumbers from '../src/assets/images/icon_plumbers_3d_1786791859722.jpg';
-import imgRemodelers from '../src/assets/images/icon_remodelers_3d_1786791870778.jpg';
-import imgDevicesMockup from '../src/assets/images/atrios_devices_mockup_1786792141168.jpg';
+import { getStoredHeroVideoConfig, extractYouTubeId } from '../services/storage';
 
 interface LandingPageProps {
   t: Translation;
@@ -59,6 +31,16 @@ interface LandingPageProps {
   onOpenClientPortal?: () => void;
 }
 
+const LANGUAGES: { code: Locale; label: string; flag: string }[] = [
+  { code: 'pt-PT', label: 'Português (PT)', flag: '🇵🇹' },
+  { code: 'pt-BR', label: 'Português (BR)', flag: '🇧🇷' },
+  { code: 'en-US', label: 'English', flag: '🇺🇸' },
+  { code: 'es-ES', label: 'Español', flag: '🇪🇸' },
+  { code: 'fr-FR', label: 'Français', flag: '🇫🇷' },
+  { code: 'it-IT', label: 'Italiano', flag: '🇮🇹' },
+  { code: 'ru-RU', label: 'Русский', flag: '🇷🇺' }
+];
+
 export const LandingPage: React.FC<LandingPageProps> = ({
   t,
   locale,
@@ -71,31 +53,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenLegal,
   onOpenClientPortal
 }) => {
-  const [showDemoModal, setShowDemoModal] = useState(false);
   const [showClientRequestModal, setShowClientRequestModal] = useState(false);
-  const [demoStep, setDemoStep] = useState(0);
-  const [isScrolled, setIsScrolled] = useState(false);
+  const [showVideoModal, setShowVideoModal] = useState(false);
+  const [isPlayingHeroInline, setIsPlayingHeroInline] = useState(false);
+  const [heroViewMode, setHeroViewMode] = useState<'video' | 'app'>('video');
+  const [langDropdownOpen, setLangDropdownOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [isScrolled, setIsScrolled] = useState(false);
   const [heroVideo, setHeroVideo] = useState<HeroVideoConfig>(getStoredHeroVideoConfig);
-  const [actionVideo, setActionVideo] = useState<ActionVideoConfig>(getStoredActionVideoConfig);
-  const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('interactive');
+  const langMenuRef = useRef<HTMLDivElement>(null);
 
-  // Get landing translations for the active locale (fallback to pt-PT)
+  // Active translations
   const lt = landingTranslations[locale] || landingTranslations['pt-PT'];
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 20) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 20);
     };
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
-  // Listen for Hero Video settings changes in real-time
+  // Listen for real-time changes to the Hero Video from Master Panel
   useEffect(() => {
     const updateHeroVideo = () => {
       setHeroVideo(getStoredHeroVideoConfig());
@@ -124,1486 +103,1165 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     };
   }, []);
 
-  // Listen for Action Video settings changes in real-time
+  // Close language dropdown when clicking outside
   useEffect(() => {
-    const updateActionVideo = () => {
-      setActionVideo(getStoredActionVideoConfig());
-    };
-
-    const handleCustomEvent = (e: any) => {
-      if (e.detail) {
-        setActionVideo(e.detail);
-      } else {
-        updateActionVideo();
+    const handleClickOutside = (event: MouseEvent) => {
+      if (langMenuRef.current && !langMenuRef.current.contains(event.target as Node)) {
+        setLangDropdownOpen(false);
       }
     };
-
-    const handleStorageEvent = (e: StorageEvent) => {
-      if (e.key === 'atrios_action_video_config') {
-        updateActionVideo();
-      }
-    };
-
-    window.addEventListener('atrios_action_video_changed', handleCustomEvent);
-    window.addEventListener('storage', handleStorageEvent);
-
-    return () => {
-      window.removeEventListener('atrios_action_video_changed', handleCustomEvent);
-      window.removeEventListener('storage', handleStorageEvent);
-    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  // Auto advance demo modal if open
-  useEffect(() => {
-    let timer: NodeJS.Timeout;
-    if (showDemoModal) {
-      timer = setInterval(() => {
-        setDemoStep(prev => (prev + 1) % 4);
-      }, 4500);
-    }
-    return () => clearInterval(timer);
-  }, [showDemoModal]);
-
-  const currencySymbol = CURRENCIES[currencyCode]?.symbol || '€';
-  const [failedImages, setFailedImages] = useState<Record<string, boolean>>({});
-
-  const professions = [
-    { 
-      name: lt.whoFor.professions.contractors, 
-      image: imgContractors || '/professions/contractors.jpg', 
-      icon: Hammer, 
-      color: 'bg-amber-100 text-amber-600 border-amber-200' 
-    },
-    { 
-      name: lt.whoFor.professions.masons, 
-      image: imgMasons || '/professions/masons.jpg', 
-      icon: Construction, 
-      color: 'bg-orange-100 text-orange-600 border-orange-200' 
-    },
-    { 
-      name: lt.whoFor.professions.painters, 
-      image: imgPainters || '/professions/painters.jpg', 
-      icon: Paintbrush, 
-      color: 'bg-blue-100 text-blue-600 border-blue-200' 
-    },
-    { 
-      name: lt.whoFor.professions.electricians, 
-      image: imgElectricians || '/professions/electricians.jpg', 
-      icon: Zap, 
-      color: 'bg-yellow-100 text-yellow-600 border-yellow-200' 
-    },
-    { 
-      name: lt.whoFor.professions.plumbers, 
-      image: imgPlumbers || '/professions/plumbers.jpg', 
-      icon: Wrench, 
-      color: 'bg-cyan-100 text-cyan-600 border-cyan-200' 
-    },
-    { 
-      name: lt.whoFor.professions.remodelers, 
-      image: imgRemodelers || '/professions/remodelers.jpg', 
-      icon: Home, 
-      color: 'bg-emerald-100 text-emerald-600 border-emerald-200' 
-    },
-    { 
-      name: lt.whoFor.professions.more, 
-      image: null, 
-      icon: Plus, 
-      color: 'bg-slate-100 text-slate-700 border-slate-200' 
-    }
-  ];
-
-  const testimonials = lt.testimonialsSection.items;
-
-  const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
+  const handleOpenClientRequest = () => {
+    if (onOpenClientPortal) {
+      onOpenClientPortal();
+    } else {
+      setShowClientRequestModal(true);
     }
   };
 
+  const scrollToSection = (id: string) => {
+    setMobileMenuOpen(false);
+    const element = document.getElementById(id);
+    if (element) {
+      element.scrollIntoView({ behavior: 'smooth' });
+    }
+  };
+
+  const currentLangObj = LANGUAGES.find(l => l.code === locale) || LANGUAGES[0];
+
   return (
-    <div className="min-h-screen w-full bg-white text-slate-900 selection:bg-amber-500 selection:text-slate-950 font-sans">
+    <div className="min-h-screen bg-[#fcfcfd] text-slate-900 font-sans antialiased selection:bg-orange-500 selection:text-white relative">
       
-      {/* 1. TOP NAVBAR */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-1.5 sm:py-3' : 'bg-white/90 backdrop-blur-sm py-2 sm:py-5'}`}>
-        <div className="max-w-7xl mx-auto px-2 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-1 sm:gap-4">
-            
-            {/* Brand Logo */}
-            <div className="flex items-center gap-1 sm:gap-2.5 cursor-pointer shrink-0" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}>
-              <div className="bg-amber-500 p-1 sm:p-2 rounded-lg sm:rounded-xl text-white shadow-md shadow-amber-500/20 shrink-0">
-                <Construction className="w-4 h-4 sm:w-6 sm:h-6" />
-              </div>
-              <div className="flex flex-col">
-                <span className="text-sm sm:text-2xl font-black tracking-tight italic text-slate-900 leading-none">
-                  ÁTRIOS<span className="text-amber-500">BUILD</span>
-                </span>
-                <span className="hidden sm:block text-[8px] font-black uppercase tracking-widest text-slate-400">Software Pro</span>
-              </div>
+      {/* ========================================================================= */}
+      {/* 1. HEADER / NAVBAR                                                        */}
+      {/* ========================================================================= */}
+      <header 
+        className={`sticky top-0 z-50 transition-all duration-200 ${
+          isScrolled 
+            ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-3' 
+            : 'bg-white border-b border-slate-100/80 py-4'
+        }`}
+      >
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between gap-4">
+          
+          {/* Logo */}
+          <div 
+            onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+            className="flex items-center gap-3 cursor-pointer group"
+          >
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
+              <Building2 size={22} className="stroke-[2.5]" />
             </div>
-
-            {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-8 text-xs font-black uppercase tracking-wider text-slate-600">
-              <button onClick={() => scrollToSection('funcionalidades')} className="hover:text-amber-600 transition-colors">
-                {lt.nav.features}
-              </button>
-              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-amber-600 transition-colors">
-                {lt.nav.howItWorks}
-              </button>
-              <button onClick={() => scrollToSection('para-quem-e')} className="hover:text-amber-600 transition-colors">
-                {lt.nav.whoIsItFor}
-              </button>
-              <button onClick={() => scrollToSection('pdf-profissional')} className="hover:text-amber-600 transition-colors">
-                {lt.nav.pdfEstimates}
-              </button>
-              <button onClick={() => scrollToSection('depoimentos')} className="hover:text-amber-600 transition-colors">
-                {lt.nav.testimonials}
-              </button>
-            </nav>
-
-            {/* Language & Currency Selectors + Auth Buttons */}
-            <div className="flex items-center gap-1 sm:gap-2.5 shrink-0 max-w-full">
-              
-              {/* Selectors Pill - On mobile only show language or compact dropdowns */}
-              <div className="flex items-center gap-0.5 sm:gap-1 bg-slate-100/90 border border-slate-200/80 rounded-lg sm:rounded-xl px-1 sm:px-2 py-0.5 sm:py-1 shadow-inner">
-                {/* Currency - hidden on very small mobile to give room, visible in tablet/desktop and in mobile dropdown drawer */}
-                <div className="hidden xs:flex items-center gap-0.5">
-                  <Coins size={10} className="text-amber-600 shrink-0" />
-                  <select
-                    value={currencyCode}
-                    onChange={(e) => setCurrencyCode(e.target.value as CurrencyCode)}
-                    className="bg-transparent text-[8px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer pr-0.5"
-                    title={t.currencyLabel}
-                  >
-                    {Object.values(CURRENCIES).map(curr => (
-                      <option key={curr.code} value={curr.code} className="text-slate-900 font-bold">
-                        {curr.code} ({curr.symbol})
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                <div className="hidden xs:block w-[1px] h-3 bg-slate-300 mx-0.5 shrink-0" />
-
-                {/* Language */}
-                <div className="flex items-center gap-0.5">
-                  <Globe size={10} className="text-amber-600 shrink-0" />
-                  <select
-                    value={locale}
-                    onChange={(e) => setLocale(e.target.value as Locale)}
-                    className="bg-transparent text-[8px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer max-w-[42px] xs:max-w-none"
-                    title="Idioma / Language"
-                  >
-                    <option value="pt-PT" className="text-slate-900 font-bold">🇵🇹 PT</option>
-                    <option value="pt-BR" className="text-slate-900 font-bold">🇧🇷 BR</option>
-                    <option value="en-US" className="text-slate-900 font-bold">🇺🇸 EN</option>
-                    <option value="es-ES" className="text-slate-900 font-bold">🇪🇸 ES</option>
-                    <option value="fr-FR" className="text-slate-900 font-bold">🇫🇷 FR</option>
-                    <option value="it-IT" className="text-slate-900 font-bold">🇮🇹 IT</option>
-                    <option value="ru-RU" className="text-slate-900 font-bold">🇷🇺 RU</option>
-                    <option value="hi-IN" className="text-slate-900 font-bold">🇮🇳 HI</option>
-                    <option value="bn-BD" className="text-slate-900 font-bold">🇧🇩 BN</option>
-                  </select>
-                </div>
+            <div className="flex flex-col">
+              <div className="flex items-center tracking-tight leading-none">
+                <span className="text-xl font-black text-slate-950">ATRIOS</span>
+                <span className="text-xl font-black text-orange-500">BUILD</span>
               </div>
-
-              {/* Client Portal Button (Para quem pediu orçamento) */}
-              {onOpenClientPortal && (
-                <button
-                  onClick={onOpenClientPortal}
-                  className="hidden md:flex items-center gap-1.5 px-2 sm:px-3 py-1 sm:py-2 text-[9px] sm:text-xs font-black uppercase tracking-wider text-amber-700 bg-amber-50 hover:bg-amber-100 border border-amber-200/80 rounded-lg sm:rounded-xl transition-all shrink-0 cursor-pointer shadow-xs"
-                  title="Acompanhe os seus orçamentos recebidos"
-                >
-                  <FileText size={13} className="text-amber-600" />
-                  <span>Área do Cliente</span>
-                </button>
-              )}
-
-              {/* Login Button */}
-              <button
-                onClick={onLogin}
-                className="px-1 sm:px-3 py-1 sm:py-2 text-[9px] sm:text-xs font-black uppercase tracking-wider text-slate-700 hover:text-slate-950 transition-colors shrink-0"
-              >
-                {lt.nav.login || t.loginBtn}
-              </button>
-
-              {/* Start Free CTA */}
-              <button
-                onClick={onStartFree}
-                className="px-2 sm:px-4 py-1 sm:py-2 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-lg sm:rounded-xl font-black text-[9px] sm:text-xs uppercase tracking-wider shadow-md shadow-amber-500/20 active:scale-95 transition-all shrink-0 whitespace-nowrap"
-              >
-                <span className="hidden sm:inline">{lt.nav.startFree}</span>
-                <span className="sm:hidden">Grátis</span>
-              </button>
-
-              {/* Mobile Menu Hamburger */}
-              <button
-                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1 text-slate-700 hover:text-slate-950 rounded-lg hover:bg-slate-100 transition-colors shrink-0 ml-0.5"
-                aria-label="Menu"
-              >
-                {mobileMenuOpen ? <X size={18} /> : <Menu size={18} />}
-              </button>
+              <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">
+                SOFTWARE PARA CONSTRUÇÃO CIVIL
+              </span>
             </div>
           </div>
-        </div>
 
-        {/* Mobile Dropdown Navigation Drawer */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden bg-white/98 backdrop-blur-md border-b border-slate-200 px-4 py-4 shadow-xl overflow-hidden"
+          {/* Desktop Navigation Links */}
+          <nav className="hidden lg:flex items-center gap-7 text-xs font-bold text-slate-600">
+            <button 
+              onClick={() => scrollToSection('funcionalidades')} 
+              className="hover:text-orange-500 transition-colors"
             >
-              <div className="flex flex-col gap-2.5 text-xs font-bold text-slate-700">
-                <button
-                  onClick={() => { scrollToSection('funcionalidades'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-amber-50 hover:text-amber-700 transition-colors font-black uppercase"
-                >
-                  {lt.nav.features}
-                </button>
-                <button
-                  onClick={() => { scrollToSection('como-funciona'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-amber-50 hover:text-amber-700 transition-colors font-black uppercase"
-                >
-                  {lt.nav.howItWorks}
-                </button>
-                <button
-                  onClick={() => { scrollToSection('para-quem-e'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-amber-50 hover:text-amber-700 transition-colors font-black uppercase"
-                >
-                  {lt.nav.whoIsItFor}
-                </button>
-                <button
-                  onClick={() => { scrollToSection('pdf-profissional'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-amber-50 hover:text-amber-700 transition-colors font-black uppercase"
-                >
-                  {lt.nav.pdfEstimates}
-                </button>
-                <button
-                  onClick={() => { scrollToSection('depoimentos'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-amber-50 hover:text-amber-700 transition-colors font-black uppercase"
-                >
-                  {lt.nav.testimonials}
-                </button>
+              {lt.nav.features}
+            </button>
+            <button 
+              onClick={() => scrollToSection('como-funciona')} 
+              className="hover:text-orange-500 transition-colors"
+            >
+              {lt.nav.howItWorks}
+            </button>
+            <button 
+              onClick={() => scrollToSection('para-clientes')} 
+              className="hover:text-orange-500 transition-colors"
+            >
+              {lt.nav.forClients}
+            </button>
+            <button 
+              onClick={() => scrollToSection('para-profissionais')} 
+              className="hover:text-orange-500 transition-colors"
+            >
+              {lt.nav.forPros}
+            </button>
+          </nav>
 
-                <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
-                  {onOpenClientPortal && (
-                    <button
-                      onClick={() => { onOpenClientPortal(); setMobileMenuOpen(false); }}
-                      className="w-full py-2.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-200/80 rounded-xl font-black text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2"
-                    >
-                      <FileText size={14} className="text-amber-600" />
-                      Área do Cliente (Ver Orçamentos)
-                    </button>
-                  )}
-                  <div className="flex gap-2">
-                    <button
-                      onClick={() => { onLogin(); setMobileMenuOpen(false); }}
-                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-black text-xs uppercase tracking-wider text-center"
-                    >
-                      {lt.nav.login || t.loginBtn}
-                    </button>
-                    <button
-                      onClick={() => { onStartFree(); setMobileMenuOpen(false); }}
-                      className="flex-1 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow-md text-center"
-                    >
-                      {lt.nav.startFree}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </header>
-
-      {/* 2. HERO SECTION */}
-      <section className="relative pt-28 sm:pt-36 lg:pt-40 pb-16 sm:pb-24 lg:pb-32 overflow-hidden bg-gradient-to-b from-amber-50/40 via-white to-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
+          {/* Right Action Controls: Language Selector + Login + CTA */}
+          <div className="hidden sm:flex items-center gap-3">
             
-            {/* Left Column: Value Proposition & CTAs */}
-            <div className="lg:col-span-6 text-left">
-              
-              {/* Eyebrow badge */}
-              <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-amber-100/80 border border-amber-200 text-amber-800 text-[10px] sm:text-xs font-black uppercase tracking-widest mb-6">
-                <span className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
-                {lt.hero.badge}
-              </div>
+            {/* Language Selector Dropdown */}
+            <div className="relative" ref={langMenuRef}>
+              <button
+                type="button"
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                title="Selecione o Idioma / Select Language"
+              >
+                <span className="text-base leading-none">{currentLangObj.flag}</span>
+                <span className="text-xs uppercase font-extrabold">{currentLangObj.code.split('-')[0]}</span>
+                <ChevronDown size={13} className={`text-slate-400 transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`} />
+              </button>
 
-              {/* H1 Main Title */}
-              <h1 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-slate-900 mb-6 leading-[1.08]">
-                {lt.hero.titlePrefix}
-                <span className="text-amber-500">{lt.hero.titleHighlight}</span>
-              </h1>
-
-              {/* Subtitle description */}
-              <p className="text-base sm:text-lg lg:text-xl text-slate-600 font-medium mb-8 leading-relaxed">
-                {lt.hero.subtitle}
-              </p>
-
-              {/* Primary & Secondary Action Buttons */}
-              <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 sm:gap-4 mb-4">
-                <button
-                  onClick={onStartFree}
-                  className="px-6 sm:px-8 py-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-sm sm:text-base uppercase tracking-wider transition-all shadow-xl shadow-amber-500/25 active:scale-95 flex items-center justify-center gap-3 text-center"
-                >
-                  <span>{lt.hero.ctaPrimary}</span>
-                  <ArrowRight size={18} />
-                </button>
-
-                <button
-                  onClick={() => setShowDemoModal(true)}
-                  className="px-5 sm:px-6 py-4 bg-white hover:bg-slate-50 text-slate-800 border-2 border-slate-200 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all active:scale-95 flex items-center justify-center gap-2"
-                >
-                  <Play size={16} className="text-amber-500 fill-amber-500" />
-                  <span>{lt.hero.ctaSecondary}</span>
-                </button>
-              </div>
-
-              {/* Special CTA for Common Clients / Homeowners */}
-              <div className="mb-8 p-4 rounded-2xl bg-gradient-to-r from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/30 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
-                    <Wrench size={20} />
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-slate-100 py-2 z-50 animate-in fade-in zoom-in-95 duration-150">
+                  <div className="px-3 py-1.5 text-[10px] font-black uppercase tracking-wider text-slate-400 border-b border-slate-100 mb-1">
+                    {lt.nav.language}
                   </div>
-                  <div>
-                    <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                      Precisa de uma Obra ou Reparação? <span className="bg-amber-500 text-slate-950 text-[9px] px-1.5 py-0.2 rounded-full font-black uppercase">Novo</span>
-                    </div>
-                    <div className="text-[11px] text-slate-600 font-medium">
-                      Pintura, portas, janelas, eletricidade, canalização ou construir do zero.
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={() => setShowClientRequestModal(true)}
-                  className="px-4 py-2.5 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 shrink-0 flex items-center justify-center gap-2"
-                >
-                  <Sparkles size={14} className="text-amber-400" /> Pedir Orçamento Grátis
-                </button>
-              </div>
-
-              {/* Trust Badges */}
-              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-4 border-t border-slate-200/60">
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
-                    <Check size={12} strokeWidth={3} />
-                  </div>
-                  <div className="text-[11px] leading-tight">
-                    <span className="font-bold text-slate-900 block">{lt.hero.badgeFree}</span>
-                    <span className="text-slate-500">{lt.hero.badgeFreeSub}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-5 h-5 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center shrink-0">
-                    <Zap size={12} />
-                  </div>
-                  <div className="text-[11px] leading-tight">
-                    <span className="font-bold text-slate-900 block">{lt.hero.badgeFast}</span>
-                    <span className="text-slate-500">{lt.hero.badgeFastSub}</span>
-                  </div>
-                </div>
-
-                <div className="flex items-center gap-2 text-slate-600">
-                  <div className="w-5 h-5 rounded-full bg-blue-100 text-blue-600 flex items-center justify-center shrink-0">
-                    <Smartphone size={12} />
-                  </div>
-                  <div className="text-[11px] leading-tight">
-                    <span className="font-bold text-slate-900 block">{lt.hero.badgeAnywhere}</span>
-                    <span className="text-slate-500">{lt.hero.badgeAnywhereSub}</span>
-                  </div>
-                </div>
-              </div>
-
-            </div>
-
-            {/* Right Column: Realistic Estimate Mockup Device OR Dynamic Video Player */}
-            <div className="lg:col-span-6 relative">
-              <div className="relative mx-auto max-w-xl">
-                
-                {/* Main Laptop Frame */}
-                <div className="bg-slate-900 rounded-3xl p-3 sm:p-4 shadow-2xl shadow-slate-900/30 border-4 border-slate-800 overflow-hidden">
-                  
-                  {/* Laptop Screen Bar */}
-                  <div className="flex items-center justify-between pb-3 px-2 border-b border-slate-800 mb-3">
-                    <div className="flex items-center gap-1.5">
-                      <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
-                      <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                    </div>
-                    <span className="text-[10px] font-mono text-slate-400">
-                      {heroVideo.type === 'youtube' && (heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')) 
-                        ? `youtube.com • ${heroVideo.title || 'Vídeo Oficial'}`
-                        : heroVideo.type === 'upload' && heroVideo.videoUrl
-                          ? `video.atriosbuild.com • ${heroVideo.title || 'Vídeo Demonstrativo'}`
-                          : 'app.atriosbuild.com'}
-                    </span>
-                    <div className="w-8" />
-                  </div>
-
-                  {/* YouTube Embed Player */}
-                  {heroVideo.type === 'youtube' && (heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')) ? (
-                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-white/10">
-                      <iframe
-                        className="w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')}?autoplay=${heroVideo.autoPlay ? 1 : 0}&mute=${heroVideo.muted ? 1 : 0}&loop=${heroVideo.loop ? 1 : 0}&playlist=${heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')}&controls=${heroVideo.showControls ? 1 : 0}&rel=0&modestbranding=1`}
-                        title={heroVideo.title || "Demonstração Átrios Build"}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    </div>
-                  ) : heroVideo.type === 'upload' && heroVideo.videoUrl ? (
-                    /* Local Uploaded Video Player */
-                    <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-white/10">
-                      <video
-                        className="w-full h-full object-cover"
-                        src={heroVideo.videoUrl}
-                        autoPlay={heroVideo.autoPlay}
-                        muted={heroVideo.muted}
-                        loop={heroVideo.loop}
-                        controls={heroVideo.showControls}
-                        playsInline
-                      />
-                    </div>
-                  ) : (
-                    /* Default Inside Screen Content - Realistic Estimate Builder */
-                    <div className="bg-white rounded-2xl p-4 sm:p-6 text-left shadow-inner">
-                      
-                      {/* Header */}
-                      <div className="flex items-start justify-between border-b border-slate-100 pb-4 mb-4">
-                        <div>
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-xs font-black tracking-tight text-slate-900 uppercase">{lt.preview.estimateTitle}</span>
-                            <span className="px-2 py-0.5 rounded-md bg-amber-100 text-amber-700 text-[9px] font-black uppercase">{lt.preview.statusPending}</span>
-                          </div>
-                          <p className="text-xs font-bold text-slate-700">{lt.preview.clientLabel}</p>
-                          <p className="text-[11px] text-slate-500 font-medium">{lt.preview.projectLabel}</p>
-                        </div>
-                        <div className="text-right">
-                          <span className="text-[10px] font-bold text-slate-400 uppercase">{lt.preview.totalGeneral}</span>
-                          <p className="text-xl sm:text-2xl font-black text-amber-600 tracking-tight">6.840,00 {currencySymbol}</p>
-                        </div>
-                      </div>
-
-                      {/* Materials Table Section */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{lt.preview.materialsTitle}</span>
-                          <span className="text-[10px] font-bold text-slate-600">{lt.preview.materialsCount}</span>
-                        </div>
-                        <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[11px]">
-                          <div className="flex justify-between font-bold text-slate-800">
-                            <span>{lt.preview.material1}</span>
-                            <span>810,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-slate-600">
-                            <span>{lt.preview.material2}</span>
-                            <span>65,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-slate-600">
-                            <span>{lt.preview.material3}</span>
-                            <span>41,00 {currencySymbol}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Labor Table Section */}
-                      <div className="mb-4">
-                        <div className="flex items-center justify-between mb-1.5">
-                          <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{lt.preview.laborTitle}</span>
-                          <span className="text-[10px] font-bold text-slate-600">{lt.preview.laborCount}</span>
-                        </div>
-                        <div className="space-y-1.5 bg-slate-50 p-2.5 rounded-xl border border-slate-100 text-[11px]">
-                          <div className="flex justify-between font-bold text-slate-800">
-                            <span>{lt.preview.labor1}</span>
-                            <span>1.000,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-slate-600">
-                            <span>{lt.preview.labor2}</span>
-                            <span>360,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-medium text-slate-600">
-                            <span>{lt.preview.labor3}</span>
-                            <span>300,00 {currencySymbol}</span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {/* Action Bar */}
-                      <div className="flex items-center justify-between pt-2 border-t border-slate-100">
-                        <div className="flex items-center gap-2">
-                          <span className="text-[10px] font-bold text-slate-400">{lt.preview.taxIncluded}</span>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <button
-                            onClick={onStartFree}
-                            className="px-3 py-1.5 bg-slate-900 text-white rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 hover:bg-slate-800"
-                          >
-                            <FileText size={12} className="text-amber-400" />
-                            <span>{lt.preview.generatePdf}</span>
-                          </button>
-                        </div>
-                      </div>
-
-                    </div>
-                  )}
-                </div>
-
-                {/* Floating Real PDF Card Overlay or Floating Video Badge */}
-                {heroVideo.type === 'default' || (!heroVideo.youtubeId && !heroVideo.videoUrl) ? (
-                  <div className="absolute -bottom-8 -right-4 sm:-right-8 bg-white p-4 sm:p-5 rounded-2xl shadow-2xl border border-slate-100 flex flex-col gap-2 max-w-[200px] sm:max-w-[230px] animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-1.5">
-                        <div className="bg-amber-500 p-1 rounded-md text-white">
-                          <Construction size={12} />
-                        </div>
-                        <span className="text-[10px] font-black tracking-tight text-slate-900">{lt.preview.pdfCardTitle}</span>
-                      </div>
-                      <span className="text-[9px] font-black px-1.5 py-0.5 bg-emerald-100 text-emerald-700 rounded">{lt.preview.pdfCardReady}</span>
-                    </div>
-                    <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 space-y-1">
-                      <div className="flex justify-between text-[9px] text-slate-500 font-bold">
-                        <span>Total:</span>
-                        <span className="text-slate-900 font-black">6.840,00 {currencySymbol}</span>
-                      </div>
-                      <p className="text-[8px] text-slate-400">{lt.preview.pdfCardSub}</p>
-                    </div>
+                  {LANGUAGES.map((lang) => (
                     <button
-                      onClick={onStartFree}
-                      className="w-full py-1.5 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-black text-[10px] uppercase tracking-wider flex items-center justify-center gap-1 shadow-sm"
+                      key={lang.code}
+                      onClick={() => {
+                        setLocale(lang.code);
+                        setLangDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3.5 py-2 text-xs text-left transition-colors ${
+                        locale === lang.code 
+                          ? 'bg-orange-50 text-orange-600 font-bold' 
+                          : 'text-slate-700 hover:bg-slate-50 font-medium'
+                      }`}
                     >
-                      <Download size={11} />
-                      <span>{lt.preview.downloadPdf}</span>
+                      <div className="flex items-center gap-2">
+                        <span className="text-base">{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </div>
+                      {locale === lang.code && <Check size={14} className="text-orange-500 stroke-[3]" />}
                     </button>
-                  </div>
-                ) : (
-                  <div className="absolute -bottom-6 -right-4 sm:-right-6 bg-slate-900 text-white p-3.5 sm:p-4 rounded-2xl shadow-2xl border border-white/10 flex items-center gap-3 animate-in fade-in slide-in-from-bottom-4 duration-700">
-                    <div className="w-10 h-10 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0">
-                      {heroVideo.type === 'youtube' ? <Youtube size={20} /> : <Film size={20} />}
-                    </div>
-                    <div className="text-left">
-                      <span className="text-[11px] font-black uppercase text-amber-400 block tracking-wider">
-                        {heroVideo.type === 'youtube' ? 'Vídeo no YouTube' : 'Vídeo Demonstrativo'}
-                      </span>
-                      <span className="text-[10px] text-slate-300 font-bold line-clamp-1">
-                        {heroVideo.title || 'Átrios Build em Ação'}
-                      </span>
-                    </div>
-                  </div>
-                )}
-
-              </div>
-            </div>
-
-          </div>
-        </div>
-      </section>
-
-      {/* 3. SECTION "FEITO PARA QUEM VIVE DE OBRAS" */}
-      <section id="para-quem-e" className="py-20 bg-slate-50 border-y border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 mb-3">
-            {lt.whoFor.title}
-          </h2>
-          <p className="text-slate-600 font-medium text-sm sm:text-base max-w-2xl mx-auto mb-12">
-            {lt.whoFor.subtitle}
-          </p>
-
-          {/* Cards of Professions */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-4 items-stretch">
-            {professions.map((prof, i) => {
-              const Icon = prof.icon;
-              return (
-                <div
-                  key={i}
-                  className="bg-white p-3.5 sm:p-4 rounded-3xl border border-slate-200/90 shadow-sm hover:shadow-xl hover:border-amber-400/60 hover:-translate-y-1.5 transition-all duration-300 flex flex-col items-center justify-between text-center group cursor-pointer"
-                  onClick={onStartFree}
-                >
-                  <div className="w-full flex items-center justify-center pt-1 pb-2">
-                    {prof.image && !failedImages[prof.name] ? (
-                      <div className="w-20 h-20 sm:w-22 sm:h-22 rounded-2xl overflow-hidden bg-gradient-to-b from-slate-50 to-amber-50/40 p-1 border border-slate-100/80 shadow-inner group-hover:shadow-md transition-all duration-300">
-                        <img 
-                          src={prof.image} 
-                          alt={prof.name}
-                          referrerPolicy="no-referrer"
-                          onError={() => setFailedImages(prev => ({ ...prev, [prof.name]: true }))}
-                          className="w-full h-full object-cover rounded-xl group-hover:scale-108 transition-transform duration-300"
-                        />
-                      </div>
-                    ) : (
-                      <div className={`w-20 h-20 sm:w-22 sm:h-22 rounded-2xl flex flex-col items-center justify-center border ${prof.color} group-hover:scale-105 group-hover:bg-amber-500 group-hover:text-slate-950 group-hover:border-amber-500 transition-all duration-300 shadow-sm`}>
-                        <Icon size={28} className="transition-transform group-hover:rotate-90 duration-300" />
-                        <span className="text-[10px] font-black uppercase mt-1 tracking-wider opacity-80">
-                          {prof.image ? prof.name.substring(0, 4) : 'Mais'}
-                        </span>
-                      </div>
-                    )}
-                  </div>
-                  <span className="text-xs sm:text-sm font-black text-slate-800 tracking-tight leading-tight group-hover:text-amber-600 transition-colors mt-1 pb-1">
-                    {prof.name}
-                  </span>
-                </div>
-              );
-            })}
-          </div>
-
-          <div className="mt-10 p-4 sm:p-6 bg-amber-500/10 border border-amber-500/20 rounded-2xl max-w-3xl mx-auto">
-            <p className="text-xs sm:text-sm text-slate-700 font-bold">
-              {lt.whoFor.highlightBox}
-            </p>
-          </div>
-
-        </div>
-      </section>
-
-      {/* 4. SECTION "ANTES / DEPOIS" (COMPARISON) */}
-      <section id="funcionalidades" className="py-16 sm:py-24 bg-white overflow-hidden">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:gap-0 items-stretch relative">
-            
-            {/* Bloco da Esquerda (Vermelho / Rosa Suave) */}
-            <div className="lg:col-span-5 bg-[#fff2f2] rounded-3xl lg:rounded-l-3xl lg:rounded-r-none p-6 sm:p-8 lg:p-10 text-left flex flex-col justify-center border border-rose-100 lg:border-r-0 shadow-sm">
-              <h3 className="text-2xl sm:text-3xl font-black text-slate-900 mb-6 sm:mb-8 tracking-tight">
-                {lt.comparison.beforeTitle}
-              </h3>
-              <ul className="space-y-4 sm:space-y-5">
-                {lt.comparison.beforeItems.map((item, idx) => (
-                  <li key={idx} className="flex items-center gap-3.5 text-slate-900 font-bold text-sm sm:text-base">
-                    <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full bg-[#ef4444] text-white flex items-center justify-center shrink-0 shadow-sm">
-                      <X size={12} strokeWidth={3.5} />
-                    </div>
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
-            </div>
-
-            {/* Círculo Central com Seta (Sobreposto na divisão entre os blocos) */}
-            <div className="hidden lg:flex absolute left-[41.666667%] top-1/2 -translate-y-1/2 -translate-x-1/2 z-20 w-12 h-12 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-xl shadow-orange-500/30 items-center justify-center pointer-events-none">
-              <ArrowRight size={22} strokeWidth={3} />
-            </div>
-
-            {/* Seta no Mobile entre os cards */}
-            <div className="lg:hidden flex items-center justify-center py-1">
-              <div className="w-10 h-10 rounded-full bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-lg flex items-center justify-center">
-                <ArrowRight size={18} strokeWidth={3} className="rotate-90" />
-              </div>
-            </div>
-
-            {/* Bloco da Direita (Verde Suave / Com o ÁtriosBuild é diferente) */}
-            <div className="lg:col-span-7 bg-[#edf7ed] rounded-3xl lg:rounded-r-3xl lg:rounded-l-none p-6 sm:p-8 lg:p-10 text-left flex flex-col justify-center border border-emerald-100 lg:border-l-0 shadow-sm relative">
-              <h3 className="text-2xl sm:text-3xl font-black text-[#0f5132] mb-6 sm:mb-8 tracking-tight">
-                {lt.comparison.afterTitle}
-              </h3>
-              
-              <div className="grid grid-cols-1 md:grid-cols-12 gap-6 items-center">
-                
-                {/* Lista de Benefícios (Esquerda) */}
-                <div className="md:col-span-6 lg:col-span-7">
-                  <ul className="space-y-4 sm:space-y-5">
-                    {lt.comparison.afterItems.map((item, idx) => (
-                      <li key={idx} className="flex items-center gap-3.5 text-slate-900 font-bold text-sm sm:text-base">
-                        <div className="w-5 h-5 sm:w-5.5 sm:h-5.5 rounded-full bg-[#10b981] text-white flex items-center justify-center shrink-0 shadow-sm">
-                          <Check size={12} strokeWidth={3.5} />
-                        </div>
-                        <span>{item}</span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-
-                {/* Mockup dos Dispositivos (Laptop + Telemóvel) */}
-                <div className="md:col-span-6 lg:col-span-5 flex items-center justify-center">
-                  <div className="w-full relative group">
-                    <img 
-                      src={imgDevicesMockup || "/mockups/atrios_devices_mockup.jpg"} 
-                      alt="ÁtriosBuild no Computador e no Telemóvel"
-                      referrerPolicy="no-referrer"
-                      className="w-full h-auto object-contain drop-shadow-xl hover:scale-105 transition-transform duration-500"
-                    />
-                  </div>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 5. SECTION "DO ORÇAMENTO AO PAGAMENTO, TUDO NUM SÓ LUGAR" (4 STEPS) */}
-      <section id="como-funciona" className="py-20 sm:py-28 bg-slate-50 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 mb-3">
-            {lt.workflow.title}
-          </h2>
-          <p className="text-slate-600 font-medium text-sm sm:text-base max-w-2xl mx-auto mb-16">
-            {lt.workflow.subtitle}
-          </p>
-
-          {/* 4 Steps Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 relative">
-            
-            {/* Step 1 */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col items-start text-left relative group hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-amber-100 text-amber-600 flex items-center justify-center mb-6 font-black text-lg">
-                <ClipboardList size={24} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-amber-500 text-slate-950 text-xs font-black flex items-center justify-center">1</span>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{lt.workflow.step1Title}</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                {lt.workflow.step1Desc}
-              </p>
-            </div>
-
-            {/* Step 2 */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col items-start text-left relative group hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-rose-100 text-rose-600 flex items-center justify-center mb-6 font-black text-lg">
-                <FileText size={24} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-rose-500 text-white text-xs font-black flex items-center justify-center">2</span>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{lt.workflow.step2Title}</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                {lt.workflow.step2Desc}
-              </p>
-            </div>
-
-            {/* Step 3 */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col items-start text-left relative group hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-blue-100 text-blue-600 flex items-center justify-center mb-6 font-black text-lg">
-                <Construction size={24} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-blue-500 text-white text-xs font-black flex items-center justify-center">3</span>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{lt.workflow.step3Title}</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                {lt.workflow.step3Desc}
-              </p>
-            </div>
-
-            {/* Step 4 */}
-            <div className="bg-white p-6 sm:p-8 rounded-3xl border border-slate-200/80 shadow-sm flex flex-col items-start text-left relative group hover:shadow-md transition-all">
-              <div className="w-12 h-12 rounded-2xl bg-emerald-100 text-emerald-600 flex items-center justify-center mb-6 font-black text-lg">
-                <CreditCard size={24} />
-              </div>
-              <div className="flex items-center gap-2 mb-2">
-                <span className="w-6 h-6 rounded-full bg-emerald-500 text-white text-xs font-black flex items-center justify-center">4</span>
-                <h3 className="text-lg font-black text-slate-900 uppercase tracking-tight">{lt.workflow.step4Title}</h3>
-              </div>
-              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                {lt.workflow.step4Desc}
-              </p>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 6. SECTION "VEJA EM AÇÃO EM 60 SEGUNDOS" */}
-      <section className="py-20 sm:py-28 bg-white">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
-            
-            {/* Left Column: Dynamic Video Player (YouTube / Upload) or Interactive Preview */}
-            <div className="lg:col-span-7">
-              {actionVideo.type === 'youtube' && (actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '')) ? (
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 aspect-[16/10] bg-slate-950">
-                  <iframe
-                    className="w-full h-full border-0"
-                    src={`https://www.youtube.com/embed/${actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '')}?autoplay=${actionVideo.autoPlay ? 1 : 0}&mute=${actionVideo.muted ? 1 : 0}&loop=${actionVideo.loop ? 1 : 0}&playlist=${actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '')}&controls=${actionVideo.showControls !== false ? 1 : 0}&rel=0&modestbranding=1`}
-                    title={actionVideo.title || lt.videoSection.title || "Veja como funciona em 60 segundos"}
-                    allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                    allowFullScreen
-                  />
-                </div>
-              ) : actionVideo.type === 'upload' && actionVideo.videoUrl ? (
-                <div className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 aspect-[16/10] bg-slate-950">
-                  <video
-                    className="w-full h-full object-cover"
-                    src={actionVideo.videoUrl}
-                    autoPlay={actionVideo.autoPlay}
-                    muted={actionVideo.muted}
-                    loop={actionVideo.loop}
-                    controls={actionVideo.showControls !== false}
-                    playsInline
-                  />
-                </div>
-              ) : (
-                <div 
-                  onClick={() => setShowDemoModal(true)}
-                  className="relative rounded-3xl overflow-hidden shadow-2xl border-4 border-slate-900 group cursor-pointer bg-slate-900"
-                >
-                  {/* Simulated Video Preview Frame */}
-                  <div className="aspect-[16/10] bg-slate-900 relative flex items-center justify-center p-6 text-left">
-                    
-                    {/* Subtle Screen Content in background */}
-                    <div className="absolute inset-0 opacity-40 blur-[1px] group-hover:scale-105 transition-transform duration-700 p-6">
-                      <div className="h-full w-full bg-white rounded-2xl p-6 text-slate-900 space-y-4">
-                        <div className="flex justify-between border-b pb-2">
-                          <span className="font-black text-sm">{lt.preview.estimateTitle}</span>
-                          <span className="font-black text-amber-600 text-sm">6.840,00 {currencySymbol}</span>
-                        </div>
-                        <div className="space-y-2 text-xs">
-                          <div className="h-4 bg-slate-100 rounded w-3/4" />
-                          <div className="h-4 bg-slate-100 rounded w-1/2" />
-                          <div className="h-4 bg-slate-100 rounded w-2/3" />
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Dark Overlay with Pulsing Play Button */}
-                    <div className="absolute inset-0 bg-slate-950/50 flex flex-col items-center justify-center text-center p-6 z-10">
-                      <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-full bg-amber-500 text-slate-950 flex items-center justify-center shadow-2xl group-hover:scale-110 transition-transform active:scale-95">
-                        <Play size={36} className="fill-slate-950 ml-1.5" />
-                      </div>
-                      <p className="text-white font-black text-base sm:text-lg mt-4 tracking-tight">
-                        {lt.videoSection.overlayTitle}
-                      </p>
-                      <span className="text-slate-300 text-xs mt-1 font-medium">
-                        {lt.videoSection.overlaySub}
-                      </span>
-                    </div>
-
-                  </div>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Right Column: Copy & CTA */}
-            <div className="lg:col-span-5 text-left">
-              <span className="text-amber-600 font-black text-xs uppercase tracking-[0.25em] block mb-3">
-                {lt.videoSection.eyebrow}
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
-                {lt.videoSection.title}
-              </h2>
-              <p className="text-base sm:text-lg text-slate-600 font-medium mb-8 leading-relaxed">
-                {lt.videoSection.desc}
-              </p>
-              
-              <div className="flex flex-wrap items-center gap-4">
-                <button
-                  onClick={() => setShowDemoModal(true)}
-                  className="px-8 py-4.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-sm uppercase tracking-wider transition-all shadow-xl shadow-amber-500/25 active:scale-95 flex items-center gap-3"
-                >
-                  <span>{lt.videoSection.ctaBtn}</span>
-                  <ArrowRight size={18} />
-                </button>
-              </div>
-            </div>
+            {/* Login Button */}
+            <button
+              onClick={onLogin}
+              className="px-4 py-2 text-xs font-black text-slate-800 hover:text-orange-500 rounded-xl hover:bg-slate-50 transition-all uppercase tracking-wider"
+            >
+              {lt.nav.login}
+            </button>
 
-          </div>
-        </div>
-      </section>
-
-      {/* 7. SECTION "APRESENTE-SE COMO UM PROFISSIONAL" (PDF EM DESTAQUE) */}
-      <section id="pdf-profissional" className="py-20 sm:py-32 bg-slate-50 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-16 items-center">
-            
-            {/* Left Column: PDF Values & Bullets */}
-            <div className="lg:col-span-6 text-left">
-              <span className="text-amber-600 font-black text-xs uppercase tracking-[0.25em] block mb-3">
-                {lt.pdfSection.eyebrow}
-              </span>
-              <h2 className="text-3xl sm:text-5xl font-black tracking-tight text-slate-900 mb-6 leading-tight">
-                {lt.pdfSection.titlePrefix}
-                <span className="text-amber-500">{lt.pdfSection.titleHighlight}</span>
-              </h2>
-              <p className="text-base sm:text-lg text-slate-600 font-medium mb-8 leading-relaxed">
-                {lt.pdfSection.desc}
-              </p>
-
-              <div className="space-y-4 mb-8">
-                {lt.pdfSection.bullets.map((bullet, idx) => (
-                  <div key={idx} className="flex items-start gap-3.5 bg-white p-4 rounded-2xl border border-slate-200/80 shadow-sm">
-                    <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 mt-0.5 shadow-sm">
-                      <Check size={16} strokeWidth={3} />
-                    </div>
-                    <div>
-                      <h4 className="text-xs sm:text-sm font-black text-slate-900 uppercase tracking-tight">{bullet.title}</h4>
-                      <p className="text-xs text-slate-500 font-medium">{bullet.desc}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              <button
-                onClick={onStartFree}
-                className="px-8 py-4 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-xl active:scale-95 flex items-center gap-3"
-              >
-                <span>{lt.pdfSection.ctaBtn}</span>
-                <ArrowRight size={16} className="text-amber-400" />
-              </button>
-            </div>
-
-            {/* Right Column: Realistic Full-Sized Printable PDF Sheet Mockup */}
-            <div className="lg:col-span-6 flex justify-center">
-              <div className="w-full max-w-md bg-white rounded-3xl p-6 sm:p-8 shadow-2xl shadow-slate-300/60 border border-slate-200 text-left relative transform rotate-1 hover:rotate-0 transition-transform duration-500">
-                
-                {/* PDF Header with Company & Number */}
-                <div className="flex items-start justify-between border-b-2 border-slate-900 pb-4 mb-5">
-                  <div className="flex items-center gap-2.5">
-                    <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center text-slate-950 font-black shadow-md">
-                      <Construction size={22} />
-                    </div>
-                    <div>
-                      <span className="text-base font-black text-slate-900 tracking-tight block">{lt.pdfSection.docHeader}</span>
-                      <span className="text-[9px] font-bold text-slate-400">{lt.pdfSection.docTaxId}</span>
-                    </div>
-                  </div>
-                  <div className="text-right">
-                    <span className="text-[10px] font-black text-amber-600 uppercase tracking-widest block">{lt.pdfSection.docProposalNo}</span>
-                    <span className="text-sm font-black text-slate-900">#2026-084</span>
-                  </div>
-                </div>
-
-                {/* Client Info Grid */}
-                <div className="grid grid-cols-2 gap-4 bg-slate-50 p-3 rounded-xl border border-slate-100 mb-5 text-[10px]">
-                  <div>
-                    <span className="font-bold text-slate-400 uppercase block text-[8px]">{lt.pdfSection.docClientTitle}</span>
-                    <span className="font-black text-slate-800 text-xs">{lt.pdfSection.docClientName}</span>
-                    <span className="text-slate-500 block">{lt.pdfSection.docClientAddress}</span>
-                  </div>
-                  <div className="text-right">
-                    <span className="font-bold text-slate-400 uppercase block text-[8px]">{lt.pdfSection.docDateTitle}</span>
-                    <span className="font-bold text-slate-800">15/08/2026</span>
-                    <span className="text-amber-600 block font-bold">{lt.pdfSection.docValidity}</span>
-                  </div>
-                </div>
-
-                {/* PDF Items Detailed Table */}
-                <div className="space-y-2 mb-6">
-                  <div className="flex justify-between text-[9px] font-black uppercase text-slate-400 pb-1 border-b border-slate-200">
-                    <span>{lt.pdfSection.docColDesc}</span>
-                    <span>{lt.pdfSection.docColQty}</span>
-                    <span className="text-right">{lt.pdfSection.docColTotal}</span>
-                  </div>
-                  
-                  <div className="flex justify-between text-[11px] font-bold text-slate-800 py-1 border-b border-slate-100">
-                    <div>
-                      <span>{lt.pdfSection.docItem1Title}</span>
-                      <span className="block text-[9px] text-slate-400 font-normal">{lt.pdfSection.docItem1Sub}</span>
-                    </div>
-                    <span className="text-slate-500">{lt.pdfSection.docItem1Unit}</span>
-                    <span className="font-black">2.450,00 {currencySymbol}</span>
-                  </div>
-
-                  <div className="flex justify-between text-[11px] font-bold text-slate-800 py-1 border-b border-slate-100">
-                    <div>
-                      <span>{lt.pdfSection.docItem2Title}</span>
-                      <span className="block text-[9px] text-slate-400 font-normal">{lt.pdfSection.docItem2Sub}</span>
-                    </div>
-                    <span className="text-slate-500">{lt.pdfSection.docItem2Unit}</span>
-                    <span className="font-black">1.100,00 {currencySymbol}</span>
-                  </div>
-
-                  <div className="flex justify-between text-[11px] font-bold text-slate-800 py-1 border-b border-slate-100">
-                    <div>
-                      <span>{lt.pdfSection.docItem3Title}</span>
-                      <span className="block text-[9px] text-slate-400 font-normal">{lt.pdfSection.docItem3Sub}</span>
-                    </div>
-                    <span className="text-slate-500">{lt.pdfSection.docItem3Unit}</span>
-                    <span className="font-black">480,00 {currencySymbol}</span>
-                  </div>
-                </div>
-
-                {/* PDF Totals */}
-                <div className="bg-slate-900 text-white p-4 rounded-2xl space-y-1.5 mb-4">
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
-                    <span>{lt.pdfSection.docSubtotal}</span>
-                    <span>4.030,00 {currencySymbol}</span>
-                  </div>
-                  <div className="flex justify-between text-[10px] text-slate-400 font-bold">
-                    <span>{lt.pdfSection.docTax}</span>
-                    <span>926,90 {currencySymbol}</span>
-                  </div>
-                  <div className="flex justify-between text-base font-black text-amber-400 pt-1.5 border-t border-slate-800">
-                    <span>{lt.pdfSection.docTotal}</span>
-                    <span>4.956,90 {currencySymbol}</span>
-                  </div>
-                </div>
-
-                {/* Signatures & Security Stamp */}
-                <div className="flex items-center justify-between text-[8px] text-slate-400 font-bold pt-2 border-t border-slate-100">
-                  <span>{lt.pdfSection.docSignature}</span>
-                  <span className="text-emerald-600 font-black flex items-center gap-1">
-                    <CheckCircle2 size={10} /> {lt.pdfSection.docCertified}
-                  </span>
-                </div>
-
-              </div>
-            </div>
-
-          </div>
-
-          {/* 4 Feature Cards Below PDF */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 mt-16 sm:mt-24">
-            
-            {/* Card 1: Ordens de Serviço */}
-            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <ClipboardList size={24} />
-                </div>
-                <h3 className="text-base font-black text-slate-900 uppercase tracking-tight mb-2">
-                  {lt.pdfSection.cards[0]?.title || 'Ordens de Serviço'}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  {lt.pdfSection.cards[0]?.desc || 'Crie e acompanhe ordens de serviço para cada etapa da obra.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Card 2: Relatórios Financeiros */}
-            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-indigo-50 text-indigo-600 flex items-center justify-center mb-4">
-                  <BarChart3 size={24} />
-                </div>
-                <h3 className="text-base font-black text-slate-900 uppercase tracking-tight mb-2">
-                  {lt.pdfSection.cards[1]?.title || 'Relatórios Financeiros'}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  {lt.pdfSection.cards[1]?.desc || 'Saiba o que recebeu, o que falta e o lucro real de cada obra.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3: Controlo de Pagamentos */}
-            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                  <CreditCard size={24} />
-                </div>
-                <h3 className="text-base font-black text-slate-900 uppercase tracking-tight mb-2">
-                  {lt.pdfSection.cards[2]?.title || 'Controlo de Pagamentos'}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  {lt.pdfSection.cards[2]?.desc || 'Registe pagamentos, recibos e mantenha tudo organizado.'}
-                </p>
-              </div>
-            </div>
-
-            {/* Card 4: Acesso em Qualquer Lugar */}
-            <div className="bg-white p-6 sm:p-7 rounded-3xl border border-slate-200/80 shadow-sm text-left flex flex-col justify-between">
-              <div>
-                <div className="w-12 h-12 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
-                  <Smartphone size={24} />
-                </div>
-                <h3 className="text-base font-black text-slate-900 uppercase tracking-tight mb-2">
-                  {lt.pdfSection.cards[3]?.title || 'Acesso em Qualquer Lugar'}
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  {lt.pdfSection.cards[3]?.desc || 'Use no computador, tablet ou telemóvel. Os seus dados sempre consigo.'}
-                </p>
-              </div>
-            </div>
-
-          </div>
-
-        </div>
-      </section>
-
-      {/* 8. SECTION "O QUE OS PROFISSIONAIS ESTÃO A DIZER" (DEPOIMENTOS) */}
-      <section id="depoimentos" className="py-20 sm:py-28 bg-white border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-          
-          <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-slate-900 mb-12">
-            {lt.testimonialsSection.title}
-          </h2>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 sm:gap-8">
-            {testimonials.map((testi, idx) => (
-              <div
-                key={idx}
-                className="bg-slate-50 p-6 sm:p-8 rounded-3xl border border-slate-200/80 text-left flex flex-col justify-between shadow-sm hover:shadow-md transition-all"
-              >
-                <div>
-                  {/* 5 Stars */}
-                  <div className="flex items-center gap-1 text-amber-500 mb-4">
-                    {[...Array(5)].map((_, s) => (
-                      <Star key={s} size={16} className="fill-amber-500" />
-                    ))}
-                  </div>
-
-                  <p className="text-xs sm:text-sm text-slate-700 font-bold leading-relaxed mb-6 italic">
-                    {testi.text}
-                  </p>
-                </div>
-
-                <div className="pt-4 border-t border-slate-200/60">
-                  <p className="text-xs sm:text-sm font-black text-slate-900">— {testi.author}</p>
-                  <p className="text-[10px] font-bold text-slate-500 uppercase tracking-wider">{testi.role}</p>
-                </div>
-              </div>
-            ))}
-          </div>
-
-        </div>
-      </section>
-
-      {/* 9. FINAL CTA BANNER */}
-      <section className="py-16 sm:py-24 bg-slate-950 text-white relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-96 h-96 bg-amber-500/10 blur-[120px] rounded-full pointer-events-none" />
-        <div className="absolute bottom-0 left-0 w-96 h-96 bg-blue-500/10 blur-[120px] rounded-full pointer-events-none" />
-
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 text-center relative z-10">
-          
-          <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white mb-4 leading-tight">
-            {lt.finalCta.title}
-          </h2>
-          <p className="text-slate-400 text-sm sm:text-lg font-medium mb-10 max-w-2xl mx-auto">
-            {lt.finalCta.subtitle}
-          </p>
-
-          <div className="flex flex-col sm:flex-row items-center justify-center gap-4 mb-4">
+            {/* Start Free Button */}
             <button
               onClick={onStartFree}
-              className="w-full sm:w-auto px-10 py-5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-base sm:text-lg uppercase tracking-wider shadow-2xl shadow-amber-500/30 active:scale-95 transition-all flex items-center justify-center gap-3"
+              className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 transition-all active:scale-95"
             >
-              <span>{lt.finalCta.btn}</span>
-              <ArrowRight size={20} />
+              {lt.nav.startFree}
             </button>
           </div>
 
-          <p className="text-slate-500 text-xs font-bold uppercase tracking-wider">
-            {lt.finalCta.badge}
-          </p>
+          {/* Mobile Menu Hamburger */}
+          <div className="flex items-center gap-2 lg:hidden">
+            {/* Mobile Language Selector */}
+            <div className="relative">
+              <button
+                type="button"
+                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
+                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200"
+              >
+                <span>{currentLangObj.flag}</span>
+                <span className="text-[11px] uppercase font-bold">{currentLangObj.code.split('-')[0]}</span>
+              </button>
+
+              {langDropdownOpen && (
+                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
+                  {LANGUAGES.map((lang) => (
+                    <button
+                      key={lang.code}
+                      onClick={() => {
+                        setLocale(lang.code);
+                        setLangDropdownOpen(false);
+                      }}
+                      className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left ${
+                        locale === lang.code ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-700 hover:bg-slate-50'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2">
+                        <span>{lang.flag}</span>
+                        <span>{lang.label}</span>
+                      </div>
+                      {locale === lang.code && <Check size={12} className="text-orange-500" />}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <button
+              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+              className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
+            >
+              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+            </button>
+          </div>
 
         </div>
-      </section>
 
-      {/* 10. FOOTER */}
-      <footer className="py-12 bg-white border-t border-slate-100 text-slate-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid grid-cols-2 sm:grid-cols-2 md:grid-cols-5 gap-8 mb-12">
+        {/* Mobile Menu Drawer */}
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-slate-100 bg-white px-4 py-6 space-y-4 shadow-xl animate-in slide-in-from-top-2 duration-200">
+            <nav className="flex flex-col space-y-3 text-sm font-bold text-slate-700">
+              <button onClick={() => scrollToSection('funcionalidades')} className="text-left py-2 hover:text-orange-500">
+                {lt.nav.features}
+              </button>
+              <button onClick={() => scrollToSection('como-funciona')} className="text-left py-2 hover:text-orange-500">
+                {lt.nav.howItWorks}
+              </button>
+              <button onClick={() => scrollToSection('para-clientes')} className="text-left py-2 hover:text-orange-500">
+                {lt.nav.forClients}
+              </button>
+              <button onClick={() => scrollToSection('para-profissionais')} className="text-left py-2 hover:text-orange-500">
+                {lt.nav.forPros}
+              </button>
+            </nav>
+
+            <div className="pt-4 border-t border-slate-100 flex flex-col gap-2.5">
+              <button
+                onClick={() => { setMobileMenuOpen(false); onLogin(); }}
+                className="w-full py-3 text-xs font-black text-slate-800 bg-slate-100 rounded-xl uppercase tracking-wider"
+              >
+                {lt.nav.login}
+              </button>
+              <button
+                onClick={() => { setMobileMenuOpen(false); onStartFree(); }}
+                className="w-full py-3 bg-orange-500 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25"
+              >
+                {lt.nav.startFree}
+              </button>
+            </div>
+          </div>
+        )}
+      </header>
+
+      {/* ========================================================================= */}
+      {/* 2. HERO SECTION                                                           */}
+      {/* ========================================================================= */}
+      <section className="pt-10 pb-16 lg:pt-14 lg:pb-24 px-4 sm:px-6 lg:px-8 max-w-7xl mx-auto overflow-hidden">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          
+          {/* Left Column: Headline, Subtitle, Dual CTAs & Trust Badges */}
+          <div className="lg:col-span-6 space-y-6 lg:space-y-8">
             
-            {/* Brand Col */}
-            <div className="col-span-2 space-y-4 text-left">
-              <div className="flex items-center gap-2.5">
-                <div className="bg-amber-500 p-2 rounded-xl text-white">
-                  <Construction className="w-5 h-5" />
-                </div>
-                <span className="text-xl font-black tracking-tight italic text-slate-900">
-                  ÁTRIOS<span className="text-amber-500">BUILD</span>
-                </span>
-              </div>
-              <p className="text-xs text-slate-500 max-w-sm font-medium leading-relaxed">
-                {lt.footer.desc}
+            {/* Main Headline */}
+            <div className="space-y-1.5">
+              <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-slate-950 leading-[1.15]">
+                <span>{lt.hero.titleLine1}</span><br />
+                <span>{lt.hero.titleLine2}</span><br />
+                <span>{lt.hero.titleLine3}</span><br />
+                <span className="text-orange-500">{lt.hero.titleHighlight}</span>
+              </h1>
+              
+              <p className="text-sm sm:text-base text-slate-600 font-medium leading-relaxed max-w-xl pt-2">
+                {lt.hero.subtitle}
               </p>
-              <div className="flex items-center gap-3 pt-2 text-slate-400">
-                <a href="https://www.facebook.com/atriossoftware" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-100 hover:bg-amber-100 hover:text-amber-600 rounded-xl transition-colors">
-                  <Facebook size={16} />
-                </a>
-                <a href="https://x.com/Atrios_Software" target="_blank" rel="noopener noreferrer" className="p-2 bg-slate-100 hover:bg-amber-100 hover:text-amber-600 rounded-xl transition-colors">
-                  <Twitter size={16} />
-                </a>
-                <a href="mailto:software.atrios@gmail.com" className="p-2 bg-slate-100 hover:bg-amber-100 hover:text-amber-600 rounded-xl transition-colors">
-                  <Mail size={16} />
-                </a>
+            </div>
+
+            {/* Dual CTA Buttons */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2">
+              
+              {/* Button 1: Client Quote Request (Orange Card Button) */}
+              <button
+                onClick={handleOpenClientRequest}
+                className="flex items-center gap-3.5 p-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/30 transition-all hover:scale-[1.02] active:scale-95 text-left group cursor-pointer"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <Building2 size={24} className="text-white stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black uppercase tracking-wider leading-tight">
+                    {lt.hero.ctaClient}
+                  </div>
+                  <div className="text-[11px] text-orange-100 font-medium leading-tight mt-0.5">
+                    {lt.hero.ctaClientSub}
+                  </div>
+                </div>
+              </button>
+
+              {/* Button 2: Contractor Pro CTA (Dark Navy Card Button) */}
+              <button
+                onClick={onStartFree}
+                className="flex items-center gap-3.5 p-4 rounded-2xl bg-slate-950 hover:bg-slate-900 text-white shadow-lg shadow-slate-950/20 transition-all hover:scale-[1.02] active:scale-95 text-left group cursor-pointer border border-slate-800"
+              >
+                <div className="w-12 h-12 rounded-xl bg-white/10 flex items-center justify-center shrink-0 group-hover:scale-110 transition-transform">
+                  <HardHat size={24} className="text-amber-400 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="text-xs sm:text-sm font-black uppercase tracking-wider leading-tight">
+                    {lt.hero.ctaPro}
+                  </div>
+                  <div className="text-[11px] text-slate-300 font-medium leading-tight mt-0.5">
+                    {lt.hero.ctaProSub}
+                  </div>
+                </div>
+              </button>
+
+            </div>
+
+            {/* 3 Trust Badges Row */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-4 border-t border-slate-100">
+              
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                  <ShieldCheck size={18} className="text-emerald-600 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900 leading-tight">
+                    {lt.hero.badge1Title}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    {lt.hero.badge1Sub}
+                  </div>
+                </div>
               </div>
-            </div>
 
-            {/* Produto Col */}
-            <div className="text-left space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">{lt.footer.product}</h4>
-              <ul className="space-y-2 text-xs font-medium text-slate-500">
-                <li><button onClick={() => scrollToSection('funcionalidades')} className="hover:text-slate-900">{lt.footer.features}</button></li>
-                <li><button onClick={() => scrollToSection('como-funciona')} className="hover:text-slate-900">{lt.footer.howItWorks}</button></li>
-                <li><button onClick={() => scrollToSection('pdf-profissional')} className="hover:text-slate-900">{lt.footer.pdfEstimates}</button></li>
-                <li><button onClick={onStartFree} className="hover:text-slate-900 font-bold text-amber-600">{lt.footer.createFreeAccount}</button></li>
-              </ul>
-            </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                  <UserCheck size={18} className="text-orange-500 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900 leading-tight">
+                    {lt.hero.badge2Title}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    {lt.hero.badge2Sub}
+                  </div>
+                </div>
+              </div>
 
-            {/* Empresa Col */}
-            <div className="text-left space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">{lt.footer.company}</h4>
-              <ul className="space-y-2 text-xs font-medium text-slate-500">
-                <li><span className="text-slate-600">Atrios Software</span></li>
-                <li><a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900">software.atrios@gmail.com</a></li>
-                <li><button onClick={() => onOpenLegal('privacy')} className="hover:text-slate-900">{lt.footer.privacy}</button></li>
-                <li><button onClick={() => onOpenLegal('terms')} className="hover:text-slate-900">{lt.footer.terms}</button></li>
-              </ul>
-            </div>
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-slate-100 text-slate-700 flex items-center justify-center shrink-0">
+                  <Laptop size={18} className="text-blue-600 stroke-[2.5]" />
+                </div>
+                <div>
+                  <div className="text-xs font-black text-slate-900 leading-tight">
+                    {lt.hero.badge3Title}
+                  </div>
+                  <div className="text-[10px] text-slate-500 font-medium">
+                    {lt.hero.badge3Sub}
+                  </div>
+                </div>
+              </div>
 
-            {/* Suporte Col */}
-            <div className="text-left space-y-3">
-              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">{lt.footer.support}</h4>
-              <ul className="space-y-2 text-xs font-medium text-slate-500">
-                <li><a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900">{lt.footer.help}</a></li>
-                <li><button onClick={() => setShowDemoModal(true)} className="hover:text-slate-900">{lt.footer.demo}</button></li>
-                <li><button onClick={onDownloadApp} className="hover:text-slate-900 font-bold text-emerald-600">{lt.footer.installApp}</button></li>
-              </ul>
             </div>
 
           </div>
 
-          <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-400">
-            <p>© {new Date().getFullYear()} ÁTRIOS BUILD. {lt.footer.rights}</p>
-            <p>{lt.footer.createdBy} <span className="font-bold text-slate-600">Atrios Software</span></p>
+          {/* Right Column: High-Impact HERO Media / Video Player Showcase */}
+          <div className="lg:col-span-6 relative flex items-center justify-center pt-6 lg:pt-0">
+            
+            {/* Handwritten Dotted Arrow and Script Annotation */}
+            <div className="absolute -top-3.5 right-6 sm:right-14 z-20 flex items-center gap-2 pointer-events-none">
+              <span className="font-serif italic font-bold text-xs sm:text-sm text-orange-600 rotate-[-4deg] drop-shadow-sm">
+                {lt.hero.arrowNote}
+              </span>
+              <svg className="w-10 h-8 text-orange-500 rotate-12" viewBox="0 0 50 40" fill="none" stroke="currentColor">
+                <path d="M5 25 C 20 10, 35 15, 45 30" strokeWidth="2" strokeDasharray="3 3" />
+                <path d="M38 28 L45 30 L43 23" strokeWidth="2" />
+              </svg>
+            </div>
+
+            {/* Main Hero Container Frame */}
+            <div className="w-full max-w-xl bg-slate-950 rounded-3xl p-3 sm:p-3.5 shadow-2xl border-4 border-slate-800 relative group overflow-hidden">
+              
+              {/* Top View Selector Bar: Vídeo Demonstrativo vs Painel */}
+              <div className="flex items-center justify-between pb-2.5 mb-2 border-b border-slate-800 text-xs px-1">
+                <div className="flex items-center gap-1.5">
+                  <button
+                    type="button"
+                    onClick={() => { setHeroViewMode('video'); setIsPlayingHeroInline(true); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-[11px] transition-all cursor-pointer ${
+                      heroViewMode === 'video'
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Play size={12} className="fill-current" />
+                    <span>VÍDEO HERO</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => { setHeroViewMode('app'); setIsPlayingHeroInline(false); }}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl font-black text-[11px] transition-all cursor-pointer ${
+                      heroViewMode === 'app'
+                        ? 'bg-orange-500 text-white shadow-md shadow-orange-500/20'
+                        : 'bg-slate-900 text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    <Laptop size={12} />
+                    <span>PAINEL EM DIRETO</span>
+                  </button>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <span className="flex items-center gap-1 text-[10px] font-black uppercase tracking-wider text-emerald-400">
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                    HD 60fps
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowVideoModal(true)}
+                    className="p-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-slate-400 hover:text-white transition-colors"
+                    title="Expandir Vídeo"
+                  >
+                    <Maximize2 size={13} />
+                  </button>
+                </div>
+              </div>
+
+              {/* View 1: Dynamic HERO VIDEO PLAYER */}
+              {heroViewMode === 'video' && (
+                <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-slate-900 border border-slate-800 flex items-center justify-center">
+                  
+                  {/* Option A: YouTube Configured */}
+                  {heroVideo.type === 'youtube' && heroVideo.youtubeId ? (
+                    <iframe
+                      src={`https://www.youtube.com/embed/${heroVideo.youtubeId}?autoplay=${isPlayingHeroInline || heroVideo.autoPlay ? 1 : 0}&mute=${heroVideo.muted ? 1 : 0}&loop=${heroVideo.loop ? 1 : 0}&controls=${heroVideo.showControls ? 1 : 0}&rel=0`}
+                      title="Atrios Build Hero Video"
+                      className="w-full h-full object-cover"
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                      allowFullScreen
+                    />
+                  ) : heroVideo.type === 'upload' || (heroVideo.type === 'mp4' && heroVideo.videoUrl) ? (
+                    /* Option B: Direct HTML5 Video */
+                    <video
+                      src={heroVideo.videoUrl}
+                      controls={heroVideo.showControls}
+                      autoPlay={isPlayingHeroInline || heroVideo.autoPlay}
+                      muted={heroVideo.muted}
+                      loop={heroVideo.loop}
+                      className="w-full h-full object-cover"
+                    />
+                  ) : (
+                    /* Option C: Premium Interactive Default Hero Showcase */
+                    <div 
+                      onClick={() => setShowVideoModal(true)}
+                      className="relative w-full h-full flex flex-col justify-between p-4 bg-gradient-to-br from-slate-950 via-slate-900 to-slate-950 cursor-pointer group select-none"
+                    >
+                      {/* Background Visual Grid Lines */}
+                      <div className="absolute inset-0 bg-[radial-gradient(#f97316_1px,transparent_1px)] [background-size:16px_16px] opacity-15 pointer-events-none"></div>
+
+                      {/* Top Pill / Title */}
+                      <div className="relative z-10 flex items-center justify-between">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[10px] font-black uppercase tracking-wider backdrop-blur-sm">
+                          <Sparkles size={12} className="text-orange-400" />
+                          <span>SOFTWARE EM AÇÃO • 60 SEGUNDOS</span>
+                        </div>
+                        <span className="text-[10px] font-bold text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded border border-slate-800">
+                          01:45 MIN
+                        </span>
+                      </div>
+
+                      {/* Center Glowing Play Button */}
+                      <div className="relative z-10 flex flex-col items-center justify-center my-auto">
+                        <div className="relative flex items-center justify-center">
+                          <span className="absolute w-20 h-20 rounded-full bg-orange-500/20 animate-ping"></span>
+                          <span className="absolute w-16 h-16 rounded-full bg-orange-500/40"></span>
+                          <div className="w-14 h-14 rounded-full bg-gradient-to-tr from-orange-600 to-amber-500 text-white flex items-center justify-center shadow-xl shadow-orange-500/50 group-hover:scale-110 transition-transform relative z-10">
+                            <Play size={24} className="fill-white translate-x-0.5 stroke-[2.5]" />
+                          </div>
+                        </div>
+                        <div className="mt-3 text-center">
+                          <div className="text-xs sm:text-sm font-black text-white tracking-wide uppercase">
+                            VER DEMONSTRAÇÃO COMPLETA
+                          </div>
+                          <div className="text-[10px] text-slate-400 font-medium mt-0.5">
+                            Clique para assistir como funciona o Atrios Build
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Bottom Live Metrics Overlay Bar */}
+                      <div className="relative z-10 grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-[10px] font-bold text-slate-300">
+                        <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 text-center">
+                          <span className="text-orange-400 font-black">1. </span> Pedidos de Obra
+                        </div>
+                        <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 text-center">
+                          <span className="text-orange-400 font-black">2. </span> Propostas Rápidas
+                        </div>
+                        <div className="bg-slate-900/80 p-1.5 rounded-lg border border-slate-800 text-center">
+                          <span className="text-orange-400 font-black">3. </span> Gestão Total
+                        </div>
+                      </div>
+
+                    </div>
+                  )}
+
+                </div>
+              )}
+
+              {/* View 2: Interactive Real-Time Pro Dashboard (When toggled to Painel) */}
+              {heroViewMode === 'app' && (
+                <div className="bg-[#f8fafc] rounded-2xl overflow-hidden border border-slate-800 text-slate-900 text-left animate-in fade-in duration-200">
+                  
+                  {/* Laptop Header */}
+                  <div className="bg-white border-b border-slate-200 px-4 py-2.5 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="w-6 h-6 rounded-lg bg-orange-500 flex items-center justify-center text-white text-[10px] font-black">
+                        A
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-slate-900 leading-tight">Olá, João Silva</div>
+                        <div className="text-[10px] text-slate-400 font-medium">Vamos gerir o seu negócio hoje?</div>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+                      <span className="text-[10px] font-bold text-slate-500">Online</span>
+                    </div>
+                  </div>
+
+                  {/* 4 Stat Metrics Cards */}
+                  <div className="p-2.5 grid grid-cols-2 sm:grid-cols-4 gap-2 bg-slate-50 border-b border-slate-200">
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="text-[9px] font-bold text-slate-500">Orçamentos</div>
+                      <div className="text-sm font-black text-slate-900">24</div>
+                      <div className="text-[8px] font-bold text-emerald-600">+12% mês</div>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="text-[9px] font-bold text-slate-500">Obras ativas</div>
+                      <div className="text-sm font-black text-slate-900">8</div>
+                      <div className="text-[8px] font-bold text-emerald-600">+5% andam.</div>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="text-[9px] font-bold text-slate-500">Recebimentos</div>
+                      <div className="text-sm font-black text-slate-900">18.650 €</div>
+                      <div className="text-[8px] font-bold text-emerald-600">+18% mês</div>
+                    </div>
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm">
+                      <div className="text-[9px] font-bold text-slate-500">Lucro líquido</div>
+                      <div className="text-sm font-black text-slate-900">7.450 €</div>
+                      <div className="text-[8px] font-bold text-emerald-600">+15%</div>
+                    </div>
+                  </div>
+
+                  {/* Two Columns: Pedidos & Propostas */}
+                  <div className="p-2.5 grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                        <span className="text-[10px] font-black text-slate-900 flex items-center gap-1">
+                          <Inbox size={11} className="text-orange-500" /> Pedidos de orçamento
+                        </span>
+                        <span className="text-[8px] font-bold px-1 py-0.5 rounded bg-orange-100 text-orange-700">3 Novos</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="p-1 rounded bg-slate-50 flex items-center justify-between text-[9px] font-bold">
+                          <span>Remodelação cozinha</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-amber-500 text-slate-950 rounded">Novo</span>
+                        </div>
+                        <div className="p-1 rounded bg-slate-50 flex items-center justify-between text-[9px] font-bold">
+                          <span>Construção moradia</span>
+                          <span className="text-[8px] px-1 py-0.2 bg-amber-500 text-slate-950 rounded">Novo</span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-white p-2 rounded-xl border border-slate-200 shadow-sm space-y-1.5">
+                      <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                        <span className="text-[10px] font-black text-slate-900 flex items-center gap-1">
+                          <Send size={11} className="text-blue-500" /> Propostas enviadas
+                        </span>
+                        <span className="text-[8px] font-bold text-slate-400">Total 3</span>
+                      </div>
+                      <div className="space-y-1">
+                        <div className="p-1 rounded bg-slate-50 flex items-center justify-between text-[9px] font-bold">
+                          <span>Carlos M. (1.850 €)</span>
+                          <span className="text-[8px] text-emerald-600">Enviada</span>
+                        </div>
+                        <div className="p-1 rounded bg-slate-50 flex items-center justify-between text-[9px] font-bold">
+                          <span>Ana P. (1.220 €)</span>
+                          <span className="text-[8px] text-emerald-600">Enviada</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              )}
+
+            </div>
+
+            {/* Overlapping Connected Mobile Phone Card */}
+            <div className="absolute -bottom-5 -right-2 sm:-right-4 w-44 sm:w-48 bg-slate-950 rounded-2xl p-2 shadow-2xl border-4 border-slate-800 z-30 hidden xs:block">
+              <div className="bg-white rounded-xl p-2.5 border border-slate-100 text-left space-y-1.5">
+                <div className="flex items-center justify-between border-b border-slate-100 pb-1">
+                  <span className="text-[9px] font-black text-slate-800">Pedido de Obra</span>
+                  <span className="w-1.5 h-1.5 rounded-full bg-orange-500"></span>
+                </div>
+                <div className="space-y-0.5">
+                  <div className="text-[8px] font-black uppercase text-orange-600">Novo pedido</div>
+                  <div className="text-[10px] font-black text-slate-900 leading-tight">Remodelação de Casa</div>
+                  <div className="text-[8px] text-slate-500">Lisboa • há 30 min</div>
+                </div>
+                <button
+                  onClick={handleOpenClientRequest}
+                  className="w-full py-1 bg-orange-500 text-white rounded-lg text-[9px] font-black uppercase tracking-wider text-center"
+                >
+                  VER PEDIDO
+                </button>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 3. PROCESS TIMELINE: COMO FUNCIONA PARA TODOS                             */}
+      {/* ========================================================================= */}
+      <section id="como-funciona" className="py-16 lg:py-24 bg-white border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          {/* Header */}
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <span className="text-[11px] font-black text-orange-600 tracking-widest uppercase">
+              {lt.timeline.eyebrow}
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight">
+              {lt.timeline.title}
+            </h2>
+          </div>
+
+          {/* 7-Step Horizontal Grid with Connector Line */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-4 relative">
+            
+            {lt.timeline.steps.map((step, idx) => {
+              const stepIcons = [
+                <FileText key={1} size={20} className="text-orange-500" />,
+                <Users key={2} size={20} className="text-orange-500" />,
+                <FileSpreadsheet key={3} size={20} className="text-orange-500" />,
+                <Send key={4} size={20} className="text-orange-500" />,
+                <UserCheck key={5} size={20} className="text-orange-500" />,
+                <HardHat key={6} size={20} className="text-orange-500" />,
+                <TrendingUp key={7} size={20} className="text-orange-500" />
+              ];
+
+              return (
+                <div 
+                  key={step.num}
+                  className="bg-slate-50/80 hover:bg-white rounded-2xl p-4 border border-slate-200/80 hover:border-orange-400 transition-all hover:shadow-md space-y-3 flex flex-col justify-between text-left relative group"
+                >
+                  <div className="space-y-3">
+                    {/* Top Number Badge and Icon */}
+                    <div className="flex items-center justify-between">
+                      <div className="w-8 h-8 rounded-full bg-orange-500 text-white font-black text-xs flex items-center justify-center shadow-md shadow-orange-500/20">
+                        {step.num}
+                      </div>
+                      <div className="w-8 h-8 rounded-xl bg-white flex items-center justify-center border border-slate-100 shadow-sm">
+                        {stepIcons[idx]}
+                      </div>
+                    </div>
+
+                    {/* Step Title */}
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug group-hover:text-orange-600 transition-colors">
+                      {step.title}
+                    </h3>
+                  </div>
+
+                  {/* Step Description */}
+                  <p className="text-[11px] text-slate-500 leading-relaxed font-medium">
+                    {step.desc}
+                  </p>
+                </div>
+              );
+            })}
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 4. DUAL VALUE PROPOSITION CARDS (PARA CLIENTES & PARA PROFISSIONAIS)      */}
+      {/* ========================================================================= */}
+      <section className="py-16 lg:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-8">
+        
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          
+          {/* Card 1: PARA CLIENTES (Warm Tinted Container) */}
+          <div 
+            id="para-clientes"
+            className="bg-[#fffcf7] rounded-3xl p-6 sm:p-8 border border-orange-200/70 shadow-sm space-y-6 flex flex-col justify-between"
+          >
+            <div className="space-y-4">
+              
+              {/* Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-orange-100 text-orange-700 text-[10px] font-black tracking-wider uppercase">
+                {lt.dualCards.client.tag}
+              </div>
+
+              {/* Title & Subtitle */}
+              <div className="space-y-1">
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight">
+                  {lt.dualCards.client.title}
+                </h3>
+                <p className="text-xs sm:text-sm text-slate-600 font-medium">
+                  {lt.dualCards.client.subtitle}
+                </p>
+              </div>
+
+              {/* Checkpoints */}
+              <div className="space-y-2.5 pt-2">
+                {lt.dualCards.client.bullets.map((bullet, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                      <Check size={12} className="stroke-[3]" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      {bullet}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Embedded Floating Proposals Card */}
+            <div className="bg-white p-4 rounded-2xl border border-orange-200 shadow-md space-y-2.5">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-black text-slate-900">
+                  {lt.dualCards.client.floatingTitle}
+                </span>
+                <span className="text-[10px] font-bold text-orange-600">3 Propostas</span>
+              </div>
+
+              <div className="space-y-1.5 text-xs font-bold text-slate-800">
+                <div className="flex justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <span>{lt.dualCards.client.floatingCompanyA}</span>
+                  <span className="text-emerald-600 font-black">2.450 €</span>
+                </div>
+                <div className="flex justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <span>{lt.dualCards.client.floatingCompanyB}</span>
+                  <span className="text-emerald-600 font-black">2.150 €</span>
+                </div>
+                <div className="flex justify-between p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <span>{lt.dualCards.client.floatingCompanyC}</span>
+                  <span className="text-emerald-600 font-black">2.780 €</span>
+                </div>
+              </div>
+
+              <button
+                onClick={handleOpenClientRequest}
+                className="text-[10px] font-bold text-orange-600 hover:text-orange-700 block w-full text-center pt-1 cursor-pointer"
+              >
+                {lt.dualCards.client.floatingFooter} →
+              </button>
+            </div>
+
+            {/* CTA Button */}
+            <button
+              onClick={handleOpenClientRequest}
+              className="w-full py-4 bg-orange-500 hover:bg-orange-600 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+            >
+              <span>{lt.dualCards.client.cta}</span>
+              <ArrowRight size={18} />
+            </button>
+
+          </div>
+
+          {/* Card 2: PARA PROFISSIONAIS (Cool Sky Tinted Container) */}
+          <div 
+            id="para-profissionais"
+            className="bg-[#f6f9fe] rounded-3xl p-6 sm:p-8 border border-blue-200/70 shadow-sm space-y-6 flex flex-col justify-between"
+          >
+            <div className="space-y-4">
+              
+              {/* Pill */}
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-100 text-blue-700 text-[10px] font-black tracking-wider uppercase">
+                {lt.dualCards.pro.tag}
+              </div>
+
+              {/* Title & Subtitle */}
+              <div className="space-y-1">
+                <h3 className="text-2xl sm:text-3xl font-black text-slate-950 tracking-tight leading-tight">
+                  {lt.dualCards.pro.title}
+                </h3>
+              </div>
+
+              {/* Checkpoints */}
+              <div className="space-y-2.5 pt-2">
+                {lt.dualCards.pro.bullets.map((bullet, i) => (
+                  <div key={i} className="flex items-start gap-2.5">
+                    <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5 shadow-sm">
+                      <Check size={12} className="stroke-[3]" />
+                    </div>
+                    <span className="text-xs sm:text-sm font-bold text-slate-800">
+                      {bullet}
+                    </span>
+                  </div>
+                ))}
+              </div>
+
+            </div>
+
+            {/* Embedded Floating Dashboard Card */}
+            <div className="bg-white p-4 rounded-2xl border border-blue-200 shadow-md space-y-3">
+              <div className="flex items-center justify-between border-b border-slate-100 pb-2">
+                <span className="text-xs font-black text-slate-900">
+                  {lt.dualCards.pro.floatingTitle}
+                </span>
+                <span className="text-[10px] font-black text-emerald-600">+24% este mês</span>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2 text-center">
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[9px] font-bold text-slate-500">Faturação</div>
+                  <div className="text-xs font-black text-slate-900">{lt.dualCards.pro.floatingRevenue}</div>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[9px] font-bold text-slate-500">Obras</div>
+                  <div className="text-xs font-black text-slate-900">{lt.dualCards.pro.floatingActiveWorks}</div>
+                </div>
+                <div className="p-2 rounded-xl bg-slate-50 border border-slate-100">
+                  <div className="text-[9px] font-bold text-slate-500">Pedidos</div>
+                  <div className="text-xs font-black text-slate-900">{lt.dualCards.pro.floatingRequests}</div>
+                </div>
+              </div>
+            </div>
+
+            {/* CTA Button */}
+            <button
+              onClick={onStartFree}
+              className="w-full py-4 bg-slate-950 hover:bg-slate-900 text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-slate-950/20 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+            >
+              <span>{lt.dualCards.pro.cta}</span>
+              <ArrowRight size={18} />
+            </button>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 5. FEATURES GRID: FUNCIONALIDADES COMPLETAS PARA O DIA A DIA             */}
+      {/* ========================================================================= */}
+      <section id="funcionalidades" className="py-16 lg:py-24 bg-white border-y border-slate-100">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 space-y-12">
+          
+          {/* Header */}
+          <div className="text-center space-y-2 max-w-2xl mx-auto">
+            <span className="text-[11px] font-black text-slate-500 tracking-widest uppercase">
+              {lt.features.eyebrow}
+            </span>
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black text-slate-950 tracking-tight">
+              {lt.features.title}
+            </h2>
+          </div>
+
+          {/* 10 Features Cards (5 x 2 Grid) */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 sm:gap-5">
+            
+            {lt.features.items.map((feat, idx) => {
+              const featIcons = [
+                <FileText key={0} size={22} className="text-blue-500" />,
+                <Hammer key={1} size={22} className="text-blue-600" />,
+                <Users key={2} size={22} className="text-emerald-500" />,
+                <Layers key={3} size={22} className="text-blue-500" />,
+                <CreditCard key={4} size={22} className="text-orange-500" />,
+                <BarChart3 key={5} size={22} className="text-purple-500" />,
+                <Inbox key={6} size={22} className="text-rose-500" />,
+                <Send key={7} size={22} className="text-orange-500" />,
+                <FolderArchive key={8} size={22} className="text-blue-500" />,
+                <Smartphone key={9} size={22} className="text-amber-500" />
+              ];
+
+              return (
+                <div 
+                  key={idx}
+                  className="bg-white rounded-2xl p-5 border border-slate-200/90 hover:border-orange-500/50 shadow-sm hover:shadow-md transition-all space-y-3 relative group"
+                >
+                  <div className="flex items-center justify-between">
+                    <div className="w-11 h-11 rounded-xl bg-slate-50 border border-slate-100 flex items-center justify-center group-hover:scale-110 transition-transform">
+                      {featIcons[idx]}
+                    </div>
+                    {feat.isNew && (
+                      <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-orange-500 text-white uppercase tracking-wider">
+                        NOVO
+                      </span>
+                    )}
+                  </div>
+
+                  <div className="space-y-1">
+                    <h3 className="text-sm font-black text-slate-900 group-hover:text-orange-600 transition-colors">
+                      {feat.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 leading-relaxed font-medium">
+                      {feat.desc}
+                    </p>
+                  </div>
+                </div>
+              );
+            })}
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 6. COMPARISON: ANTES ERA ASSIM... VS AGORA É ASSIM                        */}
+      {/* ========================================================================= */}
+      <section id="comparacao" className="py-16 lg:py-24 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200 shadow-sm">
+          
+          <div className="grid grid-cols-1 lg:grid-cols-11 gap-6 items-center">
+            
+            {/* Left Box: ANTES ERA ASSIM... (Soft Rose background) */}
+            <div className="lg:col-span-5 bg-rose-50/60 border border-rose-100 rounded-2xl p-6 space-y-4">
+              <h3 className="text-sm sm:text-base font-black text-rose-700 uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                {lt.comparison.beforeTitle}
+              </h3>
+
+              <div className="space-y-3">
+                {lt.comparison.beforeItems.map((item, i) => {
+                  const beforeIcons = [
+                    <MessageCircle key={0} size={16} className="text-rose-500 shrink-0" />,
+                    <FileSpreadsheet key={1} size={16} className="text-rose-500 shrink-0" />,
+                    <Users key={2} size={16} className="text-rose-500 shrink-0" />,
+                    <Folder key={3} size={16} className="text-rose-500 shrink-0" />,
+                    <Clock key={4} size={16} className="text-rose-500 shrink-0" />
+                  ];
+                  return (
+                    <div key={i} className="flex items-center gap-3 text-xs sm:text-sm font-bold text-slate-700">
+                      {beforeIcons[i]}
+                      <span>{item}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+            {/* Central Connector Arrow */}
+            <div className="lg:col-span-1 flex items-center justify-center">
+              <div className="w-12 h-12 rounded-full bg-slate-900 text-white flex items-center justify-center shadow-md">
+                <ArrowRight size={20} />
+              </div>
+            </div>
+
+            {/* Right Box: AGORA É ASSIM, COM O ATRIOS BUILD (Soft Emerald background) */}
+            <div className="lg:col-span-5 bg-emerald-50/60 border border-emerald-100 rounded-2xl p-6 space-y-4">
+              <h3 className="text-sm sm:text-base font-black text-emerald-800 uppercase tracking-wider flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                {lt.comparison.afterTitle}
+              </h3>
+
+              <div className="space-y-3">
+                {lt.comparison.afterItems.map((item, i) => {
+                  const afterIcons = [
+                    <Inbox key={0} size={16} className="text-emerald-600 shrink-0" />,
+                    <FileCheck2 key={1} size={16} className="text-emerald-600 shrink-0" />,
+                    <UserCheck key={2} size={16} className="text-emerald-600 shrink-0" />,
+                    <TrendingUp key={3} size={16} className="text-emerald-600 shrink-0" />,
+                    <CheckCircle2 key={4} size={16} className="text-emerald-600 shrink-0" />
+                  ];
+                  return (
+                    <div key={i} className="flex items-center gap-3 text-xs sm:text-sm font-black text-slate-900">
+                      {afterIcons[i]}
+                      <span>{item}</span>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 7. BOTTOM BANNER / FINAL CTA                                              */}
+      {/* ========================================================================= */}
+      <section className="py-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        
+        <div className="bg-[#0b132b] rounded-3xl p-8 sm:p-12 text-white shadow-2xl space-y-10 border border-slate-800 relative overflow-hidden">
+          
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center relative z-10">
+            
+            {/* Left Content */}
+            <div className="lg:col-span-7 space-y-3">
+              <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight leading-tight">
+                {lt.banner.title}
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-xl leading-relaxed">
+                {lt.banner.subtitle}
+              </p>
+            </div>
+
+            {/* Right Dual Action Buttons */}
+            <div className="lg:col-span-5 flex flex-col sm:flex-row lg:flex-col gap-3">
+              
+              <button
+                onClick={handleOpenClientRequest}
+                className="flex items-center justify-center gap-3 p-4 rounded-2xl bg-orange-500 hover:bg-orange-600 text-white shadow-lg shadow-orange-500/30 font-black text-xs sm:text-sm uppercase tracking-wider transition-all active:scale-95 cursor-pointer text-center"
+              >
+                <div>
+                  <div>{lt.banner.ctaClient}</div>
+                  <div className="text-[10px] font-normal opacity-90">{lt.banner.ctaClientSub}</div>
+                </div>
+              </button>
+
+              <button
+                onClick={onStartFree}
+                className="flex items-center justify-center gap-3 p-4 rounded-2xl bg-slate-900 hover:bg-slate-800 text-white border border-slate-700 font-black text-xs sm:text-sm uppercase tracking-wider transition-all active:scale-95 cursor-pointer text-center"
+              >
+                <div>
+                  <div>{lt.banner.ctaPro}</div>
+                  <div className="text-[10px] font-normal text-slate-400">{lt.banner.ctaProSub}</div>
+                </div>
+              </button>
+
+            </div>
+
+          </div>
+
+          {/* Bottom 4 Trust Pillars */}
+          <div className="pt-8 border-t border-slate-800 grid grid-cols-2 sm:grid-cols-4 gap-4 text-left relative z-10">
+            
+            <div className="flex items-center gap-2.5">
+              <ShieldCheck size={20} className="text-orange-400 shrink-0" />
+              <div>
+                <div className="text-xs font-black text-white leading-tight">{lt.banner.trust1Title}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{lt.banner.trust1Sub}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <Headphones size={20} className="text-orange-400 shrink-0" />
+              <div>
+                <div className="text-xs font-black text-white leading-tight">{lt.banner.trust2Title}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{lt.banner.trust2Sub}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <RefreshCw size={20} className="text-orange-400 shrink-0" />
+              <div>
+                <div className="text-xs font-black text-white leading-tight">{lt.banner.trust3Title}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{lt.banner.trust3Sub}</div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2.5">
+              <TrendingUp size={20} className="text-orange-400 shrink-0" />
+              <div>
+                <div className="text-xs font-black text-white leading-tight">{lt.banner.trust4Title}</div>
+                <div className="text-[10px] text-slate-400 font-medium">{lt.banner.trust4Sub}</div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+
+      </section>
+
+      {/* ========================================================================= */}
+      {/* 8. FOOTER                                                                 */}
+      {/* ========================================================================= */}
+      <footer className="bg-white border-t border-slate-100 py-8 text-center text-xs text-slate-500">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <span className="font-black text-slate-900">ATRIOS BUILD</span>
+            <span>© {new Date().getFullYear()} — Todos os direitos reservados.</span>
+          </div>
+          <div className="flex items-center gap-4 text-xs font-bold">
+            <button onClick={() => onOpenLegal('privacy')} className="hover:text-orange-500">
+              Privacidade
+            </button>
+            <button onClick={() => onOpenLegal('terms')} className="hover:text-orange-500">
+              Termos de Uso
+            </button>
           </div>
         </div>
       </footer>
 
-      {/* 11. MODAL DE DEMONSTRAÇÃO INTERATIVA (60 SEGUNDOS) */}
-      <AnimatePresence>
-        {showDemoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative text-left overflow-hidden">
-              
-              {/* Modal Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-xl bg-amber-500 text-slate-950 flex items-center justify-center font-black">
-                    <Play size={16} className="fill-slate-950" />
-                  </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                      {lt.demoModal.title}
-                    </h3>
-                    <p className="text-[11px] font-bold text-slate-400">
-                      {lt.demoModal.subtitle}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  onClick={() => setShowDemoModal(false)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors"
-                >
-                  <X size={18} />
-                </button>
+      {/* Client Request Modal Popup */}
+      {showClientRequestModal && (
+        <ClientRequestModal
+          isOpen={showClientRequestModal}
+          onClose={() => setShowClientRequestModal(false)}
+          onRequestSubmitted={() => {
+            setShowClientRequestModal(false);
+          }}
+        />
+      )}
+
+      {/* Full-Screen Video Modal Popup */}
+      {showVideoModal && (
+        <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-slate-900 border border-slate-800 rounded-3xl overflow-hidden max-w-4xl w-full shadow-2xl">
+            
+            <div className="flex items-center justify-between p-4 bg-slate-950 border-b border-slate-800">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-orange-500"></span>
+                <span className="text-sm font-black text-white">{heroVideo.title || 'Demonstração Atrios Build'}</span>
               </div>
-
-              {/* Mode switch if video is configured */}
-              {(((actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl)) || (actionVideo.type === 'upload' && actionVideo.videoUrl)) ||
-                ((heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl)) || (heroVideo.type === 'upload' && heroVideo.videoUrl))) && (
-                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-4">
-                  <button
-                    onClick={() => setDemoModalMode('video')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${demoModalMode === 'video' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    <Play size={13} className="fill-current" /> Vídeo Demonstrativo
-                  </button>
-                  <button
-                    onClick={() => setDemoModalMode('interactive')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${demoModalMode === 'interactive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    <ClipboardList size={13} /> Passo a Passo Interativo
-                  </button>
-                </div>
-              )}
-
-              {demoModalMode === 'video' && (((actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl)) || (actionVideo.type === 'upload' && actionVideo.videoUrl)) ||
-                ((heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl)) || (heroVideo.type === 'upload' && heroVideo.videoUrl))) ? (
-                <div className="space-y-4 mb-6">
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-slate-200">
-                    {/* Prefer actionVideo if configured, otherwise fallback to heroVideo */}
-                    {actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl) ? (
-                      <iframe
-                        className="w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '')}?autoplay=1&controls=1&rel=0`}
-                        title={actionVideo.title || "Veja como funciona em 60 segundos"}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    ) : actionVideo.type === 'upload' && actionVideo.videoUrl ? (
-                      <video
-                        className="w-full h-full object-cover"
-                        src={actionVideo.videoUrl}
-                        autoPlay
-                        controls
-                        playsInline
-                      />
-                    ) : heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl) ? (
-                      <iframe
-                        className="w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')}?autoplay=1&controls=1&rel=0`}
-                        title={heroVideo.title || "Demonstração Átrios Build"}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <video
-                        className="w-full h-full object-cover"
-                        src={heroVideo.videoUrl}
-                        autoPlay
-                        controls
-                        playsInline
-                      />
-                    )}
-                  </div>
-                  {(actionVideo.title || heroVideo.title) && (
-                    <p className="text-xs font-bold text-slate-600 text-center">
-                      {actionVideo.type !== 'default' ? actionVideo.title : heroVideo.title}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* Step indicator tabs */}
-                  <div className="grid grid-cols-4 gap-2 mb-6">
-                    {[
-                      { num: '1', label: lt.demoModal.step1Tab },
-                      { num: '2', label: lt.demoModal.step2Tab },
-                      { num: '3', label: lt.demoModal.step3Tab },
-                      { num: '4', label: lt.demoModal.step4Tab }
-                    ].map((s, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setDemoStep(idx)}
-                        className={`py-2 px-1 rounded-xl text-center transition-all ${demoStep === idx ? 'bg-amber-500 text-slate-950 font-black shadow-md' : 'bg-slate-100 text-slate-500 font-bold hover:bg-slate-200'}`}
-                      >
-                        <span className="text-xs block">{s.num}. {s.label}</span>
-                      </button>
-                    ))}
-                  </div>
-
-                  {/* Demo Content Step Display */}
-                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 mb-6 min-h-[220px] flex flex-col justify-center">
-                    {demoStep === 0 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-amber-600 font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-amber-500" />
-                          {lt.demoModal.step1Badge}
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-2">
-                          <p className="text-xs font-bold text-slate-800">{lt.demoModal.step1Client} <span className="font-black text-amber-600">João Silva</span></p>
-                          <p className="text-xs font-bold text-slate-800">{lt.demoModal.step1Location} <span className="font-medium text-slate-600">Lisboa</span></p>
-                          <p className="text-xs font-bold text-slate-800">{lt.demoModal.step1Desc} <span className="font-medium text-slate-600">Remodelação Geral WC & Cozinha</span></p>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">{lt.demoModal.step1Footer}</p>
-                      </motion.div>
-                    )}
-
-                    {demoStep === 1 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-amber-600 font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-amber-500" />
-                          {lt.demoModal.step2Badge}
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5 text-xs">
-                          <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
-                            <span>{lt.demoModal.step2Item1}</span>
-                            <span className="font-black">700,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
-                            <span>{lt.demoModal.step2Item2}</span>
-                            <span className="font-black">120,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-slate-800">
-                            <span>{lt.demoModal.step2Item3}</span>
-                            <span className="font-black">180,00 {currencySymbol}</span>
-                          </div>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">{lt.demoModal.step2Footer}</p>
-                      </motion.div>
-                    )}
-
-                    {demoStep === 2 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-amber-600 font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-amber-500" />
-                          {lt.demoModal.step3Badge}
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-sm space-y-1.5 text-xs">
-                          <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
-                            <span>{lt.demoModal.step3Item1}</span>
-                            <span className="font-black">750,00 {currencySymbol}</span>
-                          </div>
-                          <div className="flex justify-between font-bold text-slate-800">
-                            <span>{lt.demoModal.step3Item2}</span>
-                            <span className="font-black">300,00 {currencySymbol}</span>
-                          </div>
-                        </div>
-                        <div className="bg-amber-100 p-2 rounded-lg text-amber-900 font-black text-xs flex justify-between">
-                          <span>{lt.demoModal.step3Total}</span>
-                          <span>2.521,50 {currencySymbol}</span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {(demoStep === 3) && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase">
-                          <CheckCircle2 size={14} />
-                          {lt.demoModal.step4Badge}
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border-2 border-emerald-500 shadow-sm flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black">
-                              <FileText size={20} />
-                            </div>
-                            <div>
-                              <span className="text-xs font-black text-slate-900 block">{lt.demoModal.step4File}</span>
-                              <span className="text-[10px] text-emerald-600 font-bold">{lt.demoModal.step4Sub}</span>
-                            </div>
-                          </div>
-                          <span className="text-xs font-black text-slate-900">2.521,50 {currencySymbol}</span>
-                        </div>
-                        <p className="text-xs text-slate-500 font-medium">{lt.demoModal.step4Footer}</p>
-                      </motion.div>
-                    )}
-                  </div>
-                </>
-              )}
-
-              {/* Modal Actions */}
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => setDemoStep(prev => (prev - 1 + 4) % 4)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors"
-                >
-                  {lt.demoModal.prev}
-                </button>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => {
-                      setShowDemoModal(false);
-                      onStartFree();
-                    }}
-                    className="px-6 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95"
-                  >
-                    {lt.demoModal.cta}
-                  </button>
-                </div>
-              </div>
-
+              <button
+                type="button"
+                onClick={() => setShowVideoModal(false)}
+                className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
             </div>
-          </div>
-        )}
-      </AnimatePresence>
 
-      {/* 12. MODAL DE PEDIDO DE ORÇAMENTO (PARTICULARES / CLIENTES COMUNS) */}
-      <ClientRequestModal
-        isOpen={showClientRequestModal}
-        onClose={() => setShowClientRequestModal(false)}
-        locale={locale}
-        onOpenPortal={() => {
-          setShowClientRequestModal(false);
-          if (onOpenClientPortal) onOpenClientPortal();
-        }}
-      />
+            <div className="relative aspect-video w-full bg-black">
+              {heroVideo.type === 'youtube' && heroVideo.youtubeId ? (
+                <iframe
+                  src={`https://www.youtube.com/embed/${heroVideo.youtubeId}?autoplay=1&controls=1`}
+                  title="Atrios Build Full Video"
+                  className="w-full h-full"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              ) : heroVideo.videoUrl ? (
+                <video
+                  src={heroVideo.videoUrl}
+                  controls
+                  autoPlay
+                  className="w-full h-full object-contain"
+                />
+              ) : (
+                <div className="w-full h-full flex flex-col items-center justify-center text-white space-y-4 p-8 text-center bg-slate-950">
+                  <div className="w-16 h-16 rounded-full bg-orange-500/20 text-orange-400 flex items-center justify-center">
+                    <Video size={32} />
+                  </div>
+                  <div className="space-y-1">
+                    <h4 className="text-lg font-black text-white">Demonstração Interativa do Atrios Build</h4>
+                    <p className="text-xs text-slate-400 max-w-md">
+                      Pode configurar um vídeo próprio no Painel Master ou experimentar agora a plataforma criando a sua conta grátis.
+                    </p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => { setShowVideoModal(false); onStartFree(); }}
+                    className="px-6 py-3 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/30"
+                  >
+                    EXPERIMENTAR GRÁTIS AGORA
+                  </button>
+                </div>
+              )}
+            </div>
+
+          </div>
+        </div>
+      )}
 
     </div>
   );
 };
+
 export default LandingPage;
