@@ -10,12 +10,13 @@ import {
   Sparkles, RefreshCw, Star, Menu, ExternalLink,
   ChevronRight, Building2, MapPin, Search,
   Play, Pause, Maximize2, Volume2, VolumeX,
-  Video, Eye, CheckCircle
+  Video, Eye, CheckCircle, Mail, Download, HelpCircle
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, HeroVideoConfig } from '../types';
 import { landingTranslations } from './landingTranslations';
 import { ClientRequestModal } from './ClientRequestModal';
+import { AtriosLogo } from './AtriosLogo';
 import { getStoredHeroVideoConfig, extractYouTubeId } from '../services/storage';
 
 interface LandingPageProps {
@@ -150,20 +151,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Logo */}
           <div 
             onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
-            className="flex items-center gap-3 cursor-pointer group"
+            className="cursor-pointer group"
           >
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-orange-600 to-amber-500 flex items-center justify-center text-white shadow-md shadow-orange-500/20 group-hover:scale-105 transition-transform">
-              <Building2 size={22} className="stroke-[2.5]" />
-            </div>
-            <div className="flex flex-col">
-              <div className="flex items-center tracking-tight leading-none">
-                <span className="text-xl font-black text-slate-950">ATRIOS</span>
-                <span className="text-xl font-black text-orange-500">BUILD</span>
-              </div>
-              <span className="text-[9px] font-bold tracking-widest text-slate-400 uppercase mt-0.5">
-                SOFTWARE PARA CONSTRUÇÃO CIVIL
-              </span>
-            </div>
+            <AtriosLogo size={40} showText={true} />
           </div>
 
           {/* Desktop Navigation Links */}
@@ -1171,20 +1161,158 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* ========================================================================= */}
       {/* 8. FOOTER                                                                 */}
       {/* ========================================================================= */}
-      <footer className="bg-white border-t border-slate-100 py-8 text-center text-xs text-slate-500">
-        <div className="max-w-7xl mx-auto px-4 flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <span className="font-black text-slate-900">ATRIOS BUILD</span>
-            <span>© {new Date().getFullYear()} — Todos os direitos reservados.</span>
+      <footer className="bg-white border-t border-slate-100 pt-14 pb-8 text-slate-600 text-xs">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          
+          {/* Main Footer Grid */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-12 pb-12 border-b border-slate-100">
+            
+            {/* Column 1 & 2: Brand Information */}
+            <div className="lg:col-span-2 space-y-4">
+              <div 
+                onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+                className="cursor-pointer group inline-flex"
+              >
+                <AtriosLogo size={42} showText={true} />
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed max-w-sm">
+                A plataforma completa para gestão de orçamentos, ordens de serviço e controlo financeiro de obras.
+              </p>
+
+              <div className="flex items-center gap-2 pt-1 text-[11px] font-bold text-slate-400">
+                <ShieldCheck size={16} className="text-emerald-500" />
+                <span>Dados seguros e encriptados</span>
+              </div>
+            </div>
+
+            {/* Column 3: Produto */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Produto
+              </h4>
+              <ul className="space-y-2.5 font-bold">
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('funcionalidades')} 
+                    className="hover:text-orange-500 transition-colors text-left"
+                  >
+                    Funcionalidades
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('como-funciona')} 
+                    className="hover:text-orange-500 transition-colors text-left"
+                  >
+                    Como Funciona
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => scrollToSection('funcionalidades')} 
+                    className="hover:text-orange-500 transition-colors text-left"
+                  >
+                    Orçamentos PDF
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={onStartFree} 
+                    className="text-orange-600 hover:text-orange-700 font-black transition-colors text-left flex items-center gap-1"
+                  >
+                    <span>Criar Conta Grátis</span>
+                    <ArrowRight size={12} />
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 4: Empresa */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Empresa
+              </h4>
+              <ul className="space-y-2.5 font-medium">
+                <li className="font-bold text-slate-800">
+                  Atrios Software
+                </li>
+                <li>
+                  <a 
+                    href="mailto:software.atrios@gmail.com" 
+                    className="hover:text-orange-500 transition-colors flex items-center gap-1.5 font-bold"
+                  >
+                    <Mail size={13} className="text-orange-500" />
+                    <span>software.atrios@gmail.com</span>
+                  </a>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onOpenLegal('privacy')} 
+                    className="hover:text-orange-500 transition-colors text-left"
+                  >
+                    Privacidade
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => onOpenLegal('terms')} 
+                    className="hover:text-orange-500 transition-colors text-left"
+                  >
+                    Termos de Uso
+                  </button>
+                </li>
+              </ul>
+            </div>
+
+            {/* Column 5: Suporte */}
+            <div className="space-y-3">
+              <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
+                Suporte
+              </h4>
+              <ul className="space-y-2.5 font-bold">
+                <li>
+                  <a 
+                    href="mailto:software.atrios@gmail.com?subject=Ajuda%20e%20Dúvidas%20-%20Atrios%20Build" 
+                    className="hover:text-orange-500 transition-colors flex items-center gap-1.5"
+                  >
+                    <HelpCircle size={13} className="text-slate-400" />
+                    <span>Ajuda e Dúvidas</span>
+                  </a>
+                </li>
+                <li>
+                  <button 
+                    onClick={() => setShowVideoModal(true)} 
+                    className="hover:text-orange-500 transition-colors text-left flex items-center gap-1.5"
+                  >
+                    <Play size={13} className="text-orange-500" />
+                    <span>Ver Demonstração</span>
+                  </button>
+                </li>
+                <li>
+                  <button 
+                    onClick={onDownloadApp} 
+                    className="hover:text-orange-500 transition-colors text-left flex items-center gap-1.5"
+                  >
+                    <Download size={13} className="text-emerald-600" />
+                    <span>Instalar App Mobile</span>
+                  </button>
+                </li>
+              </ul>
+            </div>
+
           </div>
-          <div className="flex items-center gap-4 text-xs font-bold">
-            <button onClick={() => onOpenLegal('privacy')} className="hover:text-orange-500">
-              Privacidade
-            </button>
-            <button onClick={() => onOpenLegal('terms')} className="hover:text-orange-500">
-              Termos de Uso
-            </button>
+
+          {/* Bottom Copyright and Legal Notice */}
+          <div className="pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-slate-400 text-xs font-medium">
+            <div>
+              © {new Date().getFullYear()} <strong className="text-slate-700">ÁTRIOSBUILD</strong> • Todos os direitos reservados.
+            </div>
+            <div className="text-[11px]">
+              Desenvolvido com excelência para profissionais da construção civil.
+            </div>
           </div>
+
         </div>
       </footer>
 
