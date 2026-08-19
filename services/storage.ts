@@ -1358,6 +1358,18 @@ export const fetchCompanyForVerification = async (companyId: string): Promise<Co
   return localMatch || null;
 };
 
+export const fetchCompaniesFromSupabase = async (): Promise<Company[]> => {
+  try {
+    const { data, error } = await safeFetch<any[]>(supabase.from('companies').select('*'));
+    if (!error && Array.isArray(data)) {
+      return data.map(c => mapCompanyFromSupabase(c));
+    }
+  } catch (err) {
+    console.warn('Failed to fetch remote companies:', err);
+  }
+  return getStoredCompanies();
+};
+
 const STORAGE_KEY_CANDIDATES = 'atrios_candidates';
 
 export const getStoredCandidates = (jobOfferId?: string): Candidate[] => {

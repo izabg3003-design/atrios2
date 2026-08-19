@@ -23,16 +23,23 @@ import {
   Lock,
   KeyRound,
   ExternalLink,
-  MessageCircle
+  MessageCircle,
+  Printer,
+  Loader2,
+  Building2
 } from 'lucide-react';
-import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode } from '../types';
+import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode, Company } from '../types';
 import { 
   getStoredClientRequests, 
   fetchClientRequestsFromSupabase, 
   getStoredBudgets, 
-  fetchBudgetsFromSupabase 
+  fetchBudgetsFromSupabase,
+  fetchCompaniesFromSupabase,
+  getStoredCompanies,
+  fetchCompanyForVerification
 } from '../services/storage';
 import { supabase } from '../services/supabase';
+import { generateOfficialBudgetPDF, normalizeForPdf } from '../services/pdfGenerator';
 
 interface ClientPortalProps {
   onBackToHome: () => void;
@@ -56,9 +63,11 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   // Data state
   const [myRequests, setMyRequests] = useState<ClientServiceRequest[]>([]);
   const [myBudgets, setMyBudgets] = useState<Budget[]>([]);
+  const [companiesMap, setCompaniesMap] = useState<Record<string, Company>>({});
   const [selectedRequest, setSelectedRequest] = useState<ClientServiceRequest | null>(null);
   const [selectedBudgetView, setSelectedBudgetView] = useState<Budget | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests'>('all_budgets');
 
   // Load client data once authenticated
@@ -67,6 +76,20 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     try {
       // 1. Normalize phone to match variations (spaces, hyphens, country code)
       const cleanPhone = phone.replace(/\D/g, '');
+
+      // Load companies for branding reference
+      try {
+        const cloudCompanies = await fetchCompaniesFromSupabase();
+        const localCompanies = getStoredCompanies();
+        const combined = [...localCompanies, ...cloudCompanies];
+        const map: Record<string, Company> = {};
+        combined.forEach(c => {
+          if (c.id) map[c.id] = c;
+        });
+        setCompaniesMap(map);
+      } catch (e) {
+        console.warn('Could not load companies for portal branding:', e);
+      }
 
       // 2. Fetch requests from Supabase / local storage
       const allRequests = await fetchClientRequestsFromSupabase();
@@ -178,8 +201,63 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     return `${val.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr.symbol}`;
   };
 
+  // Generate and Download Official PDF (Matches the exact format and branding issued by the company)
+  const downloadBudgetPDF = async (budget: Budget) => {
+    try {
+      setIsGeneratingPdf(budget.id);
+
+      // 1. Resolve authoring company data (including logo, QR code, branding)
+      let company = companiesMap[budget.companyId];
+      if (!company || !company.logo || !company.qrCode) {
+        try {
+          const fetched = await fetchCompanyForVerification(budget.companyId);
+          if (fetched) {
+            company = { ...company, ...fetched };
+          }
+        } catch (e) {
+          console.warn('Could not fetch remote company data:', e);
+        }
+      }
+
+      if (!company || !company.name) {
+        const localCompanies = getStoredCompanies();
+        const found = localCompanies.find(c => String(c.id) === String(budget.companyId));
+        if (found) company = found;
+      }
+
+      if (!company) {
+        company = {
+          id: budget.companyId || 'company_atrios',
+          name: 'ATRIOS BUILD',
+          email: 'atriosbuild@gmail.com',
+          phone: '987344566',
+          nif: '86786679',
+          address: 'travessa 1 Jose bugsb',
+          website: 'atriosbuild.pt',
+          logo: '',
+          qrCode: '',
+          pdfTemplate: 'default'
+        } as Company;
+      }
+
+      // 2. Generate identical PDF using the official generator
+      const doc = await generateOfficialBudgetPDF(budget, company, currencyCode, 'pt-PT');
+
+      // 3. Save matching file
+      const isApproved = budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED;
+      const fileNamePrefix = isApproved ? 'Atrios_Pedido' : 'Atrios_Orcamento';
+      const cleanClientName = normalizeForPdf(budget.clientName || 'Cliente').replace(/\s+/g, '_');
+      doc.save(`${fileNamePrefix}_${cleanClientName}_${budget.id}.pdf`);
+    } catch (err) {
+      console.error('Error generating budget PDF:', err);
+      alert('Erro ao gerar ficheiro PDF. Por favor tente novamente.');
+    } finally {
+      setIsGeneratingPdf(null);
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
+    <div className="w-full min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 overflow-y-auto custom-scrollbar">
       {/* Top Header */}
       <header className="bg-slate-900/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
@@ -471,9 +549,22 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                           <div className="pt-2 border-t border-white/5 flex gap-2">
                             <button
                               onClick={() => setSelectedBudgetView(budget)}
-                              className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-amber-500/10"
+                              className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-amber-500/10 active:scale-95"
                             >
                               <Eye size={14} /> Ver Detalhes do Orçamento
+                            </button>
+                            <button
+                              onClick={() => downloadBudgetPDF(budget)}
+                              disabled={isGeneratingPdf === budget.id}
+                              className="px-4 py-3 bg-white/10 hover:bg-white/20 text-white font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 disabled:opacity-50"
+                              title="Descarregar PDF do Orçamento"
+                            >
+                              {isGeneratingPdf === budget.id ? (
+                                <Loader2 size={14} className="animate-spin text-amber-400" />
+                              ) : (
+                                <Download size={14} className="text-amber-400" />
+                              )}
+                              <span>PDF</span>
                             </button>
                           </div>
                         </div>
@@ -642,21 +733,35 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-between items-center">
+            <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-between items-center gap-3">
               <button
                 onClick={() => setSelectedBudgetView(null)}
-                className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold"
+                className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer"
               >
                 Fechar
               </button>
-              <button
-                onClick={() => {
-                  window.print();
-                }}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2"
-              >
-                <Download size={14} /> Imprimir / Salvar Proposta
-              </button>
+              
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => window.print()}
+                  className="px-4 py-2.5 bg-white/10 hover:bg-white/20 text-slate-200 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                  title="Imprimir visualização rápida"
+                >
+                  <Printer size={14} /> Imprimir
+                </button>
+                <button
+                  onClick={() => downloadBudgetPDF(selectedBudgetView)}
+                  disabled={isGeneratingPdf === selectedBudgetView.id}
+                  className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer shadow-lg shadow-amber-500/20 active:scale-95 disabled:opacity-50"
+                >
+                  {isGeneratingPdf === selectedBudgetView.id ? (
+                    <Loader2 size={14} className="animate-spin" />
+                  ) : (
+                    <Download size={14} />
+                  )}
+                  <span>Descarregar PDF Oficial</span>
+                </button>
+              </div>
             </div>
           </div>
         </div>

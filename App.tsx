@@ -2991,7 +2991,7 @@ const App: React.FC = () => {
   return (
     <>
       <InAppPushBalloonContainer />
-      <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
+      <div className={`flex ${view === 'landing' || view === 'client-portal' ? 'min-h-screen overflow-y-auto items-start bg-slate-950' : 'h-screen overflow-hidden items-center bg-slate-50'} relative w-full justify-center`}>
       {showCertificateModal && (
         <CertificateModal 
           company={certificateCompany || currentUser} 
