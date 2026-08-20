@@ -2,10 +2,12 @@ import React, { useState } from 'react';
 import { 
   X, Wrench, Paintbrush, Zap, Home, Hammer, Sparkles, Send, 
   MapPin, Phone, Mail, User, AlertCircle, CheckCircle2, ShieldCheck, 
-  HelpCircle, Camera, Upload, Layers, Calendar, ChevronRight, ArrowLeft
+  HelpCircle, Camera, Upload, Layers, Calendar, ChevronRight, ArrowLeft,
+  Check, Plus, Bell, BellRing
 } from 'lucide-react';
 import { ClientServiceRequest, ServiceCategory } from '../types';
 import { saveClientServiceRequest } from '../services/storage';
+import { registerClientWebPush } from '../services/clientPush';
 
 interface ClientRequestModalProps {
   isOpen: boolean;
@@ -13,6 +15,11 @@ interface ClientRequestModalProps {
   locale?: string;
   onSuccess?: (request: ClientServiceRequest) => void;
   onOpenPortal?: () => void;
+  isLoggedIn?: boolean;
+  initialClientName?: string;
+  initialClientPhone?: string;
+  initialClientEmail?: string;
+  initialLocation?: string;
 }
 
 const CATEGORIES: { id: ServiceCategory; label: string; icon: React.FC<{ size?: number; className?: string }>; description: string }[] = [
@@ -33,20 +40,34 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   onClose,
   locale = 'pt-PT',
   onSuccess,
-  onOpenPortal
+  onOpenPortal,
+  isLoggedIn = false,
+  initialClientName = '',
+  initialClientPhone = '',
+  initialClientEmail = '',
+  initialLocation = ''
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   
   // Step 1: Personal & Location Details
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
-  const [location, setLocation] = useState('');
+  const [clientName, setClientName] = useState(initialClientName);
+  const [clientPhone, setClientPhone] = useState(initialClientPhone);
+  const [clientEmail, setClientEmail] = useState(initialClientEmail);
+  const [location, setLocation] = useState(initialLocation);
   const [postalCode, setPostalCode] = useState('');
   const [propertyType, setPropertyType] = useState<'apartment' | 'house' | 'commercial' | 'land' | 'other'>('apartment');
 
-  // Step 2: Service Details
-  const [category, setCategory] = useState<ServiceCategory>('doors_windows');
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialClientName) setClientName(initialClientName);
+      if (initialClientPhone) setClientPhone(initialClientPhone);
+      if (initialClientEmail) setClientEmail(initialClientEmail);
+      if (initialLocation) setLocation(initialLocation);
+    }
+  }, [isOpen, initialClientName, initialClientPhone, initialClientEmail, initialLocation]);
+
+  // Step 2: Service Details - Multi-select supported
+  const [selectedCategories, setSelectedCategories] = useState<ServiceCategory[]>(['doors_windows']);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [urgency, setUrgency] = useState<'immediate' | 'few_weeks' | 'flexible'>('few_weeks');
@@ -58,6 +79,20 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [createdAccessCode, setCreatedAccessCode] = useState('');
 
   if (!isOpen) return null;
+
+  const toggleCategory = (catId: ServiceCategory) => {
+    setSelectedCategories(prev => {
+      if (prev.includes(catId)) {
+        if (prev.length === 1) {
+          // Keep at least 1 selected
+          return prev;
+        }
+        return prev.filter(c => c !== catId);
+      } else {
+        return [...prev, catId];
+      }
+    });
+  };
 
   const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
@@ -100,6 +135,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (selectedCategories.length === 0) {
+      alert('Por favor selecione pelo menos um tipo de serviço.');
+      return;
+    }
     if (!title.trim()) {
       alert('Por favor indique um resumo ou título para o seu pedido de serviço.');
       return;
@@ -107,11 +146,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
     setSubmitting(true);
     try {
+      const primaryCategory = selectedCategories[0] || 'doors_windows';
       const result = await saveClientServiceRequest({
         clientName: clientName.trim(),
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
-        category,
+        category: primaryCategory,
+        categories: selectedCategories,
         title: title.trim(),
         description: description.trim(),
         location: location.trim(),
@@ -132,6 +173,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             localStorage.setItem(`atrios_client_code_${clientPhone.trim()}`, code);
           }
         }
+        
+        // Ativar subscrição de Notificações Push para este cliente
+        registerClientWebPush(clientPhone.trim() || clientEmail.trim(), result.data.id);
+
         setIsSuccess(true);
         if (onSuccess) onSuccess(result.data);
       } else {
@@ -148,6 +193,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const handleReset = () => {
     setIsSuccess(false);
     setStep(1);
+    setSelectedCategories(['doors_windows']);
     setTitle('');
     setDescription('');
     setLocation('');
@@ -168,32 +214,32 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
             <Hammer size={120} />
           </div>
 
-          <div className="relative z-10 flex-1 pr-3 sm:pr-4">
-            <div className="flex flex-wrap items-center gap-2.5 mb-2">
-              <div className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/20 text-white text-[11px] font-black uppercase tracking-wider">
-                <Sparkles size={13} /> 100% Gratuito & Sem Compromisso
+          <div className="relative z-10 flex-1 pr-2 sm:pr-4">
+            <div className="flex flex-col sm:flex-row sm:items-center gap-2.5 mb-3">
+              <div className="inline-flex items-center gap-1.5 px-3.5 py-2 rounded-full bg-white/20 text-white text-xs font-black uppercase tracking-wider w-fit">
+                <Sparkles size={14} /> 100% Gratuito & Sem Compromisso
               </div>
 
-              {onOpenPortal && (
+              {!isLoggedIn && onOpenPortal && (
                 <button
                   type="button"
                   onClick={() => {
                     onClose();
                     onOpenPortal();
                   }}
-                  className="inline-flex items-center gap-2 px-4 py-1.5 sm:py-2 rounded-full bg-slate-950 hover:bg-black text-amber-300 hover:text-amber-200 text-xs sm:text-sm font-black tracking-wide transition-all border-2 border-amber-400 shadow-md hover:shadow-lg active:scale-95 cursor-pointer ring-2 ring-amber-400/30"
+                  className="inline-flex items-center gap-2.5 px-5 py-2.5 sm:px-6 sm:py-3 rounded-2xl bg-slate-950 hover:bg-black text-amber-300 hover:text-amber-200 text-xs sm:text-sm font-black tracking-wide transition-all border-2 border-amber-400 shadow-xl hover:shadow-amber-500/30 active:scale-95 cursor-pointer ring-4 ring-black/20 w-fit"
                   title="Aceder à Área do Cliente para ver orçamentos"
                 >
-                  <ShieldCheck size={16} className="text-amber-400 shrink-0" />
+                  <ShieldCheck size={20} className="text-amber-400 shrink-0" />
                   <span>Já tem código? Fazer Login</span>
-                  <ChevronRight size={15} className="text-amber-400 shrink-0" />
+                  <ChevronRight size={18} className="text-amber-400 shrink-0" />
                 </button>
               )}
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+            <h2 className="text-2xl sm:text-3xl font-black tracking-tight text-white">
               Pedir Orçamento Grátis
             </h2>
-            <p className="text-white/90 text-xs sm:text-sm font-medium mt-0.5">
+            <p className="text-white/95 text-xs sm:text-sm font-medium mt-1">
               Receba propostas e orçamentos detalhados de profissionais qualificados
             </p>
           </div>
@@ -216,11 +262,11 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
               <div className="space-y-2">
                 <h3 className="text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
                 <p className="text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
-                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi registado e enviado para os profissionais da sua zona.
+                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi registado {isLoggedIn ? 'e adicionado à sua conta com sucesso.' : 'e enviado para os profissionais da sua zona.'}
                 </p>
               </div>
 
-              {createdAccessCode && (
+              {!isLoggedIn && createdAccessCode && (
                 <div className="bg-gradient-to-br from-amber-500/10 via-orange-500/5 to-slate-50 border-2 border-amber-500/40 rounded-3xl p-6 max-w-md mx-auto space-y-3 text-center shadow-md">
                   <div className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
                     <ShieldCheck size={14} /> O Seu Código de Acesso Exclusivo
@@ -241,12 +287,12 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 <ul className="list-disc list-inside space-y-1 text-slate-600">
                   <li>Profissionais na zona de <strong>{location}</strong> vão analisar o seu pedido.</li>
                   <li>Receberá notificações no telemóvel <strong>{clientPhone}</strong> quando tiver novos orçamentos.</li>
-                  <li>Pode aceder ao Portal do Cliente a qualquer momento para ver os orçamentos em PDF.</li>
+                  <li>Pode consultar o estado e orçamentos detalhados no seu Portal a qualquer momento.</li>
                 </ul>
               </div>
 
               <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
-                {onOpenPortal && (
+                {!isLoggedIn && onOpenPortal && (
                   <button
                     onClick={() => {
                       handleReset();
@@ -259,9 +305,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 )}
                 <button
                   onClick={handleReset}
-                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
-                  Concluir
+                  {isLoggedIn ? 'Voltar ao Portal do Cliente' : 'Concluir'}
                 </button>
               </div>
             </div>
@@ -289,18 +335,18 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
               {step === 1 && (
                 <div className="space-y-5 animate-in fade-in duration-300">
                   
-                  {/* Option for clients who already have a request / code */}
-                  <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-slate-800">
-                    <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
-                        <ShieldCheck size={22} />
+                  {/* Option for clients who already have a request / code - ONLY show if not logged in */}
+                  {!isLoggedIn && onOpenPortal && (
+                    <div className="bg-slate-900 text-white rounded-2xl p-4 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-md border border-slate-800">
+                      <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center shrink-0">
+                          <ShieldCheck size={22} />
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-black text-white">Já fez uma solicitação anteriormente?</p>
+                          <p className="text-[11px] text-slate-300">Aceda ao Portal do Cliente para consultar e aprovar orçamentos.</p>
+                        </div>
                       </div>
-                      <div className="text-left">
-                        <p className="text-xs font-black text-white">Já fez uma solicitação anteriormente?</p>
-                        <p className="text-[11px] text-slate-300">Aceda ao Portal do Cliente para consultar e aprovar orçamentos.</p>
-                      </div>
-                    </div>
-                    {onOpenPortal && (
                       <button
                         type="button"
                         onClick={() => {
@@ -311,15 +357,18 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       >
                         Entrar no Portal <ChevronRight size={14} />
                       </button>
-                    )}
-                  </div>
+                    </div>
+                  )}
 
                   <div className="bg-amber-50/70 border border-amber-200/80 rounded-2xl p-4 text-xs text-amber-900 flex items-start gap-3">
                     <User size={18} className="text-amber-600 shrink-0 mt-0.5" />
                     <div>
-                      <p className="font-bold">Novo Pedido: Identificação do Cliente</p>
+                      <p className="font-bold">{isLoggedIn ? 'Dados de Contacto' : 'Novo Pedido: Identificação do Cliente'}</p>
                       <p className="text-amber-800 mt-0.5 leading-relaxed">
-                        Indique os seus dados para que os profissionais da sua zona possam entrar em contacto e enviar-lhe orçamentos detalhados.
+                        {isLoggedIn 
+                          ? 'Confirme os seus dados de contacto para o envio dos orçamentos deste novo pedido.'
+                          : 'Indique os seus dados para que os profissionais da sua zona possam entrar em contacto e enviar-lhe orçamentos detalhados.'
+                        }
                       </p>
                     </div>
                   </div>
@@ -430,7 +479,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   </div>
 
                   <div className="pt-3 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3">
-                    {onOpenPortal ? (
+                    {!isLoggedIn && onOpenPortal ? (
                       <button
                         type="button"
                         onClick={() => {
@@ -462,26 +511,46 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   
                   {/* Category Selection */}
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-2.5">
-                      1. Selecione o Tipo de Serviço Desejado *
-                    </label>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5 mb-2.5">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-800">
+                        1. Selecione os Serviços Desejados *
+                      </label>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[11px] font-bold text-amber-700 bg-amber-100/90 border border-amber-300/80 px-2.5 py-0.5 rounded-full">
+                          {selectedCategories.length} {selectedCategories.length === 1 ? 'serviço selecionado' : 'serviços selecionados'}
+                        </span>
+                        <span className="text-[10px] text-slate-500 font-medium hidden sm:inline">(Pode escolher múltiplos)</span>
+                      </div>
+                    </div>
+
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
                       {CATEGORIES.map(cat => {
                         const Icon = cat.icon;
-                        const isSelected = category === cat.id;
+                        const isSelected = selectedCategories.includes(cat.id);
                         return (
                           <button
                             type="button"
                             key={cat.id}
-                            onClick={() => setCategory(cat.id)}
-                            className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
+                            onClick={() => toggleCategory(cat.id)}
+                            className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer relative group ${
                               isSelected
-                                ? 'border-orange-500 bg-orange-50/80 text-orange-950 ring-2 ring-orange-500/20 shadow-sm'
-                                : 'border-slate-200 hover:border-slate-300 bg-slate-50/60 text-slate-700'
+                                ? 'border-orange-500 bg-orange-50/90 text-orange-950 ring-2 ring-orange-500/30 shadow-sm'
+                                : 'border-slate-200 hover:border-orange-300 bg-slate-50/60 text-slate-700 hover:bg-slate-50'
                             }`}
                           >
-                            <div className={`p-2 rounded-xl w-fit mb-2 ${isSelected ? 'bg-orange-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
-                              <Icon size={18} />
+                            <div className="flex items-center justify-between w-full mb-2">
+                              <div className={`p-2 rounded-xl w-fit ${isSelected ? 'bg-orange-500 text-white shadow-sm' : 'bg-white text-slate-700 shadow-sm group-hover:text-orange-600'}`}>
+                                <Icon size={18} />
+                              </div>
+                              {isSelected ? (
+                                <div className="w-5 h-5 rounded-full bg-orange-500 text-white flex items-center justify-center shadow-sm">
+                                  <Check size={12} className="stroke-[3]" />
+                                </div>
+                              ) : (
+                                <div className="w-5 h-5 rounded-full border border-slate-300 bg-white/80 group-hover:border-orange-400 flex items-center justify-center opacity-40 group-hover:opacity-100 transition-opacity">
+                                  <Plus size={11} className="text-slate-400 group-hover:text-orange-500 stroke-[2.5]" />
+                                </div>
+                              )}
                             </div>
                             <div>
                               <div className="font-bold text-xs leading-snug">{cat.label}</div>
@@ -491,6 +560,28 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         );
                       })}
                     </div>
+
+                    {/* Active tags bar */}
+                    {selectedCategories.length > 1 && (
+                      <div className="mt-2.5 p-2.5 bg-amber-50/80 border border-amber-200 rounded-xl flex items-center gap-1.5 flex-wrap">
+                        <span className="text-[10px] font-bold text-amber-900 uppercase tracking-wider mr-1">Serviços no pedido:</span>
+                        {selectedCategories.map(catId => {
+                          const cat = CATEGORIES.find(c => c.id === catId);
+                          if (!cat) return null;
+                          return (
+                            <span
+                              key={catId}
+                              onClick={(e) => { e.stopPropagation(); toggleCategory(catId); }}
+                              className="inline-flex items-center gap-1 bg-white text-orange-950 border border-orange-200 px-2 py-0.5 rounded-lg text-[11px] font-bold shadow-2xs hover:bg-orange-100 cursor-pointer transition-colors"
+                              title="Clique para remover"
+                            >
+                              {cat.label}
+                              <X size={11} className="text-orange-600 hover:text-red-600" />
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
                   </div>
 
                   {/* Title */}
@@ -583,6 +674,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     >
                       {submitting ? (
                         'A registar pedido...'
+                      ) : isLoggedIn ? (
+                        <>
+                          <Send size={16} /> Submeter Pedido
+                        </>
                       ) : (
                         <>
                           <Send size={16} /> Submeter Pedido & Obter Código 🚀

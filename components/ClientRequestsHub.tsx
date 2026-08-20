@@ -5,14 +5,24 @@ import {
   Sparkles, Hammer, Paintbrush, Zap, Home, Wrench, Layers, 
   ArrowRight, ShieldCheck, Eye, Plus, Send, FileText, Check, 
   MessageSquare, Trash2, ExternalLink, Lock, Crown, Star, X,
-  Maximize2, Download
+  Maximize2, Download, AlertTriangle, Infinity as InfinityIcon
 } from 'lucide-react';
 import { ClientServiceRequest, Company, ServiceCategory, PlanType } from '../types';
-import { getStoredClientRequests, fetchClientRequestsFromSupabase, saveClientServiceRequest } from '../services/storage';
+import { 
+  getStoredClientRequests, 
+  fetchClientRequestsFromSupabase, 
+  saveClientServiceRequest,
+  getCompanyMonthlyResponses,
+  recordCompanyRequestResponse,
+  checkCompanyResponsePermission,
+  getCurrentMonthKey
+} from '../services/storage';
 
 interface ClientRequestsHubProps {
   currentUser: Company;
   onCreateBudgetForClient: (clientData: {
+    requestId?: string;
+    clientRequestId?: string;
     clientName: string;
     clientEmail?: string;
     clientPhone?: string;
@@ -111,7 +121,6 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
   const [selectedLocation, setSelectedLocation] = useState<string>('all');
   const [selectedRequest, setSelectedRequest] = useState<ClientServiceRequest | null>(null);
   const [contactRevealed, setContactRevealed] = useState<Record<string, boolean>>({});
-  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
   const [previewImage, setPreviewImage] = useState<{ photos: string[]; currentIndex: number; title: string } | null>(null);
 
   // Keyboard navigation for image lightbox
@@ -138,8 +147,25 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [previewImage]);
 
-  // Check if current user is on a Premium plan
-  const isPremium = Boolean(currentUser?.plan && currentUser.plan !== PlanType.FREE);
+  // Check user plan status
+  const isFree = !currentUser?.plan || currentUser.plan === PlanType.FREE || currentUser.plan === 'free';
+  const isMonthly = currentUser?.plan === PlanType.PREMIUM_MONTHLY || currentUser?.plan === 'monthly' || currentUser?.plan === 'premium_monthly';
+  const isPremium = !isFree && !isMonthly;
+
+  const [monthlyResponses, setMonthlyResponses] = useState<string[]>([]);
+  const [showUpgradeModal, setShowUpgradeModal] = useState(false);
+  const [showMonthlyLimitModal, setShowMonthlyLimitModal] = useState(false);
+
+  const loadResponses = () => {
+    if (currentUser?.id) {
+      const list = getCompanyMonthlyResponses(currentUser.id);
+      setMonthlyResponses(list);
+    }
+  };
+
+  const monthlyUsed = monthlyResponses.length;
+  const monthlyMax = 2;
+  const monthlyRemaining = Math.max(0, monthlyMax - monthlyUsed);
 
   const loadRequests = async () => {
     setLoading(true);
@@ -157,14 +183,23 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
 
   useEffect(() => {
     loadRequests();
+    loadResponses();
 
     const handleReqChange = () => {
       loadRequests();
     };
 
+    const handleResponsesChange = () => {
+      loadResponses();
+    };
+
     window.addEventListener('atrios_client_requests_changed', handleReqChange);
-    return () => window.removeEventListener('atrios_client_requests_changed', handleReqChange);
-  }, []);
+    window.addEventListener('atrios_request_responses_updated', handleResponsesChange);
+    return () => {
+      window.removeEventListener('atrios_client_requests_changed', handleReqChange);
+      window.removeEventListener('atrios_request_responses_updated', handleResponsesChange);
+    };
+  }, [currentUser]);
 
   const locationsList = useMemo(() => {
     const set = new Set<string>();
@@ -182,7 +217,9 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
         r.location.toLowerCase().includes(searchTerm.toLowerCase()) ||
         r.clientName.toLowerCase().includes(searchTerm.toLowerCase());
       
-      const matchCat = selectedCategory === 'all' || r.category === selectedCategory;
+      const matchCat = selectedCategory === 'all' || 
+        r.category === selectedCategory || 
+        (Array.isArray(r.categories) && r.categories.includes(selectedCategory as any));
       const matchLoc = selectedLocation === 'all' || r.location.toLowerCase() === selectedLocation.toLowerCase();
 
       return matchSearch && matchCat && matchLoc;
@@ -190,12 +227,25 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
   }, [requests, searchTerm, selectedCategory, selectedLocation]);
 
   const handleStartBudget = (req: ClientServiceRequest) => {
-    if (!isPremium) {
+    if (isFree) {
       setShowUpgradeModal(true);
       return;
     }
 
+    if (isMonthly && !monthlyResponses.includes(req.id) && monthlyUsed >= monthlyMax) {
+      setShowMonthlyLimitModal(true);
+      return;
+    }
+
+    // Regista a resposta da empresa para controlo do limite mensal
+    if (currentUser?.id) {
+      recordCompanyRequestResponse(currentUser.id, req.id);
+      loadResponses();
+    }
+
     onCreateBudgetForClient({
+      requestId: req.id,
+      clientRequestId: req.id,
       clientName: req.clientName,
       clientEmail: req.clientEmail,
       clientPhone: req.clientPhone,
@@ -205,7 +255,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
       category: req.category
     });
 
-    // Incrementar contagem de propostas
+    // Incrementar contagem de propostas no pedido
     saveClientServiceRequest({
       ...req,
       proposalsCount: (req.proposalsCount || 0) + 1
@@ -213,8 +263,13 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
   };
 
   const toggleContactReveal = (id: string) => {
-    if (!isPremium) {
+    if (isFree) {
       setShowUpgradeModal(true);
+      return;
+    }
+
+    if (isMonthly && !monthlyResponses.includes(id) && monthlyUsed >= monthlyMax) {
+      setShowMonthlyLimitModal(true);
       return;
     }
 
@@ -226,6 +281,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
 
   const handleUpgradeClick = () => {
     setShowUpgradeModal(false);
+    setShowMonthlyLimitModal(false);
     if (onUpgrade) {
       onUpgrade();
     }
@@ -265,25 +321,26 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
         </div>
       </div>
 
-      {/* Free Plan Lock Banner */}
-      {!isPremium && (
+      {/* Plan Status Banner */}
+      {isFree ? (
         <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/10 to-amber-500/5 border-2 border-amber-500/40 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden">
           <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
             <div className="flex items-center gap-4">
               <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-lg shadow-amber-500/20">
-                <Crown size={24} />
+                <Lock size={24} />
               </div>
               <div className="space-y-1">
                 <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="text-base font-black text-slate-900">
-                    Acesso a Oportunidades: Restrito ao Plano Gratuito
+                    Oportunidades Bloqueadas no Plano Gratuito
                   </h3>
                   <span className="bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full">
-                    Exclusivo Premium
+                    Plano Ativo Necessário
                   </span>
                 </div>
                 <p className="text-xs sm:text-sm text-slate-700 font-medium">
-                  Os detalhes de contacto (telemóvel, e-mail, WhatsApp) e o envio de propostas diretas a clientes estão bloqueados no plano Gratuito. Atualize para o <strong>Plano Premium</strong> para desbloquear contactos e fechar novas obras.
+                  A visualização de contactos e o envio de orçamentos a clientes são exclusivos para profissionais com plano ativo. 
+                  Adira ao <strong>Plano Mensal</strong> (até 2 respostas/mês) ou <strong>Plano Premium</strong> (respostas ilimitadas).
                 </p>
               </div>
             </div>
@@ -292,8 +349,92 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               onClick={handleUpgradeClick}
               className="w-full md:w-auto px-6 py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg shadow-amber-500/25 transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95"
             >
-              <Crown size={16} /> Desbloquear com Premium
+              <Crown size={16} /> Ver Planos & Desbloquear
             </button>
+          </div>
+        </div>
+      ) : isMonthly ? (
+        <div className={`border-2 rounded-3xl p-5 sm:p-6 shadow-md relative overflow-hidden transition-all ${
+          monthlyUsed >= monthlyMax 
+            ? 'bg-amber-500/10 border-amber-500/50' 
+            : 'bg-indigo-50/70 border-indigo-200'
+        }`}>
+          <div className="flex flex-col md:flex-row items-start md:items-center justify-between gap-5">
+            <div className="flex items-center gap-4">
+              <div className={`w-12 h-12 rounded-2xl flex items-center justify-center font-black shrink-0 shadow-md ${
+                monthlyUsed >= monthlyMax 
+                  ? 'bg-amber-500 text-slate-950' 
+                  : 'bg-indigo-600 text-white'
+              }`}>
+                {monthlyUsed >= monthlyMax ? <AlertTriangle size={24} /> : <Calendar size={24} />}
+              </div>
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <h3 className="text-base font-black text-slate-900">
+                    Plano Mensal: {monthlyUsed}/{monthlyMax} Respostas Utilizadas este Mês
+                  </h3>
+                  <span className={`text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full ${
+                    monthlyUsed >= monthlyMax 
+                      ? 'bg-amber-500 text-slate-950 font-black' 
+                      : 'bg-indigo-100 text-indigo-800'
+                  }`}>
+                    {monthlyUsed >= monthlyMax ? 'Limite Mensal Atingido' : `${monthlyRemaining} Restante(s)`}
+                  </span>
+                </div>
+                <p className="text-xs sm:text-sm text-slate-700 font-medium">
+                  {monthlyUsed >= monthlyMax ? (
+                    <span>
+                      Já utilizou as <strong>2 respostas</strong> incluídas no seu Plano Mensal este mês. Faça upgrade para o <strong>Plano Premium / Anual</strong> para responder a todas as oportunidades sem limites!
+                    </span>
+                  ) : (
+                    <span>
+                      O seu Plano Mensal permite responder a <strong>2 orçamentos por mês</strong>. Restam-lhe <strong>{monthlyRemaining} resposta(s)</strong> neste ciclo.
+                    </span>
+                  )}
+                </p>
+                {/* Visual Progress Bar */}
+                <div className="w-full max-w-xs bg-slate-200 h-2 rounded-full overflow-hidden">
+                  <div 
+                    className={`h-full transition-all duration-500 ${monthlyUsed >= monthlyMax ? 'bg-amber-500' : 'bg-indigo-600'}`}
+                    style={{ width: `${Math.min(100, (monthlyUsed / monthlyMax) * 100)}%` }}
+                  />
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={handleUpgradeClick}
+              className={`w-full md:w-auto px-6 py-3.5 font-black text-xs uppercase tracking-wider rounded-2xl shadow-lg transition-all flex items-center justify-center gap-2 shrink-0 active:scale-95 ${
+                monthlyUsed >= monthlyMax
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 shadow-amber-500/25'
+                  : 'bg-slate-900 hover:bg-slate-800 text-amber-400 border border-amber-500/30'
+              }`}
+            >
+              <Crown size={16} /> {monthlyUsed >= monthlyMax ? 'Fazer Upgrade para Ilimitado' : 'Mudar para Premium Ilimitado'}
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="bg-gradient-to-r from-emerald-500/10 via-teal-500/10 to-emerald-500/5 border-2 border-emerald-500/30 rounded-3xl p-4 sm:p-5 shadow-sm">
+          <div className="flex items-center justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-emerald-600 text-white flex items-center justify-center font-black shrink-0 shadow-md">
+                <Crown size={20} />
+              </div>
+              <div>
+                <div className="flex items-center gap-2">
+                  <h3 className="text-sm font-black text-slate-900">
+                    Acesso Premium / Anual Ativo: Respostas Ilimitadas
+                  </h3>
+                  <span className="bg-emerald-100 text-emerald-800 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full flex items-center gap-1">
+                    <InfinityIcon size={12} /> Sem Limites
+                  </span>
+                </div>
+                <p className="text-xs text-slate-600">
+                  Pode responder a todos os pedidos de clientes e aceder a contactos sem qualquer restrição.
+                </p>
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -352,7 +493,10 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             Todos ({requests.length})
           </button>
           {Object.entries(CATEGORY_MAP).map(([catKey, cat]) => {
-            const count = requests.filter(r => r.category === catKey).length;
+            const count = requests.filter(r => 
+              r.category === catKey || 
+              (Array.isArray(r.categories) && r.categories.includes(catKey as any))
+            ).length;
             if (count === 0 && selectedCategory !== catKey) return null;
             return (
               <button
@@ -393,9 +537,10 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
           {filteredRequests.map(req => {
-            const catInfo = CATEGORY_MAP[req.category] || CATEGORY_MAP.other;
-            const CatIcon = catInfo.icon;
             const isRevealed = Boolean(contactRevealed[req.id]);
+            const reqCategories = (Array.isArray(req.categories) && req.categories.length > 0)
+              ? req.categories
+              : [req.category];
 
             return (
               <div 
@@ -404,13 +549,21 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               >
                 <div className="space-y-3">
                   
-                  {/* Top Badge & Time */}
-                  <div className="flex items-center justify-between gap-2">
-                    <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black border ${catInfo.color}`}>
-                      <CatIcon size={14} /> {catInfo.label}
+                  {/* Top Badges & Time */}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      {reqCategories.map((catKey, idx) => {
+                        const catInfo = CATEGORY_MAP[catKey] || CATEGORY_MAP.other;
+                        const CatIcon = catInfo.icon;
+                        return (
+                          <div key={idx} className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl text-xs font-black border ${catInfo.color}`}>
+                            <CatIcon size={13} /> {catInfo.label}
+                          </div>
+                        );
+                      })}
                     </div>
 
-                    <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                    <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1 shrink-0">
                       <Clock size={12} /> {new Date(req.createdAt).toLocaleDateString([], { day: '2-digit', month: 'short' })}
                     </span>
                   </div>
@@ -428,7 +581,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                   {/* Location & Details Tags */}
                   <div className="flex flex-wrap items-center gap-2 pt-1">
                     <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px]">
-                      <MapPin size={12} className="text-rose-500" /> {isPremium ? req.location : maskAddress(req.location)}
+                      <MapPin size={12} className="text-rose-500" /> {isFree ? maskAddress(req.location) : req.location}
                     </span>
                     {req.propertyType && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] capitalize">
@@ -506,26 +659,15 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                     <div className="flex items-center justify-between gap-2">
                       <div className="flex items-center gap-2.5 overflow-hidden">
                         <div className="w-8 h-8 rounded-full bg-amber-500/10 text-amber-700 flex items-center justify-center font-black text-xs shrink-0">
-                          {req.clientName ? (isPremium ? req.clientName.charAt(0).toUpperCase() : maskName(req.clientName).charAt(0).toUpperCase()) : 'C'}
+                          {req.clientName ? (isFree ? maskName(req.clientName).charAt(0).toUpperCase() : req.clientName.charAt(0).toUpperCase()) : 'C'}
                         </div>
                         <div className="overflow-hidden">
                           <div className="text-xs font-black text-slate-900 truncate">
-                            {isPremium ? req.clientName : maskName(req.clientName)}
+                            {isFree ? maskName(req.clientName) : req.clientName}
                           </div>
                           
                           <div className="text-[11px] font-medium truncate mt-0.5">
-                            {isPremium ? (
-                              isRevealed ? (
-                                <span className="text-emerald-700 font-bold flex items-center gap-1.5">
-                                  <Phone size={11} className="text-emerald-600" /> {req.clientPhone} 
-                                  {req.clientEmail && <span className="text-slate-500 font-normal">• {req.clientEmail}</span>}
-                                </span>
-                              ) : (
-                                <span className="text-slate-500 font-mono">
-                                  {req.clientPhone ? `${req.clientPhone.slice(0, 3)} ••• •••` : '•••••••••'}
-                                </span>
-                              )
-                            ) : (
+                            {isFree ? (
                               <div className="flex flex-col gap-0.5">
                                 <span className="text-slate-600 font-mono text-[11px] flex items-center gap-1.5 font-medium">
                                   <Phone size={11} className="text-amber-500 shrink-0" />
@@ -538,6 +680,22 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                                   </span>
                                 )}
                               </div>
+                            ) : isMonthly && !monthlyResponses.includes(req.id) && monthlyUsed >= monthlyMax ? (
+                              <div className="flex flex-col gap-0.5">
+                                <span className="text-amber-800 font-mono text-[11px] flex items-center gap-1.5 font-bold">
+                                  <Lock size={11} className="text-amber-600 shrink-0" />
+                                  <span>{maskPhone(req.clientPhone)} (Limite de 2 atingido)</span>
+                                </span>
+                              </div>
+                            ) : isRevealed ? (
+                              <span className="text-emerald-700 font-bold flex items-center gap-1.5">
+                                <Phone size={11} className="text-emerald-600" /> {req.clientPhone} 
+                                {req.clientEmail && <span className="text-slate-500 font-normal">• {req.clientEmail}</span>}
+                              </span>
+                            ) : (
+                              <span className="text-slate-500 font-mono">
+                                {req.clientPhone ? `${req.clientPhone.slice(0, 3)} ••• •••` : '•••••••••'}
+                              </span>
                             )}
                           </div>
                         </div>
@@ -547,12 +705,18 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                         onClick={() => toggleContactReveal(req.id)}
                         className="text-[10px] font-black uppercase tracking-wider px-3 py-1.5 rounded-lg bg-white border border-slate-200 hover:bg-slate-100 text-slate-700 transition-colors shrink-0 flex items-center gap-1 shadow-sm cursor-pointer"
                       >
-                        {isPremium ? (
-                          isRevealed ? 'Ocultar' : 'Ver Contacto'
-                        ) : (
+                        {isFree ? (
                           <>
                             <Lock size={11} className="text-amber-500" /> Desbloquear
                           </>
+                        ) : isMonthly && !monthlyResponses.includes(req.id) && monthlyUsed >= monthlyMax ? (
+                          <>
+                            <Lock size={11} className="text-amber-600" /> Limite Atingido
+                          </>
+                        ) : isRevealed ? (
+                          'Ocultar'
+                        ) : (
+                          'Ver Contacto'
                         )}
                       </button>
                     </div>
@@ -560,13 +724,78 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
 
                   {/* Create Estimate / Action Buttons */}
                   <div className="flex items-center gap-2">
-                    {isPremium ? (
+                    {isFree ? (
+                      <>
+                        <button
+                          onClick={() => setShowUpgradeModal(true)}
+                          className="flex-1 py-3 px-4 bg-slate-900/90 hover:bg-slate-900 text-amber-400 border border-amber-500/30 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          <Lock size={14} className="text-amber-400" /> Responder Pedido (Bloqueado no Grátis)
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={() => setShowUpgradeModal(true)}
+                          className="p-3 bg-slate-100 hover:bg-amber-100/80 text-slate-400 hover:text-amber-700 border border-slate-200 hover:border-amber-400 rounded-2xl shadow-sm transition-all active:scale-95 shrink-0 flex items-center justify-center relative group/wa cursor-pointer"
+                          title="Contacto WhatsApp Bloqueado no Plano Gratuito"
+                        >
+                          <MessageSquare size={16} className="text-slate-400 group-hover/wa:text-amber-600" />
+                          <div className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 p-0.5 rounded-full shadow">
+                            <Lock size={10} />
+                          </div>
+                        </button>
+                      </>
+                    ) : isMonthly ? (
+                      <>
+                        {monthlyResponses.includes(req.id) ? (
+                          <button
+                            onClick={() => handleStartBudget(req)}
+                            className="flex-1 py-3 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <CheckCircle2 size={15} /> Ver / Reenviar Orçamento (Já Respondido)
+                          </button>
+                        ) : monthlyUsed >= monthlyMax ? (
+                          <button
+                            onClick={() => setShowMonthlyLimitModal(true)}
+                            className="flex-1 py-3 px-4 bg-amber-500/15 hover:bg-amber-500/25 text-amber-950 border-2 border-amber-500/40 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-sm active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <AlertTriangle size={15} className="text-amber-600" /> Responder (Limite 2/2 Atingido)
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleStartBudget(req)}
+                            className="flex-1 py-3 px-4 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                          >
+                            <FileText size={15} /> Criar Orçamento ({monthlyUsed + 1}/2 este mês)
+                          </button>
+                        )}
+
+                        {req.clientPhone && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              if (!monthlyResponses.includes(req.id) && monthlyUsed >= monthlyMax) {
+                                setShowMonthlyLimitModal(true);
+                                return;
+                              }
+                              const cleanPhone = req.clientPhone.replace(/[^0-9]/g, '');
+                              window.open(`https://wa.me/${cleanPhone}?text=${encodeURIComponent(`Olá ${req.clientName}, vi o seu pedido de orçamento no ÁTRIOS BUILD para "${req.title}" e gostaria de apresentar a nossa proposta!`)}`, '_blank');
+                            }}
+                            className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-md transition-all active:scale-95 shrink-0 cursor-pointer"
+                            title="Enviar mensagem WhatsApp"
+                          >
+                            <MessageSquare size={16} />
+                          </button>
+                        )}
+                      </>
+                    ) : (
+                      // Premium / Anual (Ilimitado)
                       <>
                         <button
                           onClick={() => handleStartBudget(req)}
-                          className="flex-1 py-3 px-4 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                          className="flex-1 py-3 px-4 bg-slate-900 hover:bg-amber-500 hover:text-slate-950 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                         >
-                          <FileText size={15} /> Criar Orçamento p/ Cliente
+                          <FileText size={15} /> Criar Orçamento p/ Cliente (Ilimitado)
                         </button>
 
                         {req.clientPhone && (
@@ -580,27 +809,6 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                             <MessageSquare size={16} />
                           </a>
                         )}
-                      </>
-                    ) : (
-                      <>
-                        <button
-                          onClick={() => setShowUpgradeModal(true)}
-                          className="flex-1 py-3 px-4 bg-slate-900/90 hover:bg-slate-900 text-amber-400 border border-amber-500/30 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
-                        >
-                          <Lock size={14} className="text-amber-400" /> Responder Pedido (Requer Premium)
-                        </button>
-
-                        <button
-                          type="button"
-                          onClick={() => setShowUpgradeModal(true)}
-                          className="p-3 bg-slate-100 hover:bg-amber-100/80 text-slate-400 hover:text-amber-700 border border-slate-200 hover:border-amber-400 rounded-2xl shadow-sm transition-all active:scale-95 shrink-0 flex items-center justify-center relative group/wa cursor-pointer"
-                          title="Contacto via WhatsApp Bloqueado (Requer Plano Premium)"
-                        >
-                          <MessageSquare size={16} className="text-slate-400 group-hover/wa:text-amber-600" />
-                          <div className="absolute -top-1.5 -right-1.5 bg-amber-500 text-slate-950 p-0.5 rounded-full shadow">
-                            <Lock size={10} />
-                          </div>
-                        </button>
                       </>
                     )}
                   </div>
@@ -619,7 +827,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
           <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-amber-500/30 space-y-6 relative">
             <button
               onClick={() => setShowUpgradeModal(false)}
-              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all"
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
             >
               <X size={20} />
             </button>
@@ -630,46 +838,115 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               </div>
 
               <h3 className="text-xl font-black text-slate-900">
-                Funcionalidade Exclusiva Premium
+                Oportunidades de Clientes
               </h3>
 
               <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
-                O acesso direto a contactos de clientes particulares, visualização de números, envio por WhatsApp e criação de orçamentos para pedidos de obras são funcionalidades reservadas aos membros <strong>Premium</strong>.
+                O acesso aos pedidos de obras de clientes, visualização de contactos diretos e envio de orçamentos requer um plano ativo. Escolha o plano ideal para a sua atividade:
               </p>
             </div>
 
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 space-y-2.5 text-xs font-bold text-slate-700">
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span>Contactos completos e validados de clientes</span>
+            <div className="space-y-3">
+              <div className="p-3.5 bg-slate-50 border border-slate-200 rounded-2xl flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-black text-slate-900">Plano Mensal</div>
+                  <div className="text-[11px] text-slate-600">Responda a até 2 orçamentos por mês</div>
+                </div>
+                <span className="text-xs font-black text-amber-600 bg-amber-50 px-2.5 py-1 rounded-lg border border-amber-200">
+                  2 / mês
+                </span>
               </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span>Contacto direto via WhatsApp em 1 clique</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span>Geração direta de orçamentos profissionais em PDF</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
-                <span>Sem limites de propostas enviadas</span>
+
+              <div className="p-3.5 bg-amber-50/70 border-2 border-amber-400 rounded-2xl flex items-center justify-between gap-3">
+                <div className="space-y-0.5">
+                  <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
+                    <Sparkles size={13} className="text-amber-600" /> Plano Premium / Anual
+                  </div>
+                  <div className="text-[11px] text-slate-700 font-medium">Respostas e contactos 100% ILIMITADOS</div>
+                </div>
+                <span className="text-xs font-black text-slate-950 bg-amber-400 px-2.5 py-1 rounded-lg shadow-sm">
+                  Ilimitado
+                </span>
               </div>
             </div>
 
             <div className="space-y-2">
               <button
                 onClick={handleUpgradeClick}
-                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl shadow-amber-500/25 transition-all flex items-center justify-center gap-2 active:scale-95"
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl shadow-amber-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
               >
-                <Crown size={16} /> Fazer Upgrade Agora
+                <Crown size={16} /> Ver Planos & Ativar Acesso
               </button>
 
               <button
                 onClick={() => setShowUpgradeModal(false)}
-                className="w-full py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs"
+                className="w-full py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs cursor-pointer"
               >
                 Voltar à navegação
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Monthly Limit Modal (2 responses reached) */}
+      {showMonthlyLimitModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl max-w-md w-full p-6 sm:p-8 shadow-2xl border border-amber-500/40 space-y-6 relative">
+            <button
+              onClick={() => setShowMonthlyLimitModal(false)}
+              className="absolute top-4 right-4 text-slate-400 hover:text-slate-600 p-2 rounded-full hover:bg-slate-100 transition-all cursor-pointer"
+            >
+              <X size={20} />
+            </button>
+
+            <div className="text-center space-y-3">
+              <div className="w-16 h-16 rounded-3xl bg-amber-500 text-slate-950 flex items-center justify-center mx-auto shadow-xl shadow-amber-500/30 font-black">
+                <AlertTriangle size={32} />
+              </div>
+
+              <div className="space-y-1">
+                <span className="text-[10px] font-black uppercase tracking-wider px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900">
+                  Limite Mensal Atingido (2/2)
+                </span>
+                <h3 className="text-xl font-black text-slate-900">
+                  Respondeu a 2 Orçamentos este Mês
+                </h3>
+              </div>
+
+              <p className="text-xs sm:text-sm text-slate-600 leading-relaxed font-medium">
+                O seu <strong>Plano Mensal</strong> permite responder a um limite de 2 solicitações de orçamento por mês. Para responder a novas obras e oportunidades sem restrições, faça upgrade para o <strong>Plano Premium</strong>!
+              </p>
+            </div>
+
+            <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 space-y-2.5 text-xs font-bold text-slate-700">
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                <span>Responda a <strong>TODOS</strong> os pedidos de clientes sem limites</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                <span>Acesso imediato a contactos completos & WhatsApp</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <CheckCircle2 size={16} className="text-emerald-500 shrink-0" />
+                <span>Destaque prioritário da sua empresa aos clientes</span>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <button
+                onClick={handleUpgradeClick}
+                className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider rounded-2xl shadow-xl shadow-amber-500/25 transition-all flex items-center justify-center gap-2 active:scale-95 cursor-pointer"
+              >
+                <Crown size={16} /> Fazer Upgrade para Premium (Ilimitado)
+              </button>
+
+              <button
+                onClick={() => setShowMonthlyLimitModal(false)}
+                className="w-full py-2.5 text-slate-500 hover:text-slate-700 font-bold text-xs cursor-pointer"
+              >
+                Continuar a navegar
               </button>
             </div>
           </div>
@@ -679,50 +956,51 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
       {/* Fullscreen Image Lightbox Modal */}
       {previewImage && (
         <div 
-          className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-3 sm:p-6 animate-in fade-in duration-200"
+          className="fixed inset-0 z-[99999] bg-slate-950/95 backdrop-blur-md flex flex-col justify-between p-2.5 sm:p-6 animate-in fade-in duration-200 overflow-hidden select-none"
           onClick={() => setPreviewImage(null)}
         >
           {/* Top Bar */}
           <div 
-            className="flex items-center justify-between gap-4 max-w-6xl w-full mx-auto z-10 text-white"
+            className="flex items-center justify-between gap-2 sm:gap-4 max-w-6xl w-full mx-auto z-10 text-white shrink-0 pt-1 sm:pt-0"
             onClick={e => e.stopPropagation()}
           >
-            <div className="space-y-0.5">
-              <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
+            <div className="min-w-0 flex-1 pr-1.5">
+              <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-amber-400 block truncate">
                 Visualizador de Imagens da Obra
               </span>
-              <h4 className="text-sm sm:text-base font-bold text-white truncate max-w-md">
+              <h4 className="text-xs sm:text-base font-bold text-white truncate">
                 {previewImage.title}
               </h4>
             </div>
 
-            <div className="flex items-center gap-3">
-              <span className="text-xs font-mono font-bold bg-white/10 px-3 py-1.5 rounded-xl text-slate-300">
-                Foto {previewImage.currentIndex + 1} de {previewImage.photos.length}
+            <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+              <span className="text-[10px] sm:text-xs font-mono font-bold bg-white/10 px-2 sm:px-3 py-1.5 rounded-lg sm:rounded-xl text-slate-300 whitespace-nowrap">
+                <span className="hidden sm:inline">Foto </span>{previewImage.currentIndex + 1}/{previewImage.photos.length}
               </span>
               <a
                 href={previewImage.photos[previewImage.currentIndex]}
                 target="_blank"
                 rel="noreferrer"
                 download={`foto_obra_${previewImage.currentIndex + 1}.jpg`}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-white/10 hover:bg-white/20 text-white transition-all cursor-pointer flex items-center justify-center"
                 title="Abrir imagem original"
               >
-                <ExternalLink size={18} />
+                <ExternalLink size={16} className="sm:w-[18px] sm:h-[18px]" />
               </a>
               <button
+                type="button"
                 onClick={() => setPreviewImage(null)}
-                className="p-2.5 rounded-xl bg-white/10 hover:bg-rose-500 text-white transition-all cursor-pointer"
+                className="p-2 sm:p-2.5 rounded-lg sm:rounded-xl bg-rose-500 hover:bg-rose-600 sm:bg-white/10 sm:hover:bg-rose-500 text-white transition-all cursor-pointer flex items-center justify-center shadow-lg active:scale-95 shrink-0"
                 title="Fechar (ESC)"
               >
-                <X size={20} />
+                <X size={18} className="sm:w-[20px] sm:h-[20px]" />
               </button>
             </div>
           </div>
 
           {/* Main Large Image Container with Navigation Arrows */}
           <div 
-            className="relative flex-1 flex items-center justify-center max-w-6xl w-full mx-auto my-2"
+            className="relative flex-1 flex items-center justify-center max-w-6xl w-full mx-auto my-1 sm:my-2 min-h-0"
             onClick={e => e.stopPropagation()}
           >
             {previewImage.photos.length > 1 && (
@@ -732,18 +1010,18 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                   ...prev,
                   currentIndex: (prev.currentIndex - 1 + prev.photos.length) % prev.photos.length
                 } : null)}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-slate-950 text-white border border-white/10 shadow-2xl transition-all z-20 cursor-pointer"
+                className="absolute left-1 sm:left-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-4 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-slate-950 text-white border border-white/10 shadow-2xl transition-all z-20 cursor-pointer"
                 title="Foto anterior (Seta Esquerda)"
               >
-                <ChevronLeft size={24} />
+                <ChevronLeft size={20} className="sm:w-6 sm:h-6" />
               </button>
             )}
 
-            <div className="relative max-h-[70vh] sm:max-h-[75vh] w-full flex items-center justify-center overflow-hidden rounded-2xl sm:rounded-3xl border border-white/10 bg-black/40 shadow-2xl">
+            <div className="relative max-h-[60vh] sm:max-h-[75vh] w-full flex items-center justify-center overflow-hidden rounded-xl sm:rounded-3xl border border-white/10 bg-black/40 shadow-2xl">
               <img
                 src={previewImage.photos[previewImage.currentIndex]}
                 alt={`Foto ampliada ${previewImage.currentIndex + 1}`}
-                className="max-h-[70vh] sm:max-h-[75vh] w-auto max-w-full object-contain select-none animate-in zoom-in-95 duration-200"
+                className="max-h-[60vh] sm:max-h-[75vh] w-auto max-w-full object-contain select-none animate-in zoom-in-95 duration-200"
               />
             </div>
 
@@ -754,10 +1032,10 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                   ...prev,
                   currentIndex: (prev.currentIndex + 1) % prev.photos.length
                 } : null)}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-3 sm:p-4 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-slate-950 text-white border border-white/10 shadow-2xl transition-all z-20 cursor-pointer"
+                className="absolute right-1 sm:right-4 top-1/2 -translate-y-1/2 p-2.5 sm:p-4 rounded-full bg-slate-900/80 hover:bg-amber-500 hover:text-slate-950 text-white border border-white/10 shadow-2xl transition-all z-20 cursor-pointer"
                 title="Próxima foto (Seta Direita)"
               >
-                <ChevronRight size={24} />
+                <ChevronRight size={20} className="sm:w-6 sm:h-6" />
               </button>
             )}
           </div>
@@ -765,7 +1043,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
           {/* Bottom Thumbnails Strip (if multiple photos) */}
           {previewImage.photos.length > 1 && (
             <div 
-              className="flex items-center justify-center gap-2 max-w-4xl w-full mx-auto overflow-x-auto py-2 no-scrollbar z-10"
+              className="flex items-center justify-center gap-1.5 sm:gap-2 max-w-4xl w-full mx-auto overflow-x-auto py-1.5 sm:py-2 no-scrollbar z-10 shrink-0"
               onClick={e => e.stopPropagation()}
             >
               {previewImage.photos.map((ph, idx) => (
@@ -773,7 +1051,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                   key={idx}
                   type="button"
                   onClick={() => setPreviewImage(prev => prev ? { ...prev, currentIndex: idx } : null)}
-                  className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
+                  className={`w-11 h-11 sm:w-16 sm:h-16 rounded-lg sm:rounded-xl overflow-hidden border-2 transition-all shrink-0 cursor-pointer ${
                     previewImage.currentIndex === idx
                       ? 'border-amber-500 scale-105 shadow-lg shadow-amber-500/20 ring-2 ring-amber-500/30'
                       : 'border-white/20 opacity-60 hover:opacity-100'

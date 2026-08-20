@@ -80,6 +80,8 @@ async function saveSubscriptionToSupabase(record: {
   token?: string;
   companyId: string;
   plan: string;
+  email?: string;
+  phone?: string;
 }) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.warn("[Supabase Push] Supabase URL or Key missing. Skipping DB save.");
@@ -432,7 +434,7 @@ async function startServer() {
 
   // 2. Subscrever um dispositivo de utilizador no browser
   app.post("/api/push/subscribe", (req, res) => {
-    const { subscription, companyId, plan } = req.body;
+    const { subscription, companyId, plan, email, phone, requestId } = req.body;
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
     }
@@ -448,19 +450,22 @@ async function startServer() {
     }
 
     // Evitar duplicados pelo endpoint da subscrição
-    const existingIndex = subscriptions.findIndex(sub => sub.subscription.endpoint === subscription.endpoint);
+    const existingIndex = subscriptions.findIndex(sub => sub.subscription?.endpoint === subscription.endpoint);
     
     const newRecord = {
       subscription,
       companyId: companyId || "guest",
       plan: plan || "free",
+      email: email || (String(companyId || '').includes('@') ? companyId : undefined),
+      phone: phone || undefined,
+      requestId: requestId || undefined,
       createdAt: new Date().toISOString()
     };
 
     const isNewSub = (existingIndex === -1);
 
     if (existingIndex > -1) {
-      subscriptions[existingIndex] = newRecord;
+      subscriptions[existingIndex] = { ...subscriptions[existingIndex], ...newRecord };
     } else {
       subscriptions.push(newRecord);
     }
@@ -469,11 +474,13 @@ async function startServer() {
     saveSubscriptionToSupabase({
       subscription,
       companyId: companyId || "guest",
-      plan: plan || "free"
+      plan: plan || "free",
+      email: newRecord.email,
+      phone: newRecord.phone
     }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
 
     // Enviar notificação push de incentivo à instalação do App APENAS na PRIMEIRA subscrição
-    if (isNewSub && subscription && subscription.endpoint) {
+    if (isNewSub && subscription && subscription.endpoint && plan !== 'client') {
       const welcomePayload = JSON.stringify({
         title: "Instale a App do Átrios! 📱",
         body: "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!",
@@ -500,7 +507,7 @@ async function startServer() {
 
   // 2.1 Subscrever um dispositivo utilizando Firebase Cloud Messaging (FCM)
   app.post("/api/push/fcm-subscribe", (req, res) => {
-    const { token, companyId, plan } = req.body;
+    const { token, companyId, plan, email, phone, requestId } = req.body;
     if (!token) {
       return res.status(400).json({ error: "Missing FCM token" });
     }
@@ -522,13 +529,16 @@ async function startServer() {
       token,
       companyId: companyId || "guest",
       plan: plan || "free",
+      email: email || (String(companyId || '').includes('@') ? companyId : undefined),
+      phone: phone || undefined,
+      requestId: requestId || undefined,
       createdAt: new Date().toISOString()
     };
 
     const isNewFcm = (existingIndex === -1);
 
     if (existingIndex > -1) {
-      subscriptions[existingIndex] = newRecord;
+      subscriptions[existingIndex] = { ...subscriptions[existingIndex], ...newRecord };
     } else {
       subscriptions.push(newRecord);
     }
@@ -537,11 +547,13 @@ async function startServer() {
     saveSubscriptionToSupabase({
       token,
       companyId: companyId || "guest",
-      plan: plan || "free"
+      plan: plan || "free",
+      email: newRecord.email,
+      phone: newRecord.phone
     }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
 
     // Enviar notificação push de incentivo à instalação via FCM APENAS na PRIMEIRA subscrição
-    if (isNewFcm && token) {
+    if (isNewFcm && token && plan !== 'client') {
       sendFcmNotification(
         [token],
         "Instale a App do Átrios! 📱",
@@ -627,24 +639,43 @@ async function startServer() {
 
     const matchesTarget = (sub: any) => {
       if (!sub) return false;
-      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase();
-      const plan = String(sub.plan || '').toLowerCase();
-      const email = String(sub.email || '').toLowerCase();
+      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase().trim();
+      const plan = String(sub.plan || '').toLowerCase().trim();
+      const email = String(sub.email || '').toLowerCase().trim();
+      const phone = String(sub.phone || '').replace(/\D/g, '');
+      const reqId = String(sub.requestId || sub.request_id || sub.clientRequestId || '').toLowerCase().trim();
 
       if (targetAudience === 'master') {
         return isMasterSub(sub);
       }
       if (!targetAudience || targetAudience === 'all') return true;
+      if (targetAudience === 'client' || targetAudience === 'client_all') {
+        return plan === 'client' || reqId !== '' || sub.role === 'client';
+      }
       if (targetAudience === 'free' && plan === 'free') return true;
-      if (targetAudience === 'all_premium' && plan !== 'free') return true;
+      if (targetAudience === 'all_premium' && plan !== 'free' && plan !== 'client') return true;
       if (targetAudience === 'premium_monthly' && plan === 'premium_monthly') return true;
       if (targetAudience === 'premium_annual' && plan === 'premium_annual') return true;
 
-      // Se for um ID de empresa ou email específico:
+      // Se for um telefone, email, ID de empresa ou requestId específico:
       const targetLower = String(targetAudience).toLowerCase().trim();
+      const targetDigits = targetLower.replace(/\D/g, '');
+
+      // Comparação por telefone se o alvo contiver dígitos válidos (>= 6)
+      if (targetDigits.length >= 6) {
+        const cIdDigits = cId.replace(/\D/g, '');
+        if (cIdDigits && (cIdDigits === targetDigits || cIdDigits.includes(targetDigits) || targetDigits.includes(cIdDigits))) {
+          return true;
+        }
+        if (phone && (phone === targetDigits || phone.includes(targetDigits) || targetDigits.includes(phone))) {
+          return true;
+        }
+      }
+
       if (
         cId === targetLower || 
         email === targetLower || 
+        (reqId && reqId === targetLower) ||
         (cId && targetLower.includes(cId)) || 
         (cId && cId.includes(targetLower)) ||
         (email && targetLower.includes(email)) ||
@@ -803,6 +834,71 @@ async function startServer() {
     });
   });
 
+  // 3.0.1 Alias notify-all para envio a todos os utilizadores
+  app.post("/api/push/notify-all", async (req, res) => {
+    const { title, body } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ error: "Missing required fields: title and body" });
+    }
+
+    console.log(`[PWA Push Notify All] Queueing: "${title}"`);
+    res.json({ success: true, status: "enqueued" });
+
+    sendPushBroadcast(title, body, 'all').catch(err => {
+      console.error("[PWA Notify All Error]", err);
+    });
+  });
+
+  // 3.0.2 Notificar cliente quando uma empresa/profissional responde ao pedido de orçamento
+  app.post("/api/push/notify-client-budget", async (req, res) => {
+    const { clientRequestId, clientPhone, clientEmail, clientName, companyName, totalAmount, budgetTitle } = req.body;
+    
+    const company = companyName || "Uma empresa especializada";
+    const title = "Proposta de Orçamento Recebida! 📑🎉";
+    const formattedAmount = totalAmount ? ` no valor de €${Number(totalAmount).toFixed(2)}` : '';
+    const body = `A empresa "${company}" acaba de responder ao seu pedido de orçamento${formattedAmount}. Aceda à sua Área de Cliente para consultar e comparar a proposta! 💼✨`;
+
+    console.log(`[PWA Push Client Budget] Notifying client. Phone: ${clientPhone || 'N/A'}, Email: ${clientEmail || 'N/A'}, ReqId: ${clientRequestId || 'N/A'}, Company: ${company}`);
+    res.json({ success: true, status: "enqueued" });
+
+    // 1. Broadcast em tempo real via Supabase Realtime (para o cliente no portal ou app online)
+    try {
+      const channel = supabase.channel('global-push-notifications');
+      channel.send({
+        type: 'broadcast',
+        event: 'push',
+        payload: {
+          id: Math.random().toString(36).substr(2, 9).toUpperCase(),
+          type: 'client_budget_response',
+          title,
+          body,
+          clientRequestId: clientRequestId || '',
+          clientPhone: clientPhone || '',
+          clientEmail: clientEmail || '',
+          clientName: clientName || '',
+          companyName: company,
+          totalAmount: totalAmount || 0,
+          targetAudience: clientPhone || clientEmail || clientRequestId || 'client',
+          createdAt: new Date().toISOString()
+        }
+      }).catch(err => console.warn('[Supabase Realtime Client Push Error]', err));
+    } catch (realtimeErr) {
+      console.warn('[Supabase Realtime Channel Exception]', realtimeErr);
+    }
+
+    // 2. Disparar Web Push / FCM para o cliente (pelo telefone, email, requestId ou assinante cliente)
+    const clientTarget = clientPhone ? clientPhone.replace(/\D/g, '') : (clientEmail || clientRequestId || 'client');
+    sendPushBroadcast(title, body, clientTarget).catch(err => {
+      console.error("[PWA Notify Client Budget Error]", err);
+    });
+
+    // 3. Notificar também o Administrador / Master para acompanhamento
+    try {
+      const masterBody = `A empresa "${company}" enviou uma proposta para o cliente "${clientName || 'Cliente'}" (${clientPhone || clientEmail || 'Sem contacto'})${formattedAmount}.`;
+      sendPushBroadcast("💼 Proposta Enviada por Empresa!", masterBody, 'master').catch(() => {});
+    } catch (e) {}
+  });
+
   // 3.1 Enviar notificação push específica para o Master (cadastro, mensagem, venda)
   app.post("/api/push/notify-master", async (req, res) => {
     const { type, details } = req.body;
@@ -819,6 +915,16 @@ async function startServer() {
     } else if (type === "password_reset" || type === "forgot-password" || type === "forgot_password") {
       title = "🔑 Solicitação de Nova Senha!";
       body = `O utilizador "${details.companyName || details.name || details.email}" solicitou a recuperação/redefinição de senha da sua conta.`;
+    } else if (type === "client_service_request" || type === "client_request" || type === "new_client_request") {
+      title = "📋 Novo Pedido de Orçamento Recebido!";
+      const clientName = details.clientName || "Cliente";
+      const loc = details.location ? ` em ${details.location}` : "";
+      const contact = details.clientPhone ? ` (${details.clientPhone})` : (details.clientEmail ? ` (${details.clientEmail})` : "");
+      body = `${clientName}${contact}${loc} enviou um novo pedido de orçamento para "${details.title || 'Serviço'}". Aceda ao Painel Master para consultar!`;
+    } else if (type === "client_budget_response" || type === "client_proposal") {
+      title = "💼 Proposta Enviada ao Cliente!";
+      const totalStr = details.total ? ` (€${details.total})` : "";
+      body = `A empresa "${details.companyName || 'Empresa'}" enviou uma proposta para "${details.clientName || 'Cliente'}"${totalStr}.`;
     } else if (type === "budget" || type === "budget_request" || type === "orcamento") {
       title = "📑 Novo Pedido de Orçamento!";
       const totalStr = details.total ? ` (€${details.total})` : "";

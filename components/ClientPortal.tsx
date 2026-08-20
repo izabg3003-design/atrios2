@@ -26,13 +26,15 @@ import {
   MessageCircle,
   Printer,
   Loader2,
-  Building2
+  Building2,
+  Plus
 } from 'lucide-react';
 import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode, Company } from '../types';
+import { Locale } from '../translations';
 import { 
   getStoredClientRequests, 
   fetchClientRequestsFromSupabase, 
-  getStoredBudgets, 
+  getAllStoredBudgets, 
   fetchBudgetsFromSupabase,
   fetchCompaniesFromSupabase,
   getStoredCompanies,
@@ -40,15 +42,19 @@ import {
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { generateOfficialBudgetPDF, normalizeForPdf } from '../services/pdfGenerator';
+import { ClientRequestModal } from './ClientRequestModal';
+import { registerClientWebPush } from '../services/clientPush';
 
 interface ClientPortalProps {
   onBackToHome: () => void;
   currencyCode?: CurrencyCode;
+  locale?: Locale;
 }
 
 export const ClientPortal: React.FC<ClientPortalProps> = ({
   onBackToHome,
-  currencyCode = 'EUR'
+  currencyCode = 'EUR',
+  locale = 'pt-PT'
 }) => {
   // Authentication state for the client
   const [authenticatedPhone, setAuthenticatedPhone] = useState<string>(() => {
@@ -69,6 +75,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests'>('all_budgets');
+  const [showNewRequestModal, setShowNewRequestModal] = useState(false);
 
   // Load client data once authenticated
   const loadClientData = async (phone: string) => {
@@ -92,7 +99,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       }
 
       // 2. Fetch requests from Supabase / local storage
-      const allRequests = await fetchClientRequestsFromSupabase();
+      const cloudRequests = await fetchClientRequestsFromSupabase();
+      const localRequests = getStoredClientRequests();
+      const allRequestsMap = new Map<string, ClientServiceRequest>();
+      [...localRequests, ...cloudRequests].forEach(r => {
+        if (r.id) allRequestsMap.set(r.id, r);
+      });
+      const allRequests = Array.from(allRequestsMap.values());
+
       const filteredRequests = allRequests.filter(req => {
         const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
         return (
@@ -103,19 +117,47 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       });
       setMyRequests(filteredRequests);
 
-      // 3. Fetch budgets sent by contractors
-      const allBudgets = await fetchBudgetsFromSupabase();
+      // 3. Fetch budgets sent by contractors (from Supabase & local)
+      const cloudBudgets = await fetchBudgetsFromSupabase();
+      const localBudgets = getAllStoredBudgets();
+      const allBudgetsMap = new Map<string, Budget>();
+      [...localBudgets, ...cloudBudgets].forEach(b => {
+        if (b.id) allBudgetsMap.set(b.id, b);
+      });
+      const allBudgets = Array.from(allBudgetsMap.values());
+
+      const requestIds = new Set(filteredRequests.map(r => r.id));
+      const requestEmails = new Set(
+        filteredRequests
+          .map(r => r.clientEmail?.trim().toLowerCase())
+          .filter((e): e is string => Boolean(e))
+      );
+
       const filteredBudgets = allBudgets.filter(b => {
+        // Match by linked request ID
+        if (b.clientRequestId && requestIds.has(b.clientRequestId)) {
+          return true;
+        }
+        // Match by client email
+        if (b.clientEmail && requestEmails.has(b.clientEmail.trim().toLowerCase())) {
+          return true;
+        }
+        // Match by phone number
         const budgetPhoneClean = (b.contactPhone || '').replace(/\D/g, '');
+        if (
+          budgetPhoneClean === cleanPhone ||
+          (cleanPhone.length >= 7 && budgetPhoneClean.includes(cleanPhone)) ||
+          (budgetPhoneClean.length >= 7 && cleanPhone.includes(budgetPhoneClean))
+        ) {
+          return true;
+        }
+        // Match by exact client name
         const clientNameMatch = filteredRequests.some(r => 
           r.clientName && b.clientName && r.clientName.trim().toLowerCase() === b.clientName.trim().toLowerCase()
         );
-        return (
-          budgetPhoneClean === cleanPhone ||
-          (cleanPhone.length >= 7 && budgetPhoneClean.includes(cleanPhone)) ||
-          clientNameMatch
-        );
+        return clientNameMatch;
       });
+
       setMyBudgets(filteredBudgets);
     } catch (err) {
       console.error('Error loading client portal data:', err);
@@ -127,6 +169,49 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   useEffect(() => {
     if (authenticatedPhone) {
       loadClientData(authenticatedPhone);
+      // Registar push para o cliente
+      registerClientWebPush(authenticatedPhone);
+
+      // Subscrever ao canal de notificações em tempo real para novas propostas de orçamento
+      const channel = supabase
+        .channel(`client-realtime-${authenticatedPhone.replace(/\D/g, '')}`)
+        .on('broadcast', { event: 'push' }, (payload: any) => {
+          const data = payload?.payload;
+          if (!data) return;
+
+          const cleanMyPhone = authenticatedPhone.replace(/\D/g, '');
+          const eventPhone = String(data.clientPhone || '').replace(/\D/g, '');
+          const isTargeted = 
+            data.type === 'client_budget_response' &&
+            (eventPhone === cleanMyPhone || 
+             (cleanMyPhone.length >= 7 && eventPhone.includes(cleanMyPhone)) ||
+             (eventPhone.length >= 7 && cleanMyPhone.includes(eventPhone)) ||
+             data.targetAudience === cleanMyPhone);
+
+          if (isTargeted) {
+            // Disparar balão in-app
+            try {
+              window.dispatchEvent(
+                new CustomEvent('in_app_push_toast', {
+                  detail: {
+                    id: String(Date.now() + Math.random()),
+                    title: data.title || 'Nova Proposta de Orçamento! 📑🎉',
+                    body: data.body || `Uma empresa respondeu ao seu pedido de orçamento.`,
+                    time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                  }
+                })
+              );
+            } catch (err) {}
+
+            // Recarregar os orçamentos do cliente em tempo real
+            loadClientData(authenticatedPhone);
+          }
+        })
+        .subscribe();
+
+      return () => {
+        supabase.removeChannel(channel);
+      };
     }
   }, [authenticatedPhone]);
 
@@ -264,17 +349,17 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     <div className="w-full min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950 overflow-y-auto custom-scrollbar">
       {/* Top Header */}
       <header className="bg-slate-900/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
+        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button
               onClick={onBackToHome}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold"
+              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold shrink-0"
             >
               <ArrowLeft size={16} /> Voltar ao Início
             </button>
             <div className="h-4 w-px bg-white/10 hidden sm:block" />
             <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-amber-500/20">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-amber-500/20 shrink-0">
                 <FileText size={18} />
               </div>
               <div>
@@ -286,22 +371,35 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
           </div>
 
-          {authenticatedPhone && (
-            <div className="flex items-center gap-3">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
-                <Phone size={13} className="text-amber-400" />
-                <span>{authenticatedPhone}</span>
+          <div className="flex items-center gap-2 sm:gap-3">
+            {/* New Request Button */}
+            <button
+              onClick={() => setShowNewRequestModal(true)}
+              className="px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+              title="Criar um novo pedido de orçamento"
+            >
+              <Plus size={15} className="stroke-[3]" />
+              <span className="hidden sm:inline">Pedir Novo Orçamento</span>
+              <span className="sm:hidden">Novo Pedido</span>
+            </button>
+
+            {authenticatedPhone && (
+              <div className="flex items-center gap-2">
+                <div className="hidden md:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
+                  <Phone size={13} className="text-amber-400" />
+                  <span>{authenticatedPhone}</span>
+                </div>
+                <button
+                  onClick={handleLogout}
+                  className="p-2 sm:px-3 sm:py-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                  title="Terminar Sessão"
+                >
+                  <LogOut size={14} />
+                  <span className="hidden sm:inline">Sair</span>
+                </button>
               </div>
-              <button
-                onClick={handleLogout}
-                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Terminar Sessão"
-              >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">Sair</span>
-              </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
       </header>
 
@@ -417,13 +515,23 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 </form>
               )}
 
-              <div className="pt-2 text-center">
+              <div className="pt-2 text-center space-y-2 border-t border-white/5">
                 <button
-                  onClick={onBackToHome}
-                  className="text-xs text-slate-400 hover:text-white transition-colors underline"
+                  type="button"
+                  onClick={() => setShowNewRequestModal(true)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
                 >
-                  Voltar à Página Principal
+                  <Plus size={14} className="stroke-[3]" />
+                  <span>Ainda não tem pedido? Pedir Orçamento Grátis</span>
                 </button>
+                <div>
+                  <button
+                    onClick={onBackToHome}
+                    className="text-xs text-slate-400 hover:text-white transition-colors underline cursor-pointer"
+                  >
+                    Voltar à Página Principal
+                  </button>
+                </div>
               </div>
             </div>
           </div>
@@ -433,7 +541,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
              ========================================================================= */
           <div className="space-y-6">
             {/* Top Stats & Welcome Banner */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
+            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-6 relative overflow-hidden">
               <div className="space-y-1.5 z-10">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-wider">
                   <Sparkles size={12} /> Área Pessoal do Cliente
@@ -446,41 +554,58 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 z-10 shrink-0">
-                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[110px]">
+              <div className="flex flex-wrap items-center gap-3 z-10 shrink-0">
+                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[100px]">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Pedidos</span>
                   <span className="text-2xl font-black text-amber-400">{myRequests.length}</span>
                 </div>
-                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[110px]">
+                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[100px]">
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Orçamentos</span>
                   <span className="text-2xl font-black text-emerald-400">{myBudgets.length}</span>
                 </div>
+                <button
+                  onClick={() => setShowNewRequestModal(true)}
+                  className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+                >
+                  <Plus size={16} className="stroke-[3]" />
+                  <span>Novo Pedido</span>
+                </button>
               </div>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-white/10 pb-3">
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={() => setActivePortalTab('all_budgets')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                    activePortalTab === 'all_budgets'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <FileText size={14} />
+                  Orçamentos Recebidos ({myBudgets.length})
+                </button>
+                <button
+                  onClick={() => setActivePortalTab('my_requests')}
+                  className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                    activePortalTab === 'my_requests'
+                      ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                      : 'bg-white/5 text-slate-400 hover:text-white'
+                  }`}
+                >
+                  <Clock size={14} />
+                  Os Meus Pedidos ({myRequests.length})
+                </button>
+              </div>
+
               <button
-                onClick={() => setActivePortalTab('all_budgets')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                  activePortalTab === 'all_budgets'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white'
-                }`}
+                onClick={() => setShowNewRequestModal(true)}
+                className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
               >
-                <FileText size={14} />
-                Orçamentos Recebidos ({myBudgets.length})
-              </button>
-              <button
-                onClick={() => setActivePortalTab('my_requests')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
-                  activePortalTab === 'my_requests'
-                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
-                    : 'bg-white/5 text-slate-400 hover:text-white'
-                }`}
-              >
-                <Clock size={14} />
-                Os Meus Pedidos ({myRequests.length})
+                <Plus size={14} className="stroke-[3]" />
+                <span>Nova Solicitação</span>
               </button>
             </div>
 
@@ -488,14 +613,23 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             {activePortalTab === 'all_budgets' && (
               <div className="space-y-4">
                 {myBudgets.length === 0 ? (
-                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-3">
+                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-4">
                     <div className="w-14 h-14 bg-white/5 text-slate-500 rounded-full flex items-center justify-center mx-auto">
                       <FileText size={28} />
                     </div>
-                    <h3 className="text-lg font-black text-white">Nenhum orçamento recebido ainda</h3>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                      Os construtores parceiros estão a analisar os seus pedidos. Assim que elaborarem uma proposta com valores, ela aparecerá aqui automaticamente.
-                    </p>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">Nenhum orçamento recebido ainda</h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                        Os construtores parceiros estão a analisar os seus pedidos. Assim que elaborarem uma proposta com valores, ela aparecerá aqui automaticamente.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowNewRequestModal(true)}
+                      className="mt-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                    >
+                      <Plus size={15} className="stroke-[3]" />
+                      <span>Fazer Nova Solicitação de Orçamento</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -583,12 +717,23 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             {activePortalTab === 'my_requests' && (
               <div className="space-y-4">
                 {myRequests.length === 0 ? (
-                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-3">
-                    <Clock size={28} className="text-slate-500 mx-auto" />
-                    <h3 className="text-lg font-black text-white">Nenhum pedido registado com este contacto</h3>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto">
-                      Não foram encontrados pedidos de orçamento associados ao número {authenticatedPhone}.
-                    </p>
+                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-4">
+                    <div className="w-14 h-14 bg-white/5 text-slate-500 rounded-full flex items-center justify-center mx-auto">
+                      <Clock size={28} />
+                    </div>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">Nenhum pedido registado com este contacto</h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        Não foram encontrados pedidos de orçamento associados ao número {authenticatedPhone}.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setShowNewRequestModal(true)}
+                      className="mt-2 px-5 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider inline-flex items-center gap-2 transition-all shadow-md cursor-pointer active:scale-95"
+                    >
+                      <Plus size={15} className="stroke-[3]" />
+                      <span>Fazer Novo Pedido de Orçamento</span>
+                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -599,10 +744,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-2">
-                            <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              {req.category}
-                            </span>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-800 text-slate-300">
+                            <div className="flex flex-wrap items-center gap-1">
+                              {(Array.isArray(req.categories) && req.categories.length > 0 ? req.categories : [req.category]).map((catKey, cIdx) => (
+                                <span key={cIdx} className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                  {catKey}
+                                </span>
+                              ))}
+                            </div>
+                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-800 text-slate-300 shrink-0">
                               {req.status === 'open' || req.status === 'pending' ? 'Em Análise' : req.status}
                             </span>
                           </div>
@@ -769,6 +918,29 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal para Nova Solicitação de Orçamento */}
+      {showNewRequestModal && (
+        <ClientRequestModal
+          isOpen={showNewRequestModal}
+          onClose={() => setShowNewRequestModal(false)}
+          locale={locale}
+          isLoggedIn={!!authenticatedPhone}
+          initialClientPhone={authenticatedPhone}
+          initialClientName={myRequests[0]?.clientName || ''}
+          initialClientEmail={myRequests[0]?.clientEmail || ''}
+          initialLocation={myRequests[0]?.location || myRequests[0]?.city || ''}
+          onSuccess={() => {
+            if (authenticatedPhone) {
+              loadClientData(authenticatedPhone);
+            }
+            setActivePortalTab('my_requests');
+          }}
+          onOpenPortal={() => {
+            setShowNewRequestModal(false);
+          }}
+        />
       )}
     </div>
   );

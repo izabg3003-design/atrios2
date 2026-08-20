@@ -4520,7 +4520,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       req.city?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
                       req.projectDescription?.toLowerCase().includes(clientRequestSearch.toLowerCase());
                     const matchesStatus = clientRequestStatusFilter === 'all' || req.status === clientRequestStatusFilter;
-                    const matchesCategory = clientRequestCategoryFilter === 'all' || req.category === clientRequestCategoryFilter;
+                    const matchesCategory = clientRequestCategoryFilter === 'all' || 
+                      req.category === clientRequestCategoryFilter ||
+                      (Array.isArray(req.categories) && req.categories.includes(clientRequestCategoryFilter as any));
                     return matchesSearch && matchesStatus && matchesCategory;
                   })
                   .map((req) => (
@@ -4530,9 +4532,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     >
                       <div className="space-y-3">
                         <div className="flex items-start justify-between gap-2">
-                          <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                            {req.category}
-                          </span>
+                          <div className="flex flex-wrap items-center gap-1">
+                            {(Array.isArray(req.categories) && req.categories.length > 0 ? req.categories : [req.category]).map((catKey, idx) => (
+                              <span key={idx} className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                                {catKey}
+                              </span>
+                            ))}
+                          </div>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
                               req.status === 'open'
@@ -4621,9 +4627,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             <div className="bg-slate-900 w-full max-w-2xl rounded-[2.5rem] border border-white/10 shadow-2xl overflow-hidden flex flex-col max-h-[90vh]">
               <div className="bg-gradient-to-r from-amber-500/20 via-slate-900 to-emerald-500/20 p-6 border-b border-white/10 flex items-start justify-between">
                 <div>
-                  <span className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 inline-block mb-2">
-                    {selectedClientRequestModal.category}
-                  </span>
+                  <div className="flex flex-wrap items-center gap-1.5 mb-2">
+                    {(Array.isArray(selectedClientRequestModal.categories) && selectedClientRequestModal.categories.length > 0
+                      ? selectedClientRequestModal.categories
+                      : [selectedClientRequestModal.category]
+                    ).map((catKey, idx) => (
+                      <span key={idx} className="px-3 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500 text-slate-950 inline-block">
+                        {catKey}
+                      </span>
+                    ))}
+                  </div>
                   <h3 className="text-xl font-black text-white tracking-tight">
                     {selectedClientRequestModal.projectTitle}
                   </h3>

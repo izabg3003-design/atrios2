@@ -180,19 +180,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </button>
           </nav>
 
-          {/* Right Action Controls: Language Selector + Login + CTA */}
-          <div className="hidden sm:flex items-center gap-3">
+          {/* Right Action Controls: Single Language Selector + Login + CTA + Mobile Hamburger */}
+          <div className="flex items-center gap-2 sm:gap-3">
             
-            {/* Language Selector Dropdown */}
+            {/* Single Language Selector Dropdown (Visible on all screen sizes) */}
             <div className="relative" ref={langMenuRef}>
               <button
                 type="button"
                 onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="flex items-center gap-1.5 px-3 py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer"
+                className="flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 sm:py-2 rounded-xl bg-slate-100 hover:bg-slate-200/80 text-slate-700 text-xs font-bold transition-all border border-slate-200 cursor-pointer shadow-xs"
                 title="Selecione o Idioma / Select Language"
               >
                 <span className="text-base leading-none">{currentLangObj.flag}</span>
-                <span className="text-xs uppercase font-extrabold">{currentLangObj.code.split('-')[0]}</span>
+                <span className="text-[11px] sm:text-xs uppercase font-extrabold">{currentLangObj.code.split('-')[0]}</span>
                 <ChevronDown size={13} className={`text-slate-400 transition-transform ${langDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
@@ -208,7 +208,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         setLocale(lang.code);
                         setLangDropdownOpen(false);
                       }}
-                      className={`w-full flex items-center justify-between px-3.5 py-2 text-xs text-left transition-colors ${
+                      className={`w-full flex items-center justify-between px-3.5 py-2 text-xs text-left transition-colors cursor-pointer ${
                         locale === lang.code 
                           ? 'bg-orange-50 text-orange-600 font-bold' 
                           : 'text-slate-700 hover:bg-slate-50 font-medium'
@@ -225,78 +225,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               )}
             </div>
 
-            {/* Portal do Cliente Login Button */}
-            {onOpenClientPortal && (
+            {/* Desktop Action Buttons */}
+            <div className="hidden sm:flex items-center gap-2 sm:gap-3">
+              {/* Login Button */}
               <button
-                onClick={onOpenClientPortal}
-                className="px-3.5 py-2 text-xs font-black text-amber-700 hover:text-amber-800 bg-amber-50 hover:bg-amber-100/90 border border-amber-200/90 rounded-xl transition-all uppercase tracking-wider flex items-center gap-1.5 cursor-pointer shadow-sm"
-                title="Aceder à área de orçamentos do cliente"
+                onClick={onLogin}
+                className="px-4 py-2 text-xs font-black text-slate-800 hover:text-orange-500 rounded-xl hover:bg-slate-50 transition-all uppercase tracking-wider cursor-pointer"
               >
-                <ShieldCheck size={14} className="text-amber-600" />
-                <span>Portal do Cliente</span>
-              </button>
-            )}
-
-            {/* Login Button */}
-            <button
-              onClick={onLogin}
-              className="px-4 py-2 text-xs font-black text-slate-800 hover:text-orange-500 rounded-xl hover:bg-slate-50 transition-all uppercase tracking-wider"
-            >
-              {lt.nav.login}
-            </button>
-
-            {/* Start Free Button */}
-            <button
-              onClick={onStartFree}
-              className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 transition-all active:scale-95"
-            >
-              {lt.nav.startFree}
-            </button>
-          </div>
-
-          {/* Mobile Menu Hamburger */}
-          <div className="flex items-center gap-2 lg:hidden">
-            {/* Mobile Language Selector */}
-            <div className="relative">
-              <button
-                type="button"
-                onClick={() => setLangDropdownOpen(!langDropdownOpen)}
-                className="flex items-center gap-1 px-2.5 py-1.5 rounded-lg bg-slate-100 text-slate-700 text-xs font-bold border border-slate-200"
-              >
-                <span>{currentLangObj.flag}</span>
-                <span className="text-[11px] uppercase font-bold">{currentLangObj.code.split('-')[0]}</span>
+                {lt.nav.login}
               </button>
 
-              {langDropdownOpen && (
-                <div className="absolute right-0 mt-2 w-44 bg-white rounded-xl shadow-2xl border border-slate-100 py-1.5 z-50">
-                  {LANGUAGES.map((lang) => (
-                    <button
-                      key={lang.code}
-                      onClick={() => {
-                        setLocale(lang.code);
-                        setLangDropdownOpen(false);
-                      }}
-                      className={`w-full flex items-center justify-between px-3 py-2 text-xs text-left ${
-                        locale === lang.code ? 'bg-orange-50 text-orange-600 font-bold' : 'text-slate-700 hover:bg-slate-50'
-                      }`}
-                    >
-                      <div className="flex items-center gap-2">
-                        <span>{lang.flag}</span>
-                        <span>{lang.label}</span>
-                      </div>
-                      {locale === lang.code && <Check size={12} className="text-orange-500" />}
-                    </button>
-                  ))}
-                </div>
-              )}
+              {/* Start Free Button */}
+              <button
+                onClick={onStartFree}
+                className="px-5 py-2.5 bg-orange-500 hover:bg-orange-600 text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 hover:shadow-lg hover:shadow-orange-500/35 transition-all active:scale-95 cursor-pointer"
+              >
+                {lt.nav.startFree}
+              </button>
             </div>
 
-            <button
-              onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-              className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors"
-            >
-              {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            {/* Mobile Menu Hamburger Button */}
+            <div className="flex items-center lg:hidden">
+              <button
+                onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
+                className="p-2 rounded-xl text-slate-700 hover:bg-slate-100 transition-colors cursor-pointer"
+                aria-label="Menu"
+              >
+                {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
+              </button>
+            </div>
           </div>
 
         </div>

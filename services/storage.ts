@@ -1,5 +1,6 @@
 import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
+import { triggerInAppBalloon } from '../components/InAppPushBalloon';
 
 export const safeGetItem = (key: string): string | null => {
   try {
@@ -414,6 +415,29 @@ export const saveBudget = (budget: Budget) => {
       console.error(`[Storage] Falha ao sincronizar orçamento ${budget.id}:`, res.error);
     }
   });
+
+  // Se o orçamento for destinado a um pedido de cliente ou possuir dados de contacto, notificar o cliente
+  if (budget.clientRequestId || budget.contactPhone || budget.clientEmail) {
+    const companies = getStoredCompanies();
+    const company = companies.find(c => c.id === budget.companyId);
+    const companyName = company?.name || (company as any)?.companyName || 'Uma empresa qualificada';
+    
+    fetch('/api/push/notify-client-budget', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        clientRequestId: budget.clientRequestId || '',
+        clientName: budget.clientName || 'Cliente',
+        clientPhone: budget.contactPhone || '',
+        clientEmail: budget.clientEmail || '',
+        companyName,
+        totalAmount: budget.totalAmount || 0,
+        budgetTitle: budget.servicesSelected?.join(', ') || 'Proposta de Orçamento'
+      })
+    }).catch(err => {
+      console.warn('[Storage] Erro ao enviar notificação push para o cliente:', err);
+    });
+  }
 };
 
 export const removeBudget = async (id: string) => {
@@ -684,9 +708,13 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
   const mapped: any = { ...b };
   if (b.company_id && !b.companyId) mapped.companyId = b.company_id;
   if (b.companyid && !b.companyId) mapped.companyId = b.companyid;
+  if (b.client_request_id && !b.clientRequestId) mapped.clientRequestId = b.client_request_id;
+  if (b.clientrequestid && !b.clientRequestId) mapped.clientRequestId = b.clientrequestid;
   if (b.client_name && !b.clientName) mapped.clientName = b.client_name;
   if (b.contact_name && !b.contactName) mapped.contactName = b.contact_name;
   if (b.contact_phone && !b.contactPhone) mapped.contactPhone = b.contact_phone;
+  if (b.client_email && !b.clientEmail) mapped.clientEmail = b.client_email;
+  if (b.clientemail && !b.clientEmail) mapped.clientEmail = b.clientemail;
   if (b.work_location && !b.workLocation) mapped.workLocation = b.work_location;
   if (b.work_number && !b.workNumber) mapped.workNumber = b.work_number;
   if (b.work_postal_code && !b.workPostalCode) mapped.workPostalCode = b.work_postal_code;
@@ -1712,13 +1740,29 @@ export const resetActionVideoConfig = async (): Promise<{ success: boolean; erro
 export const STORAGE_KEY_CLIENT_REQUESTS = 'atrios_client_service_requests';
 
 export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest => {
+  let parsedCategories: string[] | undefined = undefined;
+  if (Array.isArray(item.categories)) {
+    parsedCategories = item.categories;
+  } else if (typeof item.categories === 'string') {
+    try {
+      parsedCategories = JSON.parse(item.categories);
+    } catch (e) {
+      if (item.categories.includes(',')) {
+        parsedCategories = item.categories.split(',').map((s: string) => s.trim());
+      }
+    }
+  }
+
+  const primaryCategory = (item.category || item.service_category || (parsedCategories && parsedCategories[0]) || 'other') as ServiceCategory;
+
   return {
     id: String(item.id || generateShortId()),
     clientName: String(item.client_name || item.clientName || item.name || ''),
     clientEmail: String(item.client_email || item.clientEmail || item.email || ''),
     clientPhone: String(item.client_phone || item.clientPhone || item.phone || ''),
     accessCode: item.access_code || item.accessCode || undefined,
-    category: (item.category || item.service_category || 'other') as ServiceCategory,
+    category: primaryCategory,
+    categories: parsedCategories || (item.category ? [item.category] : undefined),
     title: String(item.title || ''),
     description: String(item.description || ''),
     location: String(item.location || item.city || ''),
@@ -1794,13 +1838,20 @@ export const saveClientServiceRequest = async (
   try {
     const accessCode = request.accessCode || Math.floor(1000 + Math.random() * 9000).toString();
 
+    const rawCategories = Array.isArray(request.categories) && request.categories.length > 0
+      ? request.categories
+      : (request.category ? [request.category] : ['other']);
+
+    const primaryCategory = (request.category || rawCategories[0] || 'other') as ServiceCategory;
+
     const newReq: ClientServiceRequest = {
       id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
       clientName: request.clientName || '',
       clientEmail: request.clientEmail || '',
       clientPhone: request.clientPhone || '',
       accessCode: accessCode,
-      category: request.category || 'other',
+      category: primaryCategory,
+      categories: rawCategories,
       title: request.title || '',
       description: request.description || '',
       location: request.location || '',
@@ -1842,6 +1893,7 @@ export const saveClientServiceRequest = async (
         access_code: newReq.accessCode,
         service_category: newReq.category,
         category: newReq.category,
+        categories: JSON.stringify(newReq.categories || [newReq.category]),
         title: newReq.title,
         description: newReq.description,
         location: newReq.location,
@@ -1864,18 +1916,45 @@ export const saveClientServiceRequest = async (
       console.warn('[Storage] Erro ao sincronizar client_service_requests no Supabase:', sbErr);
     }
 
-    // 4. Notificar administradores / construtores via push e som
+    // 4. Notificar todos os usuários para responderem e notificar o Master
     try {
-      fetch('/api/push/notify-all', {
+      const userPushTitle = `Novo Pedido de Orçamento! 🔔🚀`;
+      const userPushBody = `Novo pedido de cliente para "${newReq.title}" em ${newReq.location || 'Portugal'}. Aceda agora ao Átrios para responder e garantir este cliente! 💼🛠️`;
+
+      // 4.1 Push broadcast para TODOS os utilizadores (Web Push / FCM / Realtime)
+      fetch('/api/push/send-broadcast', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: `Novo Pedido de Orçamento: ${newReq.title} 🛠️`,
-          body: `${newReq.clientName} em ${newReq.location} está a solicitar orçamento para "${newReq.title}". Clique para ver!`,
-          url: '/'
+          title: userPushTitle,
+          body: userPushBody,
+          targetAudience: 'all'
         })
-      }).catch(() => {});
-    } catch (e) {}
+      }).catch(err => console.warn('[Storage Push Broadcast Error]:', err));
+
+      // 4.2 Push específico para o Administrador / Master
+      fetch('/api/push/notify-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'client_service_request',
+          details: {
+            id: newReq.id,
+            clientName: newReq.clientName || 'Cliente',
+            clientPhone: newReq.clientPhone || '',
+            clientEmail: newReq.clientEmail || '',
+            title: newReq.title,
+            location: newReq.location || 'Portugal',
+            category: newReq.category
+          }
+        })
+      }).catch(err => console.warn('[Storage Push Master Error]:', err));
+
+      // 4.3 Disparar balão local in-app se estiver no navegador
+      triggerInAppBalloon(userPushTitle, userPushBody);
+    } catch (e) {
+      console.warn('[Storage] Erro ao disparar notificações de pedido:', e);
+    }
 
     return { success: true, data: newReq };
   } catch (err) {
@@ -1937,6 +2016,162 @@ export const fetchCloudAppSettings = async () => {
     console.warn('fetchCloudAppSettings error:', err);
   }
 };
+
+export const getCurrentMonthKey = (): string => {
+  const d = new Date();
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  return `${year}-${month}`;
+};
+
+export const getCompanyMonthlyResponses = (companyId: string, monthKey?: string): string[] => {
+  if (!companyId) return [];
+  const targetMonth = monthKey || getCurrentMonthKey();
+  try {
+    const raw = safeGetItem('atrios_company_request_responses');
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    const companyData = parsed[companyId] || {};
+    return Array.isArray(companyData[targetMonth]) ? companyData[targetMonth] : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const recordCompanyRequestResponse = (companyId: string, requestId: string, monthKey?: string) => {
+  if (!companyId || !requestId) return;
+  const targetMonth = monthKey || getCurrentMonthKey();
+  try {
+    const raw = safeGetItem('atrios_company_request_responses');
+    const parsed: Record<string, Record<string, string[]>> = raw ? JSON.parse(raw) : {};
+    if (!parsed[companyId]) parsed[companyId] = {};
+    if (!Array.isArray(parsed[companyId][targetMonth])) {
+      parsed[companyId][targetMonth] = [];
+    }
+    if (!parsed[companyId][targetMonth].includes(requestId)) {
+      parsed[companyId][targetMonth].push(requestId);
+    }
+    safeSetItem('atrios_company_request_responses', JSON.stringify(parsed));
+    
+    // Disparar evento para atualizar a UI em tempo real
+    window.dispatchEvent(new CustomEvent('atrios_request_responses_updated', { detail: { companyId, requestId, month: targetMonth } }));
+  } catch (e) {
+    console.error('Error recording company response:', e);
+  }
+};
+
+export interface ResponsePermissionCheck {
+  allowed: boolean;
+  reason: 'ok' | 'already_responded' | 'free_blocked' | 'monthly_limit_reached';
+  usedCount: number;
+  maxAllowed: number | null; // null = ilimitado
+  isFree: boolean;
+  isMonthly: boolean;
+  isPremium: boolean;
+  remaining?: number;
+}
+
+export const checkCompanyResponsePermission = (company: Company | null, requestId?: string): ResponsePermissionCheck => {
+  if (!company) {
+    return {
+      allowed: false,
+      reason: 'free_blocked',
+      usedCount: 0,
+      maxAllowed: 0,
+      isFree: true,
+      isMonthly: false,
+      isPremium: false,
+      remaining: 0
+    };
+  }
+
+  const plan = company.plan || PlanType.FREE;
+  const isFree = plan === PlanType.FREE;
+  const isMonthly = plan === PlanType.PREMIUM_MONTHLY || (plan as string) === 'monthly';
+  const isPremium = plan === PlanType.PREMIUM_ANNUAL || plan === PlanType.PREMIUM || (plan as string) === 'annual' || (plan as string) === 'lifetime';
+
+  if (isFree) {
+    return {
+      allowed: false,
+      reason: 'free_blocked',
+      usedCount: 0,
+      maxAllowed: 0,
+      isFree: true,
+      isMonthly: false,
+      isPremium: false,
+      remaining: 0
+    };
+  }
+
+  if (isPremium) {
+    return {
+      allowed: true,
+      reason: 'ok',
+      usedCount: 0,
+      maxAllowed: null,
+      isFree: false,
+      isMonthly: false,
+      isPremium: true
+    };
+  }
+
+  if (isMonthly) {
+    const responses = getCompanyMonthlyResponses(company.id);
+    const alreadyResponded = requestId ? responses.includes(requestId) : false;
+    const usedCount = responses.length;
+    const maxAllowed = 2;
+    const remaining = Math.max(0, maxAllowed - usedCount);
+
+    if (alreadyResponded) {
+      return {
+        allowed: true,
+        reason: 'already_responded',
+        usedCount,
+        maxAllowed,
+        isFree: false,
+        isMonthly: true,
+        isPremium: false,
+        remaining
+      };
+    }
+
+    if (usedCount >= maxAllowed) {
+      return {
+        allowed: false,
+        reason: 'monthly_limit_reached',
+        usedCount,
+        maxAllowed,
+        isFree: false,
+        isMonthly: true,
+        isPremium: false,
+        remaining: 0
+      };
+    }
+
+    return {
+      allowed: true,
+      reason: 'ok',
+      usedCount,
+      maxAllowed,
+      isFree: false,
+      isMonthly: true,
+      isPremium: false,
+      remaining
+    };
+  }
+
+  // Fallback seguro
+  return {
+    allowed: true,
+    reason: 'ok',
+    usedCount: 0,
+    maxAllowed: null,
+    isFree: false,
+    isMonthly: false,
+    isPremium: true
+  };
+};
+
 
 
 
