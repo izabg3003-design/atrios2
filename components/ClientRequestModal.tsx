@@ -6,7 +6,7 @@ import {
   Check, Plus, Bell, BellRing
 } from 'lucide-react';
 import { ClientServiceRequest, ServiceCategory } from '../types';
-import { saveClientServiceRequest } from '../services/storage';
+import { saveClientServiceRequest, getStoredClientRequests, generateUniqueRequestId } from '../services/storage';
 import { registerClientWebPush } from '../services/clientPush';
 
 interface ClientRequestModalProps {
@@ -59,12 +59,42 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
   React.useEffect(() => {
     if (isOpen) {
-      if (initialClientName) setClientName(initialClientName);
-      if (initialClientPhone) setClientPhone(initialClientPhone);
-      if (initialClientEmail) setClientEmail(initialClientEmail);
-      if (initialLocation) setLocation(initialLocation);
+      setIsSuccess(false);
+      setSubmitting(false);
+      setTitle('');
+      setDescription('');
+      setPhotos([]);
+      setCreatedRequestId('');
+      setCreatedAccessCode('');
+
+      // Recuperar sessão prévia se não foi passada nas props
+      const sessionPhone = initialClientPhone || localStorage.getItem('atrios_client_session_phone') || '';
+      const storedReqs = getStoredClientRequests();
+      const prevReq = storedReqs.find(r => {
+        if (!sessionPhone) return false;
+        const p1 = (r.clientPhone || '').replace(/\D/g, '');
+        const p2 = sessionPhone.replace(/\D/g, '');
+        return p1 === p2 || (p1.length >= 7 && p2.includes(p1)) || (p2.length >= 7 && p1.includes(p2));
+      });
+
+      const effectiveName = initialClientName || prevReq?.clientName || (typeof window !== 'undefined' ? localStorage.getItem('atrios_client_session_name') || '' : '') || clientName || '';
+      const effectivePhone = sessionPhone || prevReq?.clientPhone || (typeof window !== 'undefined' ? localStorage.getItem('atrios_client_session_phone') || '' : '') || clientPhone || '';
+      const effectiveEmail = initialClientEmail || prevReq?.clientEmail || (typeof window !== 'undefined' ? localStorage.getItem('atrios_client_session_email') || '' : '') || clientEmail || '';
+      const effectiveLocation = initialLocation || prevReq?.location || prevReq?.city || (typeof window !== 'undefined' ? localStorage.getItem('atrios_client_session_location') || '' : '') || location || '';
+
+      if (effectiveName) setClientName(effectiveName);
+      if (effectivePhone) setClientPhone(effectivePhone);
+      if (effectiveEmail) setClientEmail(effectiveEmail);
+      if (effectiveLocation) setLocation(effectiveLocation);
+
+      // Se temos todos os dados de identificação essenciais, pode ir para o Passo 2
+      if (effectiveName.trim() && effectivePhone.trim() && effectiveLocation.trim()) {
+        setStep(2);
+      } else {
+        setStep(1);
+      }
     }
-  }, [isOpen, initialClientName, initialClientPhone, initialClientEmail, initialLocation]);
+  }, [isOpen, isLoggedIn, initialClientName, initialClientPhone, initialClientEmail, initialLocation]);
 
   // Step 2: Service Details - Multi-select supported
   const [selectedCategories, setSelectedCategories] = useState<ServiceCategory[]>(['doors_windows']);
@@ -94,23 +124,60 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     });
   };
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    Array.from(files).forEach((file: File) => {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('A fotografia não deve exceder 5MB.');
-        return;
-      }
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          setPhotos(prev => [...prev, reader.result as string].slice(0, 5));
-        }
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 960;
+          let width = img.width;
+          let height = img.height;
+          if (width > maxDim || height > maxDim) {
+            if (width > height) {
+              height = Math.round((height * maxDim) / width);
+              width = maxDim;
+            } else {
+              width = Math.round((width * maxDim) / height);
+              height = maxDim;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressed = canvas.toDataURL('image/jpeg', 0.65);
+            resolve(compressed);
+          } else {
+            resolve(readerEvent.target?.result as string);
+          }
+        };
+        img.onerror = () => {
+          resolve(readerEvent.target?.result as string);
+        };
+        img.src = readerEvent.target?.result as string;
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+    
+    const fileArray: File[] = Array.from(files);
+    for (const file of fileArray) {
+      try {
+        const compressedBase64 = await compressImage(file);
+        if (compressedBase64) {
+          setPhotos(prev => [...prev, compressedBase64].slice(0, 5));
+        }
+      } catch (err) {
+        console.warn('Erro ao comprimir imagem:', err);
+      }
+    }
   };
 
   const removePhoto = (index: number) => {
@@ -144,10 +211,19 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
       return;
     }
 
+    // Validações essenciais antes do envio
+    if (!clientName.trim() || !clientPhone.trim() || !location.trim()) {
+      alert('Por favor preencha os seus dados de identificação e contacto no Passo 1.');
+      setStep(1);
+      return;
+    }
+
     setSubmitting(true);
     try {
       const primaryCategory = selectedCategories[0] || 'doors_windows';
+      const freshUniqueId = generateUniqueRequestId();
       const result = await saveClientServiceRequest({
+        id: freshUniqueId,
         clientName: clientName.trim(),
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
@@ -167,8 +243,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         setCreatedRequestId(result.data.id);
         const code = result.data.accessCode || '';
         setCreatedAccessCode(code);
+        
+        // Guardar dados da sessão para pedidos subsequentes do mesmo cliente
         if (clientPhone) {
           localStorage.setItem('atrios_client_session_phone', clientPhone.trim());
+          localStorage.setItem('atrios_client_session_name', clientName.trim());
+          if (clientEmail) localStorage.setItem('atrios_client_session_email', clientEmail.trim());
+          if (location) localStorage.setItem('atrios_client_session_location', location.trim());
           if (code) {
             localStorage.setItem(`atrios_client_code_${clientPhone.trim()}`, code);
           }
@@ -291,21 +372,38 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 </ul>
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-3 justify-center">
+              <div className="pt-4 flex flex-col sm:flex-row flex-wrap gap-3 justify-center">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsSuccess(false);
+                    setTitle('');
+                    setDescription('');
+                    setPhotos([]);
+                    setCreatedRequestId('');
+                    setCreatedAccessCode('');
+                    setStep(2);
+                  }}
+                  className="px-6 py-3.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border-2 border-amber-400 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                >
+                  <Plus size={16} className="text-amber-600 stroke-[3]" /> + Fazer Mais um Pedido
+                </button>
+
                 {!isLoggedIn && onOpenPortal && (
                   <button
                     onClick={() => {
                       handleReset();
                       onOpenPortal();
                     }}
-                    className="px-7 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-orange-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-6 py-3.5 bg-gradient-to-r from-orange-500 to-amber-500 hover:from-orange-600 hover:to-amber-600 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-orange-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Sparkles size={16} /> Aceder ao Portal do Cliente ÁTRIOS
+                    <Sparkles size={16} /> Aceder ao Portal do Cliente
                   </button>
                 )}
+                
                 <button
                   onClick={handleReset}
-                  className="px-8 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   {isLoggedIn ? 'Voltar ao Portal do Cliente' : 'Concluir'}
                 </button>

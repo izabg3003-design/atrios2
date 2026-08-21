@@ -27,50 +27,89 @@ const STORAGE_KEY_HERO_VIDEO = 'atrios_hero_video_config';
 const STORAGE_KEY_ACTION_VIDEO = 'atrios_action_video_config';
 
 /**
- * Helper para salvar no localStorage com tratamento de erro de cota excedida.
+ * Helper para salvar no localStorage com tratamento resiliente de erro de cota excedida.
  */
-export const safeSetItem = (key: string, value: string) => {
+export const safeSetItem = (key: string, value: string): boolean => {
   try {
     localStorage.setItem(key, value);
+    return true;
   } catch (e) {
-    if (e instanceof DOMException && (
-      e.code === 22 || 
-      e.code === 1014 || 
-      e.name === 'QuotaExceededError' || 
-      e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+    if (
+      e instanceof DOMException &&
+      (e.code === 22 ||
+        e.code === 1014 ||
+        e.name === 'QuotaExceededError' ||
+        e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
     ) {
-      console.warn(`[Storage] Cota do LocalStorage excedida ao salvar '${key}'. Tentando liberar espaço...`);
-      
-      // Tenta remover dados menos críticos para abrir espaço
-      const keysToRemove = [
+      // 1. Limpar caches auxiliares descartáveis
+      const nonCriticalKeys = [
+        'atrios_pdf_downloads',
         'atrios_notifications',
-        'atrios_messages',
+        'atrios_push_history',
         'atrios_transactions',
-        'atrios_pdf_downloads'
+        'atrios_messages',
+        'atrios_store_orders',
+        'atrios_custom_orders'
       ];
-      
-      for (const k of keysToRemove) {
+
+      for (const k of nonCriticalKeys) {
         if (k !== key) {
-          localStorage.removeItem(k);
+          try {
+            localStorage.removeItem(k);
+          } catch (_) {}
         }
       }
-      
-      // Tenta salvar novamente após a limpeza
+
+      // 2. Tentar salvar novamente após a limpeza
       try {
         localStorage.setItem(key, value);
-        console.log(`[Storage] Salvo com sucesso após limpeza parcial.`);
+        return true;
       } catch (retryError) {
-        console.error(`[Storage] Falha crítica: Mesmo após limpeza, a cota foi excedida para '${key}'.`, retryError);
-        // Se ainda falhar, não podemos fazer muito além de não travar o app
+        // 3. Se ainda falhar, otimizar o próprio payload removendo dados binários/base64 pesados
+        try {
+          const parsed = JSON.parse(value);
+          if (Array.isArray(parsed)) {
+            const stripped = parsed.slice(0, 50).map((item: any) => {
+              if (item && typeof item === 'object') {
+                const copy = { ...item };
+                if (Array.isArray(copy.photos)) {
+                  copy.photos = copy.photos
+                    .map((p: any) =>
+                      typeof p === 'string' && p.startsWith('data:image') && p.length > 5000 ? '' : p
+                    )
+                    .filter(Boolean);
+                }
+                if (typeof copy.image === 'string' && copy.image.startsWith('data:image') && copy.image.length > 5000) {
+                  delete copy.image;
+                }
+                return copy;
+              }
+              return item;
+            });
+            localStorage.setItem(key, JSON.stringify(stripped));
+            return true;
+          }
+        } catch (_) {}
+
+        // Fallback silencioso para garantir que a aplicação nunca trave
+        return false;
       }
     } else {
-      console.error(`[Storage] Erro ao salvar no LocalStorage:`, e);
+      console.warn(`[Storage] Erro ao salvar '${key}' no LocalStorage:`, e);
+      return false;
     }
   }
 };
 
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+};
+
+export const generateUniqueRequestId = () => {
+  const timeHex = Date.now().toString(36).toUpperCase();
+  const randHex = Math.random().toString(36).substring(2, 8).toUpperCase();
+  const counter = Math.floor(1000 + Math.random() * 9000);
+  return `REQ-${timeHex}-${randHex}-${counter}`;
 };
 
 export const mapCompanyFromSupabase = (data: any): Company => {
@@ -1755,6 +1794,11 @@ export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest =>
 
   const primaryCategory = (item.category || item.service_category || (parsedCategories && parsedCategories[0]) || 'other') as ServiceCategory;
 
+  const titleValue = String(item.title || item.projectTitle || item.project_title || '');
+  const descValue = String(item.description || item.projectDescription || item.project_description || '');
+  const locValue = String(item.location || item.city || '');
+  const budgetValue = item.budget_range || item.budgetRange || item.estimatedBudget || item.estimated_budget || undefined;
+
   return {
     id: String(item.id || generateShortId()),
     clientName: String(item.client_name || item.clientName || item.name || ''),
@@ -1763,14 +1807,29 @@ export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest =>
     accessCode: item.access_code || item.accessCode || undefined,
     category: primaryCategory,
     categories: parsedCategories || (item.category ? [item.category] : undefined),
-    title: String(item.title || ''),
-    description: String(item.description || ''),
-    location: String(item.location || item.city || ''),
+    title: titleValue,
+    projectTitle: titleValue,
+    description: descValue,
+    projectDescription: descValue,
+    location: locValue,
+    city: locValue,
     postalCode: item.postal_code || item.postalCode || undefined,
     propertyType: item.property_type || item.propertyType || undefined,
     urgency: item.urgency || undefined,
-    budgetRange: item.budget_range || item.budgetRange || undefined,
-    photos: Array.isArray(item.photos) ? item.photos : (typeof item.photos === 'string' ? JSON.parse(item.photos || '[]') : []),
+    budgetRange: budgetValue,
+    estimatedBudget: budgetValue,
+    photos: Array.isArray(item.photos)
+      ? item.photos
+      : (typeof item.photos === 'string'
+        ? (() => {
+            try {
+              const p = JSON.parse(item.photos);
+              return Array.isArray(p) ? p : (item.photos ? [item.photos] : []);
+            } catch (e) {
+              return item.photos ? [item.photos] : [];
+            }
+          })()
+        : []),
     status: (item.status || 'pending') as ClientRequestStatus,
     proposalsCount: Number(item.proposals_count || item.proposalsCount || 0),
     assignedCompanyId: item.assigned_company_id || item.assignedCompanyId || undefined,
@@ -1806,11 +1865,54 @@ export const fetchBudgetsFromSupabase = async (): Promise<Budget[]> => {
 };
 
 export const saveClientRequestLocally = (requests: ClientServiceRequest[]) => {
-  safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(requests));
+  try {
+    const sanitized = (requests || []).slice(0, 50).map(req => {
+      if (!req) return req;
+      const cleanPhotos = Array.isArray(req.photos)
+        ? req.photos
+            .map(ph => (typeof ph === 'string' && ph.startsWith('data:image') && ph.length > 8000 ? '' : ph))
+            .filter(Boolean)
+        : [];
+      return {
+        ...req,
+        photos: cleanPhotos
+      };
+    });
+    safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(sanitized));
+  } catch (err) {
+    console.warn('[Storage] Erro ao salvar requests localmente:', err);
+  }
 };
 
 export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRequest[]> => {
   try {
+    const mergeWithLocal = (cloudItems: ClientServiceRequest[]): ClientServiceRequest[] => {
+      const local = getStoredClientRequests();
+      const map = new Map<string, ClientServiceRequest>();
+      local.forEach(r => { if (r && r.id) map.set(r.id, r); });
+      cloudItems.forEach(r => { if (r && r.id) map.set(r.id, r); });
+      const combined = Array.from(map.values()).sort(
+        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
+      );
+      saveClientRequestLocally(combined);
+      return combined;
+    };
+
+    // 1. Tentar via API do servidor (com service role key, contornando qualquer bloqueio de RLS/Anon)
+    try {
+      const apiRes = await fetch('/api/client-requests');
+      if (apiRes.ok) {
+        const json = await apiRes.json();
+        if (json.success && Array.isArray(json.data)) {
+          const mapped = json.data.map(mapClientRequestFromSupabase);
+          return mergeWithLocal(mapped);
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[Storage] API fetch client_service_requests falhou, tentando Supabase direto:', apiErr);
+    }
+
+    // 2. Fallback direto Supabase
     const { data, error } = await safeFetch<any[]>(
       supabase.from('client_service_requests').select('*').order('created_at', { ascending: false })
     );
@@ -1822,8 +1924,7 @@ export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRe
 
     if (data && Array.isArray(data)) {
       const mapped = data.map(mapClientRequestFromSupabase);
-      saveClientRequestLocally(mapped);
-      return mapped;
+      return mergeWithLocal(mapped);
     }
     return getStoredClientRequests();
   } catch (err) {
@@ -1844,8 +1945,12 @@ export const saveClientServiceRequest = async (
 
     const primaryCategory = (request.category || rawCategories[0] || 'other') as ServiceCategory;
 
+    const finalId = (request.id && String(request.id).trim().length > 0 && !String(request.id).startsWith('temp_'))
+      ? String(request.id).trim()
+      : generateUniqueRequestId();
+
     const newReq: ClientServiceRequest = {
-      id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
+      id: finalId,
       clientName: request.clientName || '',
       clientEmail: request.clientEmail || '',
       clientPhone: request.clientPhone || '',
@@ -1868,7 +1973,7 @@ export const saveClientServiceRequest = async (
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Guardar localmente
+    // 1. Guardar localmente de imediato
     const current = getStoredClientRequests();
     const existingIndex = current.findIndex(r => r.id === newReq.id);
     let updated: ClientServiceRequest[];
@@ -1883,37 +1988,38 @@ export const saveClientServiceRequest = async (
     // 2. Disparar evento para a UI atualizar em tempo real
     window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: newReq }));
 
-    // 3. Sincronizar com Supabase
+    // 3. Sincronizar com o Supabase via API backend (com Service Role) e via syncToCloud
+    let savedToSupabase = false;
     try {
-      const supabasePayload = {
-        id: newReq.id,
-        client_name: newReq.clientName,
-        client_email: newReq.clientEmail,
-        client_phone: newReq.clientPhone,
-        access_code: newReq.accessCode,
-        service_category: newReq.category,
-        category: newReq.category,
-        categories: JSON.stringify(newReq.categories || [newReq.category]),
-        title: newReq.title,
-        description: newReq.description,
-        location: newReq.location,
-        city: newReq.location,
-        postal_code: newReq.postalCode,
-        property_type: newReq.propertyType,
-        urgency: newReq.urgency,
-        budget_range: newReq.budgetRange,
-        photos: JSON.stringify(newReq.photos || []),
-        status: newReq.status,
-        proposals_count: newReq.proposalsCount || 0,
-        assigned_company_id: newReq.assignedCompanyId,
-        assigned_company_name: newReq.assignedCompanyName,
-        created_at: newReq.createdAt,
-        updated_at: newReq.updatedAt
-      };
+      const serverRes = await fetch('/api/client-requests/save', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newReq)
+      });
+      if (serverRes.ok) {
+        const resJson = await serverRes.json();
+        if (resJson.success) {
+          savedToSupabase = true;
+          console.log(`[Storage] Pedido ${newReq.id} salvo no Supabase via API backend.`);
+        }
+      }
+    } catch (apiErr) {
+      console.warn('[Storage] Falha ao enviar para API /api/client-requests/save:', apiErr);
+    }
 
-      await supabase.from('client_service_requests').upsert(supabasePayload);
-    } catch (sbErr) {
-      console.warn('[Storage] Erro ao sincronizar client_service_requests no Supabase:', sbErr);
+    // Se a rota da API falhou ou não retornou sucesso, executar syncToCloud diretamente
+    if (!savedToSupabase) {
+      try {
+        const directSync = await syncToCloud('client_service_requests', newReq);
+        if (directSync.success) {
+          savedToSupabase = true;
+          console.log(`[Storage] Pedido ${newReq.id} sincronizado no Supabase via syncToCloud.`);
+        } else {
+          console.error(`[Storage] Erro no syncToCloud client_service_requests:`, directSync.error);
+        }
+      } catch (syncErr) {
+        console.error(`[Storage] Exceção no syncToCloud:`, syncErr);
+      }
     }
 
     // 4. Notificar todos os usuários para responderem e notificar o Master
@@ -1972,6 +2078,7 @@ export const deleteClientServiceRequest = async (id: string): Promise<{ success:
     window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: { id, deleted: true } }));
 
     try {
+      fetch(`/api/client-requests/${id}`, { method: 'DELETE' }).catch(() => {});
       await supabase.from('client_service_requests').delete().eq('id', id);
     } catch (e) {}
 

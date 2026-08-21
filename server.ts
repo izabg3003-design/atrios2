@@ -68,10 +68,10 @@ console.log("- SUPABASE_URL:", process.env.SUPABASE_URL ? "Present" : "Missing")
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || "");
 
-const supabase = createClient(
-  process.env.SUPABASE_URL || "",
-  process.env.SUPABASE_SERVICE_ROLE_KEY || ""
-);
+const supabaseUrl = process.env.SUPABASE_URL || "https://raglyqukrlxwcmlhzebd.supabase.co";
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InJhZ2x5cXVrcmx4d2NtbGh6ZWJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzE0MTcxMDQsImV4cCI6MjA4Njk5MzEwNH0.fuckSJxctgYkF5ipioPYo31b_Kqwo905f64F-_Fjpc0";
+
+const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
 // Helper resiliente para salvar subscrição/token no Supabase (com detecção dinâmica de colunas)
 async function saveSubscriptionToSupabase(record: {
@@ -362,8 +362,9 @@ async function startServer() {
     }
   );
 
-  // Parse JSON bodies for other routes
-  app.use(express.json());
+  // Parse JSON bodies for other routes (allow large payloads for base64 photos/attachments)
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
   // Error handler for malformed JSON
   app.use((err: any, req: express.Request, res: express.Response, next: express.NextFunction) => {
@@ -897,6 +898,115 @@ async function startServer() {
       const masterBody = `A empresa "${company}" enviou uma proposta para o cliente "${clientName || 'Cliente'}" (${clientPhone || clientEmail || 'Sem contacto'})${formattedAmount}.`;
       sendPushBroadcast("💼 Proposta Enviada por Empresa!", masterBody, 'master').catch(() => {});
     } catch (e) {}
+  });
+
+  // 3.1 Sincronizar e salvar pedido de cliente (Client Service Request) diretamente no Supabase com chave de serviço
+  app.post("/api/client-requests/save", async (req, res) => {
+    try {
+      const data = req.body;
+      if (!data) {
+        return res.status(400).json({ error: "Missing request data" });
+      }
+
+      const generatedId = `REQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const generatedCode = String(Math.floor(1000 + Math.random() * 9000));
+      const finalId = (data.id && String(data.id).trim().length > 0 && !String(data.id).startsWith("temp_"))
+        ? String(data.id).trim()
+        : generatedId;
+      const finalCode = String(data.accessCode || data.access_code || generatedCode);
+
+      const cleanPhotos = Array.isArray(data.photos)
+        ? data.photos
+        : (typeof data.photos === "string" ? data.photos : "[]");
+
+      const primaryCategory = data.category || data.service_category || (Array.isArray(data.categories) ? data.categories[0] : "doors_windows");
+
+      const locVal = String(data.location || data.city || "Portugal").trim() || "Portugal";
+      const titleVal = String(data.title || data.projectTitle || "Pedido de Orçamento").trim() || "Pedido de Orçamento";
+      const descVal = String(data.description || data.projectDescription || titleVal || "Solicitação de orçamento").trim() || "Solicitação de orçamento";
+
+      const supabasePayload: any = {
+        id: finalId,
+        client_name: String(data.clientName || data.client_name || data.name || "Cliente").trim() || "Cliente",
+        client_email: String(data.clientEmail || data.client_email || data.email || "").trim(),
+        client_phone: String(data.clientPhone || data.client_phone || data.phone || "").trim(),
+        access_code: finalCode,
+        service_category: String(primaryCategory || "doors_windows"),
+        category: String(primaryCategory || "doors_windows"),
+        title: titleVal,
+        description: descVal,
+        location: locVal,
+        city: locVal,
+        postal_code: data.postalCode || data.postal_code || null,
+        property_type: data.propertyType || data.property_type || "apartment",
+        urgency: data.urgency || "few_weeks",
+        budget_range: data.budgetRange || data.budget_range || null,
+        photos: typeof cleanPhotos === "string" ? cleanPhotos : JSON.stringify(cleanPhotos),
+        status: String(data.status || "pending"),
+        proposals_count: Number(data.proposalsCount || data.proposals_count || 0),
+        assigned_company_id: data.assignedCompanyId || data.assigned_company_id || null,
+        assigned_company_name: data.assignedCompanyName || data.assigned_company_name || null,
+        created_at: data.createdAt || data.created_at || new Date().toISOString(),
+        updated_at: data.updatedAt || data.updated_at || new Date().toISOString()
+      };
+
+      console.log(`[Client Requests API] Salvando pedido ${supabasePayload.id} (${supabasePayload.client_name} - "${supabasePayload.title}") no Supabase...`);
+
+      const { data: savedData, error } = await supabase
+        .from("client_service_requests")
+        .upsert(supabasePayload)
+        .select()
+        .single();
+
+      if (error) {
+        console.error("[Client Requests API Error] Supabase upsert failed:", error);
+        return res.status(500).json({ success: false, error: error.message, details: error });
+      }
+
+      console.log(`[Client Requests API Success] Pedido ${supabasePayload.id} salvo com sucesso no Supabase!`);
+      return res.json({ success: true, data: savedData || supabasePayload });
+    } catch (err: any) {
+      console.error("[Client Requests API Exception]", err);
+      return res.status(500).json({ success: false, error: err.message || String(err) });
+    }
+  });
+
+  // Buscar todos os pedidos de clientes
+  app.get("/api/client-requests", async (req, res) => {
+    try {
+      const { data, error } = await supabase
+        .from("client_service_requests")
+        .select("*")
+        .order("created_at", { ascending: false });
+
+      if (error) {
+        console.error("[Client Requests API Error] Fetch failed:", error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      return res.json({ success: true, data: data || [] });
+    } catch (err: any) {
+      console.error("[Client Requests API Exception]", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Deletar pedido de cliente
+  app.delete("/api/client-requests/:id", async (req, res) => {
+    try {
+      const { id } = req.params;
+      const { error } = await supabase
+        .from("client_service_requests")
+        .delete()
+        .eq("id", id);
+
+      if (error) {
+        return res.status(500).json({ success: false, error: error.message });
+      }
+      return res.json({ success: true });
+    } catch (err: any) {
+      return res.status(500).json({ success: false, error: err.message });
+    }
   });
 
   // 3.1 Enviar notificação push específica para o Master (cadastro, mensagem, venda)

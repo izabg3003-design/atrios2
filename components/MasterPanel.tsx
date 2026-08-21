@@ -1103,6 +1103,33 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
+    // Subscrição para pedidos de particulares (Obras & Clientes)
+    const clientRequestsChannel = supabase
+      .channel('master-client-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'client_service_requests' },
+        (payload) => {
+          console.log("Master client request change detected:", payload.eventType, payload);
+          if (payload.eventType === 'INSERT') {
+            const raw = payload['new'];
+            const clientName = raw?.client_name || raw?.clientName || 'Cliente';
+            const title = raw?.title || raw?.projectTitle || 'Novo Pedido';
+            triggerPushNotificationSubmit(
+              "Novo Pedido de Particular! 🔨",
+              `${clientName} pediu orçamento para "${title}"`
+            );
+          }
+          fetchClientRequestsFromSupabase().then(reqs => setClientRequestsList(reqs));
+        }
+      )
+      .subscribe();
+
+    const handleClientRequestsEvent = () => {
+      fetchClientRequestsFromSupabase().then(reqs => setClientRequestsList(reqs));
+    };
+    window.addEventListener('atrios_client_requests_changed', handleClientRequestsEvent);
+
     // Subscrição para novos candidatos a vagas
     const candidatesChannel = supabase
       .channel('master-candidates')
@@ -1193,10 +1220,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       supabase.removeChannel(budgetsChannel);
       supabase.removeChannel(customOrdersChannel);
       supabase.removeChannel(candidatesChannel);
+      supabase.removeChannel(clientRequestsChannel);
       supabase.removeChannel(globalPushChannel);
       clearInterval(budgetSyncInterval);
       clearInterval(expiryRealtimeCheckInterval);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('atrios_client_requests_changed', handleClientRequestsEvent);
     };
   }, [activeTab, selectedCompanyId]);
 
@@ -3281,8 +3310,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 
                 <div className="space-y-6">
                   <div className="bg-white/5 p-6 rounded-2xl border border-white/5 flex items-center gap-4">
-                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white flex items-center justify-center p-1.5 shrink-0 shadow-lg border border-white/10">
-                      <img src="/icon-192.png" alt="App Logo" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-transparent flex items-center justify-center p-0.5 shrink-0 shadow-lg border border-white/10">
+                      <img src="/favicon.svg" alt="App Logo" className="w-full h-full object-contain drop-shadow-md" referrerPolicy="no-referrer" />
                     </div>
                     <div>
                       <h3 className="font-extrabold text-sm text-slate-200">Alertas em Tempo Real com Logotipo</h3>
@@ -3642,8 +3671,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       <div className="w-full bg-slate-900/90 border border-white/10 backdrop-blur-md rounded-2xl p-4 space-y-3 shadow-2xl animate-bounce">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-white overflow-hidden p-0.5 border border-white/10 flex items-center justify-center shrink-0">
-                              <img src="/icon-192.png" alt="App Icon" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+                            <div className="w-6 h-6 rounded-lg bg-transparent overflow-hidden p-0.5 border border-white/10 flex items-center justify-center shrink-0">
+                              <img src="/favicon.svg" alt="App Icon" className="w-full h-full object-contain drop-shadow" referrerPolicy="no-referrer" />
                             </div>
                             <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-sans">Átrios App</span>
                           </div>
@@ -4513,14 +4542,42 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {clientRequestsList
                   .filter((req) => {
+                    const titleText = req.title || req.projectTitle || '';
+                    const descText = req.description || req.projectDescription || '';
+                    const locText = req.location || req.city || '';
                     const matchesSearch =
                       clientRequestSearch === '' ||
-                      req.projectTitle?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
-                      req.clientName?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
-                      req.city?.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
-                      req.projectDescription?.toLowerCase().includes(clientRequestSearch.toLowerCase());
-                    const matchesStatus = clientRequestStatusFilter === 'all' || req.status === clientRequestStatusFilter;
+                      titleText.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      (req.clientName || '').toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      locText.toLowerCase().includes(clientRequestSearch.toLowerCase()) ||
+                      descText.toLowerCase().includes(clientRequestSearch.toLowerCase());
+                    
+                    const matchesStatus = clientRequestStatusFilter === 'all' || 
+                      req.status === clientRequestStatusFilter ||
+                      (clientRequestStatusFilter === 'open' && (req.status === 'open' || req.status === 'pending'));
+                    
+                    const normalizeCat = (cat?: string) => {
+                      if (!cat) return '';
+                      const c = cat.toLowerCase().trim();
+                      if (c === 'pintura' || c === 'painting') return 'pintura';
+                      if (c === 'eletricidade' || c === 'electrical') return 'eletricidade';
+                      if (c === 'canalizacao' || c === 'plumbing') return 'canalizacao';
+                      if (c === 'carpintaria' || c === 'doors_windows' || c === 'carpentry') return 'carpintaria';
+                      if (c === 'remodelacao' || c === 'remodeling' || c === 'general_renovation') return 'remodelacao';
+                      if (c === 'pladur' || c === 'drywall') return 'pladur';
+                      if (c === 'telhados' || c === 'roofing') return 'telhados';
+                      if (c === 'jardim' || c === 'gardening') return 'jardim';
+                      if (c === 'construcao_raiz' || c === 'masonry' || c === 'construction') return 'construcao_raiz';
+                      return c;
+                    };
+
+                    const filterCatNorm = normalizeCat(clientRequestCategoryFilter);
+                    const reqCatNorm = normalizeCat(req.category);
+                    const reqCategoriesNorm = Array.isArray(req.categories) ? req.categories.map(c => normalizeCat(c)) : [];
+
                     const matchesCategory = clientRequestCategoryFilter === 'all' || 
+                      reqCatNorm === filterCatNorm ||
+                      reqCategoriesNorm.includes(filterCatNorm) ||
                       req.category === clientRequestCategoryFilter ||
                       (Array.isArray(req.categories) && req.categories.includes(clientRequestCategoryFilter as any));
                     return matchesSearch && matchesStatus && matchesCategory;
@@ -4541,7 +4598,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                           </div>
                           <span
                             className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${
-                              req.status === 'open'
+                              req.status === 'open' || req.status === 'pending'
                                 ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                                 : req.status === 'in_progress'
                                 ? 'bg-blue-500/20 text-blue-300 border border-blue-500/30'
@@ -4550,16 +4607,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                                 : 'bg-slate-800 text-slate-400'
                             }`}
                           >
-                            {req.status === 'open' ? 'Aberto' : req.status === 'in_progress' ? 'Em Andamento' : req.status === 'completed' ? 'Concluído' : 'Cancelado'}
+                            {req.status === 'open' || req.status === 'pending' ? 'Aberto' : req.status === 'in_progress' ? 'Em Andamento' : req.status === 'completed' ? 'Concluído' : 'Cancelado'}
                           </span>
                         </div>
 
                         <div>
                           <h3 className="text-base font-black text-white tracking-tight leading-snug line-clamp-1">
-                            {req.projectTitle}
+                            {req.title || req.projectTitle}
                           </h3>
                           <p className="text-xs text-slate-400 line-clamp-2 mt-1 leading-relaxed">
-                            {req.projectDescription}
+                            {req.description || req.projectDescription}
                           </p>
                         </div>
 

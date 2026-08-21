@@ -172,6 +172,12 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       // Registar push para o cliente
       registerClientWebPush(authenticatedPhone);
 
+      // Ouvir alterações locais e sincronizadas de pedidos
+      const handleReqChanged = () => {
+        loadClientData(authenticatedPhone);
+      };
+      window.addEventListener('atrios_client_requests_changed', handleReqChanged);
+
       // Subscrever ao canal de notificações em tempo real para novas propostas de orçamento
       const channel = supabase
         .channel(`client-realtime-${authenticatedPhone.replace(/\D/g, '')}`)
@@ -210,6 +216,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
         .subscribe();
 
       return () => {
+        window.removeEventListener('atrios_client_requests_changed', handleReqChanged);
         supabase.removeChannel(channel);
       };
     }
@@ -372,15 +379,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           </div>
 
           <div className="flex items-center gap-2 sm:gap-3">
-            {/* New Request Button */}
+            {/* Botão Único: Novo Pedido */}
             <button
               onClick={() => setShowNewRequestModal(true)}
               className="px-3 sm:px-4 py-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 shadow-md shadow-amber-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-              title="Criar um novo pedido de orçamento"
+              title="Fazer um novo pedido de orçamento"
             >
               <Plus size={15} className="stroke-[3]" />
-              <span className="hidden sm:inline">Pedir Novo Orçamento</span>
-              <span className="sm:hidden">Novo Pedido</span>
+              <span className="hidden sm:inline">Novo Pedido</span>
+              <span className="sm:hidden">+ Pedido</span>
             </button>
 
             {authenticatedPhone && (
@@ -563,13 +570,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   <span className="text-[10px] uppercase font-bold text-slate-400 block">Orçamentos</span>
                   <span className="text-2xl font-black text-emerald-400">{myBudgets.length}</span>
                 </div>
-                <button
-                  onClick={() => setShowNewRequestModal(true)}
-                  className="px-4 py-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-lg shadow-amber-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
-                >
-                  <Plus size={16} className="stroke-[3]" />
-                  <span>Novo Pedido</span>
-                </button>
               </div>
             </div>
 
@@ -599,14 +599,6 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   Os Meus Pedidos ({myRequests.length})
                 </button>
               </div>
-
-              <button
-                onClick={() => setShowNewRequestModal(true)}
-                className="px-3.5 py-1.5 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer active:scale-95"
-              >
-                <Plus size={14} className="stroke-[3]" />
-                <span>Nova Solicitação</span>
-              </button>
             </div>
 
             {/* Tab 1: Orçamentos Recebidos */}
@@ -928,9 +920,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           locale={locale}
           isLoggedIn={!!authenticatedPhone}
           initialClientPhone={authenticatedPhone}
-          initialClientName={myRequests[0]?.clientName || ''}
-          initialClientEmail={myRequests[0]?.clientEmail || ''}
-          initialLocation={myRequests[0]?.location || myRequests[0]?.city || ''}
+          initialClientName={myRequests.find(r => r.clientName)?.clientName || localStorage.getItem('atrios_client_session_name') || ''}
+          initialClientEmail={myRequests.find(r => r.clientEmail)?.clientEmail || localStorage.getItem('atrios_client_session_email') || ''}
+          initialLocation={myRequests.find(r => r.location || r.city)?.location || myRequests.find(r => r.location || r.city)?.city || localStorage.getItem('atrios_client_session_location') || ''}
           onSuccess={() => {
             if (authenticatedPhone) {
               loadClientData(authenticatedPhone);

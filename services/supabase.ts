@@ -178,6 +178,57 @@ export interface SyncResult {
       return await performUpsert(jobPayload);
     }
 
+    if (table === 'client_service_requests') {
+      const formatTimestamp = (val: any) => {
+        if (!val) return new Date().toISOString();
+        const d = new Date(val);
+        return isNaN(d.getTime()) ? new Date().toISOString() : d.toISOString();
+      };
+
+      const cleanPhotos = Array.isArray(rawData.photos)
+        ? rawData.photos
+        : (typeof rawData.photos === 'string' ? rawData.photos : '[]');
+
+      const primaryCategory = rawData.category || rawData.service_category || (Array.isArray(rawData.categories) ? rawData.categories[0] : 'doors_windows');
+
+      const locVal = String(rawData.location || rawData.city || 'Portugal').trim() || 'Portugal';
+      const titleVal = String(rawData.title || 'Pedido de Orçamento').trim() || 'Pedido de Orçamento';
+      const descVal = String(rawData.description || rawData.title || 'Solicitação de orçamento').trim() || 'Solicitação de orçamento';
+
+      const generatedId = `REQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 8).toUpperCase()}-${Math.floor(1000 + Math.random() * 9000)}`;
+      const finalId = (rawData.id && String(rawData.id).trim().length > 0 && !String(rawData.id).startsWith('temp_'))
+        ? String(rawData.id).trim()
+        : generatedId;
+
+      const cReqPayload: any = {
+        id: finalId,
+        client_name: String(rawData.clientName || rawData.client_name || rawData.name || 'Cliente').trim() || 'Cliente',
+        client_email: String(rawData.clientEmail || rawData.client_email || rawData.email || '').trim(),
+        client_phone: String(rawData.clientPhone || rawData.client_phone || rawData.phone || '').trim(),
+        access_code: String(rawData.accessCode || rawData.access_code || ''),
+        service_category: String(primaryCategory || 'doors_windows'),
+        category: String(primaryCategory || 'doors_windows'),
+        title: titleVal,
+        description: descVal,
+        location: locVal,
+        city: locVal,
+        postal_code: rawData.postalCode || rawData.postal_code || null,
+        property_type: rawData.propertyType || rawData.property_type || 'apartment',
+        urgency: rawData.urgency || 'few_weeks',
+        budget_range: rawData.budgetRange || rawData.budget_range || null,
+        photos: typeof cleanPhotos === 'string' ? cleanPhotos : JSON.stringify(cleanPhotos),
+        status: String(rawData.status || 'pending'),
+        proposals_count: Number(rawData.proposalsCount || rawData.proposals_count || 0),
+        assigned_company_id: rawData.assignedCompanyId || rawData.assigned_company_id || null,
+        assigned_company_name: rawData.assignedCompanyName || rawData.assigned_company_name || null,
+        created_at: formatTimestamp(rawData.createdAt || rawData.created_at),
+        updated_at: formatTimestamp(rawData.updatedAt || rawData.updated_at)
+      };
+
+      console.log(`syncToCloud: Sincronizando pedido de cliente ${cReqPayload.id} no Supabase...`);
+      return await performUpsert(cReqPayload);
+    }
+
     if (table === 'candidates') {
       const formatTimestamp = (val: any) => {
         if (!val) return new Date().toISOString();
