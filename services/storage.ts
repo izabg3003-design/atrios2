@@ -1,6 +1,5 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus, IntroBanner } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
-import { triggerInAppBalloon } from '../components/InAppPushBalloon';
 
 export const safeGetItem = (key: string): string | null => {
   try {
@@ -27,89 +26,50 @@ const STORAGE_KEY_HERO_VIDEO = 'atrios_hero_video_config';
 const STORAGE_KEY_ACTION_VIDEO = 'atrios_action_video_config';
 
 /**
- * Helper para salvar no localStorage com tratamento resiliente de erro de cota excedida.
+ * Helper para salvar no localStorage com tratamento de erro de cota excedida.
  */
-export const safeSetItem = (key: string, value: string): boolean => {
+export const safeSetItem = (key: string, value: string) => {
   try {
     localStorage.setItem(key, value);
-    return true;
   } catch (e) {
-    if (
-      e instanceof DOMException &&
-      (e.code === 22 ||
-        e.code === 1014 ||
-        e.name === 'QuotaExceededError' ||
-        e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+    if (e instanceof DOMException && (
+      e.code === 22 || 
+      e.code === 1014 || 
+      e.name === 'QuotaExceededError' || 
+      e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
     ) {
-      // 1. Limpar caches auxiliares descartáveis
-      const nonCriticalKeys = [
-        'atrios_pdf_downloads',
+      console.warn(`[Storage] Cota do LocalStorage excedida ao salvar '${key}'. Tentando liberar espaço...`);
+      
+      // Tenta remover dados menos críticos para abrir espaço
+      const keysToRemove = [
         'atrios_notifications',
-        'atrios_push_history',
-        'atrios_transactions',
         'atrios_messages',
-        'atrios_store_orders',
-        'atrios_custom_orders'
+        'atrios_transactions',
+        'atrios_pdf_downloads'
       ];
-
-      for (const k of nonCriticalKeys) {
+      
+      for (const k of keysToRemove) {
         if (k !== key) {
-          try {
-            localStorage.removeItem(k);
-          } catch (_) {}
+          localStorage.removeItem(k);
         }
       }
-
-      // 2. Tentar salvar novamente após a limpeza
+      
+      // Tenta salvar novamente após a limpeza
       try {
         localStorage.setItem(key, value);
-        return true;
+        console.log(`[Storage] Salvo com sucesso após limpeza parcial.`);
       } catch (retryError) {
-        // 3. Se ainda falhar, otimizar o próprio payload removendo dados binários/base64 pesados
-        try {
-          const parsed = JSON.parse(value);
-          if (Array.isArray(parsed)) {
-            const stripped = parsed.slice(0, 50).map((item: any) => {
-              if (item && typeof item === 'object') {
-                const copy = { ...item };
-                if (Array.isArray(copy.photos)) {
-                  copy.photos = copy.photos
-                    .map((p: any) =>
-                      typeof p === 'string' && p.startsWith('data:image') && p.length > 5000 ? '' : p
-                    )
-                    .filter(Boolean);
-                }
-                if (typeof copy.image === 'string' && copy.image.startsWith('data:image') && copy.image.length > 5000) {
-                  delete copy.image;
-                }
-                return copy;
-              }
-              return item;
-            });
-            localStorage.setItem(key, JSON.stringify(stripped));
-            return true;
-          }
-        } catch (_) {}
-
-        // Fallback silencioso para garantir que a aplicação nunca trave
-        return false;
+        console.error(`[Storage] Falha crítica: Mesmo após limpeza, a cota foi excedida para '${key}'.`, retryError);
+        // Se ainda falhar, não podemos fazer muito além de não travar o app
       }
     } else {
-      console.warn(`[Storage] Erro ao salvar '${key}' no LocalStorage:`, e);
-      return false;
+      console.error(`[Storage] Erro ao salvar no LocalStorage:`, e);
     }
   }
 };
 
 export const generateShortId = () => {
   return `ATR-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
-};
-
-export const generateUniqueRequestId = () => {
-  const timeHex = Date.now().toString(36).toUpperCase();
-  const randHex = Math.random().toString(36).substring(2, 8).toUpperCase();
-  const counter = Math.floor(1000 + Math.random() * 9000);
-  return `REQ-${timeHex}-${randHex}-${counter}`;
 };
 
 export const mapCompanyFromSupabase = (data: any): Company => {
@@ -454,29 +414,6 @@ export const saveBudget = (budget: Budget) => {
       console.error(`[Storage] Falha ao sincronizar orçamento ${budget.id}:`, res.error);
     }
   });
-
-  // Se o orçamento for destinado a um pedido de cliente ou possuir dados de contacto, notificar o cliente
-  if (budget.clientRequestId || budget.contactPhone || budget.clientEmail) {
-    const companies = getStoredCompanies();
-    const company = companies.find(c => c.id === budget.companyId);
-    const companyName = company?.name || (company as any)?.companyName || 'Uma empresa qualificada';
-    
-    fetch('/api/push/notify-client-budget', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        clientRequestId: budget.clientRequestId || '',
-        clientName: budget.clientName || 'Cliente',
-        clientPhone: budget.contactPhone || '',
-        clientEmail: budget.clientEmail || '',
-        companyName,
-        totalAmount: budget.totalAmount || 0,
-        budgetTitle: budget.servicesSelected?.join(', ') || 'Proposta de Orçamento'
-      })
-    }).catch(err => {
-      console.warn('[Storage] Erro ao enviar notificação push para o cliente:', err);
-    });
-  }
 };
 
 export const removeBudget = async (id: string) => {
@@ -747,13 +684,9 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
   const mapped: any = { ...b };
   if (b.company_id && !b.companyId) mapped.companyId = b.company_id;
   if (b.companyid && !b.companyId) mapped.companyId = b.companyid;
-  if (b.client_request_id && !b.clientRequestId) mapped.clientRequestId = b.client_request_id;
-  if (b.clientrequestid && !b.clientRequestId) mapped.clientRequestId = b.clientrequestid;
   if (b.client_name && !b.clientName) mapped.clientName = b.client_name;
   if (b.contact_name && !b.contactName) mapped.contactName = b.contact_name;
   if (b.contact_phone && !b.contactPhone) mapped.contactPhone = b.contact_phone;
-  if (b.client_email && !b.clientEmail) mapped.clientEmail = b.client_email;
-  if (b.clientemail && !b.clientEmail) mapped.clientEmail = b.clientemail;
   if (b.work_location && !b.workLocation) mapped.workLocation = b.work_location;
   if (b.work_number && !b.workNumber) mapped.workNumber = b.work_number;
   if (b.work_postal_code && !b.workPostalCode) mapped.workPostalCode = b.work_postal_code;
@@ -1425,18 +1358,6 @@ export const fetchCompanyForVerification = async (companyId: string): Promise<Co
   return localMatch || null;
 };
 
-export const fetchCompaniesFromSupabase = async (): Promise<Company[]> => {
-  try {
-    const { data, error } = await safeFetch<any[]>(supabase.from('companies').select('*'));
-    if (!error && Array.isArray(data)) {
-      return data.map(c => mapCompanyFromSupabase(c));
-    }
-  } catch (err) {
-    console.warn('Failed to fetch remote companies:', err);
-  }
-  return getStoredCompanies();
-};
-
 const STORAGE_KEY_CANDIDATES = 'atrios_candidates';
 
 export const getStoredCandidates = (jobOfferId?: string): Candidate[] => {
@@ -1779,57 +1700,21 @@ export const resetActionVideoConfig = async (): Promise<{ success: boolean; erro
 export const STORAGE_KEY_CLIENT_REQUESTS = 'atrios_client_service_requests';
 
 export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest => {
-  let parsedCategories: string[] | undefined = undefined;
-  if (Array.isArray(item.categories)) {
-    parsedCategories = item.categories;
-  } else if (typeof item.categories === 'string') {
-    try {
-      parsedCategories = JSON.parse(item.categories);
-    } catch (e) {
-      if (item.categories.includes(',')) {
-        parsedCategories = item.categories.split(',').map((s: string) => s.trim());
-      }
-    }
-  }
-
-  const primaryCategory = (item.category || item.service_category || (parsedCategories && parsedCategories[0]) || 'other') as ServiceCategory;
-
-  const titleValue = String(item.title || item.projectTitle || item.project_title || '');
-  const descValue = String(item.description || item.projectDescription || item.project_description || '');
-  const locValue = String(item.location || item.city || '');
-  const budgetValue = item.budget_range || item.budgetRange || item.estimatedBudget || item.estimated_budget || undefined;
-
   return {
     id: String(item.id || generateShortId()),
     clientName: String(item.client_name || item.clientName || item.name || ''),
     clientEmail: String(item.client_email || item.clientEmail || item.email || ''),
     clientPhone: String(item.client_phone || item.clientPhone || item.phone || ''),
     accessCode: item.access_code || item.accessCode || undefined,
-    category: primaryCategory,
-    categories: parsedCategories || (item.category ? [item.category] : undefined),
-    title: titleValue,
-    projectTitle: titleValue,
-    description: descValue,
-    projectDescription: descValue,
-    location: locValue,
-    city: locValue,
+    category: (item.category || item.service_category || 'other') as ServiceCategory,
+    title: String(item.title || ''),
+    description: String(item.description || ''),
+    location: String(item.location || item.city || ''),
     postalCode: item.postal_code || item.postalCode || undefined,
     propertyType: item.property_type || item.propertyType || undefined,
     urgency: item.urgency || undefined,
-    budgetRange: budgetValue,
-    estimatedBudget: budgetValue,
-    photos: Array.isArray(item.photos)
-      ? item.photos
-      : (typeof item.photos === 'string'
-        ? (() => {
-            try {
-              const p = JSON.parse(item.photos);
-              return Array.isArray(p) ? p : (item.photos ? [item.photos] : []);
-            } catch (e) {
-              return item.photos ? [item.photos] : [];
-            }
-          })()
-        : []),
+    budgetRange: item.budget_range || item.budgetRange || undefined,
+    photos: Array.isArray(item.photos) ? item.photos : (typeof item.photos === 'string' ? JSON.parse(item.photos || '[]') : []),
     status: (item.status || 'pending') as ClientRequestStatus,
     proposalsCount: Number(item.proposals_count || item.proposalsCount || 0),
     assignedCompanyId: item.assigned_company_id || item.assignedCompanyId || undefined,
@@ -1865,54 +1750,11 @@ export const fetchBudgetsFromSupabase = async (): Promise<Budget[]> => {
 };
 
 export const saveClientRequestLocally = (requests: ClientServiceRequest[]) => {
-  try {
-    const sanitized = (requests || []).slice(0, 50).map(req => {
-      if (!req) return req;
-      const cleanPhotos = Array.isArray(req.photos)
-        ? req.photos
-            .map(ph => (typeof ph === 'string' && ph.startsWith('data:image') && ph.length > 8000 ? '' : ph))
-            .filter(Boolean)
-        : [];
-      return {
-        ...req,
-        photos: cleanPhotos
-      };
-    });
-    safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(sanitized));
-  } catch (err) {
-    console.warn('[Storage] Erro ao salvar requests localmente:', err);
-  }
+  safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(requests));
 };
 
 export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRequest[]> => {
   try {
-    const mergeWithLocal = (cloudItems: ClientServiceRequest[]): ClientServiceRequest[] => {
-      const local = getStoredClientRequests();
-      const map = new Map<string, ClientServiceRequest>();
-      local.forEach(r => { if (r && r.id) map.set(r.id, r); });
-      cloudItems.forEach(r => { if (r && r.id) map.set(r.id, r); });
-      const combined = Array.from(map.values()).sort(
-        (a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime()
-      );
-      saveClientRequestLocally(combined);
-      return combined;
-    };
-
-    // 1. Tentar via API do servidor (com service role key, contornando qualquer bloqueio de RLS/Anon)
-    try {
-      const apiRes = await fetch('/api/client-requests');
-      if (apiRes.ok) {
-        const json = await apiRes.json();
-        if (json.success && Array.isArray(json.data)) {
-          const mapped = json.data.map(mapClientRequestFromSupabase);
-          return mergeWithLocal(mapped);
-        }
-      }
-    } catch (apiErr) {
-      console.warn('[Storage] API fetch client_service_requests falhou, tentando Supabase direto:', apiErr);
-    }
-
-    // 2. Fallback direto Supabase
     const { data, error } = await safeFetch<any[]>(
       supabase.from('client_service_requests').select('*').order('created_at', { ascending: false })
     );
@@ -1924,7 +1766,8 @@ export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRe
 
     if (data && Array.isArray(data)) {
       const mapped = data.map(mapClientRequestFromSupabase);
-      return mergeWithLocal(mapped);
+      saveClientRequestLocally(mapped);
+      return mapped;
     }
     return getStoredClientRequests();
   } catch (err) {
@@ -1939,24 +1782,13 @@ export const saveClientServiceRequest = async (
   try {
     const accessCode = request.accessCode || Math.floor(1000 + Math.random() * 9000).toString();
 
-    const rawCategories = Array.isArray(request.categories) && request.categories.length > 0
-      ? request.categories
-      : (request.category ? [request.category] : ['other']);
-
-    const primaryCategory = (request.category || rawCategories[0] || 'other') as ServiceCategory;
-
-    const finalId = (request.id && String(request.id).trim().length > 0 && !String(request.id).startsWith('temp_'))
-      ? String(request.id).trim()
-      : generateUniqueRequestId();
-
     const newReq: ClientServiceRequest = {
-      id: finalId,
+      id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
       clientName: request.clientName || '',
       clientEmail: request.clientEmail || '',
       clientPhone: request.clientPhone || '',
       accessCode: accessCode,
-      category: primaryCategory,
-      categories: rawCategories,
+      category: request.category || 'other',
       title: request.title || '',
       description: request.description || '',
       location: request.location || '',
@@ -1973,7 +1805,7 @@ export const saveClientServiceRequest = async (
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Guardar localmente de imediato
+    // 1. Guardar localmente
     const current = getStoredClientRequests();
     const existingIndex = current.findIndex(r => r.id === newReq.id);
     let updated: ClientServiceRequest[];
@@ -1988,79 +1820,50 @@ export const saveClientServiceRequest = async (
     // 2. Disparar evento para a UI atualizar em tempo real
     window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: newReq }));
 
-    // 3. Sincronizar com o Supabase via API backend (com Service Role) e via syncToCloud
-    let savedToSupabase = false;
+    // 3. Sincronizar com Supabase
     try {
-      const serverRes = await fetch('/api/client-requests/save', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newReq)
-      });
-      if (serverRes.ok) {
-        const resJson = await serverRes.json();
-        if (resJson.success) {
-          savedToSupabase = true;
-          console.log(`[Storage] Pedido ${newReq.id} salvo no Supabase via API backend.`);
-        }
-      }
-    } catch (apiErr) {
-      console.warn('[Storage] Falha ao enviar para API /api/client-requests/save:', apiErr);
+      const supabasePayload = {
+        id: newReq.id,
+        client_name: newReq.clientName,
+        client_email: newReq.clientEmail,
+        client_phone: newReq.clientPhone,
+        access_code: newReq.accessCode,
+        service_category: newReq.category,
+        category: newReq.category,
+        title: newReq.title,
+        description: newReq.description,
+        location: newReq.location,
+        city: newReq.location,
+        postal_code: newReq.postalCode,
+        property_type: newReq.propertyType,
+        urgency: newReq.urgency,
+        budget_range: newReq.budgetRange,
+        photos: JSON.stringify(newReq.photos || []),
+        status: newReq.status,
+        proposals_count: newReq.proposalsCount || 0,
+        assigned_company_id: newReq.assignedCompanyId,
+        assigned_company_name: newReq.assignedCompanyName,
+        created_at: newReq.createdAt,
+        updated_at: newReq.updatedAt
+      };
+
+      await supabase.from('client_service_requests').upsert(supabasePayload);
+    } catch (sbErr) {
+      console.warn('[Storage] Erro ao sincronizar client_service_requests no Supabase:', sbErr);
     }
 
-    // Se a rota da API falhou ou não retornou sucesso, executar syncToCloud diretamente
-    if (!savedToSupabase) {
-      try {
-        const directSync = await syncToCloud('client_service_requests', newReq);
-        if (directSync.success) {
-          savedToSupabase = true;
-          console.log(`[Storage] Pedido ${newReq.id} sincronizado no Supabase via syncToCloud.`);
-        } else {
-          console.error(`[Storage] Erro no syncToCloud client_service_requests:`, directSync.error);
-        }
-      } catch (syncErr) {
-        console.error(`[Storage] Exceção no syncToCloud:`, syncErr);
-      }
-    }
-
-    // 4. Notificar todos os usuários para responderem e notificar o Master
+    // 4. Notificar administradores / construtores via push e som
     try {
-      const userPushTitle = `Novo Pedido de Orçamento! 🔔🚀`;
-      const userPushBody = `Novo pedido de cliente para "${newReq.title}" em ${newReq.location || 'Portugal'}. Aceda agora ao Átrios para responder e garantir este cliente! 💼🛠️`;
-
-      // 4.1 Push broadcast para TODOS os utilizadores (Web Push / FCM / Realtime)
-      fetch('/api/push/send-broadcast', {
+      fetch('/api/push/notify-all', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: userPushTitle,
-          body: userPushBody,
-          targetAudience: 'all'
+          title: `Novo Pedido de Orçamento: ${newReq.title} 🛠️`,
+          body: `${newReq.clientName} em ${newReq.location} está a solicitar orçamento para "${newReq.title}". Clique para ver!`,
+          url: '/'
         })
-      }).catch(err => console.warn('[Storage Push Broadcast Error]:', err));
-
-      // 4.2 Push específico para o Administrador / Master
-      fetch('/api/push/notify-master', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          type: 'client_service_request',
-          details: {
-            id: newReq.id,
-            clientName: newReq.clientName || 'Cliente',
-            clientPhone: newReq.clientPhone || '',
-            clientEmail: newReq.clientEmail || '',
-            title: newReq.title,
-            location: newReq.location || 'Portugal',
-            category: newReq.category
-          }
-        })
-      }).catch(err => console.warn('[Storage Push Master Error]:', err));
-
-      // 4.3 Disparar balão local in-app se estiver no navegador
-      triggerInAppBalloon(userPushTitle, userPushBody);
-    } catch (e) {
-      console.warn('[Storage] Erro ao disparar notificações de pedido:', e);
-    }
+      }).catch(() => {});
+    } catch (e) {}
 
     return { success: true, data: newReq };
   } catch (err) {
@@ -2078,7 +1881,6 @@ export const deleteClientServiceRequest = async (id: string): Promise<{ success:
     window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: { id, deleted: true } }));
 
     try {
-      fetch(`/api/client-requests/${id}`, { method: 'DELETE' }).catch(() => {});
       await supabase.from('client_service_requests').delete().eq('id', id);
     } catch (e) {}
 
@@ -2123,323 +1925,6 @@ export const fetchCloudAppSettings = async () => {
     console.warn('fetchCloudAppSettings error:', err);
   }
 };
-
-export const getCurrentMonthKey = (): string => {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  return `${year}-${month}`;
-};
-
-export const getCompanyMonthlyResponses = (companyId: string, monthKey?: string): string[] => {
-  if (!companyId) return [];
-  const targetMonth = monthKey || getCurrentMonthKey();
-  try {
-    const raw = safeGetItem('atrios_company_request_responses');
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    const companyData = parsed[companyId] || {};
-    return Array.isArray(companyData[targetMonth]) ? companyData[targetMonth] : [];
-  } catch (e) {
-    return [];
-  }
-};
-
-export const recordCompanyRequestResponse = (companyId: string, requestId: string, monthKey?: string) => {
-  if (!companyId || !requestId) return;
-  const targetMonth = monthKey || getCurrentMonthKey();
-  try {
-    const raw = safeGetItem('atrios_company_request_responses');
-    const parsed: Record<string, Record<string, string[]>> = raw ? JSON.parse(raw) : {};
-    if (!parsed[companyId]) parsed[companyId] = {};
-    if (!Array.isArray(parsed[companyId][targetMonth])) {
-      parsed[companyId][targetMonth] = [];
-    }
-    if (!parsed[companyId][targetMonth].includes(requestId)) {
-      parsed[companyId][targetMonth].push(requestId);
-    }
-    safeSetItem('atrios_company_request_responses', JSON.stringify(parsed));
-    
-    // Disparar evento para atualizar a UI em tempo real
-    window.dispatchEvent(new CustomEvent('atrios_request_responses_updated', { detail: { companyId, requestId, month: targetMonth } }));
-  } catch (e) {
-    console.error('Error recording company response:', e);
-  }
-};
-
-export interface ResponsePermissionCheck {
-  allowed: boolean;
-  reason: 'ok' | 'already_responded' | 'free_blocked' | 'monthly_limit_reached';
-  usedCount: number;
-  maxAllowed: number | null; // null = ilimitado
-  isFree: boolean;
-  isMonthly: boolean;
-  isPremium: boolean;
-  remaining?: number;
-}
-
-export const checkCompanyResponsePermission = (company: Company | null, requestId?: string): ResponsePermissionCheck => {
-  if (!company) {
-    return {
-      allowed: false,
-      reason: 'free_blocked',
-      usedCount: 0,
-      maxAllowed: 0,
-      isFree: true,
-      isMonthly: false,
-      isPremium: false,
-      remaining: 0
-    };
-  }
-
-  const plan = company.plan || PlanType.FREE;
-  const isFree = plan === PlanType.FREE;
-  const isMonthly = plan === PlanType.PREMIUM_MONTHLY || (plan as string) === 'monthly';
-  const isPremium = plan === PlanType.PREMIUM_ANNUAL || plan === PlanType.PREMIUM || (plan as string) === 'annual' || (plan as string) === 'lifetime';
-
-  if (isFree) {
-    return {
-      allowed: false,
-      reason: 'free_blocked',
-      usedCount: 0,
-      maxAllowed: 0,
-      isFree: true,
-      isMonthly: false,
-      isPremium: false,
-      remaining: 0
-    };
-  }
-
-  if (isPremium) {
-    return {
-      allowed: true,
-      reason: 'ok',
-      usedCount: 0,
-      maxAllowed: null,
-      isFree: false,
-      isMonthly: false,
-      isPremium: true
-    };
-  }
-
-  if (isMonthly) {
-    const responses = getCompanyMonthlyResponses(company.id);
-    const alreadyResponded = requestId ? responses.includes(requestId) : false;
-    const usedCount = responses.length;
-    const maxAllowed = 2;
-    const remaining = Math.max(0, maxAllowed - usedCount);
-
-    if (alreadyResponded) {
-      return {
-        allowed: true,
-        reason: 'already_responded',
-        usedCount,
-        maxAllowed,
-        isFree: false,
-        isMonthly: true,
-        isPremium: false,
-        remaining
-      };
-    }
-
-    if (usedCount >= maxAllowed) {
-      return {
-        allowed: false,
-        reason: 'monthly_limit_reached',
-        usedCount,
-        maxAllowed,
-        isFree: false,
-        isMonthly: true,
-        isPremium: false,
-        remaining: 0
-      };
-    }
-
-    return {
-      allowed: true,
-      reason: 'ok',
-      usedCount,
-      maxAllowed,
-      isFree: false,
-      isMonthly: true,
-      isPremium: false,
-      remaining
-    };
-  }
-
-  return {
-    allowed: true,
-    reason: 'ok',
-    usedCount: 0,
-    maxAllowed: null,
-    isFree: false,
-    isMonthly: false,
-    isPremium: true
-  };
-};
-
-// ==========================================
-// BANNERS DA APRESENTAÇÃO INICIAL (INTRO WALKTHROUGH BANNERS)
-// ==========================================
-export const STORAGE_KEY_INTRO_BANNERS = 'atrios_intro_banners';
-
-export const DEFAULT_INTRO_BANNERS: IntroBanner[] = [
-  {
-    id: 'banner-1',
-    title: 'Bem-vindo ao Ecossistema ÁTRIOS BUILD',
-    subtitle: 'A solução mais rápida, intuitiva e completa para a gestão de orçamentos, obras e captação de clientes.',
-    badge: 'Inovação & Gestão',
-    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&q=80&w=1600',
-    order: 1,
-    active: true,
-    ctaText: 'Avançar',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'banner-2',
-    title: 'Orçamentos Profissionais em 2 Minutos',
-    subtitle: 'Elabore propostas em PDF personalizadas com logotipo, cálculo automático de IVA e envio instantâneo.',
-    badge: 'Propostas Rápidas',
-    imageUrl: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&q=80&w=1600',
-    order: 2,
-    active: true,
-    ctaText: 'Próximo',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'banner-3',
-    title: 'Radar de Oportunidades & Pedidos de Obras',
-    subtitle: 'Receba contactos diretos de clientes à procura de profissionais qualificados na sua região.',
-    badge: 'Mais Clientes',
-    imageUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&q=80&w=1600',
-    order: 3,
-    active: true,
-    ctaText: 'Próximo',
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'banner-4',
-    title: 'Portal do Cliente com Aprovação Online',
-    subtitle: 'O seu cliente acompanha a evolução dos serviços, visualiza pagamentos e aprova propostas no telemóvel.',
-    badge: '100% Digital',
-    imageUrl: 'https://images.unsplash.com/photo-1590402494587-44b71d7772f6?auto=format&fit=crop&q=80&w=1600',
-    order: 4,
-    active: true,
-    ctaText: 'Aceder à Plataforma',
-    createdAt: new Date().toISOString()
-  }
-];
-
-export const getStoredIntroBanners = (): IntroBanner[] => {
-  try {
-    const data = localStorage.getItem(STORAGE_KEY_INTRO_BANNERS);
-    if (!data) return DEFAULT_INTRO_BANNERS;
-    const parsed = JSON.parse(data);
-    if (Array.isArray(parsed) && parsed.length > 0) {
-      return parsed.sort((a, b) => (a.order || 0) - (b.order || 0));
-    }
-    return DEFAULT_INTRO_BANNERS;
-  } catch (err) {
-    console.error('Error reading intro banners from storage:', err);
-    return DEFAULT_INTRO_BANNERS;
-  }
-};
-
-export const saveIntroBanners = async (banners: IntroBanner[]): Promise<{ success: boolean; error?: any }> => {
-  try {
-    const sorted = [...banners].sort((a, b) => (a.order || 0) - (b.order || 0));
-    safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(sorted));
-
-    // Notificar abas e ouvintes locais
-    try {
-      window.dispatchEvent(new CustomEvent('atrios_intro_banners_changed', { detail: sorted }));
-      if ('BroadcastChannel' in window) {
-        const bc = new BroadcastChannel('atrios_intro_banners_channel');
-        bc.postMessage(sorted);
-        bc.close();
-      }
-    } catch (e) {}
-
-    // Sincronizar na nuvem se a tabela intro_banners ou app_settings estiver disponível
-    try {
-      // 1. Tentar salvar em app_settings (JSON config geral)
-      await syncToCloud('app_settings', {
-        id: 'intro_banners_config',
-        config_data: JSON.stringify(sorted),
-        updated_at: new Date().toISOString()
-      });
-    } catch (cloudErr) {}
-
-    try {
-      // 2. Tentar salvar individualmente na tabela intro_banners caso exista
-      for (const banner of sorted) {
-        await syncToCloud('intro_banners', {
-          id: banner.id,
-          title: banner.title,
-          subtitle: banner.subtitle || null,
-          badge: banner.badge || null,
-          image_url: banner.imageUrl,
-          cta_text: banner.ctaText || null,
-          order_index: banner.order,
-          active: banner.active,
-          updated_at: new Date().toISOString()
-        });
-      }
-    } catch (cloudErr) {}
-
-    return { success: true };
-  } catch (err) {
-    console.error('saveIntroBanners error:', err);
-    return { success: false, error: err };
-  }
-};
-
-export const fetchIntroBannersFromCloud = async (): Promise<IntroBanner[]> => {
-  try {
-    // 1. Tentar ler da tabela dedicada intro_banners
-    const { data: dedicatedData, error: dedicatedErr } = await safeFetch<any[]>(
-      supabase.from('intro_banners').select('*').order('order_index', { ascending: true })
-    );
-
-    if (!dedicatedErr && Array.isArray(dedicatedData) && dedicatedData.length > 0) {
-      const mapped: IntroBanner[] = dedicatedData.map((d: any, idx: number) => ({
-        id: String(d.id || `banner-${idx + 1}`),
-        title: String(d.title || ''),
-        subtitle: d.subtitle ? String(d.subtitle) : undefined,
-        badge: d.badge ? String(d.badge) : undefined,
-        imageUrl: String(d.image_url || d.imageUrl || ''),
-        order: Number(d.order_index ?? d.order ?? (idx + 1)),
-        active: d.active !== undefined ? Boolean(d.active) : true,
-        ctaText: d.cta_text || d.ctaText || undefined,
-        createdAt: d.created_at || new Date().toISOString()
-      }));
-      safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(mapped));
-      return mapped;
-    }
-
-    // 2. Tentar ler da tabela app_settings
-    const { data: settingsData, error: settingsErr } = await safeFetch<any>(
-      supabase.from('app_settings').select('config_data').eq('id', 'intro_banners_config').single()
-    );
-
-    if (!settingsErr && settingsData && settingsData.config_data) {
-      const parsed = typeof settingsData.config_data === 'string' ? JSON.parse(settingsData.config_data) : settingsData.config_data;
-      if (Array.isArray(parsed) && parsed.length > 0) {
-        safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(parsed));
-        return parsed;
-      }
-    }
-  } catch (err) {
-    console.warn('fetchIntroBannersFromCloud error (using local fallback):', err);
-  }
-  return getStoredIntroBanners();
-};
-
-export const resetIntroBanners = async (): Promise<{ success: boolean; error?: any }> => {
-  return await saveIntroBanners(DEFAULT_INTRO_BANNERS);
-};
-
-
 
 
 

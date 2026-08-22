@@ -109,8 +109,8 @@ export const sendFcmNotification = async (
         notification: {
           title,
           body,
-          icon: '/atrios-logo.svg',
-          badge: '/atrios-logo.svg',
+          icon: '/favicon.svg',
+          badge: '/favicon.svg',
           tag: 'atrios-firebase-push',
           vibrate: [200, 100, 200, 100, 300],
         }

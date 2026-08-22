@@ -6,7 +6,7 @@ import { JobOffers } from './components/JobOffers';
 import { ClientRequestsHub } from './components/ClientRequestsHub';
 import { ClientPortal } from './components/ClientPortal';
 import { InstallPWA } from './components/InstallPWA';
-import { InAppPushBalloonContainer, triggerInAppBalloon } from './components/InAppPushBalloon';
+import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
 import { 
   LayoutDashboard, 
@@ -106,12 +106,27 @@ import Reports from './components/Reports';
 import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
-import { IntroWalkthrough } from './components/IntroWalkthrough';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  triggerInAppBalloon(title, body);
+  if (typeof window === 'undefined' || !title || !body) return;
+
+  // Disparar o balão informativo in-app
+  try {
+    window.dispatchEvent(
+      new CustomEvent('in_app_push_toast', {
+        detail: {
+          id: String(Date.now() + Math.random()),
+          title,
+          body,
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+      })
+    );
+  } catch (err) {
+    console.error('Erro ao disparar balão in-app:', err);
+  }
 };
 
 const getPdfColors = (template: string = 'default') => {
@@ -314,20 +329,6 @@ const App: React.FC = () => {
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState<boolean>(false);
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
-
-  // Apresentação Interativa Inicial (Intro Walkthrough Tour)
-  const [showIntroWalkthrough, setShowIntroWalkthrough] = useState<boolean>(() => {
-    if (typeof window !== 'undefined') {
-      const urlParams = new URLSearchParams(window.location.search);
-      // Se estiver acessando via link direto de certificado ou portal, não força a intro
-      if (urlParams.get('cert') || urlParams.get('verify') || urlParams.get('portal')) {
-        return false;
-      }
-      const seen = sessionStorage.getItem('atrios_intro_walkthrough_seen');
-      return seen !== 'true' && !session?.companyId;
-    }
-    return false;
-  });
 
   // Verificação de permissão para aba de Vagas (Livre apenas para a empresa/usuário teste "Átrios Build" / atriosbuild@gmail.com)
   const isAtriosBuildUser = useMemo(() => {
@@ -798,61 +799,54 @@ const App: React.FC = () => {
 
   const currentUserRef = useRef<Company | null>(null);
 
-  // Subscrição global para Notificações Push em tempo real (para utilizadores e Master)
-  useEffect(() => {
-    currentUserRef.current = currentUser;
-
-    const pushChannel = supabase
-      .channel('global-push-notifications')
-      .on(
-        'broadcast',
-        { event: 'push' },
-        (payload) => {
-          console.log('Received broadcast push notification:', payload);
-          if (!payload || !payload.payload) return;
-          
-          const { title, body, targetAudience } = payload.payload;
-          const currentU = currentUserRef.current;
-          const isMasterView = view === 'master';
-
-          const cId = String(currentU?.id || '').toLowerCase();
-          const email = String(currentU?.email || '').toLowerCase();
-          const plan = String(currentU?.plan || '').toLowerCase();
-          const targetLower = String(targetAudience || 'all').toLowerCase().trim();
-
-          const isMasterUser = isMasterView || cId === 'master' || plan === 'master' || 
-            email.includes('izarellebraga') || email.includes('jeferson') || email.includes('atriossoftware');
-
-          // Check if user or master matches targetAudience
-          let isMatch = false;
-          if (targetLower === 'all') {
-            isMatch = true;
-          } else if (targetLower === 'master' && isMasterUser) {
-            isMatch = true;
-          } else if (currentU) {
-            if (targetLower === 'free' && currentU.plan === PlanType.FREE) isMatch = true;
-            else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
-            else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
-            else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
-            else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
-          }
-            
-          if (isMatch) {
-            console.log('Push matched user/master. Displaying notification:', title, body);
-            triggerPushNotificationSubmit(title, body);
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(pushChannel);
-    };
-  }, [currentUser, view]);
-
   useEffect(() => {
     if (currentUser && view === 'app') {
       currentUserRef.current = currentUser;
+
+      // Subscrição para Notificações Push Globais enviadas pelo Master ou Backend
+      const pushChannel = supabase
+        .channel('global-push-notifications')
+        .on(
+          'broadcast',
+          { event: 'push' },
+          (payload) => {
+            console.log('Received broadcast push notification:', payload);
+            if (!payload || !payload.payload) return;
+            
+            const { title, body, targetAudience } = payload.payload;
+            const currentU = currentUserRef.current;
+            const isMasterView = view === 'master';
+            if (!currentU && !isMasterView) return;
+
+            const cId = String(currentU?.id || '').toLowerCase();
+            const email = String(currentU?.email || '').toLowerCase();
+            const plan = String(currentU?.plan || '').toLowerCase();
+            const targetLower = String(targetAudience || 'all').toLowerCase().trim();
+
+            const isMasterUser = isMasterView || cId === 'master' || plan === 'master' || 
+              email.includes('izarellebraga') || email.includes('jeferson') || email.includes('atriossoftware');
+
+            // Check if user or master matches targetAudience
+            let isMatch = false;
+            if (targetLower === 'all') {
+              isMatch = true;
+            } else if (targetLower === 'master' && isMasterUser) {
+              isMatch = true;
+            } else if (currentU) {
+              if (targetLower === 'free' && currentU.plan === PlanType.FREE) isMatch = true;
+              else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
+              else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
+              else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
+              else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
+            }
+              
+            if (isMatch) {
+              console.log('Push matched user/master. Displaying notification:', title, body);
+              triggerPushNotificationSubmit(title, body);
+            }
+          }
+        )
+        .subscribe();
 
       // Subscrição para Produtos (Store Products)
       const productsChannel = supabase
@@ -1271,6 +1265,11 @@ const App: React.FC = () => {
         clearInterval(budgetSyncInterval);
         supabase.removeChannel(ordersChannel);
         supabase.removeChannel(msgChannel);
+        try {
+          supabase.removeChannel(pushChannel);
+        } catch (e) {
+          console.error(e);
+        }
         window.removeEventListener('storage', handleStorageChange);
         clearInterval(fallback);
       };
@@ -2598,41 +2597,19 @@ const App: React.FC = () => {
     try {
       saveBudget(budget);
       
-      // Notificar cliente e master quando um orçamento for criado para um pedido ou cliente
-      const clientHasContact = Boolean(budget.contactPhone || budget.clientEmail || budget.clientRequestId);
-      const companyDisplayName = currentUser.name || currentUser.companyName || 'Empresa Profissional';
-
+      // Disparar balão informativo in-app
       if (isNew) {
         triggerPushNotificationSubmit(
           "Orçamento Criado com Sucesso! 📑✨",
           `O orçamento para "${budget.clientName || 'Cliente'}" no valor de €${Number(budget.totalAmount || 0).toFixed(2)} foi guardado com sucesso.`
         );
-
-        // 1. Notificar o cliente por Push Notification (Web Push + FCM + Realtime)
-        if (clientHasContact) {
-          fetch('/api/push/notify-client-budget', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              clientRequestId: budget.clientRequestId || '',
-              clientName: budget.clientName || 'Cliente',
-              clientPhone: budget.contactPhone || '',
-              clientEmail: budget.clientEmail || '',
-              companyName: companyDisplayName,
-              totalAmount: Number(budget.totalAmount || 0).toFixed(2),
-              budgetTitle: budget.servicesSelected?.join(', ') || 'Proposta de Serviço'
-            })
-          }).catch(err => console.warn('[Budget Push] Error notifying client:', err));
-        }
-
-        // 2. Notificar o Master
         fetch('/api/push/notify-master', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             type: 'budget',
             details: {
-              companyName: companyDisplayName,
+              companyName: currentUser.name || currentUser.companyName || 'Empresa',
               clientName: budget.clientName || 'Cliente',
               total: Number(budget.totalAmount || 0).toFixed(2)
             }
@@ -2643,23 +2620,6 @@ const App: React.FC = () => {
           "Orçamento Atualizado! 📑✏️",
           `As alterações no orçamento de "${budget.clientName || 'Cliente'}" foram guardadas com sucesso.`
         );
-
-        // Se o orçamento foi atualizado e possui cliente, avisar também
-        if (clientHasContact) {
-          fetch('/api/push/notify-client-budget', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              clientRequestId: budget.clientRequestId || '',
-              clientName: budget.clientName || 'Cliente',
-              clientPhone: budget.contactPhone || '',
-              clientEmail: budget.clientEmail || '',
-              companyName: companyDisplayName,
-              totalAmount: Number(budget.totalAmount || 0).toFixed(2),
-              budgetTitle: budget.servicesSelected?.join(', ') || 'Proposta de Serviço'
-            })
-          }).catch(err => console.warn('[Budget Push] Error notifying client:', err));
-        }
       }
       
       // Track budget save event
@@ -3031,7 +2991,7 @@ const App: React.FC = () => {
   return (
     <>
       <InAppPushBalloonContainer />
-      <div className={`flex ${view === 'landing' || view === 'client-portal' ? 'min-h-screen overflow-y-auto items-start bg-slate-950' : 'h-screen overflow-hidden items-center bg-slate-50'} relative w-full justify-center`}>
+      <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
       {showCertificateModal && (
         <CertificateModal 
           company={certificateCompany || currentUser} 
@@ -3121,29 +3081,10 @@ const App: React.FC = () => {
 
       <InstallPWA view={view} />
 
-      {/* Apresentação Inicial / Intro Walkthrough Tour Interativo */}
-      {showIntroWalkthrough && (
-        <IntroWalkthrough
-          onComplete={() => {
-            setShowIntroWalkthrough(false);
-            try {
-              sessionStorage.setItem('atrios_intro_walkthrough_seen', 'true');
-            } catch (e) {}
-          }}
-          onSkip={() => {
-            setShowIntroWalkthrough(false);
-            try {
-              sessionStorage.setItem('atrios_intro_walkthrough_seen', 'true');
-            } catch (e) {}
-          }}
-        />
-      )}
-
       {view === 'client-portal' ? (
         <ClientPortal
           onBackToHome={() => setView('landing')}
           currencyCode={currencyCode}
-          locale={locale}
         />
       ) : view === 'landing' ? (
         <LandingPage
@@ -3157,7 +3098,6 @@ const App: React.FC = () => {
           onDownloadApp={handlePwaDownload}
           onOpenLegal={(type) => setShowLegalModal(type)}
           onOpenClientPortal={() => setView('client-portal')}
-          onOpenWalkthrough={() => setShowIntroWalkthrough(true)}
         />
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
@@ -3543,8 +3483,6 @@ const App: React.FC = () => {
                         setSelectedBudget({
                           id: generateShortId(),
                           companyId: currentUser.id,
-                          clientRequestId: clientData.clientRequestId || clientData.requestId,
-                          clientEmail: clientData.clientEmail || '',
                           clientName: clientData.clientName,
                           contactName: clientData.clientName,
                           contactPhone: clientData.clientPhone || '',

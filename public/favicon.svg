@@ -1,59 +1,13 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
-  <defs>
-    <!-- Background Orange Gradient -->
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FB923C"/>
-      <stop offset="40%" stop-color="#F97316"/>
-      <stop offset="100%" stop-color="#EA580C"/>
-    </linearGradient>
-
-    <!-- Metallic Brushed Silver Gradient -->
-    <linearGradient id="metalPlate" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF"/>
-      <stop offset="20%" stop-color="#F1F5F9"/>
-      <stop offset="50%" stop-color="#CBD5E1"/>
-      <stop offset="75%" stop-color="#94A3B8"/>
-      <stop offset="100%" stop-color="#E2E8F0"/>
-    </linearGradient>
-
-    <!-- Inner Cutout Shadow -->
-    <linearGradient id="cutoutOrange" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#C2410C"/>
-      <stop offset="100%" stop-color="#EA580C"/>
-    </linearGradient>
-  </defs>
-
-  <!-- Base Vibrant Orange Background -->
-  <rect width="512" height="512" rx="110" fill="url(#bgGrad)"/>
-
-  <!-- Metallic Silver Squircle Plate -->
-  <!-- Subtle Plate Shadow -->
-  <rect x="70" y="78" width="372" height="372" rx="92" fill="#9A3412" opacity="0.35"/>
-  <!-- Silver Plate Body -->
-  <rect x="70" y="70" width="372" height="372" rx="90" fill="url(#metalPlate)" stroke="#FFFFFF" stroke-width="4" stroke-opacity="0.9"/>
-
-  <!-- Construction Barrier Cutout Shape -->
-  <!-- Left Vertical Leg Cutout -->
-  <rect x="182" y="160" width="32" height="192" rx="16" fill="url(#cutoutOrange)"/>
-  <!-- Right Vertical Leg Cutout -->
-  <rect x="298" y="160" width="32" height="192" rx="16" fill="url(#cutoutOrange)"/>
-
-  <!-- Main Horizontal Barrier Frame (Silver with cutout center) -->
-  <rect x="136" y="200" width="240" height="112" rx="28" fill="url(#metalPlate)" stroke="url(#cutoutOrange)" stroke-width="10"/>
-
-  <!-- Barrier Center Cutout Channel (Orange) -->
-  <rect x="148" y="212" width="216" height="88" rx="20" fill="url(#cutoutOrange)"/>
-
-  <!-- Diagonal Silver Stripes inside the barrier -->
-  <g fill="url(#metalPlate)" stroke="#FFFFFF" stroke-width="2">
-    <!-- Stripe 1 -->
-    <polygon points="166,300 206,212 236,212 196,300"/>
-    <!-- Stripe 2 -->
-    <polygon points="224,300 264,212 294,212 254,300"/>
-    <!-- Stripe 3 -->
-    <polygon points="282,300 322,212 352,212 312,300"/>
-  </g>
-
-  <!-- Barrier Top & Edge Highlights for 3D realism -->
-  <rect x="136" y="200" width="240" height="112" rx="28" fill="none" stroke="#FFFFFF" stroke-width="2.5" stroke-opacity="0.7"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <rect width="100" height="100" rx="25" fill="#F27D26"/>
+  <!-- Barrier structure -->
+  <rect x="20" y="35" width="60" height="12" rx="2" fill="white"/>
+  <rect x="20" y="53" width="60" height="12" rx="2" fill="white"/>
+  <!-- Stripes on top bar -->
+  <path d="M25 35 L35 47 M45 35 L55 47 M65 35 L75 47" stroke="#F27D26" stroke-width="4"/>
+  <!-- Stripes on bottom bar -->
+  <path d="M25 53 L35 65 M45 53 L55 65 M65 53 L75 65" stroke="#F27D26" stroke-width="4"/>
+  <!-- Legs -->
+  <rect x="28" y="35" width="4" height="40" rx="1" fill="white"/>
+  <rect x="68" y="35" width="4" height="40" rx="1" fill="white"/>
 </svg>

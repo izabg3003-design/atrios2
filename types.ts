@@ -71,11 +71,9 @@ export interface ExpenseRecord {
 export interface Budget {
   id: string;
   companyId: string;
-  clientRequestId?: string;
   clientName: string;
   contactName: string;
   contactPhone: string;
-  clientEmail?: string;
   workLocation: string;
   workNumber: string;
   workPostalCode: string;
@@ -304,18 +302,6 @@ export type ServiceCategory =
   | 'outro'
   | 'other';             // Outro Serviço
 
-export interface IntroBanner {
-  id: string;
-  title: string;
-  subtitle?: string;
-  badge?: string;
-  imageUrl: string;
-  order: number;
-  active: boolean;
-  ctaText?: string;
-  createdAt: string;
-}
-
 export interface ClientServiceRequest {
   id: string;
   clientName: string;
@@ -323,7 +309,6 @@ export interface ClientServiceRequest {
   clientPhone: string;
   accessCode?: string;
   category: ServiceCategory | string;
-  categories?: (ServiceCategory | string)[];
   title?: string;
   projectTitle?: string;
   description?: string;

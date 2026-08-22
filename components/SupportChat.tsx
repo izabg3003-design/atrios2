@@ -31,8 +31,8 @@ const SupportChat: React.FC<SupportChatProps> = ({ company, locale, messages, on
     if (res === 'granted') {
       const options = {
         body: "Notificações do suporte ativadas! Você será avisado quando respondermos. 📞",
-        icon: '/icon-192.png',
-        badge: '/icon-192.png',
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
         vibrate: [250, 150, 250]
       };
       if ('serviceWorker' in navigator) {
