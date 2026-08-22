@@ -78,9 +78,6 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       e.preventDefault();
       setDeferredPrompt(e);
       (window as any).deferredPrompt = e;
-      if (typeof (window as any).onPwaPromptAvailable === 'function') {
-        (window as any).onPwaPromptAvailable(e);
-      }
     };
 
     window.addEventListener('beforeinstallprompt', handler);
@@ -88,6 +85,10 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     if ((window as any).deferredPrompt) {
       setDeferredPrompt((window as any).deferredPrompt);
     }
+
+    (window as any).onPwaPromptAvailable = (prompt: any) => {
+      setDeferredPrompt(prompt);
+    };
 
     // Ouvir evento customizado para abrir a janela a qualquer momento
     const handleOpenModal = () => {
@@ -126,7 +127,7 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
           if (permission === 'granted') {
             const options = {
               body: "O ÁTRIOS BUILD foi instalado com sucesso no seu dispositivo! 📱✨",
-              icon: '/push-icon.png',
+              icon: '/icon-192.png',
               badge: '/push-badge.png',
               vibrate: [200, 100, 200, 100, 300],
               tag: 'atrios-installed-alert',
@@ -153,6 +154,7 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       window.removeEventListener('beforeinstallprompt', handler);
       window.removeEventListener('open-install-pwa-modal', handleOpenModal);
       window.removeEventListener('appinstalled', installedHandler);
+      delete (window as any).onPwaPromptAvailable;
     };
   }, [view]);
 
@@ -179,20 +181,13 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       }
     }
 
-    // Se estiver no ambiente de iframe (pré-visualização), abrir diretamente em nova janela dedicada
-    if (isInIframe) {
-      try {
-        const installUrl = `${window.location.origin}${window.location.pathname}?install=true`;
-        window.open(installUrl, '_blank');
-      } catch (e) {
-        console.error(e);
-      }
-      setStepNotice("A abrir o navegador para instalação direta. Caso o aviso não surja, toque nos 3 pontos (⋮) > 'Instalar aplicativo'.");
+    if (isIOS) {
+      setStepNotice("No Safari (iPhone/iPad): Toque no botão Partilhar 📤 no fundo do ecrã e selecione 'Adicionar ao Ecrã Principal'.");
       return;
     }
 
-    // Em navegadores sem prompt automático (Safari, Firefox ou quando já foi acionado)
-    setStepNotice("Toque no menu (⋮ nos 3 pontos do Chrome ou Partilhar no Safari) e selecione 'Instalar aplicativo' ou 'Adicionar ao ecrã principal'.");
+    // Se o navegador não disponibilizar o prompt automático imediatamente
+    setStepNotice("Para concluir: Toque nos 3 pontos (⋮) no topo do seu navegador e escolha 'Instalar aplicativo' ou 'Adicionar ao ecrã principal'.");
   };
 
   const handleConfirmInstalled = () => {

@@ -38,15 +38,6 @@
         if (typeof window.onPwaPromptAvailable === 'function') {
           window.onPwaPromptAvailable(e);
         }
-        // Se a página foi aberta com instrução direta de instalação
-        var params = new URLSearchParams(window.location.search);
-        if (params.get('install') === 'true' || params.get('install') === '1') {
-          setTimeout(function() {
-            if (window.deferredPrompt) {
-              window.deferredPrompt.prompt();
-            }
-          }, 300);
-        }
       });
     </script>
 </head>
