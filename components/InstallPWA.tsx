@@ -126,8 +126,8 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
           if (permission === 'granted') {
             const options = {
               body: "O ÁTRIOS BUILD foi instalado com sucesso no seu dispositivo! 📱✨",
-              icon: '/atrios-logo.svg',
-              badge: '/atrios-logo.svg',
+              icon: '/push-icon.png',
+              badge: '/push-badge.png',
               vibrate: [200, 100, 200, 100, 300],
               tag: 'atrios-installed-alert',
               renotify: true
@@ -162,30 +162,46 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     if (activePrompt) {
       try {
         await activePrompt.prompt();
-        const { outcome } = await activePrompt.userChoice;
-        console.log(`[InstallPWA] Resposta da instalação: ${outcome}`);
+        const choiceResult = await activePrompt.userChoice;
+        console.log(`[InstallPWA] Resposta da instalação:`, choiceResult);
         setDeferredPrompt(null);
         (window as any).deferredPrompt = null;
-        if (outcome === 'accepted') {
+        if (choiceResult && choiceResult.outcome === 'accepted') {
           setInstallSuccess(true);
           setTimeout(() => {
             setIsVisible(false);
             setInstallSuccess(false);
           }, 2000);
+          return;
         }
       } catch (err) {
         console.error("[InstallPWA] Erro ao invocar prompt nativo:", err);
-        setStepNotice("Siga os passos abaixo no menu do seu navegador para adicionar o app.");
       }
-    } else {
-      // Se não há prompt nativo disponível imediatamente (iOS, iframe ou já disparado)
-      if (isInIframe) {
-        try {
-          window.open(window.location.href, '_blank');
-        } catch (e) {}
-      }
-      setStepNotice("Siga os passos ilustrados abaixo para adicionar o ÁTRIOS BUILD ao seu ecrã principal.");
     }
+
+    // Se estiver no ambiente de iframe (pré-visualização), abrir diretamente em nova janela dedicada
+    if (isInIframe) {
+      try {
+        const installUrl = `${window.location.origin}${window.location.pathname}?install=true`;
+        window.open(installUrl, '_blank');
+      } catch (e) {
+        console.error(e);
+      }
+      setStepNotice("A abrir o navegador para instalação direta. Caso o aviso não surja, toque nos 3 pontos (⋮) > 'Instalar aplicativo'.");
+      return;
+    }
+
+    // Em navegadores sem prompt automático (Safari, Firefox ou quando já foi acionado)
+    setStepNotice("Toque no menu (⋮ nos 3 pontos do Chrome ou Partilhar no Safari) e selecione 'Instalar aplicativo' ou 'Adicionar ao ecrã principal'.");
+  };
+
+  const handleConfirmInstalled = () => {
+    setInstallSuccess(true);
+    localStorage.setItem('atrios_installed_notified', 'true');
+    setTimeout(() => {
+      setIsVisible(false);
+      setInstallSuccess(false);
+    }, 2000);
   };
 
   const handleOpenInNewWindow = () => {
@@ -366,9 +382,22 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
               )}
 
               {stepNotice && (
-                <div className="p-3 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 text-xs flex items-start gap-2">
-                  <Info size={16} className="shrink-0 mt-0.5" />
-                  <p>{stepNotice}</p>
+                <div className="space-y-2">
+                  <div className="p-3.5 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-200 text-xs flex items-start gap-2.5 shadow-lg animate-in fade-in zoom-in-95">
+                    <Info size={18} className="shrink-0 text-amber-400 mt-0.5" />
+                    <div className="space-y-1">
+                      <p className="font-semibold leading-relaxed">{stepNotice}</p>
+                      <p className="text-[11px] text-amber-300/80">Toque nos <strong>3 pontinhos (⋮)</strong> no topo do seu navegador e escolha <strong>"Instalar aplicativo"</strong> ou <strong>"Adicionar ao ecrã principal"</strong>.</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleConfirmInstalled}
+                    className="w-full py-2.5 px-4 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/40 rounded-xl text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer"
+                  >
+                    <CheckCircle2 size={15} className="text-emerald-400" />
+                    <span>Já adicionei o atalho / Concluir</span>
+                  </button>
                 </div>
               )}
 

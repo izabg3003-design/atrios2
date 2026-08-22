@@ -103,8 +103,8 @@ self.addEventListener('push', (event) => {
 
     let title = 'ÁTRIOS BUILD';
     let body = 'Você tem uma nova atualização.';
-    let icon = '/atrios-logo.svg';
-    let badge = '/atrios-logo.svg';
+    let icon = '/push-icon.png';
+    let badge = '/push-badge.png';
     let tag = 'atrios-push-default';
     let additionalData = {};
 
@@ -121,6 +121,11 @@ self.addEventListener('push', (event) => {
         title = payload.title || title;
         body = payload.body || body;
         icon = payload.icon || icon;
+      }
+
+      // Se o ícone fornecido for SVG, forçar o PNG rasterizado de alta resolução para o Android
+      if (icon && (typeof icon !== 'string' || icon.endsWith('.svg') || icon.includes('.svg'))) {
+        icon = '/push-icon.png';
       }
 
       tag = payload.tag || payload.notification?.tag || payload.data?.tag || ('atrios-push-' + encodeURIComponent(title));
