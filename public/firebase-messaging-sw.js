@@ -38,7 +38,7 @@ try {
   messaging.onBackgroundMessage((payload) => {
     console.log('[FCM SW] Recebida mensagem FCM em segundo plano:', payload);
 
-    const title = payload.notification?.title || payload.data?.title || 'Átrios App';
+    const title = payload.notification?.title || payload.data?.title || 'ÁTRIOS BUILD';
     const body = payload.notification?.body || payload.data?.body || 'Nova notificação recebida.';
 
     if (isDuplicateNotification(title, body)) {
@@ -48,8 +48,8 @@ try {
 
     const options = {
       body: body,
-      icon: payload.notification?.icon || payload.data?.icon || '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: payload.notification?.icon || payload.data?.icon || '/atrios-logo.svg',
+      badge: payload.notification?.badge || payload.data?.badge || '/atrios-logo.svg',
       vibrate: [200, 100, 200, 100, 300],
       tag: payload.data?.tag || ('atrios-push-' + encodeURIComponent(title)),
       renotify: true,
@@ -103,8 +103,8 @@ self.addEventListener('push', (event) => {
 
     let title = 'ÁTRIOS BUILD';
     let body = 'Você tem uma nova atualização.';
-    let icon = '/icon-192.png';
-    let badge = '/icon-192.png';
+    let icon = '/atrios-logo.svg';
+    let badge = '/atrios-logo.svg';
     let tag = 'atrios-push-default';
     let additionalData = {};
 

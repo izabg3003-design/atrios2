@@ -6,7 +6,7 @@ import { JobOffers } from './components/JobOffers';
 import { ClientRequestsHub } from './components/ClientRequestsHub';
 import { ClientPortal } from './components/ClientPortal';
 import { InstallPWA } from './components/InstallPWA';
-import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
+import { InAppPushBalloonContainer, triggerInAppBalloon } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
 import { 
   LayoutDashboard, 
@@ -106,27 +106,12 @@ import Reports from './components/Reports';
 import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
+import { IntroWalkthrough } from './components/IntroWalkthrough';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (typeof window === 'undefined' || !title || !body) return;
-
-  // Disparar o balão informativo in-app
-  try {
-    window.dispatchEvent(
-      new CustomEvent('in_app_push_toast', {
-        detail: {
-          id: String(Date.now() + Math.random()),
-          title,
-          body,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      })
-    );
-  } catch (err) {
-    console.error('Erro ao disparar balão in-app:', err);
-  }
+  triggerInAppBalloon(title, body);
 };
 
 const getPdfColors = (template: string = 'default') => {
@@ -329,6 +314,20 @@ const App: React.FC = () => {
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState<boolean>(false);
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
+
+  // Apresentação Interativa Inicial (Intro Walkthrough Tour)
+  const [showIntroWalkthrough, setShowIntroWalkthrough] = useState<boolean>(() => {
+    if (typeof window !== 'undefined') {
+      const urlParams = new URLSearchParams(window.location.search);
+      // Se estiver acessando via link direto de certificado ou portal, não força a intro
+      if (urlParams.get('cert') || urlParams.get('verify') || urlParams.get('portal')) {
+        return false;
+      }
+      const seen = sessionStorage.getItem('atrios_intro_walkthrough_seen');
+      return seen !== 'true' && !session?.companyId;
+    }
+    return false;
+  });
 
   // Verificação de permissão para aba de Vagas (Livre apenas para a empresa/usuário teste "Átrios Build" / atriosbuild@gmail.com)
   const isAtriosBuildUser = useMemo(() => {
@@ -3122,6 +3121,24 @@ const App: React.FC = () => {
 
       <InstallPWA view={view} />
 
+      {/* Apresentação Inicial / Intro Walkthrough Tour Interativo */}
+      {showIntroWalkthrough && (
+        <IntroWalkthrough
+          onComplete={() => {
+            setShowIntroWalkthrough(false);
+            try {
+              sessionStorage.setItem('atrios_intro_walkthrough_seen', 'true');
+            } catch (e) {}
+          }}
+          onSkip={() => {
+            setShowIntroWalkthrough(false);
+            try {
+              sessionStorage.setItem('atrios_intro_walkthrough_seen', 'true');
+            } catch (e) {}
+          }}
+        />
+      )}
+
       {view === 'client-portal' ? (
         <ClientPortal
           onBackToHome={() => setView('landing')}
@@ -3140,6 +3157,7 @@ const App: React.FC = () => {
           onDownloadApp={handlePwaDownload}
           onOpenLegal={(type) => setShowLegalModal(type)}
           onOpenClientPortal={() => setView('client-portal')}
+          onOpenWalkthrough={() => setShowIntroWalkthrough(true)}
         />
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">

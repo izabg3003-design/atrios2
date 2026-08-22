@@ -304,6 +304,18 @@ export type ServiceCategory =
   | 'outro'
   | 'other';             // Outro Serviço
 
+export interface IntroBanner {
+  id: string;
+  title: string;
+  subtitle?: string;
+  badge?: string;
+  imageUrl: string;
+  order: number;
+  active: boolean;
+  ctaText?: string;
+  createdAt: string;
+}
+
 export interface ClientServiceRequest {
   id: string;
   clientName: string;

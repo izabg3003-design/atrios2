@@ -56,7 +56,8 @@ import {
   Video,
   Wrench,
   Hammer,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -119,6 +120,7 @@ import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/s
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
+import { MasterIntroBannersSettings } from './MasterIntroBannersSettings';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -209,7 +211,7 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'client_requests'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'intro_banners' | 'client_requests'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -1553,29 +1555,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       createdAt: new Date().toISOString()
     };
     
-    // Trigger push balloon on Master's screen as well
+    // Trigger push balloon on Master's screen as well (0ms instant local + inter-tab broadcast)
     triggerPushNotificationSubmit(pushTitle, pushBody);
 
-    // Broadcast real-time to online users!
-    const channel = supabase.channel('global-push-notifications');
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        channel.send({
-          type: 'broadcast',
-          event: 'push',
-          payload: newPush
-        }).then(() => {
-          console.log('[MasterPanel] Real-time push broadcast sent.');
-          try {
-            supabase.removeChannel(channel);
-          } catch (e) {
-            console.error(e);
-          }
-        });
-      }
-    });
-
-    // Enviar broadcast offline/background PWA Push (para que chegue com o app completamente fechado!)
+    // Enviar broadcast offline/background PWA Push e Realtime (sem travar a UI)
     fetch('/api/push/send-broadcast', {
       method: 'POST',
       headers: {
@@ -1594,6 +1577,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     .catch(err => {
       console.error('[MasterPanel] Error dispatching offline PWA push:', err);
     });
+
+    // Broadcast real-time to online users via existing supabase channel instance
+    try {
+      const channel = supabase.channel('global-push-notifications');
+      channel.send({
+        type: 'broadcast',
+        event: 'push',
+        payload: newPush
+      }).catch(e => console.warn('[MasterPanel] Realtime push error:', e));
+    } catch (e) {}
 
     const updated = [newPush, ...pushHistory];
     setPushHistory(updated);
@@ -2570,6 +2563,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             <nav className="flex flex-wrap bg-white/5 p-1 rounded-2xl border border-white/10 gap-1">
             {[
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
+              { id: 'intro_banners', label: locale.startsWith('pt') ? 'Banners de Início' : 'Intro Banners', icon: Layers },
               { id: 'hero_video', label: locale.startsWith('pt') ? 'Vídeos da Landing' : 'Landing Videos', icon: Film },
               { id: 'client_requests', label: locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests', icon: Wrench },
               { id: 'users', label: t.masterUsersTab, icon: Users },
@@ -3671,10 +3665,10 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       <div className="w-full bg-slate-900/90 border border-white/10 backdrop-blur-md rounded-2xl p-4 space-y-3 shadow-2xl animate-bounce">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <div className="w-6 h-6 rounded-lg bg-transparent overflow-hidden p-0.5 border border-white/10 flex items-center justify-center shrink-0">
-                              <img src="/favicon.svg" alt="App Icon" className="w-full h-full object-contain drop-shadow" referrerPolicy="no-referrer" />
+                            <div className="w-6 h-6 rounded-lg bg-transparent overflow-hidden flex items-center justify-center shrink-0">
+                              <img src="/atrios-logo.svg" alt="Átrios Build Icon" className="w-full h-full object-contain drop-shadow" referrerPolicy="no-referrer" />
                             </div>
-                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-sans">Átrios App</span>
+                            <span className="text-[10px] font-black text-slate-300 uppercase tracking-widest font-sans">ÁTRIOS BUILD</span>
                           </div>
                           <span className="text-[9px] font-bold text-slate-500 uppercase">Agora mesmo</span>
                         </div>
@@ -4441,6 +4435,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               </div>
             )}
           </div>
+        )}
+
+        {activeTab === 'intro_banners' && (
+          <MasterIntroBannersSettings 
+            onSuccessToast={(msg) => triggerPushNotificationSubmit('Banners da Intro', msg)} 
+          />
         )}
 
         {activeTab === 'hero_video' && (

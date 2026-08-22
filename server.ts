@@ -485,12 +485,12 @@ async function startServer() {
       const welcomePayload = JSON.stringify({
         title: "Instale a App do Átrios! 📱",
         body: "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!",
-        icon: "/icon-192.png",
-        badge: "/icon-192.png",
+        icon: "/atrios-logo.svg",
+        badge: "/atrios-logo.svg",
         tag: "welcome-push",
         vibrate: [200, 100, 200]
       });
-      webPush.sendNotification(subscription, welcomePayload).catch(err => {
+      webPush.sendNotification(subscription, welcomePayload, { urgency: 'high', TTL: 86400 }).catch(err => {
         console.error("[PWA Welcome Push Error] Web push send failed:", err.message);
       });
     }
@@ -694,8 +694,9 @@ async function startServer() {
     const webPayload = JSON.stringify({
       title,
       body,
-      icon: '/icon-192.png',
-      badge: '/icon-192.png',
+      icon: '/atrios-logo.svg',
+      badge: '/atrios-logo.svg',
+      image: '/atrios-logo.svg',
       tag: 'atrios-global-push-' + Date.now(),
       vibrate: [200, 100, 200, 100, 300]
     });

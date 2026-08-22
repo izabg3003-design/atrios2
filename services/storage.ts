@@ -1,4 +1,4 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus, IntroBanner } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 import { triggerInAppBalloon } from '../components/InAppPushBalloon';
 
@@ -2267,7 +2267,6 @@ export const checkCompanyResponsePermission = (company: Company | null, requestI
     };
   }
 
-  // Fallback seguro
   return {
     allowed: true,
     reason: 'ok',
@@ -2278,6 +2277,168 @@ export const checkCompanyResponsePermission = (company: Company | null, requestI
     isPremium: true
   };
 };
+
+// ==========================================
+// BANNERS DA APRESENTAÇÃO INICIAL (INTRO WALKTHROUGH BANNERS)
+// ==========================================
+export const STORAGE_KEY_INTRO_BANNERS = 'atrios_intro_banners';
+
+export const DEFAULT_INTRO_BANNERS: IntroBanner[] = [
+  {
+    id: 'banner-1',
+    title: 'Bem-vindo ao Ecossistema ÁTRIOS BUILD',
+    subtitle: 'A solução mais rápida, intuitiva e completa para a gestão de orçamentos, obras e captação de clientes.',
+    badge: 'Inovação & Gestão',
+    imageUrl: 'https://images.unsplash.com/photo-1541888946425-d0fbb18086f6?auto=format&fit=crop&q=80&w=1600',
+    order: 1,
+    active: true,
+    ctaText: 'Avançar',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner-2',
+    title: 'Orçamentos Profissionais em 2 Minutos',
+    subtitle: 'Elabore propostas em PDF personalizadas com logotipo, cálculo automático de IVA e envio instantâneo.',
+    badge: 'Propostas Rápidas',
+    imageUrl: 'https://images.unsplash.com/photo-1503387762-592deb58ef4e?auto=format&fit=crop&q=80&w=1600',
+    order: 2,
+    active: true,
+    ctaText: 'Próximo',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner-3',
+    title: 'Radar de Oportunidades & Pedidos de Obras',
+    subtitle: 'Receba contactos diretos de clientes à procura de profissionais qualificados na sua região.',
+    badge: 'Mais Clientes',
+    imageUrl: 'https://images.unsplash.com/photo-1581094794329-c8112a89af12?auto=format&fit=crop&q=80&w=1600',
+    order: 3,
+    active: true,
+    ctaText: 'Próximo',
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner-4',
+    title: 'Portal do Cliente com Aprovação Online',
+    subtitle: 'O seu cliente acompanha a evolução dos serviços, visualiza pagamentos e aprova propostas no telemóvel.',
+    badge: '100% Digital',
+    imageUrl: 'https://images.unsplash.com/photo-1590402494587-44b71d7772f6?auto=format&fit=crop&q=80&w=1600',
+    order: 4,
+    active: true,
+    ctaText: 'Aceder à Plataforma',
+    createdAt: new Date().toISOString()
+  }
+];
+
+export const getStoredIntroBanners = (): IntroBanner[] => {
+  try {
+    const data = localStorage.getItem(STORAGE_KEY_INTRO_BANNERS);
+    if (!data) return DEFAULT_INTRO_BANNERS;
+    const parsed = JSON.parse(data);
+    if (Array.isArray(parsed) && parsed.length > 0) {
+      return parsed.sort((a, b) => (a.order || 0) - (b.order || 0));
+    }
+    return DEFAULT_INTRO_BANNERS;
+  } catch (err) {
+    console.error('Error reading intro banners from storage:', err);
+    return DEFAULT_INTRO_BANNERS;
+  }
+};
+
+export const saveIntroBanners = async (banners: IntroBanner[]): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const sorted = [...banners].sort((a, b) => (a.order || 0) - (b.order || 0));
+    safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(sorted));
+
+    // Notificar abas e ouvintes locais
+    try {
+      window.dispatchEvent(new CustomEvent('atrios_intro_banners_changed', { detail: sorted }));
+      if ('BroadcastChannel' in window) {
+        const bc = new BroadcastChannel('atrios_intro_banners_channel');
+        bc.postMessage(sorted);
+        bc.close();
+      }
+    } catch (e) {}
+
+    // Sincronizar na nuvem se a tabela intro_banners ou app_settings estiver disponível
+    try {
+      // 1. Tentar salvar em app_settings (JSON config geral)
+      await syncToCloud('app_settings', {
+        id: 'intro_banners_config',
+        config_data: JSON.stringify(sorted),
+        updated_at: new Date().toISOString()
+      });
+    } catch (cloudErr) {}
+
+    try {
+      // 2. Tentar salvar individualmente na tabela intro_banners caso exista
+      for (const banner of sorted) {
+        await syncToCloud('intro_banners', {
+          id: banner.id,
+          title: banner.title,
+          subtitle: banner.subtitle || null,
+          badge: banner.badge || null,
+          image_url: banner.imageUrl,
+          cta_text: banner.ctaText || null,
+          order_index: banner.order,
+          active: banner.active,
+          updated_at: new Date().toISOString()
+        });
+      }
+    } catch (cloudErr) {}
+
+    return { success: true };
+  } catch (err) {
+    console.error('saveIntroBanners error:', err);
+    return { success: false, error: err };
+  }
+};
+
+export const fetchIntroBannersFromCloud = async (): Promise<IntroBanner[]> => {
+  try {
+    // 1. Tentar ler da tabela dedicada intro_banners
+    const { data: dedicatedData, error: dedicatedErr } = await safeFetch<any[]>(
+      supabase.from('intro_banners').select('*').order('order_index', { ascending: true })
+    );
+
+    if (!dedicatedErr && Array.isArray(dedicatedData) && dedicatedData.length > 0) {
+      const mapped: IntroBanner[] = dedicatedData.map((d: any, idx: number) => ({
+        id: String(d.id || `banner-${idx + 1}`),
+        title: String(d.title || ''),
+        subtitle: d.subtitle ? String(d.subtitle) : undefined,
+        badge: d.badge ? String(d.badge) : undefined,
+        imageUrl: String(d.image_url || d.imageUrl || ''),
+        order: Number(d.order_index ?? d.order ?? (idx + 1)),
+        active: d.active !== undefined ? Boolean(d.active) : true,
+        ctaText: d.cta_text || d.ctaText || undefined,
+        createdAt: d.created_at || new Date().toISOString()
+      }));
+      safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(mapped));
+      return mapped;
+    }
+
+    // 2. Tentar ler da tabela app_settings
+    const { data: settingsData, error: settingsErr } = await safeFetch<any>(
+      supabase.from('app_settings').select('config_data').eq('id', 'intro_banners_config').single()
+    );
+
+    if (!settingsErr && settingsData && settingsData.config_data) {
+      const parsed = typeof settingsData.config_data === 'string' ? JSON.parse(settingsData.config_data) : settingsData.config_data;
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(parsed));
+        return parsed;
+      }
+    }
+  } catch (err) {
+    console.warn('fetchIntroBannersFromCloud error (using local fallback):', err);
+  }
+  return getStoredIntroBanners();
+};
+
+export const resetIntroBanners = async (): Promise<{ success: boolean; error?: any }> => {
+  return await saveIntroBanners(DEFAULT_INTRO_BANNERS);
+};
+
 
 
 

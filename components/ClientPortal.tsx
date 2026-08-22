@@ -27,7 +27,9 @@ import {
   Printer,
   Loader2,
   Building2,
-  Plus
+  Plus,
+  Award,
+  BadgeCheck
 } from 'lucide-react';
 import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode, Company } from '../types';
 import { Locale } from '../translations';
@@ -43,6 +45,7 @@ import {
 import { supabase } from '../services/supabase';
 import { generateOfficialBudgetPDF, normalizeForPdf } from '../services/pdfGenerator';
 import { ClientRequestModal } from './ClientRequestModal';
+import { CertificateModal } from './CertificateModal';
 import { registerClientWebPush } from '../services/clientPush';
 
 interface ClientPortalProps {
@@ -76,6 +79,38 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   const [isGeneratingPdf, setIsGeneratingPdf] = useState<string | null>(null);
   const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests'>('all_budgets');
   const [showNewRequestModal, setShowNewRequestModal] = useState(false);
+  const [viewingCertificateCompany, setViewingCertificateCompany] = useState<Company | null>(null);
+
+  // Helper to check if a contractor possesses the ÁTRIOS Certificate of Authenticity
+  const isCompanyCertified = (comp?: Company | null): boolean => {
+    if (!comp) return false;
+    return comp.verified !== false && Boolean(comp.name || comp.id);
+  };
+
+  // Helper to fetch/open certificate modal for a given company
+  const handleOpenCertificate = async (companyId?: string) => {
+    if (!companyId) return;
+    let comp = companiesMap[companyId];
+    if (!comp) {
+      try {
+        const fetched = await fetchCompanyForVerification(companyId);
+        if (fetched) {
+          comp = fetched;
+          setCompaniesMap(prev => ({ ...prev, [companyId]: fetched }));
+        }
+      } catch (e) {
+        console.warn('Could not fetch company for certificate modal:', e);
+      }
+    }
+    if (!comp) {
+      const localCompanies = getStoredCompanies();
+      const found = localCompanies.find(c => String(c.id) === String(companyId));
+      if (found) comp = found;
+    }
+    if (comp && isCompanyCertified(comp)) {
+      setViewingCertificateCompany(comp);
+    }
+  };
 
   // Load client data once authenticated
   const loadClientData = async (phone: string) => {
@@ -674,6 +709,47 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                 </div>
                               )}
                             </div>
+
+                            {/* Selo / Logo Interativo do Certificado de Autenticidade ÁTRIOS (Apenas para empresas certificadas) */}
+                            {(() => {
+                              const contractorCompany = companiesMap[budget.companyId] || getStoredCompanies().find(c => String(c.id) === String(budget.companyId));
+                              const isCertified = isCompanyCertified(contractorCompany);
+
+                              if (!isCertified) return null;
+
+                              return (
+                                <button
+                                  type="button"
+                                  onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleOpenCertificate(budget.companyId);
+                                  }}
+                                  className="group w-full relative overflow-hidden flex items-center justify-between gap-3 p-3 rounded-2xl bg-gradient-to-r from-emerald-950/80 via-slate-950 to-emerald-950/80 border border-emerald-500/40 hover:border-emerald-400 text-emerald-300 hover:text-white shadow-[0_0_15px_rgba(16,185,129,0.12)] hover:shadow-[0_0_25px_rgba(16,185,129,0.3)] transition-all duration-300 cursor-pointer text-left active:scale-[0.98]"
+                                  title="Empresa com Certificado Oficial de Autenticidade ÁTRIOS. Clique para visualizar."
+                                >
+                                  <div className="flex items-center gap-2.5 min-w-0">
+                                    <div className="relative w-8 h-8 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/30 shrink-0 group-hover:scale-105 transition-transform">
+                                      <ShieldCheck size={18} className="stroke-[2.5]" />
+                                      <span className="absolute -top-0.5 -right-0.5 w-2.5 h-2.5 rounded-full bg-amber-400 border-2 border-slate-950 animate-pulse" />
+                                    </div>
+                                    <div className="min-w-0">
+                                      <div className="flex items-center gap-1.5">
+                                        <span className="text-[11px] font-black tracking-tight text-emerald-400 group-hover:text-emerald-300 uppercase">
+                                          Certificado de Autenticidade ÁTRIOS
+                                        </span>
+                                        <Sparkles size={11} className="text-amber-400 shrink-0" />
+                                      </div>
+                                      <p className="text-[10px] text-slate-400 group-hover:text-slate-200 truncate">
+                                        {contractorCompany?.name ? <strong className="text-white">{contractorCompany.name}</strong> : 'Profissional'} • <span className="text-emerald-400 font-bold">Ver Selo Oficial ↗</span>
+                                      </p>
+                                    </div>
+                                  </div>
+                                  <div className="shrink-0 px-2.5 py-1 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-wider group-hover:bg-emerald-500 group-hover:text-slate-950 transition-colors">
+                                    Verificar
+                                  </div>
+                                </button>
+                              );
+                            })()}
                           </div>
 
                           <div className="pt-2 border-t border-white/5 flex gap-2">
@@ -808,6 +884,46 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
             {/* Modal Content */}
             <div className="p-6 space-y-6 overflow-y-auto flex-1">
+              {/* Selo / Banner de Autenticidade ÁTRIOS (Apenas se o emitente tiver certificado) */}
+              {(() => {
+                const contractorCompany = companiesMap[selectedBudgetView.companyId] || getStoredCompanies().find(c => String(c.id) === String(selectedBudgetView.companyId));
+                const isCertified = isCompanyCertified(contractorCompany);
+
+                if (!isCertified) return null;
+
+                return (
+                  <div className="bg-gradient-to-r from-emerald-950/90 via-slate-900 to-emerald-950/90 border border-emerald-500/40 rounded-2xl p-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-[0_0_25px_rgba(16,185,129,0.15)] animate-in fade-in">
+                    <div className="flex items-center gap-3">
+                      <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-emerald-400 via-emerald-500 to-emerald-600 flex items-center justify-center text-slate-950 shadow-md shadow-emerald-500/30 shrink-0">
+                        <ShieldCheck size={22} className="stroke-[2.5]" />
+                      </div>
+                      <div>
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h4 className="text-xs font-black uppercase tracking-wider text-emerald-400">
+                            Certificado de Autenticidade ÁTRIOS
+                          </h4>
+                          <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 text-[9px] font-black border border-emerald-500/30 inline-flex items-center gap-1">
+                            <Sparkles size={10} className="text-amber-400" />
+                            Verificado Oficial
+                          </span>
+                        </div>
+                        <p className="text-xs text-slate-300 mt-0.5">
+                          {contractorCompany?.name ? <strong className="text-white">{contractorCompany.name}</strong> : 'O profissional emissor'} possui Certificado de Autenticidade ativo e validado pela ÁTRIOS.
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => handleOpenCertificate(selectedBudgetView.companyId)}
+                      className="w-full sm:w-auto px-4 py-2.5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20 transition-all cursor-pointer active:scale-95 shrink-0"
+                    >
+                      <Award size={14} className="stroke-[2.5]" />
+                      <span>Ver Certificado Oficial</span>
+                    </button>
+                  </div>
+                );
+              })()}
+
               {/* Resumo do Cliente e Obra */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-2xl border border-white/5 text-xs">
                 <div>
@@ -932,6 +1048,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           onOpenPortal={() => {
             setShowNewRequestModal(false);
           }}
+        />
+      )}
+
+      {/* Modal Interativo do Certificado de Autenticidade ÁTRIOS */}
+      {viewingCertificateCompany && (
+        <CertificateModal
+          company={viewingCertificateCompany}
+          onClose={() => setViewingCertificateCompany(null)}
         />
       )}
     </div>

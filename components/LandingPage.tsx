@@ -30,6 +30,7 @@ interface LandingPageProps {
   onDownloadApp: () => void;
   onOpenLegal: (type: 'terms' | 'privacy') => void;
   onOpenClientPortal?: () => void;
+  onOpenWalkthrough?: () => void;
 }
 
 const LANGUAGES: { code: Locale; label: string; flag: string }[] = [
@@ -52,7 +53,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onLogin,
   onDownloadApp,
   onOpenLegal,
-  onOpenClientPortal
+  onOpenClientPortal,
+  onOpenWalkthrough
 }) => {
   const [showClientRequestModal, setShowClientRequestModal] = useState(false);
   const [showVideoModal, setShowVideoModal] = useState(false);
@@ -311,6 +313,21 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           {/* Left Column: Headline, Subtitle, Dual CTAs & Trust Badges */}
           <div className="lg:col-span-6 space-y-6 lg:space-y-8">
             
+            {/* Presentation Tour Badge */}
+            {onOpenWalkthrough && (
+              <div>
+                <button
+                  type="button"
+                  onClick={onOpenWalkthrough}
+                  className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-50 hover:bg-amber-100 border border-amber-200 text-amber-900 text-xs font-black uppercase tracking-wider transition-all shadow-xs cursor-pointer active:scale-95 group"
+                >
+                  <Sparkles size={14} className="text-amber-600 group-hover:rotate-12 transition-transform" />
+                  <span>Ver Banners de Apresentação das Funções</span>
+                  <ChevronRight size={13} className="text-amber-600 group-hover:translate-x-0.5 transition-transform" />
+                </button>
+              </div>
+            )}
+
             {/* Main Headline */}
             <div className="space-y-1.5">
               <h1 className="text-3xl sm:text-4xl lg:text-[44px] font-black tracking-tight text-slate-950 leading-[1.15]">
