@@ -119,6 +119,7 @@ import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/s
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
+import { registerPushSubscription, triggerInAppPush } from '../services/pushService';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -136,49 +137,13 @@ function urlBase64ToUint8Array(base64String: string) {
 }
 
 const registerMasterPushSubscription = async () => {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    console.warn('Web Push is not fully supported on this device/browser');
-    return;
-  }
-  try {
-    await navigator.serviceWorker.register('/firebase-messaging-sw.js').catch(() => {});
-    const reg = await navigator.serviceWorker.ready;
-    let subscription = await reg.pushManager.getSubscription();
-    
-    if (!subscription) {
-      const keyRes = await fetch('/api/push/public-key');
-      if (!keyRes.ok) throw new Error('Failed to fetch public key');
-      const { publicKey } = await keyRes.json();
-      if (!publicKey) throw new Error('Public key empty');
-
-      const convertedKey = urlBase64ToUint8Array(publicKey);
-      try {
-        subscription = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedKey
-        });
-      } catch (subErr: any) {
-        console.warn('[Master Push] Browser PushManager.subscribe failed, continuing with fallback:', subErr.message || subErr);
-      }
-    }
-
-    if (subscription) {
-      await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          subscription,
-          companyId: 'master',
-          plan: 'master'
-        })
-      });
-      console.log('[Master Push] Subscribed successfully');
-    } else {
-      console.info('[Master Push] Subscription skipped or unavailable in this environment.');
-    }
-  } catch (err: any) {
-    console.warn('[Master Push] Error registering subscription:', err.message || err);
-  }
+  return await registerPushSubscription({
+    companyId: 'master',
+    plan: 'master',
+    role: 'master',
+    email: 'izarellebraga@gmail.com',
+    name: 'Master Admin'
+  });
 };
 
 const triggerPushNotificationSubmit = (title: string, body: string) => {
@@ -319,7 +284,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     }
   }, [pushPermission]);
 
-  const testPushNotification = () => {
+  const testPushNotification = async () => {
     if (pushPermission !== 'granted') {
       requestPushPermission();
       return;
@@ -328,6 +293,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       "Teste de Notificação 🏗️",
       "Esta é uma demonstração de como as notificações com o logotipo oficial do Átrios aparecem no seu telemóvel!"
     );
+    try {
+      await fetch('/api/push/notify-master', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          type: 'test',
+          details: {
+            title: "Átrios Master 🏗️",
+            body: "Teste de notificação recebido com sucesso no seu telemóvel/computador!"
+          }
+        })
+      });
+    } catch (e) {
+      console.warn('Erro ao disparar teste push remoto:', e);
+    }
   };
 
   const prevUnlockCount = useRef(0);

@@ -33,6 +33,7 @@ import {
   fetchBudgetsFromSupabase 
 } from '../services/storage';
 import { supabase } from '../services/supabase';
+import { registerPushSubscription } from '../services/pushService';
 
 interface ClientPortalProps {
   onBackToHome: () => void;
@@ -105,6 +106,18 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   useEffect(() => {
     if (authenticatedPhone) {
       loadClientData(authenticatedPhone);
+
+      // Sincronizar subscrição Push para este telemóvel de cliente
+      if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+        const cleanPhone = authenticatedPhone.replace(/\D/g, '');
+        registerPushSubscription({
+          companyId: cleanPhone,
+          phone: cleanPhone,
+          role: 'client',
+          plan: 'client',
+          name: `Cliente (${authenticatedPhone})`
+        }).catch(err => console.warn('[ClientPortal] Push sync skipped:', err));
+      }
     }
   }, [authenticatedPhone]);
 

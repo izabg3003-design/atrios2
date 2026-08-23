@@ -80,6 +80,11 @@ async function saveSubscriptionToSupabase(record: {
   token?: string;
   companyId: string;
   plan: string;
+  email?: string;
+  role?: string;
+  phone?: string;
+  name?: string;
+  companyName?: string;
 }) {
   if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
     console.warn("[Supabase Push] Supabase URL or Key missing. Skipping DB save.");
@@ -94,17 +99,22 @@ async function saveSubscriptionToSupabase(record: {
     subscription: record.subscription ? (typeof record.subscription === 'object' ? JSON.stringify(record.subscription) : record.subscription) : null,
     token: record.token || null,
     plan: record.plan || 'free',
-    companyId: record.companyId,
-    company_id: record.companyId,
-    companyid: record.companyId,
-    created_at: new Date().toISOString()
+    companyId: record.companyId || 'guest',
+    company_id: record.companyId || 'guest',
+    companyid: record.companyId || 'guest',
+    email: record.email || null,
+    role: record.role || (record.companyId === 'master' ? 'master' : 'user'),
+    phone: record.phone || null,
+    name: record.name || record.companyName || null,
+    created_at: new Date().toISOString(),
+    updated_at: new Date().toISOString()
   };
 
   const tryUpsert = async (data: any): Promise<any> => {
     try {
       const { error } = await supabase.from("push_subscriptions").upsert(data);
       if (!error) {
-        console.log(`[Supabase Push Sync] Salvo com sucesso para ${record.companyId}`);
+        console.log(`[Supabase Push Sync] Salvo com sucesso para ${record.companyId} (${record.role || 'user'})`);
         return { success: true };
       }
       
@@ -171,6 +181,10 @@ function parseSubRows(data: any[]): { web: any[], fcm: any[] } {
   data.forEach((row: any) => {
     const companyId = row.company_id || row.companyId || row.companyid || "guest";
     const plan = row.plan || "free";
+    const email = row.email || "";
+    const role = row.role || (companyId === 'master' ? 'master' : 'user');
+    const phone = row.phone || "";
+    const name = row.name || row.company_name || row.companyName || "";
     const createdAt = row.created_at || new Date().toISOString();
 
     if (row.token) {
@@ -178,6 +192,10 @@ function parseSubRows(data: any[]): { web: any[], fcm: any[] } {
         token: row.token,
         companyId,
         plan,
+        email,
+        role,
+        phone,
+        name,
         createdAt
       });
     }
@@ -194,6 +212,10 @@ function parseSubRows(data: any[]): { web: any[], fcm: any[] } {
           subscription,
           companyId,
           plan,
+          email,
+          role,
+          phone,
+          name,
           createdAt
         });
       }
@@ -430,9 +452,86 @@ async function startServer() {
     res.json({ publicKey: vapidKeys.publicKey });
   });
 
-  // 2. Subscrever um dispositivo de utilizador no browser
+  // 1.1 Estatísticas de Subscrições Ativas (para painel Master)
+  app.get("/api/push/subscriptions", async (req, res) => {
+    try {
+      const dbSubs = await fetchSubscriptionsFromSupabase();
+      
+      const subFile = path.join(process.cwd(), "push_subscriptions.json");
+      let webSubscriptions: any[] = [];
+      if (fs.existsSync(subFile)) {
+        try {
+          webSubscriptions = JSON.parse(fs.readFileSync(subFile, "utf8"));
+        } catch (e) {}
+      }
+
+      const fcmSubFile = path.join(process.cwd(), "fcm_subscriptions.json");
+      let fcmSubscriptions: any[] = [];
+      if (fs.existsSync(fcmSubFile)) {
+        try {
+          fcmSubscriptions = JSON.parse(fs.readFileSync(fcmSubFile, "utf8"));
+        } catch (e) {}
+      }
+
+      const allWeb = [...webSubscriptions, ...dbSubs.web];
+      const seenWeb = new Set<string>();
+      const uniqueWeb: any[] = [];
+      allWeb.forEach(s => {
+        if (s?.subscription?.endpoint && !seenWeb.has(s.subscription.endpoint)) {
+          seenWeb.add(s.subscription.endpoint);
+          uniqueWeb.push({
+            companyId: s.companyId,
+            plan: s.plan,
+            role: s.role || (s.companyId === 'master' ? 'master' : 'user'),
+            email: s.email,
+            phone: s.phone,
+            name: s.name,
+            createdAt: s.createdAt
+          });
+        }
+      });
+
+      const allFcm = [...fcmSubscriptions, ...dbSubs.fcm];
+      const seenFcm = new Set<string>();
+      const uniqueFcm: any[] = [];
+      allFcm.forEach(s => {
+        if (s?.token && !seenFcm.has(s.token)) {
+          seenFcm.add(s.token);
+          uniqueFcm.push({
+            companyId: s.companyId,
+            plan: s.plan,
+            role: s.role || (s.companyId === 'master' ? 'master' : 'user'),
+            email: s.email,
+            phone: s.phone,
+            name: s.name,
+            createdAt: s.createdAt
+          });
+        }
+      });
+
+      const masterCount = uniqueWeb.filter(s => s.role === 'master' || s.companyId === 'master' || s.plan === 'master').length;
+      const userCount = uniqueWeb.filter(s => s.role === 'user' || (s.companyId !== 'master' && s.role !== 'client')).length;
+      const clientCount = uniqueWeb.filter(s => s.role === 'client' || s.phone).length;
+
+      res.json({
+        success: true,
+        totals: {
+          web: uniqueWeb.length,
+          fcm: uniqueFcm.length,
+          master: masterCount,
+          users: userCount,
+          clients: clientCount
+        },
+        subscribers: uniqueWeb.slice(-50)
+      });
+    } catch (err: any) {
+      res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // 2. Subscrever um dispositivo de utilizador no browser (Web Push VAPID)
   app.post("/api/push/subscribe", (req, res) => {
-    const { subscription, companyId, plan } = req.body;
+    const { subscription, companyId, plan, email, role, phone, name, companyName } = req.body;
     if (!subscription || !subscription.endpoint) {
       return res.status(400).json({ error: "Missing subscription object or endpoint URL" });
     }
@@ -448,13 +547,20 @@ async function startServer() {
     }
 
     // Evitar duplicados pelo endpoint da subscrição
-    const existingIndex = subscriptions.findIndex(sub => sub.subscription.endpoint === subscription.endpoint);
+    const existingIndex = subscriptions.findIndex(sub => sub?.subscription?.endpoint === subscription.endpoint);
     
+    const assignedRole = role || (companyId === 'master' || plan === 'master' ? 'master' : (phone && !companyId.startsWith('comp_') ? 'client' : 'user'));
+
     const newRecord = {
       subscription,
       companyId: companyId || "guest",
       plan: plan || "free",
-      createdAt: new Date().toISOString()
+      email: email || "",
+      role: assignedRole,
+      phone: phone || "",
+      name: name || companyName || "",
+      updatedAt: new Date().toISOString(),
+      createdAt: (existingIndex > -1 && subscriptions[existingIndex].createdAt) ? subscriptions[existingIndex].createdAt : new Date().toISOString()
     };
 
     const isNewSub = (existingIndex === -1);
@@ -469,17 +575,21 @@ async function startServer() {
     saveSubscriptionToSupabase({
       subscription,
       companyId: companyId || "guest",
-      plan: plan || "free"
+      plan: plan || "free",
+      email: email || "",
+      role: assignedRole,
+      phone: phone || "",
+      name: name || companyName || ""
     }).catch(err => console.error("[Supabase Push Sync Error] Web push sync:", err));
 
-    // Enviar notificação push de incentivo à instalação do App APENAS na PRIMEIRA subscrição
+    // Enviar notificação push de boas-vindas / incentivo à instalação APENAS na PRIMEIRA subscrição
     if (isNewSub && subscription && subscription.endpoint) {
       const welcomePayload = JSON.stringify({
-        title: "Instale a App do Átrios! 📱",
-        body: "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!",
+        title: "Átrios Notificações Ativadas! 🔔✨",
+        body: "Pronto! Você receberá alertas em tempo real sobre orçamentos, mensagens e novidades.",
         icon: "/favicon.svg",
         badge: "/favicon.svg",
-        tag: "welcome-push",
+        tag: "welcome-push-" + Date.now(),
         vibrate: [200, 100, 200]
       });
       webPush.sendNotification(subscription, welcomePayload).catch(err => {
@@ -490,8 +600,8 @@ async function startServer() {
     try {
       fs.writeFileSync(subFile, JSON.stringify(subscriptions, null, 2), "utf8");
       invalidateSubCache();
-      console.log(`[PWA Push] Registered subscription for User: ${companyId}, Plan: ${plan}`);
-      res.json({ success: true });
+      console.log(`[PWA Push] Registered/Updated subscription for: ${companyId} | Role: ${assignedRole} | Email: ${email || 'none'} | Plan: ${plan}`);
+      res.json({ success: true, role: assignedRole });
     } catch (dbErr: any) {
       console.error("Failed to write subscriptions to disk", dbErr);
       res.status(500).json({ error: "Failed to persist subscription" });
@@ -500,7 +610,7 @@ async function startServer() {
 
   // 2.1 Subscrever um dispositivo utilizando Firebase Cloud Messaging (FCM)
   app.post("/api/push/fcm-subscribe", (req, res) => {
-    const { token, companyId, plan } = req.body;
+    const { token, companyId, plan, email, role, phone, name, companyName } = req.body;
     if (!token) {
       return res.status(400).json({ error: "Missing FCM token" });
     }
@@ -516,16 +626,20 @@ async function startServer() {
     }
 
     // Evitar duplicados pelo token
-    const existingIndex = subscriptions.findIndex(sub => sub.token === token);
-    
+    const existingIndex = subscriptions.findIndex(sub => sub?.token === token);
+    const assignedRole = role || (companyId === 'master' || plan === 'master' ? 'master' : (phone && !companyId.startsWith('comp_') ? 'client' : 'user'));
+
     const newRecord = {
       token,
       companyId: companyId || "guest",
       plan: plan || "free",
-      createdAt: new Date().toISOString()
+      email: email || "",
+      role: assignedRole,
+      phone: phone || "",
+      name: name || companyName || "",
+      updatedAt: new Date().toISOString(),
+      createdAt: (existingIndex > -1 && subscriptions[existingIndex].createdAt) ? subscriptions[existingIndex].createdAt : new Date().toISOString()
     };
-
-    const isNewFcm = (existingIndex === -1);
 
     if (existingIndex > -1) {
       subscriptions[existingIndex] = newRecord;
@@ -537,25 +651,18 @@ async function startServer() {
     saveSubscriptionToSupabase({
       token,
       companyId: companyId || "guest",
-      plan: plan || "free"
+      plan: plan || "free",
+      email: email || "",
+      role: assignedRole,
+      phone: phone || "",
+      name: name || companyName || ""
     }).catch(err => console.error("[Supabase Push Sync Error] FCM sync:", err));
-
-    // Enviar notificação push de incentivo à instalação via FCM APENAS na PRIMEIRA subscrição
-    if (isNewFcm && token) {
-      sendFcmNotification(
-        [token],
-        "Instale a App do Átrios! 📱",
-        "Baixe a app para o seu ecrã principal para acesso ultrarrápido, orçamentos instantâneos e alertas em tempo real!"
-      ).catch(err => {
-        console.error("[PWA Welcome FCM Error]:", err);
-      });
-    }
 
     try {
       fs.writeFileSync(fcmSubFile, JSON.stringify(subscriptions, null, 2), "utf8");
       invalidateSubCache();
-      console.log(`[FCM Push] Registered/Updated token for User: ${companyId}, Plan: ${plan}`);
-      res.json({ success: true });
+      console.log(`[FCM Push] Registered/Updated token for: ${companyId} | Role: ${assignedRole} | Plan: ${plan}`);
+      res.json({ success: true, role: assignedRole });
     } catch (dbErr: any) {
       console.error("Failed to write FCM subscriptions to disk", dbErr);
       res.status(500).json({ error: "Failed to persist FCM subscription" });
@@ -563,11 +670,11 @@ async function startServer() {
   });
 
   // Helper to trigger push broadcast (Realtime Broadcast + Web Push + FCM)
-  const sendPushBroadcast = async (title: string, body: string, targetAudience: string) => {
+  const sendPushBroadcast = async (title: string, body: string, targetAudience: string, extraData?: any) => {
     let successCount = 0;
     let failureCount = 0;
 
-    // 0. Disparo Instantâneo em tempo real via Supabase Realtime WebSocket (para dispositivos online)
+    // 0. Disparo Instantâneo em tempo real via Supabase Realtime WebSocket (para abas abertas)
     try {
       const channel = supabase.channel('global-push-notifications');
       channel.send({
@@ -578,6 +685,7 @@ async function startServer() {
           title,
           body,
           targetAudience,
+          data: extraData || {},
           createdAt: new Date().toISOString()
         }
       }).catch(err => console.warn('[Supabase Realtime Push Broadcast Error]', err));
@@ -618,18 +726,25 @@ async function startServer() {
       const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase().trim();
       const plan = String(sub.plan || '').toLowerCase().trim();
       const email = String(sub.email || '').toLowerCase().trim();
-      return cId === 'master' || plan === 'master' || 
+      const role = String(sub.role || '').toLowerCase().trim();
+      const name = String(sub.name || '').toLowerCase().trim();
+
+      return cId === 'master' || plan === 'master' || role === 'master' ||
              cId.includes('izarellebraga') || email.includes('izarellebraga') ||
              cId.includes('jeferson') || email.includes('jeferson') ||
              cId.includes('atriossoftware') || email.includes('atriossoftware') ||
-             email.includes('jeferson.goes36@gmail.com') || email.includes('izalivjeh');
+             email.includes('jeferson.goes36@gmail.com') || email.includes('izalivjeh') ||
+             name.includes('master') || name.includes('administrador') || name.includes('admin');
     };
 
     const matchesTarget = (sub: any) => {
       if (!sub) return false;
-      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase();
-      const plan = String(sub.plan || '').toLowerCase();
-      const email = String(sub.email || '').toLowerCase();
+      const cId = String(sub.companyId || sub.company_id || sub.companyid || '').toLowerCase().trim();
+      const plan = String(sub.plan || '').toLowerCase().trim();
+      const email = String(sub.email || '').toLowerCase().trim();
+      const role = String(sub.role || '').toLowerCase().trim();
+      const phone = String(sub.phone || '').replace(/\D/g, '');
+      const name = String(sub.name || '').toLowerCase().trim();
 
       if (targetAudience === 'master') {
         return isMasterSub(sub);
@@ -639,16 +754,26 @@ async function startServer() {
       if (targetAudience === 'all_premium' && plan !== 'free') return true;
       if (targetAudience === 'premium_monthly' && plan === 'premium_monthly') return true;
       if (targetAudience === 'premium_annual' && plan === 'premium_annual') return true;
+      if (targetAudience === 'client' || targetAudience === 'clients') {
+        return role === 'client' || phone.length > 0 || cId.startsWith('client');
+      }
+      if (targetAudience === 'users' || targetAudience === 'companies') {
+        return role === 'user' || (role !== 'client' && !isMasterSub(sub));
+      }
 
-      // Se for um ID de empresa ou email específico:
+      // Se for um ID de empresa, telefone, nome ou email específico:
       const targetLower = String(targetAudience).toLowerCase().trim();
+      const targetDigits = String(targetAudience).replace(/\D/g, '');
+
       if (
         cId === targetLower || 
         email === targetLower || 
         (cId && targetLower.includes(cId)) || 
         (cId && cId.includes(targetLower)) ||
         (email && targetLower.includes(email)) ||
-        (email && email.includes(targetLower))
+        (email && email.includes(targetLower)) ||
+        (name && (name.includes(targetLower) || targetLower.includes(name))) ||
+        (targetDigits.length >= 6 && phone.length >= 6 && (phone.includes(targetDigits) || targetDigits.includes(phone)))
       ) {
         return true;
       }
@@ -658,14 +783,56 @@ async function startServer() {
 
     let filteredWeb = uniqueWebSubs.filter(matchesTarget);
 
+    // --- PARTE B: Firebase Cloud Messaging (FCM) ---
+    const fcmSubFile = path.join(process.cwd(), "fcm_subscriptions.json");
+    let fcmSubscriptions: any[] = [];
+    if (fs.existsSync(fcmSubFile)) {
+      try {
+        fcmSubscriptions = JSON.parse(fs.readFileSync(fcmSubFile, "utf8"));
+      } catch (e) {
+        console.error("Error reading FCM subscriptions", e);
+      }
+    }
+
+    const allFcmSubs = [...fcmSubscriptions, ...dbSubs.fcm];
+    const uniqueFcmSubs: any[] = [];
+    const seenTokens = new Set<string>();
+
+    allFcmSubs.forEach(sub => {
+      if (sub && sub.token) {
+        if (!seenTokens.has(sub.token)) {
+          seenTokens.add(sub.token);
+          uniqueFcmSubs.push(sub);
+        }
+      }
+    });
+
+    let filteredFcm = uniqueFcmSubs.filter(matchesTarget);
+
+    // Fallback: Se for enviado para o Master ou para um alvo específico e nenhum dispositivo coincidir exatamente,
+    // garantimos a entrega enviando a todos os dispositivos registrados para que o Master ou o destinatário nunca perca alertas!
+    if ((targetAudience === 'master' || targetAudience === 'all') && 
+        filteredWeb.length === 0 && filteredFcm.length === 0) {
+      console.log(`[PWA Push] Nenhuma subscrição explicitamente rotulada para '${targetAudience}'. Usando todas as ${uniqueWebSubs.length} subscrições ativas.`);
+      filteredWeb = uniqueWebSubs;
+      filteredFcm = uniqueFcmSubs;
+    }
+
+    console.log(`[PWA Push Dispatch] Alvo '${targetAudience}': ${filteredWeb.length} WebPush e ${filteredFcm.length} FCM destinatários.`);
+
     const deadWebEndpoints: string[] = [];
     const webPayload = JSON.stringify({
       title,
       body,
       icon: '/favicon.svg',
       badge: '/favicon.svg',
-      tag: 'atrios-global-push-' + Date.now(),
-      vibrate: [200, 100, 200, 100, 300]
+      tag: 'atrios-push-' + Date.now(),
+      vibrate: [200, 100, 200, 100, 300],
+      data: {
+        targetAudience,
+        url: extraData?.url || '/',
+        ...(extraData || {})
+      }
     });
 
     const webPromises = filteredWeb.map(async (sub) => {
@@ -684,57 +851,21 @@ async function startServer() {
       }
     });
 
-    // --- PARTE B: Firebase Cloud Messaging (FCM) ---
-    const fcmSubFile = path.join(process.cwd(), "fcm_subscriptions.json");
-    let fcmSubscriptions: any[] = [];
-    if (fs.existsSync(fcmSubFile)) {
-      try {
-        fcmSubscriptions = JSON.parse(fs.readFileSync(fcmSubFile, "utf8"));
-      } catch (e) {
-        console.error("Error reading FCM subscriptions", e);
-      }
-    }
-
-    // Unificar e remover duplicados do FCM (usando o token como chave única)
-    const allFcmSubs = [...fcmSubscriptions, ...dbSubs.fcm];
-    const uniqueFcmSubs: any[] = [];
-    const seenTokens = new Set<string>();
-
-    allFcmSubs.forEach(sub => {
-      if (sub && sub.token) {
-        if (!seenTokens.has(sub.token)) {
-          seenTokens.add(sub.token);
-          uniqueFcmSubs.push(sub);
-        }
-      }
-    });
-
-    let filteredFcm = uniqueFcmSubs.filter(matchesTarget);
-
-    // Fallback: se for um alvo específico ou Master e nenhuma subscrição específica foi encontrada,
-    // enviar a notificação para TODAS as subscrições como fallback offline
-    if ((targetAudience === 'master' || !['all','free','all_premium','premium_monthly','premium_annual'].includes(targetAudience)) && 
-        filteredWeb.length === 0 && filteredFcm.length === 0) {
-      console.log(`[PWA Push] Nenhuma subscrição específica para '${targetAudience}'. Ativando fallback para todas as subscrições.`);
-      filteredWeb = uniqueWebSubs;
-      filteredFcm = uniqueFcmSubs;
-    }
-
     const fcmTokens = filteredFcm.map(sub => sub.token);
     let fcmTokensToRemove: string[] = [];
 
     const fcmPromise = (async () => {
       if (fcmTokens.length > 0) {
         try {
-          const fcmResult = await sendFcmNotification(fcmTokens, title, body);
+          const fcmResult = await sendFcmNotification(fcmTokens, title, body, extraData);
           successCount += fcmResult.successCount;
           failureCount += fcmResult.failureCount;
           if (fcmResult.tokensToRemove?.length) {
             fcmTokensToRemove.push(...fcmResult.tokensToRemove);
           }
         } catch (fcmErr) {
-          console.error('[PWA FCM Send Error]', fcmErr);
-          failureCount += fcmTokens.length;
+          console.warn('[PWA FCM Send Warning]', fcmErr);
+          // Não incrementa falha bloqueante se Web Push já enviou
         }
       }
     })();
@@ -745,7 +876,7 @@ async function startServer() {
     // Pruning assíncrono de Web Push inativos
     if (deadWebEndpoints.length > 0) {
       console.log(`[PWA Push] Pruning ${deadWebEndpoints.length} dead Web endpoints.`);
-      const activeWeb = webSubscriptions.filter(sub => !deadWebEndpoints.includes(sub.subscription.endpoint));
+      const activeWeb = webSubscriptions.filter(sub => !deadWebEndpoints.includes(sub.subscription?.endpoint));
       try {
         fs.writeFileSync(subFile, JSON.stringify(activeWeb, null, 2), "utf8");
       } catch (dbErr) {
@@ -776,6 +907,7 @@ async function startServer() {
       }
     }
 
+    console.log(`[PWA Push Done] ${successCount} entregas com sucesso, ${failureCount} falhas.`);
     return { 
       successCount, 
       failureCount, 
@@ -785,29 +917,44 @@ async function startServer() {
     };
   };
 
-  // 3. Enviar notificação push em segundo plano offline (mesmo fechado)
+  // 3. Enviar notificação push em transmissão geral (mesmo com app fechado)
   app.post("/api/push/send-broadcast", async (req, res) => {
-    const { title, body, targetAudience } = req.body;
+    const { title, body, targetAudience, url } = req.body;
     if (!title || !body) {
       return res.status(400).json({ error: "Missing required fields: title and body" });
     }
 
-    console.log(`[PWA Push Broadcast] Queueing: "${title}" | Audience: ${targetAudience}`);
+    console.log(`[PWA Push Broadcast] Queueing: "${title}" | Audience: ${targetAudience || 'all'}`);
     
-    // Resposta imediata para não travar a UI do cliente
+    // Resposta imediata para não travar a UI
     res.json({ success: true, status: "enqueued" });
 
-    // Enviar em segundo plano sem bloquear o HTTP response
-    sendPushBroadcast(title, body, targetAudience || 'all').catch(err => {
+    // Enviar em segundo plano
+    sendPushBroadcast(title, body, targetAudience || 'all', { url: url || '/' }).catch(err => {
       console.error("[PWA Broadcast Error]", err);
     });
   });
 
-  // 3.1 Enviar notificação push específica para o Master (cadastro, mensagem, venda)
+  // 3.1 Notificação geral para todos (Master, Usuários e Clientes)
+  app.post("/api/push/notify-all", async (req, res) => {
+    const { title, body, url } = req.body;
+    if (!title || !body) {
+      return res.status(400).json({ error: "Missing required fields: title and body" });
+    }
+
+    console.log(`[PWA Notify All] Queueing: "${title}"`);
+    res.json({ success: true, status: "enqueued" });
+
+    sendPushBroadcast(title, body, 'all', { url: url || '/' }).catch(err => {
+      console.error("[PWA Notify All Error]", err);
+    });
+  });
+
+  // 3.2 Notificação específica para o Master (cadastro, orçamentos, vendas, pedidos, mensagens)
   app.post("/api/push/notify-master", async (req, res) => {
     const { type, details } = req.body;
-    if (!type || !details) {
-      return res.status(400).json({ error: "Missing required fields: type and details" });
+    if (!type && !details) {
+      return res.status(400).json({ error: "Missing required fields: type or details" });
     }
 
     let title = "";
@@ -815,62 +962,75 @@ async function startServer() {
 
     if (type === "signup") {
       title = "Novo Usuário Cadastrado! 🚀";
-      body = `O usuário "${details.name || details.companyName}" (${details.email}) acabou de se cadastrar no aplicativo.`;
+      body = `O utilizador "${details?.name || details?.companyName || 'Novo Utilizador'}" (${details?.email || ''}) acabou de se cadastrar no aplicativo.`;
     } else if (type === "password_reset" || type === "forgot-password" || type === "forgot_password") {
       title = "🔑 Solicitação de Nova Senha!";
-      body = `O utilizador "${details.companyName || details.name || details.email}" solicitou a recuperação/redefinição de senha da sua conta.`;
+      body = `O utilizador "${details?.companyName || details?.name || details?.email || 'Utilizador'}" solicitou a recuperação de senha da sua conta.`;
     } else if (type === "budget" || type === "budget_request" || type === "orcamento") {
       title = "📑 Novo Pedido de Orçamento!";
-      const totalStr = details.total ? ` (€${details.total})` : "";
-      body = `Novo orçamento registado para "${details.clientName || details.companyName || 'Cliente'}"${totalStr}.`;
+      const totalStr = details?.total ? ` (€${details.total})` : "";
+      body = `Novo orçamento registado para "${details?.clientName || details?.companyName || 'Cliente'}"${totalStr}.`;
+    } else if (type === "client_request") {
+      title = "🛠️ Novo Pedido de Obra/Serviço!";
+      body = `"${details?.clientName || 'Cliente'}" em ${details?.location || 'Portugal'} solicitou orçamento para: "${details?.title || 'Serviço'}".`;
     } else if (type === "message") {
       title = "Nova Mensagem de Suporte! 💬";
-      body = `"${details.companyName || 'Cliente'}" enviou uma nova mensagem: "${details.content}"`;
+      body = `"${details?.companyName || details?.name || 'Cliente'}" enviou uma nova mensagem: "${details?.content || ''}"`;
     } else if (type === "sale" || type === "store_order") {
-      title = "Novo Pedido de Orçamento na Loja! 🛍️";
-      const clientStr = details.companyName ? ` (Cliente: ${details.companyName})` : "";
-      body = `Solicitação de orçamento${clientStr}: ${details.quantity || 1}x ${details.productName || 'Produto'}.`;
+      title = "Novo Pedido na Loja Átrios! 🛍️";
+      const clientStr = details?.companyName ? ` (Cliente: ${details.companyName})` : "";
+      body = `Pedido recebido${clientStr}: ${details?.quantity || 1}x ${details?.productName || 'Produto'}.`;
     } else if (type === "custom_order") {
       title = "Novo Pedido Personalizado! 🎨";
-      const clientStr = details.companyName ? ` (Cliente: ${details.companyName})` : "";
-      body = `Solicitação personalizada${clientStr}: ${details.quantity || 1}x ${details.productName || details.itemName || 'Item'}.`;
+      const clientStr = details?.companyName ? ` (Cliente: ${details.companyName})` : "";
+      body = `Solicitação personalizada${clientStr}: ${details?.quantity || 1}x ${details?.productName || details?.itemName || 'Item'}.`;
     } else if (type === "unlock_request" || type === "unlock") {
       title = "🔑 Solicitação de Desbloqueio!";
-      body = `A empresa "${details.companyName || details.name || details.email || 'Cliente'}" solicitou autorização para alterar os dados nas Definições.`;
+      body = `A empresa "${details?.companyName || details?.name || details?.email || 'Cliente'}" solicitou autorização para alterar dados cadastrais.`;
     } else if (type === "job_offer" || type === "job_adjustment") {
-      title = details.title || (type === "job_adjustment" ? "🛠️ Ajuste Efetuado na Vaga!" : "💼 Nova Vaga Publicada!");
-      body = details.body || `A empresa "${details.companyName || 'Cliente'}" publicou/ajustou a vaga de ${details.specialty || 'Trabalho'}.`;
+      title = details?.title || (type === "job_adjustment" ? "🛠️ Ajuste Efetuado na Vaga!" : "💼 Nova Vaga Publicada!");
+      body = details?.body || `A empresa "${details?.companyName || 'Cliente'}" publicou/ajustou a vaga de ${details?.specialty || 'Trabalho'}.`;
     } else {
-      title = details.title || "Notificação da Loja 🛍️";
-      body = details.body || details.content || JSON.stringify(details);
+      title = details?.title || "Notificação Átrios Master 🔔";
+      body = details?.body || details?.content || JSON.stringify(details || {});
     }
 
-    console.log(`[PWA Master Notify] Queueing Event: ${type} | "${title}"`);
-
-    // Resposta imediata
+    console.log(`[PWA Master Notify] Event: ${type || 'general'} | "${title}"`);
     res.json({ success: true, status: "enqueued" });
 
-    // Disparar push em segundo plano
-    sendPushBroadcast(title, body, 'master').catch(err => {
+    sendPushBroadcast(title, body, 'master', { type, url: '/?view=master' }).catch(err => {
       console.error("[PWA Master Notify Error]", err);
     });
   });
 
-  // 3.2 Enviar notificação push direcionada a um Usuário específico
+  // 3.3 Notificação direcionada a um Usuário / Empresa específico
   app.post("/api/push/notify-user", async (req, res) => {
-    const { companyId, title, body } = req.body;
+    const { companyId, title, body, url } = req.body;
     if (!companyId || !title || !body) {
       return res.status(400).json({ error: "Missing required fields: companyId, title and body" });
     }
 
-    console.log(`[PWA User Notify] Queueing Push for User '${companyId}': "${title}"`);
-
-    // Resposta imediata
+    console.log(`[PWA User Notify] Push for User '${companyId}': "${title}"`);
     res.json({ success: true, status: "enqueued" });
 
-    // Disparar em segundo plano
-    sendPushBroadcast(title, body, companyId).catch(err => {
+    sendPushBroadcast(title, body, companyId, { url: url || '/' }).catch(err => {
       console.error("[PWA User Notify Error]", err);
+    });
+  });
+
+  // 3.4 Notificação direcionada a um Cliente específico (por telefone, email ou código)
+  app.post("/api/push/notify-client", async (req, res) => {
+    const { clientPhone, clientEmail, clientId, title, body, url } = req.body;
+    const target = clientPhone || clientEmail || clientId;
+    if (!target || !title || !body) {
+      return res.status(400).json({ error: "Missing required fields: clientPhone/clientEmail/clientId, title and body" });
+    }
+
+    console.log(`[PWA Client Notify] Push for Client '${target}': "${title}"`);
+    res.json({ success: true, status: "enqueued" });
+
+    sendPushBroadcast(title, body, target, { url: url || '/?view=client-portal' }).catch(err => {
+      console.error("[PWA Client Notify Error]", err);
     });
   });
 

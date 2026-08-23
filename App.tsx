@@ -8,6 +8,7 @@ import { ClientPortal } from './components/ClientPortal';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
+import { registerPushSubscription, triggerInAppPush } from './services/pushService';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -207,78 +208,20 @@ const pushNotificationStrings: Record<string, {
   }
 };
 
-const registerWebPushSubscription = async (companyId: string, plan: string) => {
-  if (!('serviceWorker' in navigator) || !('PushManager' in window) || !('Notification' in window)) {
-    console.warn('Web Push is not fully supported on this device/browser');
-    return;
-  }
-
-  if (typeof Notification.requestPermission !== 'function') {
-    console.warn('Notification.requestPermission is not a function');
-    return;
-  }
-
-  try {
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      console.warn('Notification permission was not granted by user');
-      return;
-    }
-
-    const reg = await navigator.serviceWorker.ready;
-    let subscription = await reg.pushManager.getSubscription();
-
-    if (!subscription) {
-      // Obter chave pública VAPID do backend do Átrios
-      const keyRes = await fetch('/api/push/public-key');
-      if (!keyRes.ok) {
-        throw new Error(`Failed to fetch push public key: ${keyRes.statusText}`);
-      }
-      const { publicKey } = await keyRes.json();
-      if (!publicKey) {
-        throw new Error('VAPID public key received from server is empty');
-      }
-
-      const convertedKey = urlBase64ToUint8Array(publicKey);
-      
-      try {
-        // Subscrever no pushManager do browser
-        subscription = await reg.pushManager.subscribe({
-          userVisibleOnly: true,
-          applicationServerKey: convertedKey
-        });
-      } catch (subErr: any) {
-        console.warn('[PWA Subscription] Browser PushManager.subscribe failed, continuing with fallback:', subErr.message || subErr);
-      }
-    }
-
-    if (subscription) {
-      console.log('[PWA Subscription] Browser success:', subscription);
-
-      // Enviar subscrição para sincronizar com o nosso Express Server
-      const saveRes = await fetch('/api/push/subscribe', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          subscription,
-          companyId,
-          plan
-        })
-      });
-
-      if (saveRes.ok) {
-        console.log('[PWA Subscription] Synced with server successfully.');
-      } else {
-        console.warn('[PWA Subscription] Server sync failed status:', saveRes.status);
-      }
-    } else {
-      console.info('[PWA Subscription] Subscription not available or skipped in this environment.');
-    }
-  } catch (err: any) {
-    console.warn('[PWA Subscription] Error initiating offline Web Push:', err.message || err);
-  }
+const registerWebPushSubscription = async (
+  companyId: string, 
+  plan: string, 
+  extraMeta: { email?: string; role?: string; phone?: string; name?: string; companyName?: string } = {}
+) => {
+  return await registerPushSubscription({
+    companyId,
+    plan,
+    email: extraMeta.email,
+    role: extraMeta.role,
+    phone: extraMeta.phone,
+    name: extraMeta.name,
+    companyName: extraMeta.companyName
+  });
 };
 
 const App: React.FC = () => {
@@ -390,22 +333,32 @@ const App: React.FC = () => {
     }
 
     try {
+      const isMaster = view === 'master';
+      const isClient = view === 'client-portal';
+      const companyId = isMaster ? "master" : (isClient ? "client" : (currentUser?.id || "guest"));
+      const plan = isMaster ? "master" : (currentUser?.plan || "free");
+      const role = isMaster ? "master" : (isClient ? "client" : "user");
+      const email = isMaster ? "izarellebraga@gmail.com" : (currentUser?.email || "");
+      const name = isMaster ? "Master Admin" : (currentUser?.name || currentUser?.companyName || "");
+      const phone = currentUser?.phone || currentUser?.contactPhone || "";
+
       const permission = await Notification.requestPermission();
       setNotificationPermission(permission);
       
       if (permission === 'granted') {
-        const isMaster = view === 'master';
-        const companyId = isMaster ? "master" : (currentUser?.id || "guest");
-        const plan = isMaster ? "master" : (currentUser?.plan || "free");
-        
-        // 1. Obter FCM Token
-        const token = await requestFcmToken();
-        if (token) {
-          setFcmToken(token);
+        const res = await registerPushSubscription({
+          companyId,
+          plan,
+          role,
+          email,
+          name,
+          phone,
+          companyName: currentUser?.companyName || currentUser?.name || ''
+        });
+
+        if (res.fcmToken) {
+          setFcmToken(res.fcmToken);
         }
-        
-        // 2. Registrar Web Push VAPID
-        await registerWebPushSubscription(companyId, plan);
         setShowNotificationPrompt(false);
       } else {
         console.warn('Permissão para notificações foi negada ou fechada pelo utilizador:', permission);
@@ -1359,31 +1312,36 @@ const App: React.FC = () => {
   useEffect(() => {
     if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
       const isMaster = view === 'master';
-      const companyId = isMaster ? "master" : (currentUser?.id || "guest");
+      const isClient = view === 'client-portal';
+      const companyId = isMaster ? "master" : (isClient ? "client" : (currentUser?.id || "guest"));
       const plan = isMaster ? "master" : (currentUser?.plan || "free");
+      const role = isMaster ? "master" : (isClient ? "client" : "user");
+      const email = isMaster ? "izarellebraga@gmail.com" : (currentUser?.email || "");
+      const name = isMaster ? "Master Admin" : (currentUser?.name || currentUser?.companyName || "");
+      const phone = currentUser?.phone || currentUser?.contactPhone || "";
       
       const autoRegister = async () => {
         try {
-          // 1. Obter FCM Token automaticamente em background
-          const token = await requestFcmToken();
-          if (token) {
-            setFcmToken(token);
+          const res = await registerPushSubscription({
+            companyId,
+            plan,
+            role,
+            email,
+            name,
+            phone,
+            companyName: currentUser?.companyName || currentUser?.name || ''
+          });
+          if (res.fcmToken) {
+            setFcmToken(res.fcmToken);
           }
         } catch (err) {
-          console.warn('FCM auto-registration skipped or unsupported:', err);
-        }
-        
-        try {
-          // 2. Registrar Web Push VAPID
-          await registerWebPushSubscription(companyId, plan);
-        } catch (err) {
-          console.warn('VAPID auto-registration skipped or unsupported:', err);
+          console.warn('[AutoRegister] Push subscription sync skipped or unsupported:', err);
         }
       };
       
       autoRegister();
     }
-  }, [currentUser?.id, currentUser?.plan, notificationPermission, view]);
+  }, [currentUser?.id, currentUser?.plan, currentUser?.email, notificationPermission, view]);
 
 
   useEffect(() => {
@@ -2620,6 +2578,20 @@ const App: React.FC = () => {
           "Orçamento Atualizado! 📑✏️",
           `As alterações no orçamento de "${budget.clientName || 'Cliente'}" foram guardadas com sucesso.`
         );
+      }
+
+      // Notificar cliente associado ao orçamento caso tenha telefone de contacto
+      if (budget.contactPhone) {
+        fetch('/api/push/notify-client', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            clientPhone: budget.contactPhone,
+            title: isNew ? 'Novo Orçamento Recebido! 📑' : 'Orçamento Atualizado! 📑',
+            body: `A empresa ${currentUser.name || 'Átrios'} enviou um orçamento no valor de €${Number(budget.totalAmount || 0).toFixed(2)}.`,
+            url: '/'
+          })
+        }).catch(() => {});
       }
       
       // Track budget save event
