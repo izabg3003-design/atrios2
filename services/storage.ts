@@ -1,4 +1,4 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus, IntroBannerItem } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 
 export const safeGetItem = (key: string): string | null => {
@@ -24,6 +24,7 @@ const STORAGE_KEY_CUSTOM_ORDERS = 'atrios_custom_orders';
 const STORAGE_KEY_JOB_OFFERS = 'atrios_job_offers';
 const STORAGE_KEY_HERO_VIDEO = 'atrios_hero_video_config';
 const STORAGE_KEY_ACTION_VIDEO = 'atrios_action_video_config';
+export const STORAGE_KEY_INTRO_BANNERS = 'atrios_intro_banners';
 
 /**
  * Helper para salvar no localStorage com tratamento de erro de cota excedida.
@@ -1923,6 +1924,361 @@ export const fetchCloudAppSettings = async () => {
     });
   } catch (err) {
     console.warn('fetchCloudAppSettings error:', err);
+  }
+};
+
+/**
+ * ============================================================================
+ * FULLSCREEN INTRO BANNERS (Apresentação Inicial de Funcionalidades)
+ * Tabela Supabase: intro_banners
+ * ============================================================================
+ */
+
+export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
+  {
+    id: 'banner_opportunities',
+    tag: 'OPORTUNIDADES DE NEGÓCIO',
+    tagColor: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    title: 'Encontre Novos Clientes e Receba Pedidos de Obra',
+    subtitle: 'Conectamos clientes particulares a profissionais de topo da construção civil.',
+    description: 'Receba solicitações detalhadas com fotos, localização e descrição do serviço diretamente na plataforma. Notificações imediatas para responder antes da concorrência.',
+    imageUrl: '',
+    accentColor: '#ff5722',
+    highlights: [
+      'Pedidos qualificados em tempo real',
+      'Localização exata e fotos da obra',
+      'Comunicação direta e transparente'
+    ],
+    mockupBadge: 'NOVO PEDIDO DISPONÍVEL',
+    mockupHeadline: 'Remodelação Geral de Moradia T3',
+    mockupDetails: [
+      { label: 'Localização', value: 'Lisboa, Parque das Nações' },
+      { label: 'Prazo Estimado', value: 'Início em 15 dias' },
+      { label: 'Orçamento Estimado', value: '35.000 € - 50.000 €', color: 'text-emerald-400' },
+      { label: 'Estado', value: 'A aguardar propostas', color: 'text-orange-400' }
+    ],
+    sortOrder: 0,
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner_budgets',
+    tag: 'ORÇAMENTOS RÁPIDOS & PRECISOS',
+    tagColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
+    title: 'Crie Orçamentos e Propostas Profissionais em Minutos',
+    subtitle: 'Acabou a perda de tempo com folhas de cálculo complexas e orçamentos desorganizados.',
+    description: 'Calcule custos de mão de obra, materiais e margem de lucro com precisão cirúrgica. Exporte em PDF profissional com o logótipo da sua empresa ou partilhe via link.',
+    imageUrl: '',
+    accentColor: '#f59e0b',
+    highlights: [
+      'Cálculo automático de margem e impostos',
+      'PDFs elegantes prontos a imprimir',
+      'Assinatura e aprovação digital do cliente'
+    ],
+    mockupBadge: 'PROPOSTA COMERCIAL #2026-08',
+    mockupHeadline: 'Reabilitação de Cozinha e Casa de Banho',
+    mockupDetails: [
+      { label: 'Materiais & Equipamentos', value: '8.450,00 €' },
+      { label: 'Mão de Obra Especializada', value: '6.200,00 €' },
+      { label: 'Margem de Lucro', value: '28% (+3.100 €)', color: 'text-emerald-400' },
+      { label: 'Total da Proposta', value: '17.750,00 €', color: 'text-amber-400' }
+    ],
+    sortOrder: 1,
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner_management',
+    tag: 'GESTÃO & CRONOGRAMAS',
+    tagColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
+    title: 'Acompanhe as suas Obras do Início à Conclusão',
+    subtitle: 'Mantenha todas as etapas, equipas e prazos rigorosamente sob controlo.',
+    description: 'Registo diário de obra, controlo de tarefas pendentes, fotos do avanço físico e histórico completo. Saiba o que está feito e o que falta sem sair do escritório.',
+    imageUrl: '',
+    accentColor: '#3b82f6',
+    highlights: [
+      'Acompanhamento do progresso em tempo real',
+      'Atribuição de tarefas e equipas',
+      'Diário fotográfico de evolução da obra'
+    ],
+    mockupBadge: 'OBRA EM EXECUÇÃO • ETAPA 3 DE 5',
+    mockupHeadline: 'Edifício Residencial Horizonte',
+    mockupDetails: [
+      { label: 'Progresso Físico', value: '68% Concluído', color: 'text-blue-400' },
+      { label: 'Etapa Atual', value: 'Instalações Especiais e Pintura' },
+      { label: 'Equipa Alocada', value: '6 Oficiais + 1 Encarregado' },
+      { label: 'Previsão de Entrega', value: '28 de Outubro', color: 'text-emerald-400' }
+    ],
+    sortOrder: 2,
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner_finances',
+    tag: 'SAÚDE FINANCEIRA',
+    tagColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
+    title: 'Controle Pagamentos, Custos Reais e Lucro Líquido',
+    subtitle: 'Tenha clareza total sobre o fluxo de caixa de cada projeto.',
+    description: 'Gestão de adiantamentos, pagamentos parciais por auto de medição, controlo de despesas de fornecedores e relatórios financeiros automáticos.',
+    imageUrl: '',
+    accentColor: '#10b981',
+    highlights: [
+      'Registo de adiantamentos e pagamentos parcelados',
+      'Controlo de faturas de compras e fornecedores',
+      'Relatórios gráficos de rentabilidade por obra'
+    ],
+    mockupBadge: 'FLUXO FINANCEIRO DO MÊS',
+    mockupHeadline: 'Resumo Consolidado de Faturação',
+    mockupDetails: [
+      { label: 'Faturação Total', value: '48.900,00 €' },
+      { label: 'Despesas Realizadas', value: '29.400,00 €' },
+      { label: 'Lucro Operacional', value: '+19.500,00 €', color: 'text-emerald-400' },
+      { label: 'Rentabilidade Média', value: '39,8%', color: 'text-emerald-400' }
+    ],
+    sortOrder: 3,
+    active: true,
+    createdAt: new Date().toISOString()
+  },
+  {
+    id: 'banner_mobile',
+    tag: 'MULTIPLATAFORMA & CLOUD',
+    tagColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
+    title: 'Tudo no Telemóvel e Computador (App Mobile & Web)',
+    subtitle: 'Acesse em qualquer lugar, na obra, em reuniões ou no escritório.',
+    description: 'Instale a aplicação no seu smartphone Android ou iOS com suporte para modo offline, sincronização instantânea em nuvem e portal exclusivo para o cliente.',
+    imageUrl: '',
+    accentColor: '#a855f7',
+    highlights: [
+      'App Mobile PWA para Android e iOS',
+      'Portal exclusivo para o cliente acompanhar',
+      'Segurança e cópias de segurança em nuvem'
+    ],
+    mockupBadge: 'SINCRONIZAÇÃO EM TEMPO REAL',
+    mockupHeadline: 'Plataforma Átrios Build 360°',
+    mockupDetails: [
+      { label: 'Dispositivos Ativos', value: 'Mobile + Tablet + PC' },
+      { label: 'Portal do Cliente', value: 'Ativo e Acessível' },
+      { label: 'Armazenamento em Nuvem', value: 'Seguro e Criptografado', color: 'text-purple-400' },
+      { label: 'Disponibilidade', value: '100% Online', color: 'text-emerald-400' }
+    ],
+    sortOrder: 4,
+    active: true,
+    createdAt: new Date().toISOString()
+  }
+];
+
+export const mapIntroBannerFromSupabase = (raw: any): IntroBannerItem => {
+  if (!raw) return raw;
+  
+  let highlightsArray: string[] = [];
+  if (Array.isArray(raw.highlights)) {
+    highlightsArray = raw.highlights;
+  } else if (typeof raw.highlights === 'string') {
+    try {
+      const parsed = JSON.parse(raw.highlights);
+      highlightsArray = Array.isArray(parsed) ? parsed : [raw.highlights];
+    } catch {
+      highlightsArray = raw.highlights.split('\n').filter(Boolean);
+    }
+  }
+
+  let mockupDetailsArray: any[] = [];
+  const rawDetails = raw.mockup_details || raw.mockupDetails;
+  if (Array.isArray(rawDetails)) {
+    mockupDetailsArray = rawDetails;
+  } else if (typeof rawDetails === 'string') {
+    try {
+      mockupDetailsArray = JSON.parse(rawDetails);
+    } catch {}
+  }
+
+  return {
+    id: String(raw.id || raw.banner_id || `banner_${Date.now()}`),
+    tag: raw.tag || raw.category || 'NOVIDADE',
+    tagColor: raw.tag_color || raw.tagColor || 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+    title: raw.title || '',
+    subtitle: raw.subtitle || '',
+    description: raw.description || raw.desc || '',
+    imageUrl: raw.image_url || raw.imageUrl || raw.image || raw.photo_url || '',
+    accentColor: raw.accent_color || raw.accentColor || '#ff5722',
+    highlights: highlightsArray.length > 0 ? highlightsArray : ['Funcionalidade completa', 'Interface intuitiva', 'Sincronização em nuvem'],
+    mockupBadge: raw.mockup_badge || raw.mockupBadge || 'DESTAQUE',
+    mockupHeadline: raw.mockup_headline || raw.mockupHeadline || raw.title || '',
+    mockupDetails: mockupDetailsArray.length > 0 ? mockupDetailsArray : undefined,
+    sortOrder: typeof raw.sort_order === 'number' ? raw.sort_order : (typeof raw.sortOrder === 'number' ? raw.sortOrder : (typeof raw.order_index === 'number' ? raw.order_index : 0)),
+    active: raw.active !== undefined ? Boolean(raw.active) : (raw.is_active !== undefined ? Boolean(raw.is_active) : true),
+    createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
+    updatedAt: raw.updated_at || raw.updatedAt || new Date().toISOString()
+  };
+};
+
+export const getStoredIntroBanners = (): IntroBannerItem[] => {
+  try {
+    const raw = safeGetItem(STORAGE_KEY_INTRO_BANNERS);
+    if (!raw) return DEFAULT_INTRO_BANNERS;
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) {
+      return DEFAULT_INTRO_BANNERS;
+    }
+    return parsed.sort((a: IntroBannerItem, b: IntroBannerItem) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  } catch (e) {
+    console.warn('[Storage] Erro ao carregar banners do localStorage:', e);
+    return DEFAULT_INTRO_BANNERS;
+  }
+};
+
+export const saveIntroBannersLocally = (banners: IntroBannerItem[]) => {
+  const sorted = [...banners].sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+  safeSetItem(STORAGE_KEY_INTRO_BANNERS, JSON.stringify(sorted));
+  window.dispatchEvent(new CustomEvent('atrios_intro_banners_changed', { detail: sorted }));
+};
+
+export const fetchIntroBannersFromSupabase = async (): Promise<IntroBannerItem[]> => {
+  try {
+    const { data, error } = await safeFetch<any[]>(
+      supabase.from('intro_banners').select('*').order('sort_order', { ascending: true })
+    );
+
+    if (error) {
+      // Se der erro (ex: tabela ainda não criada ou coluna diferente), tentamos sem order
+      const fallbackRes = await safeFetch<any[]>(supabase.from('intro_banners').select('*'));
+      if (fallbackRes.data && Array.isArray(fallbackRes.data) && fallbackRes.data.length > 0) {
+        const mapped = fallbackRes.data.map(mapIntroBannerFromSupabase).sort((a, b) => a.sortOrder - b.sortOrder);
+        saveIntroBannersLocally(mapped);
+        return mapped;
+      }
+      return getStoredIntroBanners();
+    }
+
+    if (data && Array.isArray(data) && data.length > 0) {
+      const mapped = data.map(mapIntroBannerFromSupabase).sort((a, b) => a.sortOrder - b.sortOrder);
+      saveIntroBannersLocally(mapped);
+      return mapped;
+    }
+
+    return getStoredIntroBanners();
+  } catch (err) {
+    console.warn('[Storage] fetchIntroBannersFromSupabase error:', err);
+    return getStoredIntroBanners();
+  }
+};
+
+export const saveIntroBanner = async (banner: IntroBannerItem): Promise<{ success: boolean; data?: IntroBannerItem; error?: any }> => {
+  try {
+    const current = getStoredIntroBanners();
+    const nowIso = new Date().toISOString();
+
+    const bannerToSave: IntroBannerItem = {
+      ...banner,
+      id: banner.id || `banner_${Date.now()}`,
+      active: banner.active ?? true,
+      sortOrder: typeof banner.sortOrder === 'number' ? banner.sortOrder : current.length,
+      createdAt: banner.createdAt || nowIso,
+      updatedAt: nowIso
+    };
+
+    const existingIndex = current.findIndex(b => b.id === bannerToSave.id);
+    let updatedList: IntroBannerItem[];
+    if (existingIndex >= 0) {
+      updatedList = [...current];
+      updatedList[existingIndex] = bannerToSave;
+    } else {
+      updatedList = [...current, bannerToSave];
+    }
+
+    saveIntroBannersLocally(updatedList);
+
+    // Sincronizar com Supabase na tabela intro_banners
+    try {
+      const payload: Record<string, any> = {
+        id: bannerToSave.id,
+        tag: bannerToSave.tag,
+        tag_color: bannerToSave.tagColor,
+        title: bannerToSave.title,
+        subtitle: bannerToSave.subtitle,
+        description: bannerToSave.description,
+        image_url: bannerToSave.imageUrl || '',
+        accent_color: bannerToSave.accentColor,
+        highlights: JSON.stringify(bannerToSave.highlights || []),
+        mockup_badge: bannerToSave.mockupBadge,
+        mockup_headline: bannerToSave.mockupHeadline,
+        mockup_details: JSON.stringify(bannerToSave.mockupDetails || []),
+        sort_order: bannerToSave.sortOrder,
+        active: bannerToSave.active,
+        is_active: bannerToSave.active,
+        created_at: bannerToSave.createdAt,
+        updated_at: bannerToSave.updatedAt
+      };
+
+      const { error } = await supabase.from('intro_banners').upsert(payload);
+      if (error) {
+        console.warn('[Storage] Aviso ao sincronizar intro_banners no Supabase:', error);
+      }
+    } catch (sbErr) {
+      console.warn('[Storage] Falha ao upsert em intro_banners no Supabase:', sbErr);
+    }
+
+    return { success: true, data: bannerToSave };
+  } catch (err) {
+    console.error('saveIntroBanner error:', err);
+    return { success: false, error: err };
+  }
+};
+
+export const deleteIntroBanner = async (id: string): Promise<{ success: boolean; error?: any }> => {
+  try {
+    const current = getStoredIntroBanners();
+    const filtered = current.filter(b => b.id !== id);
+    saveIntroBannersLocally(filtered);
+
+    try {
+      await supabase.from('intro_banners').delete().eq('id', id);
+    } catch (e) {
+      console.warn('[Storage] Erro ao deletar intro_banner no Supabase:', e);
+    }
+
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err };
+  }
+};
+
+export const saveIntroBannersOrder = async (banners: IntroBannerItem[]): Promise<{ success: boolean }> => {
+  try {
+    const updated = banners.map((b, idx) => ({ ...b, sortOrder: idx, updatedAt: new Date().toISOString() }));
+    saveIntroBannersLocally(updated);
+
+    try {
+      for (const banner of updated) {
+        await supabase.from('intro_banners').upsert({
+          id: banner.id,
+          title: banner.title,
+          sort_order: banner.sortOrder,
+          updated_at: banner.updatedAt
+        });
+      }
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err) {
+    return { success: false };
+  }
+};
+
+export const resetIntroBannersToDefault = async (): Promise<{ success: boolean }> => {
+  try {
+    saveIntroBannersLocally(DEFAULT_INTRO_BANNERS);
+    
+    // Tenta salvar os defaults no Supabase
+    try {
+      for (const banner of DEFAULT_INTRO_BANNERS) {
+        await saveIntroBanner(banner);
+      }
+    } catch (e) {}
+
+    return { success: true };
+  } catch (err) {
+    return { success: false };
   }
 };
 

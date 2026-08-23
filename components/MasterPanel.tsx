@@ -56,7 +56,8 @@ import {
   Video,
   Wrench,
   Hammer,
-  Sparkles
+  Sparkles,
+  Layers
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -119,6 +120,7 @@ import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/s
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
+import { MasterIntroBannersSettings } from './MasterIntroBannersSettings';
 import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from '../services/pushService';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -154,7 +156,7 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'client_requests'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'banners' | 'client_requests'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -2502,6 +2504,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             {[
               { id: 'home', label: t.masterHomeTab, icon: LayoutDashboard },
               { id: 'hero_video', label: locale.startsWith('pt') ? 'Vídeos da Landing' : 'Landing Videos', icon: Film },
+              { id: 'banners', label: locale.startsWith('pt') ? 'Banners Tela Cheia' : 'Intro Banners', icon: Layers },
               { id: 'client_requests', label: locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests', icon: Wrench },
               { id: 'users', label: t.masterUsersTab, icon: Users },
               { id: 'messages', label: t.masterMessagesTab, icon: MessageSquare },
@@ -4377,6 +4380,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         {activeTab === 'hero_video' && (
           <MasterHeroVideoSettings 
             onSuccessToast={(msg) => triggerPushNotificationSubmit('Vídeo Hero', msg)} 
+          />
+        )}
+
+        {/* TAB: Banners de Apresentação em Tela Cheia (Tabela Supabase: intro_banners) */}
+        {activeTab === 'banners' && (
+          <MasterIntroBannersSettings 
+            onSuccessToast={(msg) => triggerPushNotificationSubmit('Banners de Apresentação', msg)}
           />
         )}
 

@@ -329,3 +329,22 @@ export interface ClientServiceRequest {
   updatedAt?: string;
 }
 
+export interface IntroBannerItem {
+  id: string;
+  tag: string;
+  tagColor?: string;
+  title: string;
+  subtitle?: string;
+  description: string;
+  imageUrl?: string;
+  accentColor?: string;
+  highlights: string[];
+  mockupBadge?: string;
+  mockupHeadline?: string;
+  mockupDetails?: Array<{ label: string; value: string; color?: string }>;
+  sortOrder: number;
+  active: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+

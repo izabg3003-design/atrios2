@@ -107,6 +107,7 @@ import Reports from './components/Reports';
 import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
+import FullscreenIntroBanner from './components/FullscreenIntroBanner';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -250,6 +251,11 @@ const App: React.FC = () => {
   const [showUnblockGuideModal, setShowUnblockGuideModal] = useState<boolean>(false);
   const [showJobsComingSoonModal, setShowJobsComingSoonModal] = useState<boolean>(false);
   const [showLogoutConfirmModal, setShowLogoutConfirmModal] = useState<boolean>(false);
+  const [showFullscreenIntro, setShowFullscreenIntro] = useState<boolean>(() => {
+    // Show intro banner initially before reaching landing page if not in a logged in user session
+    if (session?.companyId) return false;
+    return true;
+  });
   const [unblockTab, setUnblockTab] = useState<'chrome' | 'edge' | 'firefox' | 'safari' | 'android'>('chrome');
   const [copiedUrl, setCopiedUrl] = useState<string | null>(null);
 
@@ -3059,6 +3065,13 @@ const App: React.FC = () => {
 
       <InstallPWA view={view} />
 
+      {showFullscreenIntro && view === 'landing' && (
+        <FullscreenIntroBanner
+          locale={locale}
+          onFinish={() => setShowFullscreenIntro(false)}
+        />
+      )}
+
       {view === 'client-portal' ? (
         <ClientPortal
           onBackToHome={() => setView('landing')}
@@ -3076,6 +3089,7 @@ const App: React.FC = () => {
           onDownloadApp={handlePwaDownload}
           onOpenLegal={(type) => setShowLegalModal(type)}
           onOpenClientPortal={() => setView('client-portal')}
+          onOpenIntroBanners={() => setShowFullscreenIntro(true)}
         />
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
