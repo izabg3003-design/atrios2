@@ -408,7 +408,7 @@ const App: React.FC = () => {
           "Instale a App do Átrios! 📱",
           "Adicione a aplicação ao seu ecrã principal para criar orçamentos profissionais e gerir as suas obras com acesso ultrarrápido!"
         );
-      }, 1500);
+      }, 50);
       return () => clearTimeout(timer);
     }
   }, [notificationPermission, view]);

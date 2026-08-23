@@ -259,6 +259,17 @@ async function fetchSubscriptionsFromSupabase(): Promise<{ web: any[], fcm: any[
   return cachedPushSubs || empty;
 }
 
+// Persistent server-side Supabase Realtime channel for instant push broadcasts
+const serverPushChannel = supabase.channel('global-push-notifications');
+serverPushChannel.subscribe((status) => {
+  if (status === 'SUBSCRIBED') {
+    console.log('[Server Push Realtime] Subscribed & ready for instant zero-latency broadcast');
+  }
+});
+
+// Pre-load push subscriptions into memory cache on boot
+fetchSubscriptionsFromSupabase().catch(() => {});
+
 async function startServer() {
   try {
     const app = express();
@@ -676,8 +687,7 @@ async function startServer() {
 
     // 0. Disparo Instantâneo em tempo real via Supabase Realtime WebSocket (para abas abertas)
     try {
-      const channel = supabase.channel('global-push-notifications');
-      channel.send({
+      serverPushChannel.send({
         type: 'broadcast',
         event: 'push',
         payload: {

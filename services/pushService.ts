@@ -196,28 +196,20 @@ export function triggerPushNotificationSubmit(title: string, body: string, data?
       };
 
       // Tentar no Service Worker primeiro (necessário no Android PWA e navegadores mobile)
+      let showed = false;
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.getRegistration().then(reg => {
-          if (reg && typeof reg.showNotification === 'function') {
-            reg.showNotification(title, notificationOptions).catch(() => {
+        navigator.serviceWorker.ready
+          .then((reg) => {
+            if (reg && typeof reg.showNotification === 'function') {
+              showed = true;
+              return reg.showNotification(title, notificationOptions);
+            }
+          })
+          .catch(() => {
+            if (!showed) {
               try { new Notification(title, notificationOptions); } catch (e) {}
-            });
-          } else {
-            navigator.serviceWorker.ready.then(readyReg => {
-              if (readyReg && typeof readyReg.showNotification === 'function') {
-                readyReg.showNotification(title, notificationOptions).catch(() => {
-                  try { new Notification(title, notificationOptions); } catch (e) {}
-                });
-              } else {
-                try { new Notification(title, notificationOptions); } catch (e) {}
-              }
-            }).catch(() => {
-              try { new Notification(title, notificationOptions); } catch (e) {}
-            });
-          }
-        }).catch(() => {
-          try { new Notification(title, notificationOptions); } catch (e) {}
-        });
+            }
+          });
       } else {
         try {
           new Notification(title, notificationOptions);
