@@ -180,7 +180,7 @@ export function triggerPushNotificationSubmit(title: string, body: string, data?
 
   // 2. Disparar notificação nativa na barra do sistema do telemóvel/computador
   if (typeof window !== 'undefined' && 'Notification' in window) {
-    if (Notification.permission === 'granted') {
+    const showDeviceNotification = () => {
       const notificationOptions: any = {
         body,
         icon: '/favicon.svg',
@@ -195,27 +195,44 @@ export function triggerPushNotificationSubmit(title: string, body: string, data?
         }
       };
 
-      // Tentar via Service Worker (Obrigatório para Android / Chrome PWA mobile)
+      // Tentar no Service Worker primeiro (necessário no Android PWA e navegadores mobile)
       if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.ready
-          .then((registration) => {
-            return registration.showNotification(title, notificationOptions);
-          })
-          .catch((swErr) => {
-            console.warn('[PushService] SW showNotification falhou, tentando fallback direto:', swErr);
-            try {
-              new Notification(title, notificationOptions);
-            } catch (notifErr) {
-              console.warn('[PushService] Fallback new Notification falhou:', notifErr);
-            }
-          });
+        navigator.serviceWorker.getRegistration().then(reg => {
+          if (reg && typeof reg.showNotification === 'function') {
+            reg.showNotification(title, notificationOptions).catch(() => {
+              try { new Notification(title, notificationOptions); } catch (e) {}
+            });
+          } else {
+            navigator.serviceWorker.ready.then(readyReg => {
+              if (readyReg && typeof readyReg.showNotification === 'function') {
+                readyReg.showNotification(title, notificationOptions).catch(() => {
+                  try { new Notification(title, notificationOptions); } catch (e) {}
+                });
+              } else {
+                try { new Notification(title, notificationOptions); } catch (e) {}
+              }
+            }).catch(() => {
+              try { new Notification(title, notificationOptions); } catch (e) {}
+            });
+          }
+        }).catch(() => {
+          try { new Notification(title, notificationOptions); } catch (e) {}
+        });
       } else {
         try {
           new Notification(title, notificationOptions);
-        } catch (notifErr) {
-          console.warn('[PushService] new Notification falhou:', notifErr);
-        }
+        } catch (e) {}
       }
+    };
+
+    if (Notification.permission === 'granted') {
+      showDeviceNotification();
+    } else if (Notification.permission === 'default') {
+      Notification.requestPermission().then(perm => {
+        if (perm === 'granted') {
+          showDeviceNotification();
+        }
+      }).catch(() => {});
     }
   }
 }

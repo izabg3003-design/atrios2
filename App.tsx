@@ -340,6 +340,12 @@ const App: React.FC = () => {
           setFcmToken(res.fcmToken);
         }
         setShowNotificationPrompt(false);
+
+        // Disparo imediato de boas-vindas / convite no dispositivo do utilizador
+        triggerPushNotificationSubmit(
+          "Instale a App do Átrios! 📱",
+          "Adicione a aplicação ao seu ecrã principal para criar orçamentos profissionais e gerir obras com acesso ultrarrápido!"
+        );
       } else {
         console.warn('Permissão para notificações foi negada ou fechada pelo utilizador:', permission);
       }
@@ -388,6 +394,76 @@ const App: React.FC = () => {
       unsubscribe();
     };
   }, []);
+
+  // Push de boas-vindas / convite de instalação ao entrar na Landing Page
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const sessionKey = 'atrios_landing_welcome_push_sent';
+    const alreadyDispatched = sessionStorage.getItem(sessionKey);
+
+    if (!alreadyDispatched && 'Notification' in window && Notification.permission === 'granted') {
+      sessionStorage.setItem(sessionKey, 'true');
+      const timer = setTimeout(() => {
+        triggerPushNotificationSubmit(
+          "Instale a App do Átrios! 📱",
+          "Adicione a aplicação ao seu ecrã principal para criar orçamentos profissionais e gerir as suas obras com acesso ultrarrápido!"
+        );
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [notificationPermission, view]);
+
+  // Subscrição Global Contínua para Notificações Push via Supabase Realtime (Todas as Telas)
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+
+    const pushChannel = supabase
+      .channel('global-push-notifications')
+      .on(
+        'broadcast',
+        { event: 'push' },
+        (payload) => {
+          console.log('[Supabase Realtime Push Broadcast Received]:', payload);
+          if (!payload || !payload.payload) return;
+          
+          const { title, body, targetAudience } = payload.payload;
+          const currentU = currentUserRef.current;
+          const isMasterView = view === 'master';
+
+          const cId = String(currentU?.id || '').toLowerCase();
+          const email = String(currentU?.email || '').toLowerCase();
+          const plan = String(currentU?.plan || '').toLowerCase();
+          const targetLower = String(targetAudience || 'all').toLowerCase().trim();
+
+          const isMasterUser = isMasterView || cId === 'master' || plan === 'master' || 
+            email.includes('izarellebraga') || email.includes('jeferson') || email.includes('atriossoftware');
+
+          // Check if user, master, or visitor matches targetAudience
+          let isMatch = false;
+          if (targetLower === 'all' || targetLower === 'landing' || targetLower === 'guest') {
+            isMatch = true;
+          } else if (targetLower === 'master' && isMasterUser) {
+            isMatch = true;
+          } else if (currentU) {
+            if (targetLower === 'free' && currentU.plan === PlanType.FREE) isMatch = true;
+            else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
+            else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
+            else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
+            else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
+          }
+            
+          if (isMatch) {
+            console.log('[Push Match] Exibindo notificação:', title, body);
+            triggerPushNotificationSubmit(title, body);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(pushChannel);
+    };
+  }, [currentUser?.id, currentUser?.plan, currentUser?.email, view]);
 
   // Sincronizar o token FCM obtido com o backend
   useEffect(() => {
@@ -735,51 +811,6 @@ const App: React.FC = () => {
   useEffect(() => {
     if (currentUser && view === 'app') {
       currentUserRef.current = currentUser;
-
-      // Subscrição para Notificações Push Globais enviadas pelo Master ou Backend
-      const pushChannel = supabase
-        .channel('global-push-notifications')
-        .on(
-          'broadcast',
-          { event: 'push' },
-          (payload) => {
-            console.log('Received broadcast push notification:', payload);
-            if (!payload || !payload.payload) return;
-            
-            const { title, body, targetAudience } = payload.payload;
-            const currentU = currentUserRef.current;
-            const isMasterView = view === 'master';
-            if (!currentU && !isMasterView) return;
-
-            const cId = String(currentU?.id || '').toLowerCase();
-            const email = String(currentU?.email || '').toLowerCase();
-            const plan = String(currentU?.plan || '').toLowerCase();
-            const targetLower = String(targetAudience || 'all').toLowerCase().trim();
-
-            const isMasterUser = isMasterView || cId === 'master' || plan === 'master' || 
-              email.includes('izarellebraga') || email.includes('jeferson') || email.includes('atriossoftware');
-
-            // Check if user or master matches targetAudience
-            let isMatch = false;
-            if (targetLower === 'all') {
-              isMatch = true;
-            } else if (targetLower === 'master' && isMasterUser) {
-              isMatch = true;
-            } else if (currentU) {
-              if (targetLower === 'free' && currentU.plan === PlanType.FREE) isMatch = true;
-              else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
-              else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
-              else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
-              else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
-            }
-              
-            if (isMatch) {
-              console.log('Push matched user/master. Displaying notification:', title, body);
-              triggerPushNotificationSubmit(title, body);
-            }
-          }
-        )
-        .subscribe();
 
       // Subscrição para Produtos (Store Products)
       const productsChannel = supabase
@@ -1198,11 +1229,6 @@ const App: React.FC = () => {
         clearInterval(budgetSyncInterval);
         supabase.removeChannel(ordersChannel);
         supabase.removeChannel(msgChannel);
-        try {
-          supabase.removeChannel(pushChannel);
-        } catch (e) {
-          console.error(e);
-        }
         window.removeEventListener('storage', handleStorageChange);
         clearInterval(fallback);
       };

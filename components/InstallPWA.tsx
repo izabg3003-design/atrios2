@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Download, X, Smartphone, Zap, Bell, ShieldCheck, Share2, PlusSquare, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { triggerPushNotificationSubmit } from '../services/pushService';
 
 interface InstallPWAProps {
   view: string;
@@ -68,38 +69,10 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
       setIsVisible(false);
       setDeferredPrompt(null);
       
-      const alreadyInstalledNotified = localStorage.getItem('atrios_installed_notified');
-      if (alreadyInstalledNotified === 'true') return;
-      localStorage.setItem('atrios_installed_notified', 'true');
-      
-      if ('Notification' in window) {
-        try {
-          let permission = Notification.permission;
-          if (permission === 'default') {
-            permission = await Notification.requestPermission();
-          }
-          
-          if (permission === 'granted') {
-            const options = {
-              body: "O Átrios foi adicionado ao seu Ecrã Principal! 📱✨ Já pode aceder sem usar o navegador.",
-              icon: '/favicon.svg',
-              badge: '/favicon.svg',
-              vibrate: [200, 100, 200, 100, 300],
-              tag: 'atrios-installed-alert',
-              renotify: true
-            };
-            
-            if ('serviceWorker' in navigator) {
-              const reg = await navigator.serviceWorker.ready;
-              reg.showNotification("Muitos Parabéns! 🎉", options);
-            } else {
-              new Notification("Muitos Parabéns! 🎉", options);
-            }
-          }
-        } catch (e) {
-          console.error('[PWA Install] Failed to trigger notification', e);
-        }
-      }
+      triggerPushNotificationSubmit(
+        "Muitos Parabéns! 🎉📱",
+        "O Átrios foi adicionado ao seu Ecrã Principal! Já pode aceder sem usar o navegador e receber as suas notificações em tempo real."
+      );
     };
 
     window.addEventListener('appinstalled', installedHandler);
