@@ -119,7 +119,7 @@ import { supabase, testTableAccess, safeFetch, syncToCloud } from '../services/s
 import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
-import { registerPushSubscription, triggerInAppPush } from '../services/pushService';
+import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from '../services/pushService';
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
@@ -144,26 +144,6 @@ const registerMasterPushSubscription = async () => {
     email: 'izarellebraga@gmail.com',
     name: 'Master Admin'
   });
-};
-
-const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (typeof window === 'undefined' || !title || !body) return;
-
-  // Disparar o balão informativo in-app
-  try {
-    window.dispatchEvent(
-      new CustomEvent('in_app_push_toast', {
-        detail: {
-          id: String(Date.now() + Math.random()),
-          title,
-          body,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      })
-    );
-  } catch (err) {
-    console.error('Erro ao disparar balão in-app em MasterPanel:', err);
-  }
 };
 
 interface MasterPanelProps {

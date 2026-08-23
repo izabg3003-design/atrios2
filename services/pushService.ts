@@ -149,10 +149,19 @@ export async function requestPushPermissionAndRegister(metadata: PushSubscriptio
 }
 
 /**
- * Dispatches an in-app visual toast balloon notification
+ * Dispatches an in-app visual toast balloon notification AND a native system bar notification
  */
 export function triggerInAppPush(title: string, body: string, data?: any) {
+  triggerPushNotificationSubmit(title, body, data);
+}
+
+/**
+ * Triggers both in-app toast AND native device notification bar push
+ */
+export function triggerPushNotificationSubmit(title: string, body: string, data?: any) {
   if (typeof window === 'undefined' || !title || !body) return;
+
+  // 1. Disparar o balão informativo in-app
   try {
     window.dispatchEvent(
       new CustomEvent('in_app_push_toast', {
@@ -165,7 +174,49 @@ export function triggerInAppPush(title: string, body: string, data?: any) {
         }
       })
     );
-  } catch (e) {
-    console.warn('[PushService] Failed to trigger in-app toast:', e);
+  } catch (err) {
+    console.error('Erro ao disparar balão in-app:', err);
+  }
+
+  // 2. Disparar notificação nativa na barra do sistema do telemóvel/computador
+  if (typeof window !== 'undefined' && 'Notification' in window) {
+    if (Notification.permission === 'granted') {
+      const notificationOptions: any = {
+        body,
+        icon: '/favicon.svg',
+        badge: '/favicon.svg',
+        vibrate: [200, 100, 200, 100, 300],
+        tag: 'atrios-device-push-' + Date.now() + '-' + Math.floor(Math.random() * 1000),
+        renotify: true,
+        requireInteraction: false,
+        data: data || {
+          dateOfArrival: Date.now(),
+          url: '/'
+        }
+      };
+
+      // Tentar via Service Worker (Obrigatório para Android / Chrome PWA mobile)
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.ready
+          .then((registration) => {
+            return registration.showNotification(title, notificationOptions);
+          })
+          .catch((swErr) => {
+            console.warn('[PushService] SW showNotification falhou, tentando fallback direto:', swErr);
+            try {
+              new Notification(title, notificationOptions);
+            } catch (notifErr) {
+              console.warn('[PushService] Fallback new Notification falhou:', notifErr);
+            }
+          });
+      } else {
+        try {
+          new Notification(title, notificationOptions);
+        } catch (notifErr) {
+          console.warn('[PushService] new Notification falhou:', notifErr);
+        }
+      }
+    }
   }
 }
+

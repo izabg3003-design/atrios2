@@ -8,7 +8,7 @@ import { ClientPortal } from './components/ClientPortal';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
-import { registerPushSubscription, triggerInAppPush } from './services/pushService';
+import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from './services/pushService';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -109,26 +109,6 @@ import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-
-const triggerPushNotificationSubmit = (title: string, body: string) => {
-  if (typeof window === 'undefined' || !title || !body) return;
-
-  // Disparar o balão informativo in-app
-  try {
-    window.dispatchEvent(
-      new CustomEvent('in_app_push_toast', {
-        detail: {
-          id: String(Date.now() + Math.random()),
-          title,
-          body,
-          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-      })
-    );
-  } catch (err) {
-    console.error('Erro ao disparar balão in-app:', err);
-  }
-};
 
 const getPdfColors = (template: string = 'default') => {
   switch (template) {
