@@ -99,6 +99,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
         t.featExpenseLimit || "3 Registos de Despesas",
         t.featPdfLimit || "3 Downloads de PDF",
         t.featServiceLimit || "3 Serviços Incluídos",
+        { text: "Responder a Pedidos de Orçamentos de Clientes", notIncluded: true },
         { text: t.featUnlimitedItems || "Orçamentos e Itens Ilimitados", notIncluded: true },
         { text: t.featProfitReports || "Relatórios de Lucro e Gráficos", notIncluded: true },
         { text: t.featUnlimitedPdf || "Exportação de PDFs Ilimitada", notIncluded: true },
@@ -117,6 +118,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       period: t.planPeriodMonth || '/mês',
       features: [
         t.featUnlimitedItems || "Orçamentos e Itens Ilimitados",
+        "Responda a 2 Pedidos de Clientes da Plataforma / mês",
         t.featExpenseLimit ? "Despesas Ilimitadas" : "Despesas Ilimitadas",
         t.featUnlimitedPdf || "Downloads de PDF Ilimitados",
         t.featCloudBackup || "Sincronização na Nuvem em Tempo Real",
@@ -139,6 +141,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       bestValue: true,
       features: [
         t.featUnlimitedItems || "Orçamentos e Itens Ilimitados",
+        "Responda a Pedidos de Clientes ILIMITADOS da Plataforma",
         "Despesas e Serviços Ilimitados",
         t.featUnlimitedPdf || "Downloads de PDF Ilimitados",
         t.featCloudBackup || "Sincronização na Nuvem em Tempo Real",
