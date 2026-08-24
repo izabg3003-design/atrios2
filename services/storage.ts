@@ -27,44 +27,121 @@ const STORAGE_KEY_ACTION_VIDEO = 'atrios_action_video_config';
 export const STORAGE_KEY_INTRO_BANNERS = 'atrios_intro_banners';
 
 /**
- * Helper para salvar no localStorage com tratamento de erro de cota excedida.
+ * Helper para salvar no localStorage com tratamento avançado de erro de cota excedida.
  */
 export const safeSetItem = (key: string, value: string) => {
   try {
     localStorage.setItem(key, value);
   } catch (e) {
-    if (e instanceof DOMException && (
-      e.code === 22 || 
-      e.code === 1014 || 
-      e.name === 'QuotaExceededError' || 
-      e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
+    if (
+      e instanceof DOMException &&
+      (e.code === 22 ||
+        e.code === 1014 ||
+        e.name === 'QuotaExceededError' ||
+        e.name === 'NS_ERROR_DOM_QUOTA_REACHED')
     ) {
-      console.warn(`[Storage] Cota do LocalStorage excedida ao salvar '${key}'. Tentando liberar espaço...`);
-      
-      // Tenta remover dados menos críticos para abrir espaço
-      const keysToRemove = [
+      console.warn(`[Storage] Cota do LocalStorage excedida ao salvar '${key}'. Aplicando estratégia de otimização e limpeza...`);
+
+      // 1. Tenta remover dados temporários ou menos críticos
+      const disposableKeys = [
         'atrios_notifications',
         'atrios_messages',
         'atrios_transactions',
-        'atrios_pdf_downloads'
+        'atrios_pdf_downloads',
+        'atrios_intro_banners',
+        'atrios_action_video_config',
+        'atrios_hero_video_config'
       ];
-      
-      for (const k of keysToRemove) {
+
+      for (const k of disposableKeys) {
         if (k !== key) {
-          localStorage.removeItem(k);
+          try {
+            localStorage.removeItem(k);
+          } catch {}
         }
       }
-      
-      // Tenta salvar novamente após a limpeza
+
+      // Tenta salvar após remover chaves descartáveis
       try {
         localStorage.setItem(key, value);
-        console.log(`[Storage] Salvo com sucesso após limpeza parcial.`);
-      } catch (retryError) {
-        console.error(`[Storage] Falha crítica: Mesmo após limpeza, a cota foi excedida para '${key}'.`, retryError);
-        // Se ainda falhar, não podemos fazer muito além de não travar o app
+        console.log(`[Storage] Salvo com sucesso para '${key}' após limpeza de cache secundário.`);
+        return;
+      } catch {}
+
+      // 2. Se o valor for um JSON com array ou fotos pesadas em base64, comprime/higieniza
+      let compactedValue = value;
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          // Mantém os 25 registos mais recentes e reduz fotos em base64
+          const sanitized = parsed.slice(0, 25).map((item: any) => {
+            if (item && typeof item === 'object') {
+              const copy = { ...item };
+              if (Array.isArray(copy.photos)) {
+                // Remove fotos base64 pesadas (>20KB) do cache local
+                copy.photos = copy.photos.filter((p: any) => typeof p === 'string' && (p.startsWith('http') || p.length < 20000));
+              }
+              if (copy.projectFiles && Array.isArray(copy.projectFiles)) {
+                copy.projectFiles = copy.projectFiles.slice(0, 2).map((f: any) => ({
+                  name: f.name || 'Ficheiro',
+                  size: f.size || 0
+                }));
+              }
+              return copy;
+            }
+            return item;
+          });
+
+          compactedValue = JSON.stringify(sanitized);
+          localStorage.setItem(key, compactedValue);
+          console.log(`[Storage] Salvo com sucesso para '${key}' após compactação dos dados.`);
+          return;
+        }
+      } catch (jsonErr) {
+        // Se falhar o parse, continua para limpeza profunda
+      }
+
+      // 3. Se ainda exceder, remove todas as fotos de itens no array e tenta salvar
+      try {
+        const parsed = JSON.parse(compactedValue);
+        if (Array.isArray(parsed)) {
+          const stripped = parsed.slice(0, 20).map((item: any) => {
+            if (item && typeof item === 'object') {
+              const copy = { ...item };
+              if (Array.isArray(copy.photos)) {
+                copy.photos = copy.photos.filter((p: any) => typeof p === 'string' && p.startsWith('http'));
+              }
+              return copy;
+            }
+            return item;
+          });
+          const strippedValue = JSON.stringify(stripped);
+          localStorage.setItem(key, strippedValue);
+          console.log(`[Storage] Salvo com sucesso para '${key}' com dados compactados sem mídia pesada.`);
+          return;
+        }
+      } catch {}
+
+      // 4. Limpeza profunda de outras coleções com dados pesados
+      try {
+        for (let i = localStorage.length - 1; i >= 0; i--) {
+          const storageKey = localStorage.key(i);
+          if (storageKey && storageKey !== key && storageKey.startsWith('atrios_')) {
+            try {
+              const itemVal = localStorage.getItem(storageKey);
+              if (itemVal && itemVal.length > 200000) {
+                localStorage.removeItem(storageKey);
+              }
+            } catch {}
+          }
+        }
+        localStorage.setItem(key, compactedValue);
+        console.log(`[Storage] Salvo com sucesso para '${key}' após limpeza profunda.`);
+      } catch (finalError) {
+        console.warn(`[Storage] Aviso: Não foi possível persistir no LocalStorage para '${key}' devido ao limite do navegador. Os dados continuam disponíveis na sessão e na nuvem.`);
       }
     } else {
-      console.error(`[Storage] Erro ao salvar no LocalStorage:`, e);
+      console.warn(`[Storage] Erro ao salvar no LocalStorage para '${key}':`, e);
     }
   }
 };
@@ -1701,6 +1778,9 @@ export const resetActionVideoConfig = async (): Promise<{ success: boolean; erro
 export const STORAGE_KEY_CLIENT_REQUESTS = 'atrios_client_service_requests';
 
 export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest => {
+  const rawBudget = item.budget_range || item.budgetRange;
+  const budgetRange = (rawBudget && rawBudget !== '500€ - 2.000€') ? String(rawBudget) : undefined;
+
   return {
     id: String(item.id || generateShortId()),
     clientName: String(item.client_name || item.clientName || item.name || ''),
@@ -1714,7 +1794,7 @@ export const mapClientRequestFromSupabase = (item: any): ClientServiceRequest =>
     postalCode: item.postal_code || item.postalCode || undefined,
     propertyType: item.property_type || item.propertyType || undefined,
     urgency: item.urgency || undefined,
-    budgetRange: item.budget_range || item.budgetRange || undefined,
+    budgetRange,
     photos: Array.isArray(item.photos) ? item.photos : (typeof item.photos === 'string' ? JSON.parse(item.photos || '[]') : []),
     status: (item.status || 'pending') as ClientRequestStatus,
     proposalsCount: Number(item.proposals_count || item.proposalsCount || 0),
@@ -1751,7 +1831,14 @@ export const fetchBudgetsFromSupabase = async (): Promise<Budget[]> => {
 };
 
 export const saveClientRequestLocally = (requests: ClientServiceRequest[]) => {
-  safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(requests));
+  // Limita a 30 pedidos mais recentes e evita guardar base64 gigante no localStorage
+  const sanitized = requests.slice(0, 30).map(req => ({
+    ...req,
+    photos: Array.isArray(req.photos) 
+      ? req.photos.filter(p => typeof p === 'string' && (p.startsWith('http') || p.length < 25000))
+      : []
+  }));
+  safeSetItem(STORAGE_KEY_CLIENT_REQUESTS, JSON.stringify(sanitized));
 };
 
 export const fetchClientRequestsFromSupabase = async (): Promise<ClientServiceRequest[]> => {
@@ -1781,10 +1868,47 @@ export const saveClientServiceRequest = async (
   request: Partial<ClientServiceRequest>
 ): Promise<{ success: boolean; data?: ClientServiceRequest; error?: any }> => {
   try {
-    const accessCode = request.accessCode || Math.floor(1000 + Math.random() * 9000).toString();
+    const rawPhone = request.clientPhone || '';
+    const cleanPhone = rawPhone.replace(/\D/g, '');
+    const cleanEmail = (request.clientEmail || '').trim().toLowerCase();
 
+    // 1. Obter pedidos existentes para verificar se o cliente já tem um código de acesso
+    const current = getStoredClientRequests();
+    let existingAccessCode = request.accessCode;
+
+    if (!existingAccessCode) {
+      // Procurar em pedidos anteriores pelo mesmo telemóvel ou email
+      const previousRequest = current.find(r => {
+        const rCleanPhone = (r.clientPhone || '').replace(/\D/g, '');
+        const rEmail = (r.clientEmail || '').trim().toLowerCase();
+        return (
+          (cleanPhone && rCleanPhone && (rCleanPhone === cleanPhone || rCleanPhone.includes(cleanPhone) || cleanPhone.includes(rCleanPhone))) ||
+          (cleanEmail && rEmail && rEmail === cleanEmail)
+        );
+      });
+
+      if (previousRequest && previousRequest.accessCode) {
+        existingAccessCode = previousRequest.accessCode;
+      } else if (cleanPhone) {
+        const storedCode = localStorage.getItem(`atrios_client_code_${cleanPhone}`) || localStorage.getItem(`atrios_client_code_${rawPhone.trim()}`);
+        if (storedCode) {
+          existingAccessCode = storedCode;
+        }
+      }
+    }
+
+    // Se ainda não existir código de acesso para este cliente, gera um novo de 4 dígitos
+    const accessCode = existingAccessCode || Math.floor(1000 + Math.random() * 9000).toString();
+
+    // Guardar o código do cliente no localStorage para futuros pedidos
+    if (cleanPhone) {
+      localStorage.setItem(`atrios_client_code_${cleanPhone}`, accessCode);
+      localStorage.setItem(`atrios_client_code_${rawPhone.trim()}`, accessCode);
+    }
+
+    // ID único exclusivo para cada solicitação (evita duplicidade)
     const newReq: ClientServiceRequest = {
-      id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.floor(Math.random() * 900 + 100)}`,
+      id: request.id || `REQ-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 7).toUpperCase()}`,
       clientName: request.clientName || '',
       clientEmail: request.clientEmail || '',
       clientPhone: request.clientPhone || '',
@@ -1806,8 +1930,7 @@ export const saveClientServiceRequest = async (
       updatedAt: new Date().toISOString()
     };
 
-    // 1. Guardar localmente
-    const current = getStoredClientRequests();
+    // 2. Guardar localmente
     const existingIndex = current.findIndex(r => r.id === newReq.id);
     let updated: ClientServiceRequest[];
     if (existingIndex >= 0) {
@@ -1818,7 +1941,7 @@ export const saveClientServiceRequest = async (
     }
     saveClientRequestLocally(updated);
 
-    // 2. Disparar evento para a UI atualizar em tempo real
+    // 3. Disparar evento para a UI atualizar em tempo real
     window.dispatchEvent(new CustomEvent('atrios_client_requests_changed', { detail: newReq }));
 
     // 3. Sincronizar com Supabase

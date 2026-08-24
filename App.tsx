@@ -108,6 +108,7 @@ import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
 import FullscreenIntroBanner from './components/FullscreenIntroBanner';
+import { LOCALE_OPTIONS } from './components/landingExtendedTranslations';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 
@@ -2948,15 +2949,11 @@ const App: React.FC = () => {
             onChange={(e) => setLocale(e.target.value as Locale)} 
             className={`bg-transparent text-[10px] sm:text-xs font-black ${dark ? 'text-white' : 'text-slate-900'} outline-none cursor-pointer tracking-wider`}
           >
-            <option value="pt-PT" className="text-slate-900 font-bold">🇵🇹 PT</option>
-            <option value="pt-BR" className="text-slate-900 font-bold">🇧🇷 PT-BR</option>
-            <option value="en-US" className="text-slate-900 font-bold">🇺🇸 EN</option>
-            <option value="fr-FR" className="text-slate-900 font-bold">🇫🇷 FR</option>
-            <option value="it-IT" className="text-slate-900 font-bold">🇮🇹 IT</option>
-            <option value="es-ES" className="text-slate-900 font-bold">🇪🇸 ES</option>
-            <option value="ru-RU" className="text-slate-900 font-bold">🇷🇺 RU</option>
-            <option value="hi-IN" className="text-slate-900 font-bold">🇮🇳 HI</option>
-            <option value="bn-BD" className="text-slate-900 font-bold">🇧🇩 BN</option>
+            {LOCALE_OPTIONS.map(opt => (
+              <option key={opt.value} value={opt.value} className="text-slate-900 font-bold">
+                {opt.flag} {opt.shortLabel}
+              </option>
+            ))}
           </select>
         </div>
       </div>
@@ -2975,7 +2972,7 @@ const App: React.FC = () => {
   return (
     <>
       <InAppPushBalloonContainer />
-      <div className={`flex ${view === 'landing' ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full justify-center`}>
+      <div className={`flex ${(view === 'landing' || view === 'client-portal' || view === 'login' || view === 'signup' || view === 'forgot-password') ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full max-w-full overflow-x-hidden justify-center`}>
       {showCertificateModal && (
         <CertificateModal 
           company={certificateCompany || currentUser} 

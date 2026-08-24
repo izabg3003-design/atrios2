@@ -23,7 +23,15 @@ import {
   Lock,
   KeyRound,
   ExternalLink,
-  MessageCircle
+  MessageCircle,
+  Plus,
+  PlusCircle,
+  Copy,
+  Check,
+  Wrench,
+  Image as ImageIcon,
+  Tag,
+  X
 } from 'lucide-react';
 import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode } from '../types';
 import { 
@@ -34,6 +42,7 @@ import {
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { registerPushSubscription } from '../services/pushService';
+import { ClientRequestModal } from './ClientRequestModal';
 
 interface ClientPortalProps {
   onBackToHome: () => void;
@@ -63,6 +72,19 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   const [isLoadingData, setIsLoadingData] = useState(false);
   const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests'>('all_budgets');
 
+  // Modal para Nova Solicitação (Permite criar N solicitações com IDs distintos para o mesmo cliente)
+  const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
+  const [newlyCreatedRequestId, setNewlyCreatedRequestId] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+
+  // Informações do cliente memorizadas dos pedidos anteriores
+  const existingClientName = myRequests.find(r => r.clientName)?.clientName || '';
+  const existingClientEmail = myRequests.find(r => r.clientEmail)?.clientEmail || '';
+  const existingAccessCode = myRequests.find(r => r.accessCode)?.accessCode 
+    || (authenticatedPhone ? localStorage.getItem(`atrios_client_code_${authenticatedPhone.replace(/\D/g, '')}`) : null)
+    || (authenticatedPhone ? localStorage.getItem(`atrios_client_code_${authenticatedPhone.trim()}`) : null)
+    || undefined;
+
   // Load client data once authenticated
   const loadClientData = async (phone: string) => {
     setIsLoadingData(true);
@@ -80,6 +102,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           (reqPhoneClean.length >= 7 && cleanPhone.includes(reqPhoneClean))
         );
       });
+      // Ordenar os pedidos do mais recente para o mais antigo
+      filteredRequests.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setMyRequests(filteredRequests);
 
       // 3. Fetch budgets sent by contractors
@@ -95,6 +119,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           clientNameMatch
         );
       });
+      filteredBudgets.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setMyBudgets(filteredBudgets);
     } catch (err) {
       console.error('Error loading client portal data:', err);
@@ -121,6 +146,19 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     }
   }, [authenticatedPhone]);
 
+  // Listener para atualizações em tempo real de novas solicitações
+  useEffect(() => {
+    const handleRequestsChange = () => {
+      if (authenticatedPhone) {
+        loadClientData(authenticatedPhone);
+      }
+    };
+    window.addEventListener('atrios_client_requests_changed', handleRequestsChange);
+    return () => {
+      window.removeEventListener('atrios_client_requests_changed', handleRequestsChange);
+    };
+  }, [authenticatedPhone]);
+
   // Handle phone login submit
   const handleRequestAccess = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -134,33 +172,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
     setIsLoggingIn(true);
     try {
-      // 1. Fetch requests for this phone from Supabase / Storage to retrieve the exact accessCode
-      const allRequests = await fetchClientRequestsFromSupabase();
-      const clientReqs = allRequests.filter(req => {
-        const reqPhoneClean = (req.clientPhone || '').replace(/\D/g, '');
-        return (
-          reqPhoneClean === clean ||
-          (clean.length >= 7 && reqPhoneClean.includes(clean)) ||
-          (reqPhoneClean.length >= 7 && clean.includes(reqPhoneClean))
-        );
-      });
-
-      // Retrieve existing code if present in Supabase or local storage
-      const savedCode = clientReqs.find(r => r.accessCode)?.accessCode 
-        || localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
-        || (clientReqs.length > 0 ? '1234' : null);
-
-      if (savedCode) {
-        setSimulatedOtp(savedCode);
-      } else {
-        // If it's a new or unlisted phone, generate a 4-digit code
-        const newCode = Math.floor(1000 + Math.random() * 9000).toString();
-        setSimulatedOtp(newCode);
-      }
-
-      setLoginStep('otp');
+      const finalPhone = phoneInput.trim();
+      localStorage.setItem('atrios_client_session_phone', finalPhone);
+      setAuthenticatedPhone(finalPhone);
+      setPhoneInput('');
+      setAccessCodeInput('');
+      setSimulatedOtp(null);
     } catch (err) {
-      setLoginError('Não foi possível verificar o contacto. Tente novamente.');
+      setLoginError('Não foi possível entrar na área de cliente. Tente novamente.');
     } finally {
       setIsLoggingIn(false);
     }
@@ -187,14 +206,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     const matchingCode = clientReqs.some(r => r.accessCode === entered)
       || entered === simulatedOtp
       || entered === localStorage.getItem(`atrios_client_code_${phoneInput.trim()}`)
-      || entered === '1234'
-      || (simulatedOtp && entered === simulatedOtp);
+      || entered === localStorage.getItem(`atrios_client_code_${cleanPhone}`)
+      || entered === '1234';
 
     if (matchingCode) {
       const finalPhone = phoneInput.trim();
       localStorage.setItem('atrios_client_session_phone', finalPhone);
       if (entered) {
         localStorage.setItem(`atrios_client_code_${finalPhone}`, entered);
+        localStorage.setItem(`atrios_client_code_${cleanPhone}`, entered);
       }
       setAuthenticatedPhone(finalPhone);
       setLoginStep('phone');
@@ -211,6 +231,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
     setAuthenticatedPhone('');
     setSelectedRequest(null);
     setSelectedBudgetView(null);
+    setNewlyCreatedRequestId(null);
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setCopiedId(text);
+    setTimeout(() => setCopiedId(null), 2500);
   };
 
   const curr = CURRENCIES[currencyCode] || CURRENCIES.EUR;
@@ -221,37 +248,38 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
       {/* Top Header */}
-      <header className="bg-slate-900/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40">
-        <div className="max-w-6xl mx-auto px-4 sm:px-6 py-3.5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
+      <header className="bg-slate-900/90 backdrop-blur-md border-b border-white/10 sticky top-0 z-40 w-full">
+        <div className="max-w-6xl mx-auto px-3 sm:px-6 py-3 sm:py-3.5 flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <button
               onClick={onBackToHome}
-              className="p-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1.5 text-xs font-bold"
+              className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
             >
-              <ArrowLeft size={16} /> Voltar ao Início
+              <ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao Início</span><span className="sm:hidden">Voltar</span>
             </button>
-            <div className="h-4 w-px bg-white/10 hidden sm:block" />
-            <div className="flex items-center gap-2">
-              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-amber-500/20">
+            <div className="h-4 w-px bg-white/10 hidden sm:block shrink-0" />
+            <div className="flex items-center gap-2 min-w-0">
+              <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 flex items-center justify-center font-black text-sm shadow-md shadow-amber-500/20 shrink-0">
                 <FileText size={18} />
               </div>
-              <div>
-                <h1 className="text-sm sm:text-base font-black tracking-tight text-white leading-none">
+              <div className="min-w-0">
+                <h1 className="text-xs sm:text-base font-black tracking-tight text-white leading-tight truncate">
                   Portal do Cliente <span className="text-amber-400">ÁTRIOS</span>
                 </h1>
-                <p className="text-[10px] text-slate-400 font-medium">Os Seus Pedidos & Orçamentos Recebidos</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">Os Seus Pedidos & Orçamentos</p>
               </div>
             </div>
           </div>
 
           {authenticatedPhone && (
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
                 <Phone size={13} className="text-amber-400" />
                 <span>{authenticatedPhone}</span>
               </div>
+              
               <button
                 onClick={handleLogout}
                 className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
@@ -266,20 +294,20 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       </header>
 
       {/* Main Content Area */}
-      <main className="flex-1 max-w-6xl w-full mx-auto p-4 sm:p-6 lg:p-8 flex flex-col">
+      <main className="flex-1 max-w-6xl w-full mx-auto px-3 sm:px-6 lg:px-8 py-4 sm:py-6 lg:py-8 flex flex-col overflow-x-hidden">
         {!authenticatedPhone ? (
           /* =========================================================================
              LOGIN / IDENTIFICAÇÃO DO CLIENTE
              ========================================================================= */
-          <div className="my-auto max-w-md w-full mx-auto py-12">
-            <div className="bg-slate-900 border border-white/10 rounded-3xl p-6 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
+          <div className="my-auto max-w-md w-full mx-auto py-8 sm:py-12 px-2">
+            <div className="bg-slate-900 border border-white/10 rounded-3xl p-5 sm:p-8 shadow-2xl space-y-6 relative overflow-hidden">
               <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/10 rounded-full blur-2xl pointer-events-none" />
 
               <div className="text-center space-y-2">
                 <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
                   <ShieldCheck size={30} />
                 </div>
-                <h2 className="text-2xl font-black text-white tracking-tight">Área Exclusiva do Cliente</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Área Exclusiva do Cliente</h2>
                 <p className="text-xs text-slate-400 leading-relaxed">
                   Consulte em tempo real as propostas e orçamentos detalhados enviados pelos construtores para a sua obra.
                 </p>
@@ -325,19 +353,15 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 </form>
               ) : (
                 <form onSubmit={handleVerifyAccessCode} className="space-y-4 animate-in fade-in">
-                  <div className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-3.5 space-y-1 text-center">
-                    <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                      Código de Verificação Rápido
-                    </span>
-                    <p className="text-xs text-slate-300">
-                      Seu código de acesso instantâneo é: <span className="font-mono font-black text-amber-400 text-base">{simulatedOtp}</span>
-                    </p>
-                  </div>
-
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-300 mb-2">
-                      Insira o Código de 4 Dígitos
-                    </label>
+                    <div className="flex items-center justify-between mb-2">
+                      <label className="block text-xs font-black uppercase tracking-wider text-slate-300">
+                        Código de Acesso de 4 Dígitos
+                      </label>
+                      <span className="text-[11px] text-amber-400/80 font-mono">
+                        {phoneInput}
+                      </span>
+                    </div>
                     <input
                       type="text"
                       maxLength={4}
@@ -348,13 +372,16 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-center text-xl font-mono font-black tracking-widest text-amber-400 focus:border-amber-500 outline-none"
                       autoFocus
                     />
+                    <p className="text-[11px] text-slate-500 mt-1.5 text-center">
+                      Insira o código de 4 dígitos gerado na confirmação da sua solicitação.
+                    </p>
                   </div>
 
                   <div className="flex gap-2">
                     <button
                       type="button"
                       onClick={() => setLoginStep('phone')}
-                      className="w-1/3 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl text-xs uppercase transition-all"
+                      className="w-1/3 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl text-xs uppercase transition-all cursor-pointer"
                     >
                       Alterar Número
                     </button>
@@ -382,38 +409,80 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           /* =========================================================================
              DASHBOARD DO CLIENTE (PEDIDOS E ORÇAMENTOS RECEBIDOS)
              ========================================================================= */
-          <div className="space-y-6">
-            {/* Top Stats & Welcome Banner */}
-            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-white/10 rounded-3xl p-6 sm:p-8 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6 relative overflow-hidden">
-              <div className="space-y-1.5 z-10">
-                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles size={12} /> Área Pessoal do Cliente
+          <div className="space-y-5 sm:space-y-6 w-full">
+            
+            {/* Banner de Sucesso quando uma nova solicitação com ID exclusivo é criada */}
+            {newlyCreatedRequestId && (
+              <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-3xl p-4 sm:p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 animate-in slide-in-from-top duration-300 shadow-lg shadow-emerald-500/10">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shrink-0 shadow-md">
+                    <CheckCircle2 size={22} />
+                  </div>
+                  <div className="min-w-0">
+                    <h4 className="text-sm font-black text-white truncate">Nova Solicitação Registada!</h4>
+                    <p className="text-xs text-emerald-300 break-words">
+                      ID Exclusivo: <span className="font-mono font-black text-white underline">{newlyCreatedRequestId}</span> — Os construtores foram notificados.
+                    </p>
+                  </div>
                 </div>
-                <h2 className="text-2xl sm:text-3xl font-black text-white tracking-tight">
-                  Bem-vindo à Sua Central de Obras
+                <div className="flex items-center gap-2 w-full sm:w-auto justify-end shrink-0">
+                  <button
+                    onClick={() => copyToClipboard(newlyCreatedRequestId)}
+                    className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  >
+                    {copiedId === newlyCreatedRequestId ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                    {copiedId === newlyCreatedRequestId ? 'Copiado!' : 'Copiar ID'}
+                  </button>
+                  <button
+                    onClick={() => setNewlyCreatedRequestId(null)}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                  >
+                    <X size={16} />
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {/* Top Stats & Welcome Banner */}
+            <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-white/10 rounded-3xl p-4 sm:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden w-full">
+              <div className="space-y-2 z-10 w-full lg:w-auto">
+                <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-wider">
+                  <Sparkles size={12} /> Central Exclusiva do Cliente
+                </div>
+                <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">
+                  {existingClientName ? `Olá, ${existingClientName}!` : 'Bem-vindo à Sua Central de Obras'}
                 </h2>
-                <p className="text-xs sm:text-sm text-slate-400 max-w-xl">
-                  Aqui pode acompanhar os seus pedidos submetidos e analisar todos os orçamentos, valores e propostas detalhadas enviadas pelos profissionais.
+                <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
+                  Acompanhe todas as suas solicitações de obra ou submeta novos pedidos de orçamento a qualquer momento. Cada pedido recebe um ID próprio e exclusivo para total organização.
                 </p>
               </div>
 
-              <div className="flex items-center gap-3 z-10 shrink-0">
-                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[110px]">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Pedidos</span>
-                  <span className="text-2xl font-black text-amber-400">{myRequests.length}</span>
+              <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3 z-10 shrink-0 w-full lg:w-auto">
+                <div className="bg-slate-950/80 border border-white/10 p-3 sm:p-4 rounded-2xl text-center">
+                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">Minhas Solicitações</span>
+                  <span className="text-xl sm:text-2xl font-black text-amber-400">{myRequests.length}</span>
                 </div>
-                <div className="bg-slate-950/80 border border-white/10 p-4 rounded-2xl text-center min-w-[110px]">
-                  <span className="text-[10px] uppercase font-bold text-slate-400 block">Orçamentos</span>
-                  <span className="text-2xl font-black text-emerald-400">{myBudgets.length}</span>
+                <div className="bg-slate-950/80 border border-white/10 p-3 sm:p-4 rounded-2xl text-center">
+                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">Propostas Recebidas</span>
+                  <span className="text-xl sm:text-2xl font-black text-emerald-400">{myBudgets.length}</span>
                 </div>
+
+                {/* Botão de Destaque no Welcome Banner */}
+                <button
+                  onClick={() => setIsNewRequestModalOpen(true)}
+                  className="col-span-2 sm:col-span-1 w-full sm:w-auto px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-95 cursor-pointer"
+                >
+                  <PlusCircle size={18} />
+                  <span>Submeter Nova Solicitação</span>
+                </button>
               </div>
             </div>
 
             {/* Navigation Tabs */}
-            <div className="flex items-center gap-2 border-b border-white/10 pb-3">
+            <div className="flex items-center gap-2 border-b border-white/10 pb-3 overflow-x-auto no-scrollbar w-full">
               <button
                 onClick={() => setActivePortalTab('all_budgets')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                   activePortalTab === 'all_budgets'
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'bg-white/5 text-slate-400 hover:text-white'
@@ -424,14 +493,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               </button>
               <button
                 onClick={() => setActivePortalTab('my_requests')}
-                className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer ${
+                className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
                   activePortalTab === 'my_requests'
                     ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
                     : 'bg-white/5 text-slate-400 hover:text-white'
                 }`}
               >
                 <Clock size={14} />
-                Os Meus Pedidos ({myRequests.length})
+                Minhas Solicitações ({myRequests.length})
               </button>
             </div>
 
@@ -439,14 +508,24 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             {activePortalTab === 'all_budgets' && (
               <div className="space-y-4">
                 {myBudgets.length === 0 ? (
-                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-3">
+                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-4">
                     <div className="w-14 h-14 bg-white/5 text-slate-500 rounded-full flex items-center justify-center mx-auto">
                       <FileText size={28} />
                     </div>
-                    <h3 className="text-lg font-black text-white">Nenhum orçamento recebido ainda</h3>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                      Os construtores parceiros estão a analisar os seus pedidos. Assim que elaborarem uma proposta com valores, ela aparecerá aqui automaticamente.
-                    </p>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">Nenhum orçamento recebido ainda</h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
+                        Os construtores parceiros estão a analisar os seus pedidos. Assim que elaborarem uma proposta com valores, ela aparecerá aqui automaticamente.
+                      </p>
+                    </div>
+                    {myRequests.length === 0 && (
+                      <button
+                        onClick={() => setIsNewRequestModalOpen(true)}
+                        className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 inline-flex items-center gap-2 cursor-pointer"
+                      >
+                        <Plus size={16} /> Submeter Primeiro Pedido de Orçamento
+                      </button>
+                    )}
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -517,30 +596,47 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               </div>
             )}
 
-            {/* Tab 2: Os Meus Pedidos */}
+            {/* Tab 2: Minhas Solicitações (Lista todas as solicitações com seus respectivos IDs únicos) */}
             {activePortalTab === 'my_requests' && (
               <div className="space-y-4">
+                <div>
+                  <h3 className="text-base font-black text-white">Todas as Suas Solicitações Registadas</h3>
+                  <p className="text-xs text-slate-400">Pode submeter múltiplas solicitações. Cada uma tem o seu próprio ID e acompanhamento independente.</p>
+                </div>
+
                 {myRequests.length === 0 ? (
-                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-3">
+                  <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-4">
                     <Clock size={28} className="text-slate-500 mx-auto" />
-                    <h3 className="text-lg font-black text-white">Nenhum pedido registado com este contacto</h3>
-                    <p className="text-xs text-slate-400 max-w-md mx-auto">
-                      Não foram encontrados pedidos de orçamento associados ao número {authenticatedPhone}.
-                    </p>
+                    <div className="space-y-1">
+                      <h3 className="text-lg font-black text-white">Nenhuma solicitação registada com este contacto</h3>
+                      <p className="text-xs text-slate-400 max-w-md mx-auto">
+                        Ainda não tem pedidos registados associados ao número {authenticatedPhone}. Clique abaixo para submeter o seu primeiro pedido.
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setIsNewRequestModalOpen(true)}
+                      className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 inline-flex items-center gap-2 cursor-pointer"
+                    >
+                      <Plus size={16} /> Submeter Pedido de Orçamento
+                    </button>
                   </div>
                 ) : (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {myRequests.map((req) => (
                       <div
                         key={req.id}
-                        className="bg-slate-900 border border-white/10 rounded-3xl p-6 space-y-4 flex flex-col justify-between"
+                        className="bg-slate-900 border border-white/10 hover:border-amber-500/40 rounded-3xl p-6 space-y-4 flex flex-col justify-between transition-all"
                       >
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
                               {req.category}
                             </span>
-                            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase bg-slate-800 text-slate-300">
+                            <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
+                              req.status === 'completed' 
+                                ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-slate-800 text-slate-300 border border-white/5'
+                            }`}>
                               {req.status === 'open' || req.status === 'pending' ? 'Em Análise' : req.status}
                             </span>
                           </div>
@@ -552,23 +648,50 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                             </p>
                           </div>
 
-                          <div className="bg-slate-950/60 p-3 rounded-2xl border border-white/5 space-y-1 text-xs text-slate-400">
-                            <div className="flex items-center gap-2">
-                              <MapPin size={13} className="text-rose-400 shrink-0" />
-                              <span className="text-white truncate">{req.location || req.city || 'Portugal'}</span>
+                          <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-white/5 space-y-1.5 text-xs text-slate-400">
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">ID da Solicitação:</span>
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
+                                  #{req.id}
+                                </span>
+                                <button
+                                  type="button"
+                                  onClick={() => copyToClipboard(req.id)}
+                                  className="p-1 text-slate-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10"
+                                  title="Copiar ID"
+                                >
+                                  {copiedId === req.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
+                                </button>
+                              </div>
                             </div>
-                            <div className="flex items-center gap-2">
-                              <Calendar size={13} className="text-slate-500 shrink-0" />
-                              <span>Submetido a {new Date(req.createdAt).toLocaleDateString('pt-PT')}</span>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">Local da Obra:</span>
+                              <span className="text-white font-medium truncate max-w-[180px]">{req.location || req.city || 'Portugal'}</span>
                             </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-slate-500">Submetido em:</span>
+                              <span className="text-slate-300">{new Date(req.createdAt).toLocaleDateString('pt-PT')}</span>
+                            </div>
+                            {req.photos && req.photos.length > 0 && (
+                              <div className="flex items-center justify-between text-amber-300/90 pt-0.5">
+                                <span className="text-slate-500">Fotos Anexadas:</span>
+                                <span className="font-bold">{req.photos.length} foto(s)</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
-                        <div className="pt-2 border-t border-white/5 flex items-center justify-between text-xs">
-                          <span className="text-slate-500 text-[11px]">ID #{req.id}</span>
-                          <span className="text-amber-400 font-bold text-[11px]">
-                            {req.budgetRange || req.estimatedBudget || 'Sob Consulta'}
+                        <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
+                          <span className="text-amber-400 font-bold text-xs">
+                            {req.budgetRange && req.budgetRange !== '500€ - 2.000€' ? req.budgetRange : (req.estimatedBudget || 'Sob Consulta')}
                           </span>
+                          <button
+                            onClick={() => setSelectedRequest(req)}
+                            className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
+                          >
+                            <Eye size={13} /> Ver Detalhes
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -580,44 +703,155 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
         )}
       </main>
 
+      {/* Modal de Detalhes da Solicitação de Obra do Cliente */}
+      {selectedRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl max-w-xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl my-auto">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 sm:p-6 text-slate-950 flex items-start justify-between shrink-0 gap-2">
+              <div className="space-y-1 min-w-0">
+                <div className="flex items-center gap-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950/20 px-2.5 py-0.5 rounded-full inline-block">
+                    Solicitação de Obra
+                  </span>
+                  <span className="font-mono font-black text-xs bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full">
+                    #{selectedRequest.id}
+                  </span>
+                </div>
+                <h3 className="text-lg sm:text-xl font-black tracking-tight break-words">{selectedRequest.title || selectedRequest.projectTitle}</h3>
+                <p className="text-xs font-bold opacity-80">
+                  Submetido a {new Date(selectedRequest.createdAt).toLocaleDateString('pt-PT')}
+                </p>
+              </div>
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Content */}
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 overflow-y-auto flex-1 text-xs">
+              {/* Status & Category */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5">
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Categoria</span>
+                  <span className="font-black text-amber-400 text-sm break-words">{selectedRequest.category}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Estado do Pedido</span>
+                  <span className="font-bold text-emerald-400 text-sm break-words">
+                    {selectedRequest.status === 'open' || selectedRequest.status === 'pending' ? 'Em Análise por Construtores' : selectedRequest.status}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Localidade</span>
+                  <span className="text-white font-medium break-words">{selectedRequest.location || selectedRequest.city || 'Portugal'}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Estimativa de Orçamento</span>
+                  <span className="text-white font-medium">{selectedRequest.budgetRange && selectedRequest.budgetRange !== '500€ - 2.000€' ? selectedRequest.budgetRange : (selectedRequest.estimatedBudget || 'Sob Consulta')}</span>
+                </div>
+              </div>
+
+              {/* Descrição Detalhada */}
+              <div className="space-y-1.5">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                  Descrição dos Trabalhos
+                </span>
+                <div className="bg-slate-950 p-3.5 sm:p-4 rounded-2xl border border-white/10 text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
+                  {selectedRequest.description || selectedRequest.projectDescription || 'Sem descrição adicional fornecida.'}
+                </div>
+              </div>
+
+              {/* Fotos Anexadas */}
+              {selectedRequest.photos && selectedRequest.photos.length > 0 && (
+                <div className="space-y-2">
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
+                    <ImageIcon size={13} className="text-amber-400" /> Fotografias do Local ({selectedRequest.photos.length})
+                  </span>
+                  <div className="grid grid-cols-3 gap-2">
+                    {selectedRequest.photos.map((photo, idx) => (
+                      <div key={idx} className="relative aspect-video rounded-xl overflow-hidden border border-white/10 group">
+                        <img src={photo} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Informações de Contacto */}
+              <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 space-y-2">
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Dados do Solicitante</span>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
+                  <div className="break-words">Nome: <strong className="text-white">{selectedRequest.clientName}</strong></div>
+                  <div>Telemóvel: <strong className="text-amber-400 font-mono">{selectedRequest.clientPhone}</strong></div>
+                  {selectedRequest.clientEmail && (
+                    <div className="sm:col-span-2 break-words">Email: <strong className="text-white">{selectedRequest.clientEmail}</strong></div>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="p-3.5 sm:p-4 bg-slate-950 border-t border-white/10 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
+              <button
+                onClick={() => copyToClipboard(selectedRequest.id)}
+                className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
+              >
+                {copiedId === selectedRequest.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                {copiedId === selectedRequest.id ? 'ID Copiado!' : 'Copiar ID do Pedido'}
+              </button>
+              <button
+                onClick={() => setSelectedRequest(null)}
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {/* Modal de Detalhes do Orçamento */}
       {selectedBudgetView && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in">
-          <div className="bg-slate-900 border border-white/10 rounded-3xl max-w-2xl w-full max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl max-w-2xl w-full max-h-[92vh] overflow-hidden flex flex-col shadow-2xl my-auto">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-6 text-slate-950 flex items-start justify-between shrink-0">
-              <div>
+            <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 sm:p-6 text-slate-950 flex items-start justify-between shrink-0 gap-2">
+              <div className="min-w-0">
                 <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950/20 px-2 py-0.5 rounded-full inline-block mb-1">
                   Orçamento Oficial
                 </span>
-                <h3 className="text-xl font-black tracking-tight">Proposta #{selectedBudgetView.id}</h3>
+                <h3 className="text-lg sm:text-xl font-black tracking-tight break-words">Proposta #{selectedBudgetView.id}</h3>
                 <p className="text-xs font-bold opacity-80">
                   Emitido em {new Date(selectedBudgetView.createdAt).toLocaleDateString('pt-PT')}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedBudgetView(null)}
-                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors"
+                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0"
               >
                 <ArrowLeft size={18} />
               </button>
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 space-y-6 overflow-y-auto flex-1">
+            <div className="p-4 sm:p-6 space-y-4 sm:space-y-6 overflow-y-auto flex-1">
               {/* Resumo do Cliente e Obra */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/60 p-4 rounded-2xl border border-white/5 text-xs">
-                <div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 text-xs">
+                <div className="min-w-0">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Cliente</span>
-                  <span className="font-black text-white">{selectedBudgetView.clientName}</span>
+                  <span className="font-black text-white break-words">{selectedBudgetView.clientName}</span>
                 </div>
-                <div>
+                <div className="min-w-0">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Contacto</span>
-                  <span className="font-mono text-amber-400">{selectedBudgetView.contactPhone || 'Sem contacto'}</span>
+                  <span className="font-mono text-amber-400 break-words">{selectedBudgetView.contactPhone || 'Sem contacto'}</span>
                 </div>
-                <div className="sm:col-span-2">
+                <div className="sm:col-span-2 min-w-0">
                   <span className="text-[10px] uppercase font-bold text-slate-500 block">Local da Obra</span>
-                  <span className="text-slate-300">{selectedBudgetView.workLocation || 'Não especificado'}</span>
+                  <span className="text-slate-300 break-words">{selectedBudgetView.workLocation || 'Não especificado'}</span>
                 </div>
               </div>
 
@@ -626,8 +860,8 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
                   Discriminação dos Serviços e Materiais
                 </span>
-                <div className="bg-slate-950 rounded-2xl border border-white/10 overflow-hidden">
-                  <table className="w-full text-left text-xs">
+                <div className="bg-slate-950 rounded-2xl border border-white/10 overflow-x-auto w-full">
+                  <table className="w-full text-left text-xs min-w-[340px]">
                     <thead>
                       <tr className="border-b border-white/10 bg-white/5 text-[10px] uppercase font-black text-slate-400">
                         <th className="p-3">Descrição</th>
@@ -639,10 +873,10 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     <tbody className="divide-y divide-white/5">
                       {selectedBudgetView.items && selectedBudgetView.items.map((item, idx) => (
                         <tr key={idx} className="hover:bg-white/[0.02]">
-                          <td className="p-3 font-medium text-slate-200">{item.description}</td>
-                          <td className="p-3 text-center font-mono text-slate-400">{item.quantity} {item.unit}</td>
-                          <td className="p-3 text-right font-mono text-slate-400">{formatCurrency(item.pricePerUnit)}</td>
-                          <td className="p-3 text-right font-mono font-bold text-amber-400">{formatCurrency(item.total || (item.quantity * item.pricePerUnit))}</td>
+                          <td className="p-3 font-medium text-slate-200 break-words">{item.description}</td>
+                          <td className="p-3 text-center font-mono text-slate-400 whitespace-nowrap">{item.quantity} {item.unit}</td>
+                          <td className="p-3 text-right font-mono text-slate-400 whitespace-nowrap">{formatCurrency(item.pricePerUnit)}</td>
+                          <td className="p-3 text-right font-mono font-bold text-amber-400 whitespace-nowrap">{formatCurrency(item.total || (item.quantity * item.pricePerUnit))}</td>
                         </tr>
                       ))}
                     </tbody>
@@ -652,22 +886,22 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
               {/* Observações */}
               {selectedBudgetView.observations && (
-                <div className="bg-slate-950/60 p-4 rounded-2xl border border-white/5 space-y-1">
+                <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 space-y-1">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Observações & Condições</span>
-                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap">{selectedBudgetView.observations}</p>
+                  <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">{selectedBudgetView.observations}</p>
                 </div>
               )}
 
               {/* Total Card */}
-              <div className="bg-gradient-to-br from-slate-950 to-amber-950/30 p-5 rounded-2xl border border-amber-500/30 flex items-center justify-between">
-                <div>
+              <div className="bg-gradient-to-br from-slate-950 to-amber-950/30 p-4 sm:p-5 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-3">
+                <div className="min-w-0">
                   <span className="text-xs uppercase font-bold text-slate-400 block">Total do Orçamento</span>
                   <span className="text-[11px] text-slate-500">
                     {selectedBudgetView.includeIva ? `Inclui IVA (${selectedBudgetView.ivaPercentage || 23}%)` : 'Isento de IVA / Sem IVA'}
                   </span>
                 </div>
-                <div className="text-right">
-                  <span className="text-2xl font-black text-amber-400 font-mono">
+                <div className="text-right shrink-0">
+                  <span className="text-xl sm:text-2xl font-black text-amber-400 font-mono">
                     {formatCurrency(selectedBudgetView.totalAmount || 0)}
                   </span>
                 </div>
@@ -675,10 +909,10 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             </div>
 
             {/* Modal Footer */}
-            <div className="p-4 bg-slate-950 border-t border-white/10 flex justify-between items-center">
+            <div className="p-3.5 sm:p-4 bg-slate-950 border-t border-white/10 flex flex-col sm:flex-row justify-between items-stretch sm:items-center gap-2">
               <button
                 onClick={() => setSelectedBudgetView(null)}
-                className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold"
+                className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer text-center"
               >
                 Fechar
               </button>
@@ -686,7 +920,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 onClick={() => {
                   window.print();
                 }}
-                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center gap-2"
+                className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Download size={14} /> Imprimir / Salvar Proposta
               </button>
@@ -694,6 +928,29 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
           </div>
         </div>
       )}
+
+      {/* Modal Formulário de Nova Solicitação de Pedido */}
+      {isNewRequestModalOpen && (
+        <ClientRequestModal
+          isOpen={isNewRequestModalOpen}
+          onClose={() => setIsNewRequestModalOpen(false)}
+          initialClientPhone={authenticatedPhone}
+          initialClientName={existingClientName}
+          initialClientEmail={existingClientEmail}
+          initialAccessCode={existingAccessCode}
+          isFromPortal={true}
+          onSuccess={(createdRequest) => {
+            if (createdRequest) {
+              setNewlyCreatedRequestId(createdRequest.id);
+            }
+            if (authenticatedPhone) {
+              loadClientData(authenticatedPhone);
+            }
+            setActivePortalTab('my_requests');
+          }}
+        />
+      )}
     </div>
   );
 };
+export default ClientPortal;

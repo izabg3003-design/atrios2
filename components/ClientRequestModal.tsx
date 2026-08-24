@@ -13,6 +13,11 @@ interface ClientRequestModalProps {
   locale?: string;
   onSuccess?: (request: ClientServiceRequest) => void;
   onOpenPortal?: () => void;
+  initialClientPhone?: string;
+  initialClientName?: string;
+  initialClientEmail?: string;
+  initialAccessCode?: string;
+  isFromPortal?: boolean;
 }
 
 const CATEGORIES: { id: ServiceCategory; label: string; icon: React.FC<{ size?: number; className?: string }>; description: string }[] = [
@@ -33,7 +38,12 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   onClose,
   locale = 'pt-PT',
   onSuccess,
-  onOpenPortal
+  onOpenPortal,
+  initialClientPhone,
+  initialClientName,
+  initialClientEmail,
+  initialAccessCode,
+  isFromPortal
 }) => {
   const [step, setStep] = useState<1 | 2>(1);
   const [category, setCategory] = useState<ServiceCategory>('doors_windows');
@@ -43,13 +53,21 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [postalCode, setPostalCode] = useState('');
   const [propertyType, setPropertyType] = useState<'apartment' | 'house' | 'commercial' | 'land' | 'other'>('apartment');
   const [urgency, setUrgency] = useState<'immediate' | 'few_weeks' | 'flexible'>('few_weeks');
-  const [budgetRange, setBudgetRange] = useState('500€ - 2.000€');
+  const [budgetRange, setBudgetRange] = useState('');
   const [photos, setPhotos] = useState<string[]>([]);
   
   // Contact Info
-  const [clientName, setClientName] = useState('');
-  const [clientPhone, setClientPhone] = useState('');
-  const [clientEmail, setClientEmail] = useState('');
+  const [clientName, setClientName] = useState(initialClientName || '');
+  const [clientPhone, setClientPhone] = useState(initialClientPhone || '');
+  const [clientEmail, setClientEmail] = useState(initialClientEmail || '');
+
+  React.useEffect(() => {
+    if (isOpen) {
+      if (initialClientPhone && !clientPhone) setClientPhone(initialClientPhone);
+      if (initialClientName && !clientName) setClientName(initialClientName);
+      if (initialClientEmail && !clientEmail) setClientEmail(initialClientEmail);
+    }
+  }, [isOpen, initialClientPhone, initialClientName, initialClientEmail]);
   
   const [submitting, setSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
@@ -58,23 +76,60 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
   if (!isOpen) return null;
 
-  const handlePhotoUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = e.target.files;
-    if (!files || files.length === 0) return;
-    
-    Array.from(files).forEach((file: File) => {
-      if (file.size > 5 * 1024 * 1024) {
-        alert('A fotografia não deve exceder 5MB.');
-        return;
-      }
+  const compressImage = (file: File): Promise<string> => {
+    return new Promise((resolve) => {
       const reader = new FileReader();
-      reader.onload = () => {
-        if (reader.result) {
-          setPhotos(prev => [...prev, reader.result as string].slice(0, 5));
-        }
+      reader.onload = (readerEvent) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxDim = 800;
+          let width = img.width;
+          let height = img.height;
+
+          if (width > height && width > maxDim) {
+            height = Math.round((height * maxDim) / width);
+            width = maxDim;
+          } else if (height > maxDim) {
+            width = Math.round((width * maxDim) / height);
+            height = maxDim;
+          }
+
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.drawImage(img, 0, 0, width, height);
+            const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.7);
+            resolve(compressedDataUrl);
+          } else {
+            resolve(readerEvent.target?.result as string);
+          }
+        };
+        img.onerror = () => resolve(readerEvent.target?.result as string);
+        img.src = readerEvent.target?.result as string;
       };
       reader.readAsDataURL(file);
     });
+  };
+
+  const handlePhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || files.length === 0) return;
+
+    const fileList: File[] = Array.from(files);
+    for (const file of fileList) {
+      if (file.size > 10 * 1024 * 1024) {
+        alert('A fotografia não deve exceder 10MB.');
+        continue;
+      }
+      try {
+        const compressedBase64 = await compressImage(file);
+        setPhotos(prev => [...prev, compressedBase64].slice(0, 5));
+      } catch (err) {
+        console.warn('Erro ao processar imagem:', err);
+      }
+    }
   };
 
   const removePhoto = (index: number) => {
@@ -94,6 +149,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         clientName: clientName.trim(),
         clientEmail: clientEmail.trim(),
         clientPhone: clientPhone.trim(),
+        accessCode: initialAccessCode || undefined,
         category,
         title: title.trim(),
         description: description.trim(),
@@ -101,7 +157,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         postalCode: postalCode.trim() || undefined,
         propertyType,
         urgency,
-        budgetRange,
+        budgetRange: budgetRange.trim() || undefined,
         photos,
         status: 'pending'
       });
@@ -135,59 +191,59 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     setTitle('');
     setDescription('');
     setLocation('');
-    setClientName('');
-    setClientPhone('');
-    setClientEmail('');
+    if (!initialClientName) setClientName('');
+    if (!initialClientPhone) setClientPhone('');
+    if (!initialClientEmail) setClientEmail('');
     setPhotos([]);
     onClose();
   };
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
-      <div className="bg-white text-slate-900 w-full max-w-2xl rounded-3xl sm:rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-2.5 sm:p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-200 overflow-y-auto">
+      <div className="bg-white text-slate-900 w-full max-w-2xl rounded-2xl sm:rounded-[2rem] shadow-2xl border border-slate-200 overflow-hidden my-auto max-h-[92vh] flex flex-col">
         
         {/* Header */}
-        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white px-5 sm:px-8 py-5 sm:py-6 flex items-center justify-between shrink-0 relative overflow-hidden">
+        <div className="bg-gradient-to-r from-amber-500 via-amber-600 to-amber-700 text-white px-4 sm:px-8 py-4 sm:py-6 flex items-center justify-between shrink-0 relative overflow-hidden gap-2">
           <div className="absolute -right-6 -bottom-6 opacity-15">
             <Hammer size={120} />
           </div>
 
-          <div className="relative z-10">
-            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider mb-1.5">
+          <div className="relative z-10 min-w-0 pr-2">
+            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider mb-1">
               <Sparkles size={12} /> 100% Gratuito & Sem Compromisso
             </div>
-            <h2 className="text-xl sm:text-2xl font-black tracking-tight">
+            <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight">
               Pedir Orçamento para Obra ou Reparação
             </h2>
-            <p className="text-white/85 text-xs sm:text-sm font-medium mt-0.5">
+            <p className="text-white/85 text-[11px] sm:text-sm font-medium mt-0.5 line-clamp-2">
               Receba propostas detalhadas de profissionais qualificados do ÁTRIOS BUILD
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0"
+            className="p-1.5 sm:p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0"
           >
-            <X size={22} />
+            <X size={20} />
           </button>
         </div>
 
         {/* Modal Content */}
-        <div className="p-5 sm:p-8 overflow-y-auto flex-1 space-y-6">
+        <div className="p-4 sm:p-8 overflow-y-auto flex-1 space-y-5 sm:space-y-6">
           {isSuccess ? (
-            <div className="text-center py-8 space-y-5 animate-in zoom-in-95 duration-300">
-              <div className="w-20 h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
-                <CheckCircle2 size={46} />
+            <div className="text-center py-6 sm:py-8 space-y-4 sm:space-y-5 animate-in zoom-in-95 duration-300">
+              <div className="w-16 h-16 sm:w-20 sm:h-20 bg-emerald-100 text-emerald-600 rounded-full flex items-center justify-center mx-auto shadow-inner">
+                <CheckCircle2 size={40} />
               </div>
-              <div className="space-y-2">
-                <h3 className="text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
-                <p className="text-slate-600 text-sm max-w-md mx-auto leading-relaxed">
+              <div className="space-y-1.5">
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
+                <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
                   O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi recebido e disponibilizado aos nossos profissionais.
                 </p>
               </div>
 
               {createdAccessCode && (
-                <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-500/30 rounded-3xl p-5 max-w-md mx-auto space-y-2 text-center shadow-sm">
+                <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-500/30 rounded-3xl p-4 sm:p-5 max-w-md mx-auto space-y-2 text-center shadow-sm">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
                     <ShieldCheck size={13} /> O Seu Código de Acesso Exclusivo
                   </div>
@@ -211,55 +267,55 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 </ul>
               </div>
 
-              <div className="pt-4 flex flex-col sm:flex-row gap-2 justify-center">
+              <div className="pt-2 sm:pt-4 flex flex-col sm:flex-row gap-2 justify-center">
                 {onOpenPortal && (
                   <button
                     onClick={() => {
                       handleReset();
                       onOpenPortal();
                     }}
-                    className="px-6 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
+                    className="px-5 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
                     <Sparkles size={16} /> Acompanhar Orçamentos Recebidos
                   </button>
                 )}
                 <button
                   onClick={handleReset}
-                  className="px-6 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
+                  className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   Concluir
                 </button>
               </div>
             </div>
           ) : (
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-5 sm:space-y-6">
               
               {/* Step indicator */}
-              <div className="flex items-center justify-between border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-2">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${step === 1 ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-white'}`}>
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3 sm:pb-4 gap-2">
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black ${step === 1 ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-white'}`}>
                     1
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800">O que precisa de fazer?</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">O que precisa?</span>
                 </div>
-                <div className="w-12 h-[2px] bg-slate-200" />
-                <div className="flex items-center gap-2">
-                  <span className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-black ${step === 2 ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-500'}`}>
+                <div className="w-8 sm:w-12 h-[2px] bg-slate-200 shrink-0" />
+                <div className="flex items-center gap-2 min-w-0">
+                  <span className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black ${step === 2 ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-500'}`}>
                     2
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800">Localização e Contacto</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">Local & Contacto</span>
                 </div>
               </div>
 
               {step === 1 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
+                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300">
                   
                   {/* Category Selection */}
                   <div>
-                    <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2.5">
+                    <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2">
                       1. Selecione o Tipo de Serviço *
                     </label>
-                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
                       {CATEGORIES.map(cat => {
                         const Icon = cat.icon;
                         const isSelected = category === cat.id;
@@ -268,18 +324,18 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                             type="button"
                             key={cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
                               isSelected
                                 ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 shadow-sm'
                                 : 'border-slate-200 hover:border-slate-300 bg-slate-50/60 text-slate-700'
                             }`}
                           >
-                            <div className={`p-2 rounded-xl w-fit mb-2 ${isSelected ? 'bg-amber-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
-                              <Icon size={18} />
+                            <div className={`p-1.5 sm:p-2 rounded-xl w-fit mb-1.5 sm:mb-2 ${isSelected ? 'bg-amber-500 text-white' : 'bg-white text-slate-700 shadow-sm'}`}>
+                              <Icon size={16} />
                             </div>
                             <div>
                               <div className="font-bold text-xs leading-snug">{cat.label}</div>
-                              <div className="text-[10px] text-slate-500 line-clamp-1 mt-0.5">{cat.description}</div>
+                              <div className="text-[9px] sm:text-[10px] text-slate-500 line-clamp-1 mt-0.5">{cat.description}</div>
                             </div>
                           </button>
                         );
@@ -298,7 +354,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       value={title}
                       onChange={e => setTitle(e.target.value)}
                       placeholder="Ex: Troca de 1 porta de entrada e reparação de tomada na cozinha"
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
+                      className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
                     />
                   </div>
 
@@ -312,7 +368,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       value={description}
                       onChange={e => setDescription(e.target.value)}
                       placeholder="Explique com mais detalhe o que precisa (medidas aproximadas, estado atual, se já comprou o material ou precisa com fornecimento incluído)..."
-                      className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none"
+                      className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none"
                     />
                   </div>
 
@@ -321,9 +377,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
                       4. Fotografias do Local (Opcional - Ajuda a orçamentar melhor)
                     </label>
-                    <div className="flex flex-wrap items-center gap-3">
+                    <div className="flex flex-wrap items-center gap-2.5">
                       {photos.map((p, idx) => (
-                        <div key={idx} className="relative w-20 h-20 rounded-xl overflow-hidden border border-slate-200 group">
+                        <div key={idx} className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-slate-200 group">
                           <img src={p} alt="Foto" className="w-full h-full object-cover" />
                           <button
                             type="button"
@@ -335,9 +391,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         </div>
                       ))}
                       {photos.length < 4 && (
-                        <label className="w-20 h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-amber-600 transition-colors">
-                          <Camera size={20} />
-                          <span className="text-[9px] font-bold mt-1">+ Foto</span>
+                        <label className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-amber-600 transition-colors">
+                          <Camera size={18} />
+                          <span className="text-[9px] font-bold mt-0.5">+ Foto</span>
                           <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
                         </label>
                       )}
@@ -349,7 +405,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       type="button"
                       disabled={!title.trim()}
                       onClick={() => setStep(2)}
-                      className="px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center gap-2"
+                      className="w-full sm:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
                     >
                       Avançar para Contacto <ChevronRight size={16} />
                     </button>
@@ -358,10 +414,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
               )}
 
               {step === 2 && (
-                <div className="space-y-5 animate-in fade-in duration-300">
+                <div className="space-y-4 sm:space-y-5 animate-in fade-in duration-300">
                   
                   {/* Property & Urgency */}
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
                         Tipo de Imóvel
@@ -369,7 +425,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       <select
                         value={propertyType}
                         onChange={e => setPropertyType(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
                       >
                         <option value="apartment">Apartamento</option>
                         <option value="house">Moradia</option>
@@ -386,7 +442,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       <select
                         value={urgency}
                         onChange={e => setUrgency(e.target.value as any)}
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
                       >
                         <option value="few_weeks">Nas próximas semanas</option>
                         <option value="immediate">Urgente / O mais rápido possível</option>
@@ -396,7 +452,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   </div>
 
                   {/* Location */}
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
                         Cidade / Concelho da Obra *
@@ -409,7 +465,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                           value={location}
                           onChange={e => setLocation(e.target.value)}
                           placeholder="Ex: Lisboa, Porto, Sintra, Braga..."
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
+                          className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
                     </div>
@@ -423,19 +479,19 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                         value={postalCode}
                         onChange={e => setPostalCode(e.target.value)}
                         placeholder="Ex: 1000-001"
-                        className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                       >
                       </input>
                     </div>
                   </div>
 
                   {/* Contact details */}
-                  <div className="border-t border-slate-100 pt-4 space-y-4">
+                  <div className="border-t border-slate-100 pt-4 space-y-3 sm:space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
                       <User size={14} className="text-amber-600" /> Os seus dados de contacto para envio de orçamentos
                     </h4>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
                           O seu Nome *
@@ -446,7 +502,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                           value={clientName}
                           onChange={e => setClientName(e.target.value)}
                           placeholder="Nome e Sobrenome"
-                          className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
+                          className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
 
@@ -462,7 +518,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                             value={clientPhone}
                             onChange={e => setClientPhone(e.target.value)}
                             placeholder="Ex: +351 912 345 678"
-                            className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
+                            className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                           />
                         </div>
                       </div>
@@ -479,17 +535,17 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                           value={clientEmail}
                           onChange={e => setClientEmail(e.target.value)}
                           placeholder="seuemail@exemplo.com"
-                          className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
+                          className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
                     </div>
                   </div>
 
-                  <div className="pt-2 flex items-center justify-between gap-3">
+                  <div className="pt-2 flex flex-col-reverse sm:flex-row items-stretch sm:items-center justify-between gap-2.5">
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="px-4 py-3 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors"
+                      className="px-4 py-2.5 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors text-center"
                     >
                       Voltar
                     </button>
@@ -497,7 +553,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     <button
                       type="submit"
                       disabled={submitting || !clientName.trim() || !clientPhone.trim() || !location.trim()}
-                      className="px-8 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center gap-2"
+                      className="px-6 sm:px-8 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center justify-center gap-2"
                     >
                       {submitting ? (
                         'A enviar pedido...'

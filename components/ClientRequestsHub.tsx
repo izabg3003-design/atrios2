@@ -311,7 +311,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                         <Clock size={12} className="text-amber-600" /> {req.urgency === 'immediate' ? 'Urgente' : 'Próximas semanas'}
                       </span>
                     )}
-                    {req.budgetRange && (
+                    {req.budgetRange && req.budgetRange !== '500€ - 2.000€' && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-50 text-emerald-800 font-bold text-[11px]">
                         💰 {req.budgetRange}
                       </span>

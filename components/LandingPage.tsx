@@ -45,6 +45,7 @@ import {
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
 import { landingTranslations } from './landingTranslations';
+import { LOCALE_OPTIONS, getLandingExtended } from './landingExtendedTranslations';
 import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId } from '../services/storage';
 import { ClientRequestModal } from './ClientRequestModal';
 
@@ -61,6 +62,13 @@ interface LandingPageProps {
   onOpenClientPortal?: () => void;
   onOpenIntroBanners?: () => void;
 }
+
+const STEP_ICONS = [FileText, Users, FileText, Send, Users, HardHat, TrendingUp];
+const FEATURE_ICONS = [
+  FileText, Hammer, Users, Layers, CreditCard,
+  BarChart3, Inbox, Send, Folder, Smartphone
+];
+const TRUST_BANNER_ICONS = [ShieldCheck, Headphones, RefreshCw, TrendingUp];
 
 export const LandingPage: React.FC<LandingPageProps> = ({
   t,
@@ -85,8 +93,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('interactive');
   const [activeHeroTab, setActiveHeroTab] = useState<'video' | 'live'>('video');
 
-  // Get landing translations for the active locale (fallback to pt-PT)
+  // Get full extended landing translations for the active locale (fallback to pt-PT)
+  const ltx = getLandingExtended(locale);
   const lt = landingTranslations[locale] || landingTranslations['pt-PT'];
+
+  const activeLocale = LOCALE_OPTIONS.find(o => o.value === locale) || LOCALE_OPTIONS[0];
 
   useEffect(() => {
     const handleScroll = () => {
@@ -179,88 +190,87 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   };
 
   return (
-    <div className="min-h-screen w-full bg-white text-slate-900 selection:bg-[#ff5722] selection:text-white font-sans antialiased">
+    <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-white text-slate-900 selection:bg-[#ff5722] selection:text-white font-sans antialiased">
       
       {/* 1. TOP NAVBAR */}
-      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-2 sm:py-3.5' : 'bg-white/95 backdrop-blur-sm py-3 sm:py-4 border-b border-slate-100/60'}`}>
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between gap-2 sm:gap-4">
+      <header className={`fixed top-0 left-0 right-0 z-50 transition-all duration-300 ${isScrolled ? 'bg-white/95 backdrop-blur-md shadow-sm border-b border-slate-100 py-2 sm:py-3.5' : 'bg-white/95 backdrop-blur-sm py-2.5 sm:py-4 border-b border-slate-100/60'}`}>
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between gap-1.5 sm:gap-4">
             
             {/* Brand Logo */}
             <div 
-              className="flex items-center gap-2.5 cursor-pointer shrink-0" 
+              className="flex items-center gap-2 sm:gap-2.5 cursor-pointer shrink-0 min-w-0" 
               onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
             >
-              <div className="w-10 h-10 rounded-xl bg-[#ff5722] text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
-                <Construction className="w-5 h-5" strokeWidth={2.5} />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#ff5722] text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
+                <Construction className="w-4 h-4 sm:w-5 sm:h-5" strokeWidth={2.5} />
               </div>
-              <div className="flex flex-col">
-                <span className="text-lg sm:text-xl font-black tracking-tight text-slate-900 leading-none">
+              <div className="flex flex-col min-w-0">
+                <span className="text-base sm:text-xl font-black tracking-tight text-slate-900 leading-none truncate">
                   ÁTRIOS<span className="text-[#ff5722]">BUILD</span>
                 </span>
-                <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
-                  SOFTWARE PARA CONSTRUÇÃO CIVIL
+                <span className="hidden sm:block text-[9px] font-bold uppercase tracking-wider text-slate-400 mt-0.5 truncate">
+                  {ltx.softwareSubtitle}
                 </span>
               </div>
             </div>
 
             {/* Desktop Navigation Links */}
             <nav className="hidden lg:flex items-center gap-7 text-[13px] font-bold text-slate-700">
-              <button onClick={() => scrollToSection('funcionalidades')} className="hover:text-[#ff5722] transition-colors">
-                Funcionalidades
+              <button onClick={() => scrollToSection('funcionalidades')} className="hover:text-[#ff5722] transition-colors cursor-pointer">
+                {ltx.nav.features}
               </button>
-              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#ff5722] transition-colors">
-                Como funciona
+              <button onClick={() => scrollToSection('como-funciona')} className="hover:text-[#ff5722] transition-colors cursor-pointer">
+                {ltx.nav.howItWorks}
               </button>
-              <button onClick={() => scrollToSection('para-clientes')} className="hover:text-[#ff5722] transition-colors">
-                Para Clientes
+              <button onClick={() => scrollToSection('para-clientes')} className="hover:text-[#ff5722] transition-colors cursor-pointer">
+                {ltx.nav.forClients}
               </button>
-              <button onClick={() => scrollToSection('para-profissionais')} className="hover:text-[#ff5722] transition-colors">
-                Para Profissionais
+              <button onClick={() => scrollToSection('para-profissionais')} className="hover:text-[#ff5722] transition-colors cursor-pointer">
+                {ltx.nav.forPros}
               </button>
             </nav>
 
             {/* Language Selector + Auth Actions */}
-            <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
               
-              {/* Language Pill */}
-              <div className="flex items-center gap-1 bg-slate-100/90 border border-slate-200/80 rounded-xl px-2 py-1.5 shadow-xs">
-                <span className="text-xs">🇵🇹</span>
+              {/* Language Pill with 9 Locales (Compact Flag + 2-letter Code) */}
+              <div className="flex items-center bg-slate-100/90 border border-slate-200/80 rounded-xl px-1.5 sm:px-2 py-1 sm:py-1.5 shadow-xs transition-all hover:border-orange-300 shrink-0">
                 <select
                   value={locale}
                   onChange={(e) => setLocale(e.target.value as Locale)}
-                  className="bg-transparent text-xs font-bold text-slate-800 outline-none cursor-pointer pr-1"
+                  className="bg-transparent text-[11px] sm:text-xs font-black text-slate-800 outline-none cursor-pointer tracking-wider"
                   title="Idioma / Language"
                 >
-                  <option value="pt-PT" className="text-slate-900 font-bold">PT</option>
-                  <option value="pt-BR" className="text-slate-900 font-bold">BR</option>
-                  <option value="en-US" className="text-slate-900 font-bold">EN</option>
-                  <option value="es-ES" className="text-slate-900 font-bold">ES</option>
-                  <option value="fr-FR" className="text-slate-900 font-bold">FR</option>
+                  {LOCALE_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value} className="text-slate-900 font-bold">
+                      {opt.flag} {opt.shortLabel}
+                    </option>
+                  ))}
                 </select>
               </div>
 
               {/* Login Button */}
               <button
                 onClick={onLogin}
-                className="px-2.5 sm:px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-800 hover:text-[#ff5722] transition-colors shrink-0"
+                className="hidden sm:inline-flex px-2.5 sm:px-4 py-2 text-xs font-black uppercase tracking-wider text-slate-800 hover:text-[#ff5722] transition-colors shrink-0 cursor-pointer"
               >
-                ENTRAR
+                {ltx.nav.login}
               </button>
 
               {/* Create Free Account CTA */}
               <button
                 onClick={onStartFree}
-                className="px-3.5 sm:px-5 py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 active:scale-95 transition-all shrink-0 whitespace-nowrap"
+                className="px-2.5 sm:px-4 py-2 sm:py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider shadow-md shadow-orange-500/25 active:scale-95 transition-all shrink-0 whitespace-nowrap cursor-pointer"
               >
-                <span className="hidden sm:inline">CRIAR CONTA GRÁTIS</span>
-                <span className="sm:hidden">CRIAR CONTA</span>
+                <span className="hidden sm:inline">{ltx.nav.startFree}</span>
+                <span className="sm:hidden">{ltx.nav.register}</span>
               </button>
 
               {/* Mobile Menu Hamburger */}
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="lg:hidden p-1.5 text-slate-700 hover:text-slate-950 rounded-xl hover:bg-slate-100 transition-colors shrink-0"
+                className="lg:hidden p-1.5 text-slate-700 hover:text-slate-950 rounded-xl hover:bg-slate-100 transition-colors shrink-0 cursor-pointer"
                 aria-label="Menu"
               >
                 {mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -276,56 +286,75 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
-              className="lg:hidden bg-white border-b border-slate-200 px-4 py-4 shadow-xl overflow-hidden"
+              className="lg:hidden bg-white border-b border-slate-200 px-4 py-4 shadow-xl overflow-hidden w-full max-w-full"
             >
               <div className="flex flex-col gap-2.5 text-sm font-bold text-slate-700">
+                {/* Mobile Language Selector */}
+                <div className="flex items-center justify-between py-2 px-3 bg-slate-50 border border-slate-200 rounded-xl mb-1">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-slate-700">
+                    <Globe size={14} className="text-slate-500" />
+                    <span>Idioma / Language:</span>
+                  </div>
+                  <select
+                    value={locale}
+                    onChange={(e) => setLocale(e.target.value as Locale)}
+                    className="bg-white border border-slate-200 rounded-lg px-2 py-1 text-xs font-bold text-slate-900 outline-none cursor-pointer"
+                  >
+                    {LOCALE_OPTIONS.map((opt) => (
+                      <option key={opt.value} value={opt.value} className="text-slate-900 font-bold">
+                        {opt.flag} {opt.shortLabel} - {opt.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
                 <button
                   onClick={() => { scrollToSection('funcionalidades'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors"
+                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
                 >
-                  Funcionalidades
+                  {ltx.nav.features}
                 </button>
                 <button
                   onClick={() => { scrollToSection('como-funciona'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors"
+                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
                 >
-                  Como funciona
+                  {ltx.nav.howItWorks}
                 </button>
                 <button
                   onClick={() => { scrollToSection('para-clientes'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors"
+                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
                 >
-                  Para Clientes
+                  {ltx.nav.forClients}
                 </button>
                 <button
                   onClick={() => { scrollToSection('para-profissionais'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors"
+                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
                 >
-                  Para Profissionais
+                  {ltx.nav.forPros}
                 </button>
 
                 <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
                   {onOpenClientPortal && (
                     <button
                       onClick={() => { onOpenClientPortal(); setMobileMenuOpen(false); }}
-                      className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#ff5722] border border-orange-200 rounded-xl font-bold text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2"
+                      className="w-full py-2.5 bg-orange-50 hover:bg-orange-100 text-[#ff5722] border border-orange-200 rounded-xl font-bold text-xs uppercase tracking-wider text-center flex items-center justify-center gap-2 cursor-pointer"
                     >
                       <FileText size={14} />
-                      Portal do Cliente (Ver Orçamentos)
+                      {ltx.nav.portalClient}
                     </button>
                   )}
                   <div className="flex gap-2">
                     <button
                       onClick={() => { onLogin(); setMobileMenuOpen(false); }}
-                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-bold text-xs uppercase tracking-wider text-center"
+                      className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-xl font-bold text-xs uppercase tracking-wider text-center cursor-pointer"
                     >
-                      Entrar
+                      {ltx.nav.login}
                     </button>
                     <button
                       onClick={() => { onStartFree(); setMobileMenuOpen(false); }}
-                      className="flex-1 py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md text-center"
+                      className="flex-1 py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-bold text-xs uppercase tracking-wider shadow-md text-center cursor-pointer"
                     >
-                      Criar Conta Grátis
+                      {ltx.nav.startFree}
                     </button>
                   </div>
                 </div>
@@ -336,11 +365,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* 2. HERO SECTION */}
-      <section className="relative pt-24 sm:pt-32 lg:pt-36 pb-12 sm:pb-20 overflow-hidden bg-white">
+      <section className="relative pt-20 sm:pt-32 lg:pt-36 pb-12 sm:pb-20 overflow-hidden bg-white w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
           {/* Top Presentation Banner Pill */}
-          <div className="mb-6 sm:mb-8 text-left">
+          <div className="mb-6 sm:mb-8 text-left max-w-full overflow-hidden">
             <button
               onClick={() => {
                 if (onOpenIntroBanners) {
@@ -349,50 +378,50 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   setShowDemoModal(true);
                 }
               }}
-              className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/80 text-[#d9531e] text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs group"
+              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/80 text-[#d9531e] text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs group max-w-full text-left"
             >
-              <Sparkles size={14} className="text-[#ff5722]" />
-              <span>VER BANNERS DE APRESENTAÇÃO DAS FUNÇÕES</span>
-              <ChevronRight size={14} className="text-[#ff5722] group-hover:translate-x-0.5 transition-transform" />
+              <Sparkles size={14} className="text-[#ff5722] shrink-0" />
+              <span className="truncate">{ltx.hero.bannerPill}</span>
+              <ChevronRight size={14} className="text-[#ff5722] group-hover:translate-x-0.5 transition-transform shrink-0" />
             </button>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-12 gap-10 lg:gap-8 items-center">
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center w-full max-w-full">
             
             {/* Left Column: Headline, Subtitle, Large CTAs */}
-            <div className="lg:col-span-6 text-left space-y-6">
+            <div className="lg:col-span-6 text-left space-y-5 sm:space-y-6 min-w-0 w-full">
               
               {/* Main Headline */}
-              <h1 className="text-3xl sm:text-5xl lg:text-[54px] font-black tracking-tight text-slate-950 leading-[1.12]">
-                Encontre clientes.<br />
-                Faça orçamentos.<br />
-                Gerencie as suas obras.<br />
-                <span className="text-[#ff5722]">Tudo num só lugar com o Atrios Build.</span>
+              <h1 className="text-2xl sm:text-4xl lg:text-[52px] font-black tracking-tight text-slate-950 leading-[1.15] break-words">
+                {ltx.hero.headline.line1}<br />
+                {ltx.hero.headline.line2}<br />
+                {ltx.hero.headline.line3}<br />
+                <span className="text-[#ff5722]">{ltx.hero.headline.highlight}</span>
               </h1>
 
               {/* Subheadline */}
-              <p className="text-base sm:text-lg text-slate-600 font-normal leading-relaxed max-w-xl">
-                Receba pedidos de orçamento de clientes, envie propostas profissionais e tenha todas as ferramentas para gerir o seu negócio e as suas obras.
+              <p className="text-sm sm:text-base lg:text-lg text-slate-600 font-normal leading-relaxed max-w-xl break-words">
+                {ltx.hero.subtitle}
               </p>
 
               {/* Large Dual Action Cards */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-2 max-w-xl">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-1 sm:pt-2 max-w-xl w-full">
                 
-                {/* Orange Column: Sou Cliente / Pedir Orçamento + Login Portal do Cliente */}
-                <div className="flex flex-col gap-2">
+                {/* Orange Column: Client Request */}
+                <div className="flex flex-col gap-2 min-w-0 w-full">
                   <button
                     onClick={() => setShowClientRequestModal(true)}
-                    className="w-full bg-[#ff5722] hover:bg-[#e64a19] text-white p-4 sm:p-5 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-orange-500/25 active:scale-98 transition-all text-left group cursor-pointer"
+                    className="w-full bg-[#ff5722] hover:bg-[#e64a19] text-white p-4 sm:p-5 rounded-2xl flex items-center gap-3.5 shadow-lg shadow-orange-500/25 active:scale-98 transition-all text-left group cursor-pointer min-w-0"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
-                      <ClipboardList className="w-6 h-6 text-white" />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+                      <ClipboardList className="w-5 h-5 sm:w-6 sm:h-6 text-white" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-sm sm:text-base font-black uppercase tracking-wide leading-tight">
-                        PEDIR ORÇAMENTO GRÁTIS
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm sm:text-base font-black uppercase tracking-wide leading-tight truncate">
+                        {ltx.hero.clientCard.title}
                       </div>
-                      <div className="text-xs text-white/90 font-medium mt-0.5">
-                        Sou cliente e preciso de uma obra
+                      <div className="text-xs text-white/90 font-medium mt-0.5 truncate">
+                        {ltx.hero.clientCard.sub}
                       </div>
                     </div>
                   </button>
@@ -400,51 +429,51 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   {onOpenClientPortal && (
                     <button
                       onClick={onOpenClientPortal}
-                      className="w-full py-2 px-3 bg-orange-50 hover:bg-orange-100/90 border border-orange-200/80 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group shadow-2xs"
-                      title="Aceder ao portal do cliente para acompanhar pedidos de obra"
+                      className="w-full py-2 px-3 bg-orange-50 hover:bg-orange-100/90 border border-orange-200/80 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group shadow-2xs min-w-0 gap-1.5"
+                      title="Portal do Cliente"
                     >
-                      <div className="flex items-center gap-2">
-                        <Shield size={13} className="text-[#ff5722]" />
-                        <span className="text-[11px] font-bold text-slate-700 group-hover:text-slate-950">
-                          Já pediu orçamento? <strong className="text-[#d9531e]">Login Portal do Cliente</strong>
+                      <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                        <Shield size={13} className="text-[#ff5722] shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-700 group-hover:text-slate-950 truncate">
+                          {ltx.hero.clientCard.portalPrompt} <strong className="text-[#d9531e]">{ltx.hero.clientCard.portalLink}</strong>
                         </span>
                       </div>
-                      <ChevronRight size={13} className="text-[#ff5722] group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight size={13} className="text-[#ff5722] group-hover:translate-x-0.5 transition-transform shrink-0" />
                     </button>
                   )}
                 </div>
 
-                {/* Dark Column: Sou Profissional */}
-                <div className="flex flex-col gap-2">
+                {/* Dark Column: Pro Account */}
+                <div className="flex flex-col gap-2 min-w-0 w-full">
                   <button
                     onClick={onStartFree}
-                    className="w-full bg-[#0b1329] hover:bg-[#15203f] text-white p-4 sm:p-5 rounded-2xl flex items-center gap-3.5 shadow-lg active:scale-98 transition-all text-left group cursor-pointer border border-slate-800"
+                    className="w-full bg-[#0b1329] hover:bg-[#15203f] text-white p-4 sm:p-5 rounded-2xl flex items-center gap-3.5 shadow-lg active:scale-98 transition-all text-left group cursor-pointer border border-slate-800 min-w-0"
                   >
-                    <div className="w-11 h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
-                      <HardHat className="w-6 h-6 text-amber-400" />
+                    <div className="w-10 h-10 sm:w-11 sm:h-11 rounded-xl bg-white/10 flex items-center justify-center shrink-0">
+                      <HardHat className="w-5 h-5 sm:w-6 sm:h-6 text-amber-400" />
                     </div>
-                    <div className="min-w-0">
-                      <div className="text-sm sm:text-base font-black uppercase tracking-wide leading-tight text-white">
-                        SOU PROFISSIONAL
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm sm:text-base font-black uppercase tracking-wide leading-tight text-white truncate">
+                        {ltx.hero.proCard.title}
                       </div>
-                      <div className="text-xs text-slate-300 font-medium mt-0.5">
-                        Quero receber pedidos e gerir obras
+                      <div className="text-xs text-slate-300 font-medium mt-0.5 truncate">
+                        {ltx.hero.proCard.sub}
                       </div>
                     </div>
                   </button>
 
                   <button
                     onClick={onLogin}
-                    className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200/90 border border-slate-200/80 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group shadow-2xs"
-                    title="Entrar na conta de profissional / empresa"
+                    className="w-full py-2 px-3 bg-slate-100 hover:bg-slate-200/90 border border-slate-200/80 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group shadow-2xs min-w-0 gap-1.5"
+                    title="Login Profissional"
                   >
-                    <div className="flex items-center gap-2">
-                      <Users size={13} className="text-slate-600" />
-                      <span className="text-[11px] font-bold text-slate-700 group-hover:text-slate-950">
-                        Já tem conta? <strong className="text-slate-900">Login Profissional</strong>
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+                      <Users size={13} className="text-slate-600 shrink-0" />
+                      <span className="text-[11px] font-bold text-slate-700 group-hover:text-slate-950 truncate">
+                        {ltx.hero.proCard.loginPrompt} <strong className="text-slate-900">{ltx.hero.proCard.loginLink}</strong>
                       </span>
                     </div>
-                    <ChevronRight size={13} className="text-slate-600 group-hover:translate-x-0.5 transition-transform" />
+                    <ChevronRight size={13} className="text-slate-600 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </button>
                 </div>
 
@@ -453,42 +482,34 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Right Column: Interactive Video Player Mockup */}
-            <div className="lg:col-span-6 relative">
+            <div className="lg:col-span-6 relative w-full max-w-full min-w-0">
               
-              {/* Handwritten style note on top */}
-              <div className="absolute -top-7 right-6 hidden sm:flex items-center gap-2 z-20 pointer-events-none">
-                <span className="font-serif italic text-sm font-bold text-[#e64a19] tracking-wide">
-                  Da solicitação à gestão completa
-                </span>
-                <span className="text-[#e64a19] text-xl font-bold rotate-45">↘</span>
-              </div>
-
               {/* Main Player Frame */}
-              <div className="bg-[#0b1329] rounded-3xl p-4 sm:p-5 shadow-2xl border border-slate-800 text-white overflow-hidden relative">
+              <div className="bg-[#0b1329] rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-2xl border border-slate-800 text-white overflow-hidden relative w-full max-w-full">
                 
                 {/* Top Player Header Tabs */}
-                <div className="flex items-center justify-between gap-2 pb-3 mb-3 border-b border-slate-800">
-                  <div className="flex items-center gap-2">
+                <div className="flex items-center justify-between gap-1.5 sm:gap-2 pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 border-b border-slate-800 flex-wrap">
+                  <div className="flex items-center gap-1.5 sm:gap-2">
                     <button
                       onClick={() => setActiveHeroTab('video')}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${activeHeroTab === 'video' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeHeroTab === 'video' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
                     >
-                      <Play size={12} className="fill-current" /> VÍDEO HERO
+                      <Play size={12} className="fill-current" /> {ltx.hero.video.tabVideo}
                     </button>
                     <button
                       onClick={() => {
                         setActiveHeroTab('live');
                         setShowDemoModal(true);
                       }}
-                      className={`px-3 py-1.5 rounded-lg text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all ${activeHeroTab === 'live' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
+                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeHeroTab === 'live' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
                     >
-                      <ClipboardList size={12} /> PAINEL EM DIRETO
+                      <ClipboardList size={12} /> {ltx.hero.video.tabLive}
                     </button>
                   </div>
-                  <div className="flex items-center gap-2 text-[10px] font-mono text-emerald-400">
+                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span>HD 60FPS</span>
-                    <button onClick={() => setShowDemoModal(true)} className="p-1 hover:text-white text-slate-400">
+                    <button onClick={() => setShowDemoModal(true)} className="p-1 hover:text-white text-slate-400 cursor-pointer">
                       <Maximize2 size={13} />
                     </button>
                   </div>
@@ -497,44 +518,45 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 {/* Player Inner Screen */}
                 <div 
                   onClick={() => setShowDemoModal(true)}
-                  className="relative aspect-video rounded-2xl overflow-hidden bg-[#070d1e] border border-slate-800/80 flex flex-col items-center justify-center p-6 text-center cursor-pointer group hover:border-orange-500/50 transition-all"
+                  className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden bg-[#070d1e] border border-slate-800/80 flex flex-col items-center justify-center p-4 sm:p-6 text-center cursor-pointer group hover:border-orange-500/50 transition-all w-full max-w-full"
                   style={{
                     backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)',
                     backgroundSize: '20px 20px'
                   }}
                 >
                   {/* Top Badge */}
-                  <div className="absolute top-3 left-3 right-3 flex items-center justify-between">
-                    <div className="px-2.5 py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
-                      <Sparkles size={11} /> SOFTWARE EM AÇÃO • 60 SEGUNDOS
+                  <div className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 flex items-center justify-between gap-1">
+                    <div className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 truncate max-w-[75%]">
+                      <Sparkles size={11} className="shrink-0" />
+                      <span className="truncate">{ltx.hero.video.badge60s}</span>
                     </div>
-                    <span className="text-[10px] font-mono text-slate-400 bg-slate-900/80 px-2 py-0.5 rounded-md">
-                      01:45 MIN
+                    <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 bg-slate-900/80 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0">
+                      {ltx.hero.video.duration}
                     </span>
                   </div>
 
                   {/* Big Orange Center Play Button */}
-                  <div className="w-16 h-16 sm:w-20 sm:h-20 rounded-full bg-[#ff5722] hover:bg-[#e64a19] text-white flex items-center justify-center shadow-2xl shadow-orange-500/50 group-hover:scale-110 active:scale-95 transition-all mb-3">
-                    <Play size={28} className="fill-white ml-1" />
+                  <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-[#ff5722] hover:bg-[#e64a19] text-white flex items-center justify-center shadow-2xl shadow-orange-500/50 group-hover:scale-110 active:scale-95 transition-all mb-2 sm:mb-3">
+                    <Play size={22} className="fill-white ml-0.5 sm:ml-1 sm:w-7 sm:h-7" />
                   </div>
 
-                  <h4 className="text-sm sm:text-base font-black text-white uppercase tracking-wide">
-                    VER DEMONSTRAÇÃO COMPLETA
+                  <h4 className="text-xs sm:text-base font-black text-white uppercase tracking-wide truncate max-w-full">
+                    {ltx.hero.video.centerBtn}
                   </h4>
-                  <p className="text-xs text-slate-400 font-medium mt-0.5">
-                    Clique para assistir como funciona o Atrios Build
+                  <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5 truncate max-w-full">
+                    {ltx.hero.video.subText}
                   </p>
 
                   {/* Bottom Steps Indicator */}
-                  <div className="absolute bottom-3 left-4 right-4 flex items-center justify-between text-[10px] font-bold text-slate-400 border-t border-slate-800/80 pt-2.5">
-                    <span className="text-orange-400 flex items-center gap-1">
-                      <span className="font-black">1.</span> Pedidos de Obra
+                  <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 flex items-center justify-between text-[9px] sm:text-[10px] font-bold text-slate-400 border-t border-slate-800/80 pt-1.5 sm:pt-2.5 gap-1 overflow-hidden">
+                    <span className="text-orange-400 flex items-center gap-0.5 sm:gap-1 truncate">
+                      <span className="font-black">1.</span> {ltx.hero.video.step1}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <span className="font-black text-slate-500">2.</span> Propostas Rápidas
+                    <span className="flex items-center gap-0.5 sm:gap-1 truncate">
+                      <span className="font-black text-slate-500">2.</span> {ltx.hero.video.step2}
                     </span>
-                    <span className="flex items-center gap-1">
-                      <span className="font-black text-slate-500">3.</span> Gestão Total
+                    <span className="flex items-center gap-0.5 sm:gap-1 truncate">
+                      <span className="font-black text-slate-500">3.</span> {ltx.hero.video.step3}
                     </span>
                   </div>
                 </div>
@@ -546,35 +568,35 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           {/* Trust Bar Below Hero */}
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-12 sm:pt-16 max-w-4xl text-left">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 pt-10 sm:pt-16 max-w-4xl text-left w-full">
             
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center shrink-0">
                 <ShieldCheck size={20} />
               </div>
-              <div>
-                <span className="text-xs font-black text-slate-900 block">Seguro e confiável</span>
-                <span className="text-[11px] text-slate-500 font-medium">Os seus dados protegidos</span>
+              <div className="min-w-0">
+                <span className="text-xs font-black text-slate-900 block truncate">{ltx.hero.trust.secure}</span>
+                <span className="text-[11px] text-slate-500 font-medium truncate block">{ltx.hero.trust.secureSub}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center shrink-0">
                 <Users size={20} />
               </div>
-              <div>
-                <span className="text-xs font-black text-slate-900 block">Profissionais verificados</span>
-                <span className="text-[11px] text-slate-500 font-medium">Mais segurança para si</span>
+              <div className="min-w-0">
+                <span className="text-xs font-black text-slate-900 block truncate">{ltx.hero.trust.verified}</span>
+                <span className="text-[11px] text-slate-500 font-medium truncate block">{ltx.hero.trust.verifiedSub}</span>
               </div>
             </div>
 
-            <div className="flex items-center gap-3.5 p-3 rounded-2xl bg-slate-50 border border-slate-100">
+            <div className="flex items-center gap-3 p-3 rounded-2xl bg-slate-50 border border-slate-100 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
                 <Smartphone size={20} />
               </div>
-              <div>
-                <span className="text-xs font-black text-slate-900 block">Acesso em qualquer lugar</span>
-                <span className="text-[11px] text-slate-500 font-medium">Web e App mobile</span>
+              <div className="min-w-0">
+                <span className="text-xs font-black text-slate-900 block truncate">{ltx.hero.trust.everywhere}</span>
+                <span className="text-[11px] text-slate-500 font-medium truncate block">{ltx.hero.trust.everywhereSub}</span>
               </div>
             </div>
 
@@ -583,234 +605,109 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* 3. SECTION "COMO FUNCIONA PARA TODOS" (7 STEPS) */}
-      <section id="como-funciona" className="py-20 sm:py-28 bg-white border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      {/* 3. SECTION "COMO FUNCIONA PARA TODOS" (7 PASSOS) */}
+      <section id="como-funciona" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full max-w-full">
           
           <span className="text-[#ff5722] font-black text-xs uppercase tracking-[0.25em] block mb-2.5">
-            DO PRIMEIRO CONTACTO AO RESULTADO DA OBRA
+            {ltx.steps7.eyebrow}
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-14">
-            Como funciona para todos
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-8 sm:mb-14 break-words">
+            {ltx.steps7.title}
           </h2>
 
           {/* 7 Workflow Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3.5 items-stretch text-left">
-            
-            {/* Step 01 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    01
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <FileText size={16} />
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 sm:gap-3.5 items-stretch text-left w-full max-w-full">
+            {ltx.steps7.items.map((step, idx) => {
+              const StepIcon = STEP_ICONS[idx] || FileText;
+              return (
+                <div key={idx} className="bg-white p-4 sm:p-5 rounded-2xl sm:rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between min-w-0">
+                  <div>
+                    <div className="flex items-center justify-between mb-3 sm:mb-4">
+                      <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center shrink-0">
+                        {step.num}
+                      </span>
+                      <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center shrink-0">
+                        <StepIcon size={16} />
+                      </div>
+                    </div>
+                    <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-1.5 break-words">
+                      {step.title}
+                    </h3>
+                    <p className="text-[11px] text-slate-500 font-medium leading-relaxed break-words">
+                      {step.desc}
+                    </p>
                   </div>
                 </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Cliente solicita um orçamento
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  O cliente descreve o que precisa e envia o pedido.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 02 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    02
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <Users size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Profissional recebe o pedido
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Empresas e profissionais da plataforma são notificados.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 03 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    03
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <FileText size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Profissional prepara a proposta
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Analisa os detalhes da obra e prepara o orçamento.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 04 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    04
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <Send size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Profissional envia a proposta
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  O cliente recebe a proposta e pode tirar dúvidas.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 05 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    05
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <Users size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Cliente analisa e escolhe
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Compara as propostas e escolhe o profissional ideal.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 06 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    06
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <HardHat size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Obra é criada no Atrios Build
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  O profissional inicia a obra e organiza tudo na plataforma.
-                </p>
-              </div>
-            </div>
-
-            {/* Step 07 */}
-            <div className="bg-white p-5 rounded-3xl border border-slate-200/90 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="w-7 h-7 rounded-full bg-[#ff5722] text-white text-xs font-black flex items-center justify-center">
-                    07
-                  </span>
-                  <div className="w-8 h-8 rounded-xl bg-orange-50 text-[#ff5722] flex items-center justify-center">
-                    <TrendingUp size={16} />
-                  </div>
-                </div>
-                <h3 className="text-xs sm:text-sm font-black text-slate-900 leading-snug mb-2">
-                  Gere e acompanhe os resultados
-                </h3>
-                <p className="text-[11px] text-slate-500 font-medium leading-relaxed">
-                  Controle custos, pagamentos e veja os resultados.
-                </p>
-              </div>
-            </div>
-
+              );
+            })}
           </div>
 
         </div>
       </section>
 
       {/* 4. SECTION "PARA CLIENTES" VS "PARA PROFISSIONAIS" */}
-      <section className="py-16 sm:py-24 bg-slate-50/60 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-14 sm:py-24 bg-slate-50/60 border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
           
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 items-stretch">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-stretch w-full max-w-full">
             
             {/* Left Card: PARA CLIENTES */}
-            <div id="para-clientes" className="bg-white rounded-3xl p-6 sm:p-10 border border-orange-100/90 shadow-sm flex flex-col justify-between text-left relative">
+            <div id="para-clientes" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-orange-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full">
               
               <div>
                 {/* Tag */}
                 <div className="inline-block px-3 py-1 rounded-lg bg-orange-100 text-[#d9531e] text-xs font-black uppercase tracking-wider mb-4">
-                  PARA CLIENTES
+                  {ltx.segments.clients.badge}
                 </div>
 
-                <h3 className="text-2xl sm:text-3xl font-black text-slate-950 mb-2">
-                  Precisa de uma obra?
+                <h3 className="text-xl sm:text-3xl font-black text-slate-950 mb-2 break-words">
+                  {ltx.segments.clients.title}
                 </h3>
-                <p className="text-slate-600 text-sm font-medium mb-6">
-                  Encontre profissionais qualificados na nossa plataforma.
+                <p className="text-slate-600 text-xs sm:text-sm font-medium mb-6 break-words">
+                  {ltx.segments.clients.sub}
                 </p>
 
                 {/* Bullets */}
-                <ul className="space-y-3 mb-8">
-                  {[
-                    'Faça o seu pedido de orçamento grátis',
-                    'Explique o serviço que precisa',
-                    'Indique a localização e detalhes da obra',
-                    'Receba propostas de profissionais verificados',
-                    'Acompanhe os seus pedidos em tempo real',
-                    'Escolha a melhor proposta para o seu projeto'
-                  ].map((text, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-slate-800 font-bold text-sm">
-                      <div className="w-5 h-5 rounded-full bg-[#ff5722] text-white flex items-center justify-center shrink-0">
+                <ul className="space-y-3 mb-6 sm:mb-8">
+                  {ltx.segments.clients.bullets.map((text, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 sm:gap-3 text-slate-800 font-bold text-xs sm:text-sm min-w-0">
+                      <div className="w-5 h-5 rounded-full bg-[#ff5722] text-white flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={13} strokeWidth={3} />
                       </div>
-                      <span>{text}</span>
+                      <span className="break-words">{text}</span>
                     </li>
                   ))}
                 </ul>
 
                 {/* Mini Preview Box */}
-                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 mb-6 space-y-2">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-                    <span className="text-xs font-black text-slate-800">Receba propostas</span>
-                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#ff5722] text-[10px] font-black">
-                      3 Propostas
+                <div className="bg-slate-50/80 rounded-2xl p-3 sm:p-4 border border-slate-200/80 mb-6 space-y-2 min-w-0 w-full">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60 gap-1">
+                    <span className="text-xs font-black text-slate-800 truncate">{ltx.segments.clients.previewTitle}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-orange-100 text-[#ff5722] text-[10px] font-black shrink-0">
+                      {ltx.segments.clients.previewBadge}
                     </span>
                   </div>
-                  <div className="space-y-1.5 text-xs">
-                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100">
-                      <span className="font-bold text-slate-700">Empresa A — 2.450 €</span>
-                      <span className="font-black text-emerald-600">2.450 €</span>
+                  <div className="space-y-1.5 text-xs min-w-0">
+                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100 min-w-0 gap-1">
+                      <span className="font-bold text-slate-700 truncate">Empresa A</span>
+                      <span className="font-black text-emerald-600 shrink-0">2.450 {currencySymbol}</span>
                     </div>
-                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100">
-                      <span className="font-bold text-slate-700">Empresa B — 2.150 €</span>
-                      <span className="font-black text-emerald-600">2.150 €</span>
+                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100 min-w-0 gap-1">
+                      <span className="font-bold text-slate-700 truncate">Empresa B</span>
+                      <span className="font-black text-emerald-600 shrink-0">2.150 {currencySymbol}</span>
                     </div>
-                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100">
-                      <span className="font-bold text-slate-700">Empresa C — 2.780 €</span>
-                      <span className="font-black text-emerald-600">2.780 €</span>
+                    <div className="flex justify-between p-2 rounded-xl bg-white border border-slate-100 min-w-0 gap-1">
+                      <span className="font-bold text-slate-700 truncate">Empresa C</span>
+                      <span className="font-black text-emerald-600 shrink-0">2.780 {currencySymbol}</span>
                     </div>
                   </div>
                   <div className="pt-1 text-center">
                     <button 
                       onClick={() => setShowClientRequestModal(true)}
-                      className="text-[11px] font-black text-[#ff5722] hover:underline uppercase tracking-wider"
+                      className="text-[11px] font-black text-[#ff5722] hover:underline uppercase tracking-wider cursor-pointer"
                     >
-                      VER TODAS AS PROPOSTAS →
+                      {ltx.segments.clients.previewCta} →
                     </button>
                   </div>
                 </div>
@@ -818,22 +715,22 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
 
               {/* Action Button */}
-              <div>
+              <div className="w-full">
                 <button
                   onClick={() => setShowClientRequestModal(true)}
-                  className="w-full py-4 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 mb-3 cursor-pointer"
+                  className="w-full py-3.5 sm:py-4 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 mb-2 sm:mb-3 cursor-pointer"
                 >
-                  <span>PEDIR ORÇAMENTO GRÁTIS</span>
+                  <span>{ltx.segments.clients.cta}</span>
                   <ArrowRight size={16} />
                 </button>
 
                 {onOpenClientPortal && (
                   <button
                     onClick={onOpenClientPortal}
-                    className="w-full py-2.5 text-center text-xs font-bold text-slate-600 hover:text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer"
+                    className="w-full py-2 text-center text-xs font-bold text-slate-600 hover:text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer truncate"
                   >
-                    <Shield size={14} className="text-[#ff5722]" />
-                    <span>Já pediu orçamento? Entrar no Portal do Cliente</span>
+                    <Shield size={14} className="text-[#ff5722] shrink-0" />
+                    <span className="truncate">{ltx.segments.clients.portalPrompt} <strong className="text-[#d9531e]">{ltx.segments.clients.portalLink}</strong></span>
                   </button>
                 )}
               </div>
@@ -841,61 +738,53 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Right Card: PARA PROFISSIONAIS */}
-            <div id="para-profissionais" className="bg-white rounded-3xl p-6 sm:p-10 border border-blue-100/90 shadow-sm flex flex-col justify-between text-left relative">
+            <div id="para-profissionais" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-blue-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full">
               
               <div>
                 {/* Tag */}
                 <div className="inline-block px-3 py-1 rounded-lg bg-blue-100 text-blue-700 text-xs font-black uppercase tracking-wider mb-4">
-                  PARA PROFISSIONAIS
+                  {ltx.segments.pro.badge}
                 </div>
 
-                <h3 className="text-2xl sm:text-3xl font-black text-slate-950 mb-2">
-                  Transforme pedidos de orçamento em novas oportunidades.
+                <h3 className="text-xl sm:text-3xl font-black text-slate-950 mb-2 break-words">
+                  {ltx.segments.pro.title}
                 </h3>
-                <p className="text-slate-600 text-sm font-medium mb-6">
-                  Receba pedidos, feche obras e gerencie tudo no mesmo lugar.
+                <p className="text-slate-600 text-xs sm:text-sm font-medium mb-6 break-words">
+                  {ltx.segments.pro.sub}
                 </p>
 
                 {/* Bullets */}
-                <ul className="space-y-3 mb-8">
-                  {[
-                    'Receba novos pedidos de orçamento',
-                    'Consulte detalhes e localização da obra',
-                    'Analise e prepare o seu orçamento',
-                    'Envie propostas de forma profissional',
-                    'Organize obras, clientes e documentos',
-                    'Acompanhe pagamentos e resultados',
-                    'Tudo numa única plataforma'
-                  ].map((text, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-slate-800 font-bold text-sm">
-                      <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0">
+                <ul className="space-y-3 mb-6 sm:mb-8">
+                  {ltx.segments.pro.bullets.map((text, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 sm:gap-3 text-slate-800 font-bold text-xs sm:text-sm min-w-0">
+                      <div className="w-5 h-5 rounded-full bg-blue-600 text-white flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={13} strokeWidth={3} />
                       </div>
-                      <span>{text}</span>
+                      <span className="break-words">{text}</span>
                     </li>
                   ))}
                 </ul>
 
                 {/* Mini Preview Box */}
-                <div className="bg-slate-50/80 rounded-2xl p-4 border border-slate-200/80 mb-6 space-y-2">
-                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60">
-                    <span className="text-xs font-black text-slate-800">Resumo do mês</span>
-                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black">
-                      +24% este mês
+                <div className="bg-slate-50/80 rounded-2xl p-3 sm:p-4 border border-slate-200/80 mb-6 space-y-2 min-w-0 w-full">
+                  <div className="flex items-center justify-between pb-1 border-b border-slate-200/60 gap-1">
+                    <span className="text-xs font-black text-slate-800 truncate">{ltx.segments.pro.previewTitle}</span>
+                    <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 text-[10px] font-black shrink-0">
+                      {ltx.segments.pro.previewBadge}
                     </span>
                   </div>
-                  <div className="grid grid-cols-3 gap-2 text-center pt-1">
-                    <div className="p-2 bg-white rounded-xl border border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-400 block">Faturação</span>
-                      <span className="text-sm font-black text-slate-900">18.650 €</span>
+                  <div className="grid grid-cols-3 gap-1.5 sm:gap-2 text-center pt-1 min-w-0">
+                    <div className="p-1.5 sm:p-2 bg-white rounded-xl border border-slate-100 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{ltx.segments.pro.stat1Label}</span>
+                      <span className="text-xs sm:text-sm font-black text-slate-900 truncate block">{ltx.segments.pro.stat1Val}</span>
                     </div>
-                    <div className="p-2 bg-white rounded-xl border border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-400 block">Obras</span>
-                      <span className="text-xs font-black text-slate-900">8 Obras ativas</span>
+                    <div className="p-1.5 sm:p-2 bg-white rounded-xl border border-slate-100 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{ltx.segments.pro.stat2Label}</span>
+                      <span className="text-[11px] sm:text-xs font-black text-slate-900 truncate block">{ltx.segments.pro.stat2Val}</span>
                     </div>
-                    <div className="p-2 bg-white rounded-xl border border-slate-100">
-                      <span className="text-[10px] font-bold text-slate-400 block">Pedidos</span>
-                      <span className="text-xs font-black text-slate-900">12 Novos pedidos</span>
+                    <div className="p-1.5 sm:p-2 bg-white rounded-xl border border-slate-100 min-w-0">
+                      <span className="text-[9px] sm:text-[10px] font-bold text-slate-400 block truncate">{ltx.segments.pro.stat3Label}</span>
+                      <span className="text-[11px] sm:text-xs font-black text-slate-900 truncate block">{ltx.segments.pro.stat3Val}</span>
                     </div>
                   </div>
                 </div>
@@ -903,12 +792,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               </div>
 
               {/* Action Button */}
-              <div>
+              <div className="w-full">
                 <button
                   onClick={onStartFree}
-                  className="w-full py-4 bg-[#0b1329] hover:bg-[#15203f] text-white rounded-2xl font-black text-sm uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-800"
+                  className="w-full py-3.5 sm:py-4 bg-[#0b1329] hover:bg-[#15203f] text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-800"
                 >
-                  <span>QUERO RECEBER PEDIDOS</span>
+                  <span>{ltx.segments.pro.cta}</span>
                   <ArrowRight size={16} />
                 </button>
               </div>
@@ -921,208 +810,74 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* 5. SECTION "FUNCIONALIDADES COMPLETAS PARA O DIA A DIA" */}
-      <section id="funcionalidades" className="py-20 sm:py-28 bg-white border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+      <section id="funcionalidades" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full max-w-full">
           
           <span className="text-slate-400 font-black text-xs uppercase tracking-[0.25em] block mb-2.5">
-            TUDO O QUE PRECISA PARA GERIR O SEU NEGÓCIO
+            {ltx.features10.eyebrow}
           </span>
-          <h2 className="text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-14">
-            Funcionalidades completas para o dia a dia
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-8 sm:mb-14 break-words">
+            {ltx.features10.title}
           </h2>
 
           {/* 10 Feature Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4 items-stretch text-left">
-            
-            {/* Card 1 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <FileText size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Orçamentos
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Crie orçamentos e propostas profissionais em minutos.
-                </p>
-              </div>
-            </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 items-stretch text-left w-full max-w-full">
+            {ltx.features10.items.map((feat, idx) => {
+              const FeatIcon = FEATURE_ICONS[idx] || FileText;
+              const isHighlight = feat.isHighlighted || idx === 2;
+              const isNew = feat.isNew || idx === 6 || idx === 7;
 
-            {/* Card 2 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <Hammer size={20} />
+              return (
+                <div 
+                  key={idx} 
+                  className={`bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl ${isHighlight ? 'border-2 border-orange-400 shadow-sm' : 'border border-slate-200/80 shadow-xs'} hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between relative min-w-0`}
+                >
+                  {isNew && (
+                    <span className="absolute top-3 sm:top-4 right-3 sm:right-4 px-2 py-0.5 rounded-full bg-[#ff5722] text-white text-[9px] font-black uppercase">
+                      NOVO
+                    </span>
+                  )}
+                  <div>
+                    <div className={`w-10 h-10 rounded-2xl ${isHighlight ? 'bg-emerald-50 text-emerald-600' : idx === 4 || idx === 7 ? 'bg-orange-50 text-orange-600' : idx === 5 ? 'bg-purple-50 text-purple-600' : idx === 6 ? 'bg-rose-50 text-rose-600' : idx === 9 ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center mb-3 sm:mb-4`}>
+                      <FeatIcon size={20} />
+                    </div>
+                    <h3 className={`text-sm font-black ${isHighlight ? 'text-[#ff5722]' : 'text-slate-900'} mb-1.5 break-words`}>
+                      {feat.title}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-medium leading-relaxed break-words">
+                      {feat.desc}
+                    </p>
+                  </div>
                 </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Obras
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Acompanhe o progresso de cada obra em tempo real.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 3 (Highlighted) */}
-            <div className="bg-white p-6 rounded-3xl border-2 border-orange-400 shadow-sm transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mb-4">
-                  <Users size={20} />
-                </div>
-                <h3 className="text-sm font-black text-[#ff5722] mb-1.5">
-                  Clientes
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Organize clientes e fornecedores num só lugar.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 4 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <Layers size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Serviços
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Gerencie serviços, materiais e mão de obra.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 5 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-                  <CreditCard size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Pagamentos
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Controle recebimentos e pagamentos.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 6 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-purple-50 text-purple-600 flex items-center justify-center mb-4">
-                  <BarChart3 size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Relatórios
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Relatórios e indicadores para melhores decisões.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 7 (New) */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between relative">
-              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#ff5722] text-white text-[9px] font-black uppercase">
-                NOVO
-              </span>
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mb-4">
-                  <Inbox size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Pedidos de orçamento
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Receba solicitações de clientes diretamente na plataforma.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 8 (New) */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between relative">
-              <span className="absolute top-4 right-4 px-2 py-0.5 rounded-full bg-[#ff5722] text-white text-[9px] font-black uppercase">
-                NOVO
-              </span>
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-orange-50 text-orange-600 flex items-center justify-center mb-4">
-                  <Send size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Propostas
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Envie propostas e acompanhe o interesse do cliente.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 9 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center mb-4">
-                  <Folder size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  Documentos
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Guarde e acesse documentos da obra com segurança.
-                </p>
-              </div>
-            </div>
-
-            {/* Card 10 */}
-            <div className="bg-white p-6 rounded-3xl border border-slate-200/80 shadow-xs hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between">
-              <div>
-                <div className="w-10 h-10 rounded-2xl bg-amber-50 text-amber-600 flex items-center justify-center mb-4">
-                  <Smartphone size={20} />
-                </div>
-                <h3 className="text-sm font-black text-slate-900 mb-1.5">
-                  App mobile
-                </h3>
-                <p className="text-xs text-slate-500 font-medium leading-relaxed">
-                  Acesse de qualquer lugar pelo telemóvel.
-                </p>
-              </div>
-            </div>
-
+              );
+            })}
           </div>
 
         </div>
       </section>
 
       {/* 6. SECTION "ANTES ERA ASSIM..." VS "AGORA É ASSIM..." */}
-      <section className="py-16 sm:py-24 bg-slate-50/60 border-t border-slate-100">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <section className="py-14 sm:py-24 bg-slate-50/60 border-t border-slate-100 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
           
           {/* Comparison Container */}
-          <div className="bg-white rounded-3xl p-6 sm:p-10 border border-slate-200/80 shadow-sm mb-16">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-4 sm:p-8 lg:p-10 border border-slate-200/80 shadow-sm mb-10 sm:mb-16 w-full max-w-full">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 items-center w-full max-w-full">
               
               {/* Left Box (Antes) */}
-              <div className="lg:col-span-5 bg-[#fff5f5] rounded-2xl p-6 sm:p-8 border border-rose-100 text-left">
-                <div className="flex items-center gap-2 mb-6 text-rose-600 font-black text-xs uppercase tracking-wider">
-                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500" />
-                  <span>ANTES ERA ASSIM...</span>
+              <div className="lg:col-span-5 bg-[#fff5f5] rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-rose-100 text-left min-w-0 w-full">
+                <div className="flex items-center gap-2 mb-4 sm:mb-6 text-rose-600 font-black text-xs uppercase tracking-wider">
+                  <span className="w-2.5 h-2.5 rounded-full bg-rose-500 shrink-0" />
+                  <span className="truncate">{ltx.comparison.before.badge}</span>
                 </div>
 
-                <ul className="space-y-4">
-                  {[
-                    'Pedidos espalhados pelo WhatsApp e chamadas',
-                    'Orçamentos em papel ou planilhas',
-                    'Informações desorganizadas',
-                    'Dificuldade para acompanhar clientes',
-                    'Pouco controle dos resultados'
-                  ].map((text, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-slate-800 font-bold text-xs sm:text-sm">
-                      <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0">
+                <ul className="space-y-3 sm:space-y-4">
+                  {ltx.comparison.before.items.map((text, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 sm:gap-3 text-slate-800 font-bold text-xs sm:text-sm min-w-0">
+                      <div className="w-5 h-5 rounded-full bg-rose-100 text-rose-600 flex items-center justify-center shrink-0 mt-0.5">
                         <X size={12} strokeWidth={3} />
                       </div>
-                      <span>{text}</span>
+                      <span className="break-words">{text}</span>
                     </li>
                   ))}
                 </ul>
@@ -1130,31 +885,25 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               {/* Middle Arrow */}
               <div className="lg:col-span-2 flex items-center justify-center py-2 lg:py-0">
-                <div className="w-12 h-12 rounded-full bg-[#0b1329] text-white flex items-center justify-center shadow-md">
-                  <ArrowRight size={20} className="rotate-90 lg:rotate-0" />
+                <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-[#0b1329] text-white flex items-center justify-center shadow-md shrink-0">
+                  <ArrowRight size={18} className="rotate-90 lg:rotate-0" />
                 </div>
               </div>
 
               {/* Right Box (Depois) */}
-              <div className="lg:col-span-5 bg-[#f0fdf4] rounded-2xl p-6 sm:p-8 border border-emerald-100 text-left">
-                <div className="flex items-center gap-2 mb-6 text-emerald-600 font-black text-xs uppercase tracking-wider">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
-                  <span>AGORA É ASSIM, COM O ATRIOS BUILD</span>
+              <div className="lg:col-span-5 bg-[#f0fdf4] rounded-xl sm:rounded-2xl p-5 sm:p-8 border border-emerald-100 text-left min-w-0 w-full">
+                <div className="flex items-center gap-2 mb-4 sm:mb-6 text-emerald-600 font-black text-xs uppercase tracking-wider">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 shrink-0" />
+                  <span className="truncate">{ltx.comparison.after.badge}</span>
                 </div>
 
-                <ul className="space-y-4">
-                  {[
-                    'Pedidos organizados num só lugar',
-                    'Propostas profissionais e centralizadas',
-                    'Clientes e obras organizados',
-                    'Mais controle de custos e pagamentos',
-                    'Mais tempo e mais lucro para o seu negócio'
-                  ].map((text, idx) => (
-                    <li key={idx} className="flex items-center gap-3 text-slate-800 font-bold text-xs sm:text-sm">
-                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0">
+                <ul className="space-y-3 sm:space-y-4">
+                  {ltx.comparison.after.items.map((text, idx) => (
+                    <li key={idx} className="flex items-start gap-2.5 sm:gap-3 text-slate-800 font-bold text-xs sm:text-sm min-w-0">
+                      <div className="w-5 h-5 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center shrink-0 mt-0.5">
                         <Check size={12} strokeWidth={3} />
                       </div>
-                      <span>{text}</span>
+                      <span className="break-words">{text}</span>
                     </li>
                   ))}
                 </ul>
@@ -1164,112 +913,93 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           {/* Dark CTA Banner */}
-          <div className="bg-[#0b1329] rounded-3xl p-8 sm:p-12 lg:p-14 text-white shadow-2xl border border-slate-800">
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+          <div className="bg-[#0b1329] rounded-2xl sm:rounded-3xl p-5 sm:p-10 lg:p-14 text-white shadow-2xl border border-slate-800 w-full max-w-full overflow-hidden">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 sm:gap-8 lg:gap-12 items-center w-full max-w-full">
               
               {/* Left Copy */}
-              <div className="lg:col-span-7 text-left space-y-6">
-                <h3 className="text-2xl sm:text-4xl lg:text-[40px] font-black tracking-tight leading-tight">
-                  A plataforma completa para profissionais da construção civil.
+              <div className="lg:col-span-7 text-left space-y-4 sm:space-y-6 min-w-0 w-full">
+                <h3 className="text-xl sm:text-3xl lg:text-[40px] font-black tracking-tight leading-tight break-words">
+                  {ltx.comparison.ctaBanner.title}
                 </h3>
-                <p className="text-slate-300 text-sm sm:text-base font-normal max-w-xl">
-                  Mais organização, mais oportunidades e mais resultados. Comece agora com o Atrios Build.
+                <p className="text-slate-300 text-xs sm:text-base font-normal max-w-xl break-words">
+                  {ltx.comparison.ctaBanner.sub}
                 </p>
 
                 {/* 4 Trust points in row */}
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 pt-4 border-t border-slate-800">
-                  <div className="flex items-start gap-2">
-                    <ShieldCheck size={18} className="text-[#ff5722] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold block">Segurança total</span>
-                      <span className="text-[10px] text-slate-400">Seus dados protegidos</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <Headphones size={18} className="text-[#ff5722] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold block">Suporte dedicado</span>
-                      <span className="text-[10px] text-slate-400">Estamos aqui para ajudar</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <RefreshCw size={18} className="text-[#ff5722] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold block">Atualizações constantes</span>
-                      <span className="text-[10px] text-slate-400">Sempre melhor para si</span>
-                    </div>
-                  </div>
-
-                  <div className="flex items-start gap-2">
-                    <TrendingUp size={18} className="text-[#ff5722] shrink-0 mt-0.5" />
-                    <div>
-                      <span className="text-xs font-bold block">+ Profissionais</span>
-                      <span className="text-[10px] text-slate-400">Plataforma em crescimento</span>
-                    </div>
-                  </div>
+                <div className="grid grid-cols-1 xs:grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4 pt-3 sm:pt-4 border-t border-slate-800 w-full">
+                  {ltx.comparison.ctaBanner.trust.map((item, idx) => {
+                    const TrustIcon = TRUST_BANNER_ICONS[idx] || ShieldCheck;
+                    return (
+                      <div key={idx} className="flex items-start gap-2 min-w-0">
+                        <TrustIcon size={18} className="text-[#ff5722] shrink-0 mt-0.5" />
+                        <div className="min-w-0">
+                          <span className="text-xs font-bold block truncate">{item.title}</span>
+                          <span className="text-[10px] text-slate-400 block truncate">{item.sub}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
 
               </div>
 
               {/* Right CTA Buttons */}
-              <div className="lg:col-span-5 flex flex-col gap-3.5">
-                <div className="flex flex-col gap-2">
+              <div className="lg:col-span-5 flex flex-col gap-3 min-w-0 w-full">
+                <div className="flex flex-col gap-2 min-w-0 w-full">
                   <button
                     onClick={() => setShowClientRequestModal(true)}
-                    className="w-full p-4 sm:p-5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-center shadow-lg shadow-orange-500/25 active:scale-98 transition-all cursor-pointer"
+                    className="w-full p-4 sm:p-5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-center shadow-lg shadow-orange-500/25 active:scale-98 transition-all cursor-pointer min-w-0"
                   >
-                    <div className="text-sm sm:text-base font-black uppercase tracking-wide">
-                      PEDIR ORÇAMENTO GRÁTIS
+                    <div className="text-xs sm:text-base font-black uppercase tracking-wide truncate">
+                      {ltx.comparison.ctaBanner.clientTitle}
                     </div>
-                    <div className="text-xs text-white/90 font-medium mt-0.5">
-                      SOU CLIENTE E PRECISO DE UMA OBRA
+                    <div className="text-[11px] sm:text-xs text-white/90 font-medium mt-0.5 truncate">
+                      {ltx.comparison.ctaBanner.clientSub}
                     </div>
                   </button>
 
                   {onOpenClientPortal && (
                     <button
                       onClick={onOpenClientPortal}
-                      className="w-full py-2 px-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group"
-                      title="Aceder ao portal do cliente"
+                      className="w-full py-2 px-3 bg-white/10 hover:bg-white/20 border border-white/15 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group min-w-0 gap-1.5"
+                      title="Portal do Cliente"
                     >
-                      <div className="flex items-center gap-2">
-                        <Shield size={13} className="text-orange-400" />
-                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-white">
-                          Já pediu orçamento? <strong className="text-orange-400">Login Portal do Cliente</strong>
+                      <div className="flex items-center gap-2 min-w-0 flex-1">
+                        <Shield size={13} className="text-orange-400 shrink-0" />
+                        <span className="text-[11px] font-bold text-slate-200 group-hover:text-white truncate">
+                          {ltx.hero.clientCard.portalPrompt} <strong className="text-orange-400">{ltx.hero.clientCard.portalLink}</strong>
                         </span>
                       </div>
-                      <ChevronRight size={13} className="text-orange-400 group-hover:translate-x-0.5 transition-transform" />
+                      <ChevronRight size={13} className="text-orange-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
                     </button>
                   )}
                 </div>
 
-                <div className="flex flex-col gap-2">
+                <div className="flex flex-col gap-2 min-w-0 w-full">
                   <button
                     onClick={onStartFree}
-                    className="w-full p-4 sm:p-5 bg-[#121c38] hover:bg-[#1a2850] text-white rounded-2xl font-black text-center border border-slate-700 shadow-md active:scale-98 transition-all cursor-pointer"
+                    className="w-full p-4 sm:p-5 bg-[#121c38] hover:bg-[#1a2850] text-white rounded-2xl font-black text-center border border-slate-700 shadow-md active:scale-98 transition-all cursor-pointer min-w-0"
                   >
-                    <div className="text-sm sm:text-base font-black uppercase tracking-wide text-white">
-                      QUERO SER PROFISSIONAL
+                    <div className="text-xs sm:text-base font-black uppercase tracking-wide text-white truncate">
+                      {ltx.comparison.ctaBanner.proTitle}
                     </div>
-                    <div className="text-xs text-slate-300 font-medium mt-0.5">
-                      QUERO RECEBER PEDIDOS E GERIR OBRAS
+                    <div className="text-[11px] sm:text-xs text-slate-300 font-medium mt-0.5 truncate">
+                      {ltx.comparison.ctaBanner.proSub}
                     </div>
                   </button>
 
                   <button
                     onClick={onLogin}
-                    className="w-full py-2 px-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group"
-                    title="Entrar na conta de profissional"
+                    className="w-full py-2 px-3 bg-slate-900/60 hover:bg-slate-900 border border-slate-800 rounded-xl flex items-center justify-between text-left transition-all cursor-pointer group min-w-0 gap-1.5"
+                    title="Login Profissional"
                   >
-                    <div className="flex items-center gap-2">
-                      <Users size={13} className="text-slate-400" />
-                      <span className="text-[11px] font-bold text-slate-300 group-hover:text-white">
-                        Já tem conta? <strong className="text-amber-400">Login Profissional</strong>
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Users size={13} className="text-slate-400 shrink-0" />
+                      <span className="text-[11px] font-bold text-slate-300 group-hover:text-white truncate">
+                        {ltx.hero.proCard.loginPrompt} <strong className="text-amber-400">{ltx.hero.proCard.loginLink}</strong>
                       </span>
                     </div>
-                    <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                    <ChevronRight size={13} className="text-slate-400 group-hover:translate-x-0.5 transition-transform shrink-0" />
                   </button>
                 </div>
               </div>
@@ -1281,88 +1011,88 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* 7. FOOTER */}
-      <footer className="py-14 bg-white border-t border-slate-100 text-slate-600">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <footer className="py-10 sm:py-14 bg-white border-t border-slate-100 text-slate-600 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
           
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-10 mb-12">
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-12 gap-8 sm:gap-10 mb-8 sm:mb-12 w-full max-w-full">
             
             {/* Brand Column */}
-            <div className="md:col-span-5 space-y-4 text-left">
+            <div className="md:col-span-5 space-y-3 sm:space-y-4 text-left min-w-0">
               <div className="flex items-center gap-2.5">
                 <div className="w-10 h-10 rounded-xl bg-[#ff5722] text-white flex items-center justify-center shadow-md shadow-orange-500/20 shrink-0">
                   <Construction className="w-5 h-5" strokeWidth={2.5} />
                 </div>
-                <div className="flex flex-col">
-                  <span className="text-lg font-black tracking-tight text-slate-900 leading-none">
+                <div className="flex flex-col min-w-0">
+                  <span className="text-lg font-black tracking-tight text-slate-900 leading-none truncate">
                     ÁTRIOS<span className="text-[#ff5722]">BUILD</span>
                   </span>
-                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400 mt-0.5">
-                    SOFTWARE PARA CONSTRUÇÃO CIVIL
+                  <span className="text-[8px] font-bold uppercase tracking-wider text-slate-400 mt-0.5 truncate">
+                    {ltx.softwareSubtitle}
                   </span>
                 </div>
               </div>
 
-              <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-sm">
-                A plataforma completa para gestão de orçamentos, ordens de serviço e controlo financeiro de obras.
+              <p className="text-xs text-slate-500 font-medium leading-relaxed max-w-sm break-words">
+                {ltx.footer.desc}
               </p>
 
               <div className="flex items-center gap-2 text-xs font-bold text-slate-500 pt-1">
-                <ShieldCheck size={16} className="text-emerald-600" />
-                <span>Dados seguros e encriptados</span>
+                <ShieldCheck size={16} className="text-emerald-600 shrink-0" />
+                <span>{ltx.footer.secure}</span>
               </div>
             </div>
 
             {/* Produto Column */}
-            <div className="md:col-span-2 text-left space-y-3">
+            <div className="md:col-span-2 text-left space-y-3 min-w-0">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                PRODUTO
+                {ltx.footer.product}
               </h4>
               <ul className="space-y-2 text-xs font-medium text-slate-500">
-                <li><button onClick={() => scrollToSection('funcionalidades')} className="hover:text-slate-900">Funcionalidades</button></li>
-                <li><button onClick={() => scrollToSection('como-funciona')} className="hover:text-slate-900">Como Funciona</button></li>
-                <li><button onClick={onStartFree} className="hover:text-slate-900">Orçamentos PDF</button></li>
-                <li><button onClick={onStartFree} className="hover:text-[#ff5722] font-black text-[#ff5722]">Criar Conta Grátis →</button></li>
+                <li><button onClick={() => scrollToSection('funcionalidades')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.features}</button></li>
+                <li><button onClick={() => scrollToSection('como-funciona')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.howItWorks}</button></li>
+                <li><button onClick={onStartFree} className="hover:text-slate-900 cursor-pointer">{ltx.footer.pdfQuotes}</button></li>
+                <li><button onClick={onStartFree} className="hover:text-[#ff5722] font-black text-[#ff5722] cursor-pointer">{ltx.footer.createFree}</button></li>
               </ul>
             </div>
 
             {/* Empresa Column */}
-            <div className="md:col-span-3 text-left space-y-3">
+            <div className="md:col-span-3 text-left space-y-3 min-w-0">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                EMPRESA
+                {ltx.footer.company}
               </h4>
               <ul className="space-y-2 text-xs font-medium text-slate-500">
                 <li><span className="text-slate-700 font-bold">Atrios Software</span></li>
-                <li className="flex items-center gap-1.5">
-                  <Mail size={13} className="text-slate-400" />
-                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900">software.atrios@gmail.com</a>
+                <li className="flex items-center gap-1.5 truncate">
+                  <Mail size={13} className="text-slate-400 shrink-0" />
+                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900 truncate">software.atrios@gmail.com</a>
                 </li>
-                <li><button onClick={() => onOpenLegal('privacy')} className="hover:text-slate-900">Privacidade</button></li>
-                <li><button onClick={() => onOpenLegal('terms')} className="hover:text-slate-900">Termos de Uso</button></li>
+                <li><button onClick={() => onOpenLegal('privacy')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.privacy}</button></li>
+                <li><button onClick={() => onOpenLegal('terms')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.terms}</button></li>
               </ul>
             </div>
 
             {/* Suporte Column */}
-            <div className="md:col-span-2 text-left space-y-3">
+            <div className="md:col-span-2 text-left space-y-3 min-w-0">
               <h4 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                SUPORTE
+                {ltx.footer.support}
               </h4>
               <ul className="space-y-2 text-xs font-medium text-slate-500">
-                <li className="flex items-center gap-1.5">
-                  <HelpCircle size={13} className="text-slate-400" />
-                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900">Ajuda e Dúvidas</a>
+                <li className="flex items-center gap-1.5 truncate">
+                  <HelpCircle size={13} className="text-slate-400 shrink-0" />
+                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900 truncate">{ltx.footer.help}</a>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <Play size={13} className="text-slate-400" />
-                  <button onClick={() => setShowDemoModal(true)} className="hover:text-slate-900">Ver Demonstração</button>
+                  <Play size={13} className="text-slate-400 shrink-0" />
+                  <button onClick={() => setShowDemoModal(true)} className="hover:text-slate-900 cursor-pointer">{ltx.footer.demo}</button>
                 </li>
                 <li className="flex items-center gap-1.5">
-                  <Download size={13} className="text-emerald-600" />
-                  <button onClick={onDownloadApp} className="hover:text-emerald-600 font-bold text-emerald-600">Instalar App Mobile</button>
+                  <Download size={13} className="text-emerald-600 shrink-0" />
+                  <button onClick={onDownloadApp} className="hover:text-emerald-600 font-bold text-emerald-600 cursor-pointer">{ltx.footer.installApp}</button>
                 </li>
                 {onOpenClientPortal && (
-                  <li className="flex items-center gap-1.5 pt-1">
-                    <Shield size={13} className="text-[#ff5722]" />
-                    <button onClick={onOpenClientPortal} className="hover:text-[#ff5722] font-black text-[#ff5722]">Portal do Cliente (Login)</button>
+                  <li className="flex items-center gap-1.5 pt-1 truncate">
+                    <Shield size={13} className="text-[#ff5722] shrink-0" />
+                    <button onClick={onOpenClientPortal} className="hover:text-[#ff5722] font-black text-[#ff5722] cursor-pointer truncate">{ltx.footer.clientPortal}</button>
                   </li>
                 )}
               </ul>
@@ -1370,9 +1100,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           </div>
 
-          <div className="pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-4 text-xs font-medium text-slate-400">
-            <p>© {new Date().getFullYear()} ÁTRIOSBUILD • Todos os direitos reservados.</p>
-            <p>Desenvolvido com excelência para profissionais da construção civil.</p>
+          <div className="pt-6 sm:pt-8 border-t border-slate-100 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs font-medium text-slate-400 text-center sm:text-left">
+            <p>© {new Date().getFullYear()} ÁTRIOSBUILD • {ltx.footer.rights}</p>
+            <p>{ltx.footer.tagline}</p>
           </div>
 
         </div>
@@ -1395,7 +1125,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       Demonstração Átrios Build
                     </h3>
                     <p className="text-[11px] font-bold text-slate-400">
-                      Veja em ação em 60 segundos
+                      {ltx.hero.video.badge60s}
                     </p>
                   </div>
                 </div>
@@ -1583,7 +1313,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     }}
                     className="px-6 py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer"
                   >
-                    Começar Agora Grátis
+                    {ltx.nav.startFree}
                   </button>
                 </div>
               </div>
