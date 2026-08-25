@@ -25,7 +25,11 @@ import {
   Smartphone, 
   RotateCcw,
   Copy,
-  ExternalLink
+  ExternalLink,
+  Monitor,
+  Maximize2,
+  Info,
+  Ruler
 } from 'lucide-react';
 import { IntroBannerItem } from '../types';
 import { 
@@ -296,7 +300,7 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
   };
 
   const handleResetDefaults = async () => {
-    if (!window.confirm('Deseja restaurar todos os 5 banners originais de apresentação? As suas alterações personalizadas serão substituídas pelos padrões.')) {
+    if (!window.confirm('Deseja restaurar todos os 4 banners originais de apresentação em tela cheia? As suas alterações personalizadas serão substituídas pelos padrões.')) {
       return;
     }
 
@@ -453,6 +457,63 @@ WITH CHECK (true);`;
             </pre>
           </div>
         )}
+
+        {/* IDEAL IMAGE DIMENSIONS & GUIDELINES CARD */}
+        <div className="bg-slate-950/90 border border-orange-500/30 rounded-2xl p-4 sm:p-5 shadow-xl relative overflow-hidden">
+          <div className="flex items-center justify-between gap-2 pb-3 border-b border-white/10 flex-wrap">
+            <div className="flex items-center gap-2">
+              <div className="w-8 h-8 rounded-lg bg-orange-500/20 text-orange-400 border border-orange-500/30 flex items-center justify-center">
+                <Ruler size={16} />
+              </div>
+              <div>
+                <h4 className="text-xs sm:text-sm font-black uppercase text-white tracking-wide flex items-center gap-2">
+                  <span>Tamanho e Resolução Ideal das Imagens (Tela Cheia)</span>
+                  <span className="px-2 py-0.5 rounded-md bg-orange-500/20 text-orange-400 text-[10px] font-bold">16:9 Widescreen</span>
+                </h4>
+                <p className="text-[11px] text-slate-400">
+                  Para garantir nitidez perfeita e adaptação impecável em monitores, portáteis, tablets e telemóveis.
+                </p>
+              </div>
+            </div>
+            <div className="flex items-center gap-1.5 text-[11px] font-mono text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-2.5 py-1 rounded-lg">
+              <Monitor size={13} />
+              <span>Full HD / 2K Ready</span>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-3.5">
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Resolução Recomendada</span>
+              <span className="text-xs sm:text-sm font-black text-white font-mono block text-orange-400">1920 × 1080 px</span>
+              <span className="text-[10px] text-slate-400 block">(Ou 2560 × 1440 px para 2K)</span>
+            </div>
+
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Proporção (Aspect Ratio)</span>
+              <span className="text-xs sm:text-sm font-black text-white font-mono block text-amber-400">16:9 (Horizontal)</span>
+              <span className="text-[10px] text-slate-400 block">Preenchimento total do ecrã</span>
+            </div>
+
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Formatos Aceites</span>
+              <span className="text-xs sm:text-sm font-black text-white font-mono block text-emerald-400">JPG, PNG, WEBP</span>
+              <span className="text-[10px] text-slate-400 block">Comprime automaticamente</span>
+            </div>
+
+            <div className="bg-slate-900/80 p-3 rounded-xl border border-white/5 space-y-1">
+              <span className="text-[10px] font-black uppercase text-slate-400 block">Peso Máximo do Ficheiro</span>
+              <span className="text-xs sm:text-sm font-black text-white font-mono block text-blue-400">Até 2 MB</span>
+              <span className="text-[10px] text-slate-400 block">Carregamento ultrarrápido</span>
+            </div>
+          </div>
+
+          <div className="mt-3 pt-2.5 border-t border-white/5 flex items-center gap-2 text-[11px] text-slate-400">
+            <Info size={14} className="text-orange-400 shrink-0" />
+            <span>
+              <strong>Dica de Enquadramento:</strong> Os banners utilizam preenchimento total de ecrã (<em>object-cover</em>). Mantenha o assunto principal e áreas de foco no centro da imagem para garantir corte harmonioso em qualquer proporção de ecrã (inclusive smartphones na vertical).
+            </span>
+          </div>
+        </div>
 
       </div>
 
@@ -648,6 +709,14 @@ WITH CHECK (true);`;
                     )}
                   </div>
 
+                  {/* Dimension recommendation pill */}
+                  <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] text-orange-300">
+                    <span className="font-bold flex items-center gap-1">
+                      <Ruler size={12} /> Tamanho Ideal: <strong>1920 × 1080 px</strong>
+                    </span>
+                    <span className="font-mono bg-orange-500/20 px-1.5 py-0.5 rounded text-orange-200 font-bold">16:9 Widescreen</span>
+                  </div>
+
                   {/* Upload Box / Dropzone */}
                   <div
                     onClick={() => fileInputRef.current?.click()}
@@ -678,7 +747,7 @@ WITH CHECK (true);`;
                           ✓ Imagem carregada e pronta para o Supabase
                         </span>
                         <span className="text-[10px] text-slate-400 block">
-                          Clique para alterar a imagem
+                          Clique para alterar a imagem (1920×1080 recomendado)
                         </span>
                       </div>
                     ) : (
@@ -691,7 +760,7 @@ WITH CHECK (true);`;
                             Clique para fazer upload de imagem
                           </span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">
-                            Formatos suportados: JPG, PNG, WEBP (Otimizada automaticamente)
+                            Ideal: <strong>1920×1080px (16:9)</strong> • JPG, PNG, WEBP (Máx 2MB)
                           </span>
                         </div>
                       </div>
@@ -823,7 +892,7 @@ WITH CHECK (true);`;
             <div>
               <h4 className="text-base font-black text-white uppercase">Nenhum banner cadastrado</h4>
               <p className="text-xs text-slate-400 mt-1">
-                Clique no botão abaixo para restaurar os 5 banners originais ou criar um novo.
+                Clique no botão abaixo para restaurar os 4 banners originais de tela cheia ou criar um novo.
               </p>
             </div>
             <button

@@ -2064,8 +2064,8 @@ export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
     tagColor: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
     title: 'Encontre Novos Clientes e Receba Pedidos de Obra',
     subtitle: 'Conectamos clientes particulares a profissionais de topo da construção civil.',
-    description: 'Receba solicitações detalhadas com fotos, localização e descrição do serviço diretamente na plataforma. Notificações imediatas para responder antes da concorrência.',
-    imageUrl: '',
+    description: 'Receba solicitações detalhadas com fotos, localização e descrição do serviço diretamente na plataforma.',
+    imageUrl: '/banners/banner_1.jpg',
     accentColor: '#ff5722',
     highlights: [
       'Pedidos qualificados em tempo real',
@@ -2074,12 +2074,6 @@ export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
     ],
     mockupBadge: 'NOVO PEDIDO DISPONÍVEL',
     mockupHeadline: 'Remodelação Geral de Moradia T3',
-    mockupDetails: [
-      { label: 'Localização', value: 'Lisboa, Parque das Nações' },
-      { label: 'Prazo Estimado', value: 'Início em 15 dias' },
-      { label: 'Orçamento Estimado', value: '35.000 € - 50.000 €', color: 'text-emerald-400' },
-      { label: 'Estado', value: 'A aguardar propostas', color: 'text-orange-400' }
-    ],
     sortOrder: 0,
     active: true,
     createdAt: new Date().toISOString()
@@ -2090,8 +2084,8 @@ export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
     tagColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
     title: 'Crie Orçamentos e Propostas Profissionais em Minutos',
     subtitle: 'Acabou a perda de tempo com folhas de cálculo complexas e orçamentos desorganizados.',
-    description: 'Calcule custos de mão de obra, materiais e margem de lucro com precisão cirúrgica. Exporte em PDF profissional com o logótipo da sua empresa ou partilhe via link.',
-    imageUrl: '',
+    description: 'Calcule custos de mão de obra, materiais e margem de lucro com precisão cirúrgica.',
+    imageUrl: '/banners/banner_2.jpg',
     accentColor: '#f59e0b',
     highlights: [
       'Cálculo automático de margem e impostos',
@@ -2100,12 +2094,6 @@ export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
     ],
     mockupBadge: 'PROPOSTA COMERCIAL #2026-08',
     mockupHeadline: 'Reabilitação de Cozinha e Casa de Banho',
-    mockupDetails: [
-      { label: 'Materiais & Equipamentos', value: '8.450,00 €' },
-      { label: 'Mão de Obra Especializada', value: '6.200,00 €' },
-      { label: 'Margem de Lucro', value: '28% (+3.100 €)', color: 'text-emerald-400' },
-      { label: 'Total da Proposta', value: '17.750,00 €', color: 'text-amber-400' }
-    ],
     sortOrder: 1,
     active: true,
     createdAt: new Date().toISOString()
@@ -2116,75 +2104,37 @@ export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
     tagColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
     title: 'Acompanhe as suas Obras do Início à Conclusão',
     subtitle: 'Mantenha todas as etapas, equipas e prazos rigorosamente sob controlo.',
-    description: 'Registo diário de obra, controlo de tarefas pendentes, fotos do avanço físico e histórico completo. Saiba o que está feito e o que falta sem sair do escritório.',
-    imageUrl: '',
+    description: 'Registo diário de obra, controlo de tarefas pendentes, fotos do avanço físico e histórico completo.',
+    imageUrl: '/banners/banner_3.jpg',
     accentColor: '#3b82f6',
     highlights: [
       'Acompanhamento do progresso em tempo real',
       'Atribuição de tarefas e equipas',
       'Diário fotográfico de evolução da obra'
     ],
-    mockupBadge: 'OBRA EM EXECUÇÃO • ETAPA 3 DE 5',
+    mockupBadge: 'OBRA EM EXECUÇÃO',
     mockupHeadline: 'Edifício Residencial Horizonte',
-    mockupDetails: [
-      { label: 'Progresso Físico', value: '68% Concluído', color: 'text-blue-400' },
-      { label: 'Etapa Atual', value: 'Instalações Especiais e Pintura' },
-      { label: 'Equipa Alocada', value: '6 Oficiais + 1 Encarregado' },
-      { label: 'Previsão de Entrega', value: '28 de Outubro', color: 'text-emerald-400' }
-    ],
     sortOrder: 2,
     active: true,
     createdAt: new Date().toISOString()
   },
   {
     id: 'banner_finances',
-    tag: 'SAÚDE FINANCEIRA',
+    tag: 'SAÚDE FINANCEIRA & CONTROLO',
     tagColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
     title: 'Controle Pagamentos, Custos Reais e Lucro Líquido',
     subtitle: 'Tenha clareza total sobre o fluxo de caixa de cada projeto.',
-    description: 'Gestão de adiantamentos, pagamentos parciais por auto de medição, controlo de despesas de fornecedores e relatórios financeiros automáticos.',
-    imageUrl: '',
+    description: 'Gestão de adiantamentos, pagamentos parciais por auto de medição e relatórios financeiros automáticos.',
+    imageUrl: '/banners/banner_4.jpg',
     accentColor: '#10b981',
     highlights: [
       'Registo de adiantamentos e pagamentos parcelados',
       'Controlo de faturas de compras e fornecedores',
       'Relatórios gráficos de rentabilidade por obra'
     ],
-    mockupBadge: 'FLUXO FINANCEIRO DO MÊS',
+    mockupBadge: 'FLUXO FINANCEIRO',
     mockupHeadline: 'Resumo Consolidado de Faturação',
-    mockupDetails: [
-      { label: 'Faturação Total', value: '48.900,00 €' },
-      { label: 'Despesas Realizadas', value: '29.400,00 €' },
-      { label: 'Lucro Operacional', value: '+19.500,00 €', color: 'text-emerald-400' },
-      { label: 'Rentabilidade Média', value: '39,8%', color: 'text-emerald-400' }
-    ],
     sortOrder: 3,
-    active: true,
-    createdAt: new Date().toISOString()
-  },
-  {
-    id: 'banner_mobile',
-    tag: 'MULTIPLATAFORMA & CLOUD',
-    tagColor: 'bg-purple-500/20 text-purple-400 border-purple-500/30',
-    title: 'Tudo no Telemóvel e Computador (App Mobile & Web)',
-    subtitle: 'Acesse em qualquer lugar, na obra, em reuniões ou no escritório.',
-    description: 'Instale a aplicação no seu smartphone Android ou iOS com suporte para modo offline, sincronização instantânea em nuvem e portal exclusivo para o cliente.',
-    imageUrl: '',
-    accentColor: '#a855f7',
-    highlights: [
-      'App Mobile PWA para Android e iOS',
-      'Portal exclusivo para o cliente acompanhar',
-      'Segurança e cópias de segurança em nuvem'
-    ],
-    mockupBadge: 'SINCRONIZAÇÃO EM TEMPO REAL',
-    mockupHeadline: 'Plataforma Átrios Build 360°',
-    mockupDetails: [
-      { label: 'Dispositivos Ativos', value: 'Mobile + Tablet + PC' },
-      { label: 'Portal do Cliente', value: 'Ativo e Acessível' },
-      { label: 'Armazenamento em Nuvem', value: 'Seguro e Criptografado', color: 'text-purple-400' },
-      { label: 'Disponibilidade', value: '100% Online', color: 'text-emerald-400' }
-    ],
-    sortOrder: 4,
     active: true,
     createdAt: new Date().toISOString()
   }

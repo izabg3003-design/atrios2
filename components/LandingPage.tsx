@@ -40,13 +40,14 @@ import {
   HelpCircle,
   HardHat,
   ChevronRight,
-  Shield
+  Shield,
+  Lock
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
 import { landingTranslations } from './landingTranslations';
 import { LOCALE_OPTIONS, getLandingExtended } from './landingExtendedTranslations';
-import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId } from '../services/storage';
+import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId, fetchCloudAppSettings } from '../services/storage';
 import { ClientRequestModal } from './ClientRequestModal';
 
 interface LandingPageProps {
@@ -90,8 +91,98 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [heroVideo, setHeroVideo] = useState<HeroVideoConfig>(getStoredHeroVideoConfig);
   const [actionVideo, setActionVideo] = useState<ActionVideoConfig>(getStoredActionVideoConfig);
-  const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('interactive');
+  const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('video');
   const [activeHeroTab, setActiveHeroTab] = useState<'video' | 'live'>('video');
+
+  // Load cloud settings on mount to ensure newest video from database is fetched
+  useEffect(() => {
+    fetchCloudAppSettings().then(() => {
+      setHeroVideo(getStoredHeroVideoConfig());
+      setActionVideo(getStoredActionVideoConfig());
+    }).catch(err => console.warn('Cloud app settings fetch error:', err));
+  }, []);
+
+  // Compute active video from database/storage (prioritize Hero Video config, fallback to Action Video)
+  const heroYouTubeId = heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '');
+  const heroVideoUrl = heroVideo.videoUrl;
+  const actionYouTubeId = actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '');
+  const actionVideoUrl = actionVideo.videoUrl;
+
+  const currentVideo = (() => {
+    if (heroVideo.type === 'youtube' && heroYouTubeId) {
+      return {
+        type: 'youtube' as const,
+        id: heroYouTubeId,
+        url: heroVideo.youtubeUrl,
+        title: heroVideo.title || 'Demonstração Átrios Build',
+        autoPlay: heroVideo.autoPlay ?? true,
+        muted: heroVideo.muted ?? true,
+        showControls: heroVideo.showControls ?? true,
+        loop: heroVideo.loop ?? true
+      };
+    }
+    if (heroVideo.type === 'upload' && heroVideoUrl) {
+      return {
+        type: 'upload' as const,
+        url: heroVideoUrl,
+        title: heroVideo.title || 'Demonstração Átrios Build',
+        autoPlay: heroVideo.autoPlay ?? true,
+        muted: heroVideo.muted ?? true,
+        showControls: heroVideo.showControls ?? true,
+        loop: heroVideo.loop ?? true
+      };
+    }
+    if (heroVideo.type === 'default') {
+      return null;
+    }
+    if (heroYouTubeId) {
+      return {
+        type: 'youtube' as const,
+        id: heroYouTubeId,
+        url: heroVideo.youtubeUrl,
+        title: heroVideo.title || 'Demonstração Átrios Build',
+        autoPlay: heroVideo.autoPlay ?? true,
+        muted: heroVideo.muted ?? true,
+        showControls: heroVideo.showControls ?? true,
+        loop: heroVideo.loop ?? true
+      };
+    }
+    if (heroVideoUrl) {
+      return {
+        type: 'upload' as const,
+        url: heroVideoUrl,
+        title: heroVideo.title || 'Demonstração Átrios Build',
+        autoPlay: heroVideo.autoPlay ?? true,
+        muted: heroVideo.muted ?? true,
+        showControls: heroVideo.showControls ?? true,
+        loop: heroVideo.loop ?? true
+      };
+    }
+    if (actionVideo.type === 'youtube' && actionYouTubeId) {
+      return {
+        type: 'youtube' as const,
+        id: actionYouTubeId,
+        url: actionVideo.youtubeUrl,
+        title: actionVideo.title || 'Veja como funciona em 60 segundos',
+        autoPlay: actionVideo.autoPlay ?? true,
+        muted: actionVideo.muted ?? true,
+        showControls: actionVideo.showControls ?? true,
+        loop: actionVideo.loop ?? true
+      };
+    }
+    if (actionVideo.type === 'upload' && actionVideoUrl) {
+      return {
+        type: 'upload' as const,
+        url: actionVideoUrl,
+        title: actionVideo.title || 'Veja como funciona em 60 segundos',
+        autoPlay: actionVideo.autoPlay ?? true,
+        muted: actionVideo.muted ?? true,
+        showControls: actionVideo.showControls ?? true,
+        loop: actionVideo.loop ?? true
+      };
+    }
+    return null;
+  })();
 
   // Get full extended landing translations for the active locale (fallback to pt-PT)
   const ltx = getLandingExtended(locale);
@@ -169,16 +260,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     };
   }, []);
 
-  // Auto advance demo modal if open
+  // Auto advance demo modal only in interactive mode
   useEffect(() => {
     let timer: NodeJS.Timeout;
-    if (showDemoModal) {
+    if (showDemoModal && demoModalMode === 'interactive') {
       timer = setInterval(() => {
         setDemoStep(prev => (prev + 1) % 4);
       }, 4500);
     }
     return () => clearInterval(timer);
-  }, [showDemoModal]);
+  }, [showDemoModal, demoModalMode]);
 
   const currencySymbol = CURRENCIES[currencyCode]?.symbol || '€';
 
@@ -481,84 +572,99 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             </div>
 
-            {/* Right Column: Interactive Video Player Mockup */}
+            {/* Right Column: Live Hero Laptop Preview (Identical to Master Realtime Preview) */}
             <div className="lg:col-span-6 relative w-full max-w-full min-w-0">
               
-              {/* Main Player Frame */}
-              <div className="bg-[#0b1329] rounded-2xl sm:rounded-3xl p-3 sm:p-5 shadow-2xl border border-slate-800 text-white overflow-hidden relative w-full max-w-full">
+              {/* Simulated Laptop Frame */}
+              <div className="bg-slate-950 rounded-2xl sm:rounded-3xl p-2.5 sm:p-3.5 border-2 border-slate-800 shadow-2xl text-white relative w-full max-w-full">
                 
-                {/* Top Player Header Tabs */}
-                <div className="flex items-center justify-between gap-1.5 sm:gap-2 pb-2.5 sm:pb-3 mb-2.5 sm:mb-3 border-b border-slate-800 flex-wrap">
-                  <div className="flex items-center gap-1.5 sm:gap-2">
-                    <button
-                      onClick={() => setActiveHeroTab('video')}
-                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeHeroTab === 'video' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
-                    >
-                      <Play size={12} className="fill-current" /> {ltx.hero.video.tabVideo}
-                    </button>
+                {/* Browser Bar */}
+                <div className="flex items-center justify-between pb-2.5 px-2 border-b border-slate-800 mb-2.5 sm:mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <div className="w-2.5 h-2.5 rounded-full bg-rose-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+                    <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+                  </div>
+
+                  <div className="flex items-center gap-1.5 px-3 py-1 rounded-md bg-slate-900 border border-slate-800 text-[10px] sm:text-xs font-mono text-slate-400">
+                    <Lock size={11} className="text-emerald-400 shrink-0" />
+                    <span>app.atriosbuild.com</span>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <div className="flex items-center gap-1 text-[10px] font-mono text-emerald-400">
+                      <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="hidden sm:inline">HD 60FPS</span>
+                    </div>
                     <button
                       onClick={() => {
-                        setActiveHeroTab('live');
+                        setDemoModalMode(currentVideo ? 'video' : 'interactive');
                         setShowDemoModal(true);
                       }}
-                      className={`px-2.5 sm:px-3 py-1.5 rounded-lg text-[10px] sm:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 transition-all cursor-pointer ${activeHeroTab === 'live' ? 'bg-[#ff5722] text-white shadow-md' : 'bg-slate-800/80 text-slate-400 hover:text-white'}`}
+                      title="Expandir Janela"
+                      className="p-1 rounded text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
                     >
-                      <ClipboardList size={12} /> {ltx.hero.video.tabLive}
-                    </button>
-                  </div>
-                  <div className="flex items-center gap-1.5 text-[10px] font-mono text-emerald-400">
-                    <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                    <span>HD 60FPS</span>
-                    <button onClick={() => setShowDemoModal(true)} className="p-1 hover:text-white text-slate-400 cursor-pointer">
                       <Maximize2 size={13} />
                     </button>
                   </div>
                 </div>
 
-                {/* Player Inner Screen */}
-                <div 
-                  onClick={() => setShowDemoModal(true)}
-                  className="relative aspect-video rounded-xl sm:rounded-2xl overflow-hidden bg-[#070d1e] border border-slate-800/80 flex flex-col items-center justify-center p-4 sm:p-6 text-center cursor-pointer group hover:border-orange-500/50 transition-all w-full max-w-full"
-                  style={{
-                    backgroundImage: 'radial-gradient(rgba(255, 255, 255, 0.08) 1px, transparent 1px)',
-                    backgroundSize: '20px 20px'
-                  }}
-                >
-                  {/* Top Badge */}
-                  <div className="absolute top-2 sm:top-3 left-2 sm:left-3 right-2 sm:right-3 flex items-center justify-between gap-1">
-                    <div className="px-2 sm:px-2.5 py-0.5 sm:py-1 rounded-full bg-orange-500/20 border border-orange-500/40 text-orange-400 text-[9px] sm:text-[10px] font-black uppercase tracking-wider flex items-center gap-1 truncate max-w-[75%]">
-                      <Sparkles size={11} className="shrink-0" />
-                      <span className="truncate">{ltx.hero.video.badge60s}</span>
+                {/* Inner Screen Content */}
+                <div className="relative rounded-xl overflow-hidden bg-slate-900 aspect-video flex items-center justify-center w-full">
+                  {currentVideo?.type === 'youtube' && currentVideo.id ? (
+                    <iframe
+                      className="w-full h-full border-0"
+                      src={`https://www.youtube.com/embed/${currentVideo.id}?autoplay=${currentVideo.autoPlay ? 1 : 0}&mute=${currentVideo.muted ? 1 : 0}&loop=${currentVideo.loop ? 1 : 0}&playlist=${currentVideo.id}&controls=${currentVideo.showControls ? 1 : 0}&rel=0&modestbranding=1`}
+                      title={currentVideo.title || "Demonstração Átrios Build"}
+                      allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                      allowFullScreen
+                    />
+                  ) : currentVideo?.type === 'upload' && currentVideo.url ? (
+                    <video
+                      className="w-full h-full object-cover"
+                      src={currentVideo.url}
+                      autoPlay={currentVideo.autoPlay}
+                      muted={currentVideo.muted}
+                      loop={currentVideo.loop}
+                      controls={currentVideo.showControls}
+                      playsInline
+                    />
+                  ) : (
+                    /* Default estimate builder preview mockup */
+                    <div 
+                      onClick={() => {
+                        setDemoModalMode('interactive');
+                        setShowDemoModal(true);
+                      }}
+                      className="w-full h-full bg-white p-3.5 sm:p-5 text-slate-900 flex flex-col justify-between text-left select-none cursor-pointer hover:bg-slate-50/95 transition-colors group"
+                    >
+                      <div className="flex justify-between items-center border-b border-slate-100 pb-2">
+                        <div className="flex items-center gap-1.5 sm:gap-2">
+                          <span className="text-[11px] sm:text-xs font-black uppercase text-slate-900">ORÇAMENTO #2026-084</span>
+                          <span className="px-1.5 py-0.5 bg-amber-100 text-amber-800 text-[8px] sm:text-[9px] font-black rounded">PENDENTE</span>
+                        </div>
+                        <span className="text-[11px] sm:text-xs font-black text-amber-600">6.840,00 {currencySymbol}</span>
+                      </div>
+
+                      <div className="space-y-1.5 my-2">
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex justify-between text-[10px] sm:text-[11px]">
+                          <span className="font-bold text-slate-700">Materiais & Insumos</span>
+                          <span className="font-mono font-bold text-slate-900">916,00 {currencySymbol}</span>
+                        </div>
+                        <div className="bg-slate-50 p-2 rounded-lg border border-slate-100 flex justify-between text-[10px] sm:text-[11px]">
+                          <span className="font-bold text-slate-700">Mão de Obra Especializada</span>
+                          <span className="font-mono font-bold text-slate-900">1.660,00 {currencySymbol}</span>
+                        </div>
+                      </div>
+
+                      <div className="flex justify-between items-center pt-2 border-t border-slate-100 text-[9px] sm:text-[10px] text-slate-400">
+                        <span>IVA incluído (23%)</span>
+                        <span className="px-2 py-0.5 bg-slate-900 group-hover:bg-[#ff5722] text-white rounded font-bold text-[9px] transition-colors flex items-center gap-1">
+                          <FileText size={11} /> PDF Pronto
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-[9px] sm:text-[10px] font-mono text-slate-400 bg-slate-900/80 px-1.5 sm:px-2 py-0.5 rounded-md shrink-0">
-                      {ltx.hero.video.duration}
-                    </span>
-                  </div>
-
-                  {/* Big Orange Center Play Button */}
-                  <div className="w-12 h-12 sm:w-20 sm:h-20 rounded-full bg-[#ff5722] hover:bg-[#e64a19] text-white flex items-center justify-center shadow-2xl shadow-orange-500/50 group-hover:scale-110 active:scale-95 transition-all mb-2 sm:mb-3">
-                    <Play size={22} className="fill-white ml-0.5 sm:ml-1 sm:w-7 sm:h-7" />
-                  </div>
-
-                  <h4 className="text-xs sm:text-base font-black text-white uppercase tracking-wide truncate max-w-full">
-                    {ltx.hero.video.centerBtn}
-                  </h4>
-                  <p className="text-[10px] sm:text-xs text-slate-400 font-medium mt-0.5 truncate max-w-full">
-                    {ltx.hero.video.subText}
-                  </p>
-
-                  {/* Bottom Steps Indicator */}
-                  <div className="absolute bottom-2 sm:bottom-3 left-2 sm:left-4 right-2 sm:right-4 flex items-center justify-between text-[9px] sm:text-[10px] font-bold text-slate-400 border-t border-slate-800/80 pt-1.5 sm:pt-2.5 gap-1 overflow-hidden">
-                    <span className="text-orange-400 flex items-center gap-0.5 sm:gap-1 truncate">
-                      <span className="font-black">1.</span> {ltx.hero.video.step1}
-                    </span>
-                    <span className="flex items-center gap-0.5 sm:gap-1 truncate">
-                      <span className="font-black text-slate-500">2.</span> {ltx.hero.video.step2}
-                    </span>
-                    <span className="flex items-center gap-0.5 sm:gap-1 truncate">
-                      <span className="font-black text-slate-500">3.</span> {ltx.hero.video.step3}
-                    </span>
-                  </div>
+                  )}
                 </div>
 
               </div>
@@ -795,10 +901,18 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="w-full">
                 <button
                   onClick={onStartFree}
-                  className="w-full py-3.5 sm:py-4 bg-[#0b1329] hover:bg-[#15203f] text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer border border-slate-800"
+                  className="w-full py-3.5 sm:py-4 bg-[#0b1329] hover:bg-[#15203f] text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg active:scale-98 transition-all flex items-center justify-center gap-2 mb-2 sm:mb-3 cursor-pointer border border-slate-800"
                 >
                   <span>{ltx.segments.pro.cta}</span>
                   <ArrowRight size={16} />
+                </button>
+
+                <button
+                  onClick={onStartFree}
+                  className="w-full py-2 text-center text-xs font-bold text-slate-600 hover:text-slate-950 flex items-center justify-center gap-1.5 cursor-pointer truncate"
+                >
+                  <Sparkles size={14} className="text-[#ff5722] shrink-0" />
+                  <span className="truncate">Já é profissional? <strong className="text-[#d9531e]">Comece agora mesmo a receber pedidos</strong></span>
                 </button>
               </div>
 
@@ -1111,199 +1225,229 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* 8. MODAL DE DEMONSTRAÇÃO INTERATIVA / VÍDEO (60 SEGUNDOS) */}
       <AnimatePresence>
         {showDemoModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="bg-white rounded-3xl max-w-2xl w-full p-6 sm:p-8 shadow-2xl border border-slate-100 relative text-left overflow-hidden">
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-slate-950/85 backdrop-blur-md animate-in fade-in duration-300">
+            <div className="bg-white rounded-2xl sm:rounded-3xl max-w-3xl w-full p-4 sm:p-7 shadow-2xl border border-slate-100 relative text-left overflow-hidden max-h-[95vh] flex flex-col">
               
               {/* Modal Header */}
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
-                <div className="flex items-center gap-2.5">
-                  <div className="w-9 h-9 rounded-xl bg-[#ff5722] text-white flex items-center justify-center font-black">
-                    <Play size={18} className="fill-white ml-0.5" />
+              <div className="flex items-center justify-between pb-3 sm:pb-4 border-b border-slate-100 mb-3 sm:mb-4">
+                <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#ff5722] text-white flex items-center justify-center font-black shrink-0">
+                    <Play size={16} className="fill-white ml-0.5" />
                   </div>
-                  <div>
-                    <h3 className="text-base font-black text-slate-900 uppercase tracking-tight">
-                      Demonstração Átrios Build
+                  <div className="min-w-0">
+                    <h3 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-tight truncate">
+                      {currentVideo ? currentVideo.title : 'Demonstração Átrios Build'}
                     </h3>
-                    <p className="text-[11px] font-bold text-slate-400">
-                      {ltx.hero.video.badge60s}
+                    <p className="text-[10px] sm:text-[11px] font-bold text-slate-400 truncate">
+                      {currentVideo?.type === 'youtube' ? 'Vídeo Oficial no YouTube HD' : currentVideo?.type === 'upload' ? 'Vídeo Demonstrativo do Sistema' : ltx.hero.video.badge60s}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShowDemoModal(false)}
-                  className="p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer"
+                  className="p-1.5 sm:p-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-500 transition-colors cursor-pointer shrink-0"
+                  title="Fechar"
                 >
                   <X size={18} />
                 </button>
               </div>
 
-              {/* Mode switch if video is configured */}
-              {(((actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl)) || (actionVideo.type === 'upload' && actionVideo.videoUrl)) ||
-                ((heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl)) || (heroVideo.type === 'upload' && heroVideo.videoUrl))) && (
-                <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-4">
-                  <button
-                    onClick={() => setDemoModalMode('video')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${demoModalMode === 'video' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    <Play size={13} className="fill-current" /> Vídeo Demonstrativo
-                  </button>
-                  <button
-                    onClick={() => setDemoModalMode('interactive')}
-                    className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 ${demoModalMode === 'interactive' ? 'bg-white text-slate-900 shadow-sm' : 'text-slate-500 hover:text-slate-900'}`}
-                  >
-                    <ClipboardList size={13} /> Passo a Passo Interativo
-                  </button>
-                </div>
-              )}
+              {/* Mode switch (Vídeo vs Passo a Passo) */}
+              <div className="flex gap-2 p-1 bg-slate-100 rounded-xl mb-3 sm:mb-4">
+                <button
+                  onClick={() => setDemoModalMode('video')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${demoModalMode === 'video' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  <Play size={13} className="fill-current text-[#ff5722]" /> Vídeo Demonstrativo
+                </button>
+                <button
+                  onClick={() => setDemoModalMode('interactive')}
+                  className={`flex-1 py-1.5 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${demoModalMode === 'interactive' ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-500 hover:text-slate-900'}`}
+                >
+                  <ClipboardList size={13} className="text-[#ff5722]" /> Passo a Passo Interativo
+                </button>
+              </div>
 
-              {demoModalMode === 'video' && (((actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl)) || (actionVideo.type === 'upload' && actionVideo.videoUrl)) ||
-                ((heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl)) || (heroVideo.type === 'upload' && heroVideo.videoUrl))) ? (
-                <div className="space-y-4 mb-6">
-                  <div className="relative w-full aspect-video rounded-2xl overflow-hidden bg-black shadow-inner border border-slate-200">
-                    {actionVideo.type === 'youtube' && (actionVideo.youtubeId || actionVideo.youtubeUrl) ? (
-                      <iframe
-                        className="w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${actionVideo.youtubeId || extractYouTubeId(actionVideo.youtubeUrl || '')}?autoplay=1&controls=1&rel=0`}
-                        title={actionVideo.title || "Veja como funciona em 60 segundos"}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    ) : actionVideo.type === 'upload' && actionVideo.videoUrl ? (
-                      <video
-                        className="w-full h-full object-cover"
-                        src={actionVideo.videoUrl}
-                        autoPlay
-                        controls
-                        playsInline
-                      />
-                    ) : heroVideo.type === 'youtube' && (heroVideo.youtubeId || heroVideo.youtubeUrl) ? (
-                      <iframe
-                        className="w-full h-full border-0"
-                        src={`https://www.youtube.com/embed/${heroVideo.youtubeId || extractYouTubeId(heroVideo.youtubeUrl || '')}?autoplay=1&controls=1&rel=0`}
-                        title={heroVideo.title || "Demonstração Átrios Build"}
-                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
-                        allowFullScreen
-                      />
-                    ) : (
-                      <video
-                        className="w-full h-full object-cover"
-                        src={heroVideo.videoUrl}
-                        autoPlay
-                        controls
-                        playsInline
-                      />
+              {/* Modal Body */}
+              <div className="overflow-y-auto flex-1 pr-0.5">
+                {demoModalMode === 'video' ? (
+                  <div className="space-y-3 mb-4 sm:mb-5">
+                    <div className="relative w-full aspect-video rounded-xl sm:rounded-2xl overflow-hidden bg-black shadow-2xl border border-slate-800">
+                      {currentVideo?.type === 'youtube' && currentVideo.id ? (
+                        <iframe
+                          className="w-full h-full border-0"
+                          src={`https://www.youtube.com/embed/${currentVideo.id}?autoplay=1&mute=${currentVideo.muted ? 1 : 0}&loop=${currentVideo.loop ? 1 : 0}&playlist=${currentVideo.id}&controls=${currentVideo.showControls ? 1 : 0}&rel=0&modestbranding=1`}
+                          title={currentVideo.title}
+                          allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+                          allowFullScreen
+                        />
+                      ) : currentVideo?.type === 'upload' && currentVideo.url ? (
+                        <video
+                          className="w-full h-full object-contain bg-black"
+                          src={currentVideo.url}
+                          autoPlay
+                          muted={currentVideo.muted}
+                          loop={currentVideo.loop}
+                          controls={currentVideo.showControls}
+                          playsInline
+                        />
+                      ) : (
+                        <div className="w-full h-full flex flex-col items-center justify-center p-6 text-center text-white bg-[#070d1e]">
+                          <div className="w-14 h-14 rounded-full bg-[#ff5722] text-white flex items-center justify-center shadow-lg mb-3">
+                            <Play size={24} className="fill-white ml-0.5" />
+                          </div>
+                          <h4 className="text-sm sm:text-base font-black text-white uppercase tracking-wide mb-1">
+                            Vídeo de Apresentação
+                          </h4>
+                          <p className="text-xs text-slate-400 max-w-md mb-3">
+                            O vídeo pode ser configurado e atualizado diretamente nas Definições Master da plataforma.
+                          </p>
+                          <button
+                            onClick={() => setDemoModalMode('interactive')}
+                            className="px-4 py-2 bg-white hover:bg-slate-100 text-slate-900 rounded-xl text-xs font-black uppercase tracking-wider transition-all cursor-pointer"
+                          >
+                            Ver Demonstração Interativa
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                    {currentVideo && (
+                      <div className="flex items-center justify-between px-1 gap-2">
+                        <span className="text-xs font-bold text-slate-700 truncate">{currentVideo.title}</span>
+                        {currentVideo.type === 'youtube' ? (
+                          <span className="text-[10px] font-black text-red-600 bg-red-50 border border-red-200 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                            <Youtube size={12} /> YouTube HD
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-black text-blue-600 bg-blue-50 border border-blue-200 px-2 py-0.5 rounded-md flex items-center gap-1 shrink-0">
+                            <Film size={12} /> Vídeo HD
+                          </span>
+                        )}
+                      </div>
                     )}
                   </div>
-                  {(actionVideo.title || heroVideo.title) && (
-                    <p className="text-xs font-bold text-slate-600 text-center">
-                      {actionVideo.type !== 'default' ? actionVideo.title : heroVideo.title}
-                    </p>
-                  )}
-                </div>
-              ) : (
-                <>
-                  {/* Step indicator tabs */}
-                  <div className="grid grid-cols-4 gap-2 mb-6">
-                    {[
-                      { num: '1', label: '1. Pedido' },
-                      { num: '2', label: '2. Itens' },
-                      { num: '3', label: '3. Total' },
-                      { num: '4', label: '4. PDF Pronto' }
-                    ].map((s, idx) => (
-                      <button
-                        key={idx}
-                        onClick={() => setDemoStep(idx)}
-                        className={`py-2 px-1 rounded-xl text-center transition-all ${demoStep === idx ? 'bg-[#ff5722] text-white font-black shadow-md' : 'bg-slate-100 text-slate-500 font-bold hover:bg-slate-200'}`}
-                      >
-                        <span className="text-xs block">{s.label}</span>
-                      </button>
-                    ))}
-                  </div>
+                ) : (
+                  <>
+                    {/* Step indicator tabs */}
+                    <div className="grid grid-cols-4 gap-1.5 sm:gap-2 mb-4 sm:mb-6">
+                      {[
+                        { num: '1', label: '1. Pedido' },
+                        { num: '2', label: '2. Itens' },
+                        { num: '3', label: '3. Total' },
+                        { num: '4', label: '4. PDF Pronto' }
+                      ].map((s, idx) => (
+                        <button
+                          key={idx}
+                          onClick={() => setDemoStep(idx)}
+                          className={`py-1.5 sm:py-2 px-1 rounded-xl text-center transition-all cursor-pointer ${demoStep === idx ? 'bg-[#ff5722] text-white font-black shadow-md' : 'bg-slate-100 text-slate-500 font-bold hover:bg-slate-200'}`}
+                        >
+                          <span className="text-[11px] sm:text-xs block truncate">{s.label}</span>
+                        </button>
+                      ))}
+                    </div>
 
-                  {/* Demo Content Step Display */}
-                  <div className="bg-slate-50 rounded-2xl p-5 border border-slate-200 mb-6 min-h-[200px] flex flex-col justify-center">
-                    {demoStep === 0 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
-                          <span>PASSO 1 — DADOS DO CLIENTE E DA OBRA</span>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
-                          <p className="text-xs font-bold text-slate-800">Cliente: <span className="font-black text-[#ff5722]">João Silva</span></p>
-                          <p className="text-xs font-bold text-slate-800">Localização: <span className="font-medium text-slate-600">Lisboa, Portugal</span></p>
-                          <p className="text-xs font-bold text-slate-800">Descrição: <span className="font-medium text-slate-600">Remodelação Geral WC & Cozinha</span></p>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {demoStep === 1 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
-                          <span>PASSO 2 — ADIÇÃO RÁPIDA DE MATERIAIS E SERVIÇOS</span>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1.5 text-xs">
-                          <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
-                            <span>Mão de Obra Especializada</span>
-                            <span className="font-black">1.200,00 {currencySymbol}</span>
+                    {/* Demo Content Step Display */}
+                    <div className="bg-slate-50 rounded-2xl p-4 sm:p-5 border border-slate-200 mb-4 sm:mb-6 min-h-[190px] flex flex-col justify-center">
+                      {demoStep === 0 && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                          <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
+                            <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
+                            <span>PASSO 1 — DADOS DO CLIENTE E DA OBRA</span>
                           </div>
-                          <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
-                            <span>Cerâmica e Revestimentos</span>
-                            <span className="font-black">850,00 {currencySymbol}</span>
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-2">
+                            <p className="text-xs font-bold text-slate-800">Cliente: <span className="font-black text-[#ff5722]">João Silva</span></p>
+                            <p className="text-xs font-bold text-slate-800">Localização: <span className="font-medium text-slate-600">Lisboa, Portugal</span></p>
+                            <p className="text-xs font-bold text-slate-800">Descrição: <span className="font-medium text-slate-600">Remodelação Geral WC & Cozinha</span></p>
                           </div>
-                          <div className="flex justify-between font-bold text-slate-800">
-                            <span>Canalização e Eletricidade</span>
-                            <span className="font-black">470,00 {currencySymbol}</span>
+                        </motion.div>
+                      )}
+
+                      {demoStep === 1 && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                          <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
+                            <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
+                            <span>PASSO 2 — ADIÇÃO RÁPIDA DE MATERIAIS E SERVIÇOS</span>
                           </div>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {demoStep === 2 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
-                          <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
-                          <span>PASSO 3 — CÁLCULO AUTOMÁTICO DE LUCRO E TOTAIS</span>
-                        </div>
-                        <div className="bg-orange-100/80 p-3 rounded-xl text-orange-950 font-black text-xs flex justify-between">
-                          <span>Total do Orçamento</span>
-                          <span className="text-base text-[#ff5722]">2.520,00 {currencySymbol}</span>
-                        </div>
-                      </motion.div>
-                    )}
-
-                    {demoStep === 3 && (
-                      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
-                        <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase">
-                          <CheckCircle2 size={14} />
-                          <span>PASSO 4 — PROPOSTA EM PDF PROFISSIONAL GERADA</span>
-                        </div>
-                        <div className="bg-white p-4 rounded-xl border-2 border-emerald-500 shadow-xs flex items-center justify-between">
-                          <div className="flex items-center gap-3">
-                            <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black">
-                              <FileText size={20} />
+                          <div className="bg-white p-4 rounded-xl border border-slate-200 shadow-xs space-y-1.5 text-xs">
+                            <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
+                              <span>Mão de Obra Especializada</span>
+                              <span className="font-black">1.200,00 {currencySymbol}</span>
                             </div>
-                            <div>
-                              <span className="text-xs font-black text-slate-900 block">Proposta_Atrios_2026.pdf</span>
-                              <span className="text-[10px] text-emerald-600 font-bold">Pronto para envio por WhatsApp</span>
+                            <div className="flex justify-between font-bold text-slate-800 border-b pb-1">
+                              <span>Cerâmica e Revestimentos</span>
+                              <span className="font-black">850,00 {currencySymbol}</span>
+                            </div>
+                            <div className="flex justify-between font-bold text-slate-800">
+                              <span>Canalização e Eletricidade</span>
+                              <span className="font-black">470,00 {currencySymbol}</span>
                             </div>
                           </div>
-                          <span className="text-xs font-black text-slate-900">2.520,00 {currencySymbol}</span>
-                        </div>
-                      </motion.div>
-                    )}
-                  </div>
-                </>
-              )}
+                        </motion.div>
+                      )}
+
+                      {demoStep === 2 && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                          <div className="flex items-center gap-2 text-[#ff5722] font-black text-xs uppercase">
+                            <span className="w-2 h-2 rounded-full bg-[#ff5722]" />
+                            <span>PASSO 3 — CÁLCULO AUTOMÁTICO DE LUCRO E TOTAIS</span>
+                          </div>
+                          <div className="bg-orange-100/80 p-3 rounded-xl text-orange-950 font-black text-xs flex justify-between items-center">
+                            <span>Total do Orçamento</span>
+                            <span className="text-base text-[#ff5722]">2.520,00 {currencySymbol}</span>
+                          </div>
+                        </motion.div>
+                      )}
+
+                      {demoStep === 3 && (
+                        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} className="space-y-3">
+                          <div className="flex items-center gap-2 text-emerald-600 font-black text-xs uppercase">
+                            <CheckCircle2 size={14} />
+                            <span>PASSO 4 — PROPOSTA EM PDF PROFISSIONAL GERADA</span>
+                          </div>
+                          <div className="bg-white p-4 rounded-xl border-2 border-emerald-500 shadow-xs flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className="w-10 h-10 rounded-xl bg-rose-500 text-white flex items-center justify-center font-black">
+                                <FileText size={20} />
+                              </div>
+                              <div>
+                                <span className="text-xs font-black text-slate-900 block">Proposta_Atrios_2026.pdf</span>
+                                <span className="text-[10px] text-emerald-600 font-bold">Pronto para envio por WhatsApp</span>
+                              </div>
+                            </div>
+                            <span className="text-xs font-black text-slate-900">2.520,00 {currencySymbol}</span>
+                          </div>
+                        </motion.div>
+                      )}
+                    </div>
+                  </>
+                )}
+              </div>
 
               {/* Modal Actions */}
-              <div className="flex items-center justify-between gap-3">
-                <button
-                  onClick={() => setDemoStep(prev => (prev - 1 + 4) % 4)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
-                >
-                  Anterior
-                </button>
+              <div className="flex items-center justify-between gap-3 pt-3 border-t border-slate-100">
+                {demoModalMode === 'interactive' ? (
+                  <div className="flex items-center gap-2">
+                    <button
+                      onClick={() => setDemoStep(prev => (prev - 1 + 4) % 4)}
+                      className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer"
+                    >
+                      Anterior
+                    </button>
+                    <button
+                      onClick={() => setDemoStep(prev => (prev + 1) % 4)}
+                      className="px-3.5 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-800 font-bold text-xs transition-colors cursor-pointer"
+                    >
+                      Próximo
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setDemoModalMode('interactive')}
+                    className="px-3.5 py-2 rounded-xl border border-slate-200 text-slate-700 font-bold text-xs hover:bg-slate-50 transition-colors cursor-pointer flex items-center gap-1.5"
+                  >
+                    <ClipboardList size={13} /> Ver Passo a Passo
+                  </button>
+                )}
 
                 <div className="flex items-center gap-2">
                   <button
@@ -1311,9 +1455,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       setShowDemoModal(false);
                       onStartFree();
                     }}
-                    className="px-6 py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer"
+                    className="px-5 sm:px-6 py-2 sm:py-2.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-xl font-black text-xs uppercase tracking-wider shadow-md transition-all active:scale-95 cursor-pointer flex items-center gap-1.5"
                   >
                     {ltx.nav.startFree}
+                    <ChevronRight size={14} />
                   </button>
                 </div>
               </div>
