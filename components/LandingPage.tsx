@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
   Construction, 
@@ -62,6 +62,7 @@ interface LandingPageProps {
   onOpenLegal: (type: 'terms' | 'privacy') => void;
   onOpenClientPortal?: () => void;
   onOpenIntroBanners?: () => void;
+  isIntroActive?: boolean;
 }
 
 const STEP_ICONS = [FileText, Users, FileText, Send, Users, HardHat, TrendingUp];
@@ -82,7 +83,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onDownloadApp,
   onOpenLegal,
   onOpenClientPortal,
-  onOpenIntroBanners
+  onOpenIntroBanners,
+  isIntroActive = false
 }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showClientRequestModal, setShowClientRequestModal] = useState(false);
@@ -93,6 +95,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [actionVideo, setActionVideo] = useState<ActionVideoConfig>(getStoredActionVideoConfig);
   const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('video');
   const [activeHeroTab, setActiveHeroTab] = useState<'video' | 'live'>('video');
+  const heroVideoElementRef = useRef<HTMLVideoElement>(null);
 
   // Load cloud settings on mount to ensure newest video from database is fetched
   useEffect(() => {
@@ -183,6 +186,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     }
     return null;
   })();
+
+  // Play uploaded video when user reaches landing page (intro finished or inactive)
+  useEffect(() => {
+    if (!isIntroActive && heroVideoElementRef.current && currentVideo?.type === 'upload' && currentVideo.autoPlay) {
+      heroVideoElementRef.current.play().catch(() => {
+        // Fallback if browser requires user interaction for autoplay
+      });
+    } else if (isIntroActive && heroVideoElementRef.current) {
+      heroVideoElementRef.current.pause();
+    }
+  }, [isIntroActive, currentVideo]);
 
   // Get full extended landing translations for the active locale (fallback to pt-PT)
   const ltx = getLandingExtended(locale);
@@ -614,16 +628,17 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   {currentVideo?.type === 'youtube' && currentVideo.id ? (
                     <iframe
                       className="w-full h-full border-0"
-                      src={`https://www.youtube.com/embed/${currentVideo.id}?autoplay=${currentVideo.autoPlay ? 1 : 0}&mute=${currentVideo.muted ? 1 : 0}&loop=${currentVideo.loop ? 1 : 0}&playlist=${currentVideo.id}&controls=${currentVideo.showControls ? 1 : 0}&rel=0&modestbranding=1`}
+                      src={!isIntroActive ? `https://www.youtube.com/embed/${currentVideo.id}?autoplay=${currentVideo.autoPlay ? 1 : 0}&mute=${currentVideo.muted ? 1 : 0}&loop=${currentVideo.loop ? 1 : 0}&playlist=${currentVideo.id}&controls=${currentVideo.showControls ? 1 : 0}&rel=0&modestbranding=1` : undefined}
                       title={currentVideo.title || "Demonstração Átrios Build"}
                       allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
                       allowFullScreen
                     />
                   ) : currentVideo?.type === 'upload' && currentVideo.url ? (
                     <video
+                      ref={heroVideoElementRef}
                       className="w-full h-full object-cover"
                       src={currentVideo.url}
-                      autoPlay={currentVideo.autoPlay}
+                      autoPlay={!isIntroActive && currentVideo.autoPlay}
                       muted={currentVideo.muted}
                       loop={currentVideo.loop}
                       controls={currentVideo.showControls}
@@ -1178,7 +1193,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <li><span className="text-slate-700 font-bold">Atrios Software</span></li>
                 <li className="flex items-center gap-1.5 truncate">
                   <Mail size={13} className="text-slate-400 shrink-0" />
-                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900 truncate">software.atrios@gmail.com</a>
+                  <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 truncate">atriossoftware@gmail.com</a>
                 </li>
                 <li><button onClick={() => onOpenLegal('privacy')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.privacy}</button></li>
                 <li><button onClick={() => onOpenLegal('terms')} className="hover:text-slate-900 cursor-pointer">{ltx.footer.terms}</button></li>
@@ -1193,7 +1208,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <ul className="space-y-2 text-xs font-medium text-slate-500">
                 <li className="flex items-center gap-1.5 truncate">
                   <HelpCircle size={13} className="text-slate-400 shrink-0" />
-                  <a href="mailto:software.atrios@gmail.com" className="hover:text-slate-900 truncate">{ltx.footer.help}</a>
+                  <a href="mailto:atriossoftware@gmail.com" className="hover:text-slate-900 truncate">{ltx.footer.help}</a>
                 </li>
                 <li className="flex items-center gap-1.5">
                   <Play size={13} className="text-slate-400 shrink-0" />

@@ -1086,6 +1086,28 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
+    // Subscrição em tempo real para novos pedidos de obras e serviços de particulares
+    const clientRequestsChannel = supabase
+      .channel('master-client-requests')
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'client_service_requests' },
+        (payload) => {
+          console.log("Master client request change detected:", payload.eventType, payload);
+          if (payload.eventType === 'INSERT') {
+            const raw = payload['new'];
+            const clientName = raw?.client_name || raw?.clientName || 'Cliente';
+            const cat = raw?.category || 'Serviço';
+            triggerPushNotificationSubmit(
+              "Novo Pedido de Obra & Cliente! 🏗️",
+              `Novo pedido de serviço de ${clientName} (${cat})`
+            );
+          }
+          fetchClientRequestsFromSupabase().then(reqs => setClientRequestsList(reqs));
+        }
+      )
+      .subscribe();
+
     // Subscrição em tempo real para notificações push globais no Master
     const globalPushChannel = supabase
       .channel('master-global-push-notifications')
@@ -1143,9 +1165,16 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         if (currentSelected) {
           setMessages(getMessages(currentSelected));
         }
+      } else if (e.key === 'atrios_client_requests') {
+        setClientRequestsList(getStoredClientRequests());
       }
     };
     window.addEventListener('storage', handleStorageChange);
+
+    const handleCustomClientReqEvent = () => {
+      setClientRequestsList(getStoredClientRequests());
+    };
+    window.addEventListener('atrios_client_requests_changed', handleCustomClientReqEvent);
 
     return () => {
       supabase.removeChannel(msgChannel);
@@ -1155,10 +1184,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       supabase.removeChannel(budgetsChannel);
       supabase.removeChannel(customOrdersChannel);
       supabase.removeChannel(candidatesChannel);
+      supabase.removeChannel(clientRequestsChannel);
       supabase.removeChannel(globalPushChannel);
       clearInterval(budgetSyncInterval);
       clearInterval(expiryRealtimeCheckInterval);
       window.removeEventListener('storage', handleStorageChange);
+      window.removeEventListener('atrios_client_requests_changed', handleCustomClientReqEvent);
     };
   }, [activeTab, selectedCompanyId]);
 
@@ -1237,7 +1268,30 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
 
+  // Contagem de Pedidos de Obras & Clientes pendentes ou abertos
+  const pendingClientRequestsCount = useMemo(() => {
+    return clientRequestsList.filter(r => !r.status || r.status === 'open' || r.status === 'pending').length;
+  }, [clientRequestsList]);
+
+  // Contagem de Solicitações de Desbloqueio
   const pendingRequestsCount = useMemo(() => companies.filter(c => Boolean(c.unlockRequested || (c as any).unlock_requested || (c as any).unlockrequested)).length, [companies]);
+
+  // Contagem de Novos Utilizadores (cadastrados recentemente nos últimos 7 dias)
+  const recentNewUsersCount = useMemo(() => {
+    const now = Date.now();
+    const sevenDaysAgo = now - 7 * 24 * 60 * 60 * 1000;
+    return companies.filter(c => {
+      if (['atriossoftware@gmail.com', 'jeferson.goes36@gmail.com'].includes(c.email)) return false;
+      if (!c.createdAt) return false;
+      const createdTime = new Date(c.createdAt).getTime();
+      return !isNaN(createdTime) && createdTime >= sevenDaysAgo;
+    }).length;
+  }, [companies]);
+
+  // Total de novidades/pendências na aba de Utilizadores (desbloqueios + novos cadastros)
+  const totalUsersBadgeCount = useMemo(() => {
+    return pendingRequestsCount + recentNewUsersCount;
+  }, [pendingRequestsCount, recentNewUsersCount]);
 
   const unreadMessagesTotalCount = useMemo(() => {
     const allMsgs = getMessages();
@@ -2518,11 +2572,20 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                 <tab.icon size={16} /> {tab.label}
                 
-                {tab.id === 'users' && pendingRequestsCount > 0 && (
+                {tab.id === 'client_requests' && pendingClientRequestsCount > 0 && (
                   <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
                     <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
                     <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-red-600 text-white items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
-                      +{pendingRequestsCount}
+                      +{pendingClientRequestsCount}
+                    </span>
+                  </span>
+                )}
+
+                {tab.id === 'users' && totalUsersBadgeCount > 0 && (
+                  <span className="relative flex h-5 min-w-[22px] px-1.5 items-center justify-center">
+                    <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-red-400 opacity-75" />
+                    <span className="relative inline-flex rounded-full h-5 min-w-[22px] px-1.5 bg-red-600 text-white items-center justify-center text-[10px] font-black border-2 border-slate-950 shadow-lg animate-pulse">
+                      +{totalUsersBadgeCount}
                     </span>
                   </span>
                 )}
@@ -2628,6 +2691,71 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
 
         {activeTab === 'home' && (
           <div className="space-y-10 animate-in fade-in">
+            {/* Quick Action Badges Bar */}
+            {(pendingClientRequestsCount > 0 || unreadMessagesTotalCount > 0 || totalUsersBadgeCount > 0) && (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                {pendingClientRequestsCount > 0 && (
+                  <button
+                    onClick={() => setActiveTab('client_requests')}
+                    className="p-5 bg-gradient-to-r from-amber-500/20 to-amber-600/10 border-2 border-amber-500/40 hover:border-amber-400 rounded-3xl flex items-center justify-between text-left transition-all group shadow-xl hover:scale-[1.01] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-amber-500 text-slate-950 flex items-center justify-center font-black shadow-lg">
+                        <Wrench size={22} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-amber-400">Obras & Clientes</p>
+                        <p className="text-sm font-black text-white">Pedidos Pendentes</p>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-black text-xs border border-red-400 shadow-md animate-pulse">
+                      +{pendingClientRequestsCount}
+                    </span>
+                  </button>
+                )}
+
+                {unreadMessagesTotalCount > 0 && (
+                  <button
+                    onClick={() => setActiveTab('messages')}
+                    className="p-5 bg-gradient-to-r from-blue-500/20 to-blue-600/10 border-2 border-blue-500/40 hover:border-blue-400 rounded-3xl flex items-center justify-between text-left transition-all group shadow-xl hover:scale-[1.01] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-blue-500 text-white flex items-center justify-center font-black shadow-lg">
+                        <MessageSquare size={22} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-blue-400">Mensagens</p>
+                        <p className="text-sm font-black text-white">Mensagens Não Lidas</p>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-black text-xs border border-red-400 shadow-md animate-pulse">
+                      +{unreadMessagesTotalCount}
+                    </span>
+                  </button>
+                )}
+
+                {totalUsersBadgeCount > 0 && (
+                  <button
+                    onClick={() => setActiveTab('users')}
+                    className="p-5 bg-gradient-to-r from-emerald-500/20 to-emerald-600/10 border-2 border-emerald-500/40 hover:border-emerald-400 rounded-3xl flex items-center justify-between text-left transition-all group shadow-xl hover:scale-[1.01] cursor-pointer"
+                  >
+                    <div className="flex items-center gap-4">
+                      <div className="w-12 h-12 rounded-2xl bg-emerald-500 text-slate-950 flex items-center justify-center font-black shadow-lg">
+                        <Users size={22} />
+                      </div>
+                      <div>
+                        <p className="text-xs font-black uppercase text-emerald-400">Utilizadores</p>
+                        <p className="text-sm font-black text-white">Novos / Pendentes</p>
+                      </div>
+                    </div>
+                    <span className="px-3.5 py-1.5 rounded-full bg-red-600 text-white font-black text-xs border border-red-400 shadow-md animate-pulse">
+                      +{totalUsersBadgeCount}
+                    </span>
+                  </button>
+                )}
+              </div>
+            )}
+
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
                 <TrendingUp className="text-emerald-400 mb-4" />
@@ -2725,7 +2853,12 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                       <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
                       <span className="relative inline-flex rounded-full h-2 w-2 bg-amber-300"></span>
                     </span>
-                    {pendingRequestsCount} Solicitação(ões) de Desbloqueio
+                    +{pendingRequestsCount} Solicitação(ões) de Desbloqueio
+                  </span>
+                )}
+                {recentNewUsersCount > 0 && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-[10px] font-black uppercase tracking-wider border border-emerald-500/30">
+                    +{recentNewUsersCount} Novo(s) Registo(s)
                   </span>
                 )}
               </div>
@@ -2805,6 +2938,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                   }).map(user => {
                     const onlineStatus = getUserOnlineStatus(user);
                     const isUnlockReq = Boolean(user.unlockRequested || (user as any).unlock_requested || (user as any).unlockrequested);
+                    const isNewUser = Boolean(user.createdAt && (Date.now() - new Date(user.createdAt).getTime() <= 7 * 24 * 60 * 60 * 1000));
                     return (
                       <tr key={user.id} className={`hover:bg-white/5 transition-colors group ${user.isBlocked ? 'opacity-50' : ''} ${isUnlockReq ? 'bg-red-500/20 border-l-4 border-l-red-500' : ''}`}>
                         <td className="px-8 py-6">
@@ -2826,6 +2960,11 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                                     </span>
                                     <Key size={12} className="animate-bounce shrink-0 text-amber-200" />
                                     SOLICITOU DESBLOQUEIO
+                                  </span>
+                                )}
+                                {!isUnlockReq && isNewUser && (
+                                  <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-md text-[9px] font-black uppercase tracking-wider bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                                    ✨ NOVO
                                   </span>
                                 )}
                               </div>
@@ -2965,8 +3104,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
         {activeTab === 'messages' && (
           <div className="bg-white/5 border border-white/10 rounded-[3rem] overflow-hidden flex h-[600px] animate-in fade-in">
              <div className="w-80 border-r border-white/10 flex flex-col bg-slate-950/50">
-               <div className="p-6 border-b border-white/10">
+               <div className="p-6 border-b border-white/10 flex items-center justify-between">
                  <h3 className="font-black text-sm uppercase tracking-widest text-slate-400 italic">{t.masterChatConversations}</h3>
+                 {unreadMessagesTotalCount > 0 && (
+                   <span className="px-2.5 py-0.5 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-400 shadow-sm">
+                     +{unreadMessagesTotalCount}
+                   </span>
+                 )}
                </div>
                <div className="flex-1 overflow-y-auto no-scrollbar">
                  {companies.map(comp => { 
@@ -4397,10 +4541,17 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
             <div className="bg-slate-900 border border-white/10 rounded-[2.5rem] p-6 lg:p-8 space-y-6">
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
-                  <h2 className="text-2xl font-black italic uppercase text-white flex items-center gap-3">
-                    <Wrench className="text-amber-400" />
-                    Pedidos de Obras e Serviços de Particulares
-                  </h2>
+                  <div className="flex items-center gap-3 flex-wrap">
+                    <h2 className="text-2xl font-black italic uppercase text-white flex items-center gap-3">
+                      <Wrench className="text-amber-400" />
+                      Pedidos de Obras e Serviços de Particulares
+                    </h2>
+                    {pendingClientRequestsCount > 0 && (
+                      <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-600 text-white text-[10px] font-black uppercase tracking-wider animate-pulse border border-red-400 shadow-md">
+                        +{pendingClientRequestsCount} Pendente(s)
+                      </span>
+                    )}
+                  </div>
                   <p className="text-slate-400 text-xs font-medium mt-1">
                     Gerencie e acompanhe todos os pedidos de orçamento submetidos por clientes particulares na Landing Page.
                   </p>

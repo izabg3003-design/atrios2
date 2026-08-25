@@ -593,11 +593,11 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                     </div>
                   </div>
 
-                  {/* Create Estimate Button + WhatsApp CTA */}
-                  <div className="flex items-center gap-2">
+                  {/* Create Estimate Button */}
+                  <div>
                     <button
                       onClick={() => handleStartBudget(req)}
-                      className={`flex-1 py-3 px-4 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
+                      className={`w-full py-3 px-4 rounded-2xl font-black text-xs uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer ${
                         isFree 
                           ? 'bg-amber-500 hover:bg-amber-600 text-white' 
                           : monthlyLimitReached && !hasAlreadyResponded
@@ -623,26 +623,6 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                         </>
                       )}
                     </button>
-
-                    {isFree ? (
-                      <button
-                        onClick={() => setUpgradeModalInfo({ open: true, reason: 'free_blocked' })}
-                        className="p-3 bg-slate-200 text-slate-500 hover:text-slate-900 hover:bg-slate-300 rounded-2xl shadow-xs transition-all active:scale-95 shrink-0 cursor-pointer"
-                        title="Desbloquear WhatsApp (Plano Pago)"
-                      >
-                        <Lock size={16} />
-                      </button>
-                    ) : req.clientPhone ? (
-                      <a
-                        href={`https://wa.me/${req.clientPhone.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Olá ${req.clientName}, vi o seu pedido de orçamento no ÁTRIOS BUILD para "${req.title}" e gostaria de apresentar a nossa proposta!`)}`}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="p-3 bg-emerald-500 hover:bg-emerald-600 text-white rounded-2xl shadow-md transition-all active:scale-95 shrink-0"
-                        title="Enviar mensagem WhatsApp"
-                      >
-                        <MessageSquare size={16} />
-                      </a>
-                    ) : null}
                   </div>
 
                 </div>

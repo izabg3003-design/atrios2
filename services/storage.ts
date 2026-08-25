@@ -1,4 +1,4 @@
-import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus, IntroBannerItem } from '../types';
+import { Company, Budget, PlanType, GlobalNotification, SupportMessage, Transaction, Coupon, StoreOrder, Product, CustomOrderRequest, JobOffer, JobOfferStatus, Candidate, HeroVideoConfig, HeroVideoType, ActionVideoConfig, ActionVideoType, ClientServiceRequest, ServiceCategory, ClientRequestStatus, IntroBannerItem, Worker, WorkTimeLog } from '../types';
 import { syncToCloud, supabase, safeFetch } from './supabase';
 
 export const safeGetItem = (key: string): string | null => {
@@ -2354,6 +2354,93 @@ export const resetIntroBannersToDefault = async (): Promise<{ success: boolean }
     return { success: false };
   }
 };
+
+// ==========================================
+// TRABALHADORES & REGISTO DE HORAS / PONTO
+// ==========================================
+
+const getWorkersStorageKey = (companyId: string) => `atrios_workers_${companyId}`;
+const getWorkLogsStorageKey = (companyId: string) => `atrios_work_logs_${companyId}`;
+
+export const getWorkers = (companyId: string): Worker[] => {
+  if (!companyId) return [];
+  const stored = safeGetItem(getWorkersStorageKey(companyId));
+  if (stored) {
+    try {
+      return JSON.parse(stored);
+    } catch (e) {
+      console.warn('[Storage] Erro ao carregar trabalhadores:', e);
+    }
+  }
+  return [];
+};
+
+export const saveWorker = (worker: Worker): void => {
+  if (!worker || !worker.companyId) return;
+  const list = getWorkers(worker.companyId);
+  const existingIdx = list.findIndex(w => w.id === worker.id);
+  let updated: Worker[];
+  if (existingIdx >= 0) {
+    updated = [...list];
+    updated[existingIdx] = worker;
+  } else {
+    updated = [worker, ...list];
+  }
+  safeSetItem(getWorkersStorageKey(worker.companyId), JSON.stringify(updated));
+};
+
+export const deleteWorker = (workerId: string, companyId: string): void => {
+  if (!workerId || !companyId) return;
+  const list = getWorkers(companyId);
+  const updated = list.filter(w => w.id !== workerId);
+  safeSetItem(getWorkersStorageKey(companyId), JSON.stringify(updated));
+
+  // Também remove os logs associados
+  const logs = getWorkTimeLogs(companyId);
+  const updatedLogs = logs.filter(l => l.workerId !== workerId);
+  safeSetItem(getWorkLogsStorageKey(companyId), JSON.stringify(updatedLogs));
+};
+
+export const getWorkTimeLogs = (companyId: string, workerId?: string): WorkTimeLog[] => {
+  if (!companyId) return [];
+  const stored = safeGetItem(getWorkLogsStorageKey(companyId));
+  let logs: WorkTimeLog[] = [];
+  if (stored) {
+    try {
+      logs = JSON.parse(stored);
+    } catch (e) {
+      console.warn('[Storage] Erro ao carregar registos de ponto:', e);
+    }
+  }
+  if (workerId) {
+    return logs.filter(l => l.workerId === workerId);
+  }
+  return logs;
+};
+
+export const saveWorkTimeLog = (log: WorkTimeLog): void => {
+  if (!log || !log.companyId) return;
+  const list = getWorkTimeLogs(log.companyId);
+  const existingIdx = list.findIndex(l => l.id === log.id);
+  let updated: WorkTimeLog[];
+  if (existingIdx >= 0) {
+    updated = [...list];
+    updated[existingIdx] = log;
+  } else {
+    updated = [log, ...list];
+  }
+  // Ordena por data mais recente primeiro
+  updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  safeSetItem(getWorkLogsStorageKey(log.companyId), JSON.stringify(updated));
+};
+
+export const deleteWorkTimeLog = (logId: string, companyId: string): void => {
+  if (!logId || !companyId) return;
+  const list = getWorkTimeLogs(companyId);
+  const updated = list.filter(l => l.id !== logId);
+  safeSetItem(getWorkLogsStorageKey(companyId), JSON.stringify(updated));
+};
+
 
 
 

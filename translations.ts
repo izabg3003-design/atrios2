@@ -474,6 +474,16 @@ export interface Translation {
   premiumFeature: string;
   confirmDeleteBudget: string;
   deleteBudgetSuccess: string;
+  accountIdLabel?: string;
+  autoHidesIn10s?: string;
+  showId?: string;
+  hideId?: string;
+  copyId?: string;
+  pushSoundLabel?: string;
+  pushSoundActiveDesc?: string;
+  pushSoundMutedDesc?: string;
+  pushSoundEnabled?: string;
+  pushSoundDisabled?: string;
 }
 
 const enUS: Translation = {
@@ -896,7 +906,7 @@ Data is processed solely to provide the service, manage subscriptions, and compl
 We share data with Stripe (payment processing) and Supabase (secure data storage). We do not sell your data to third parties.
 
 5. YOUR RIGHTS
-Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at software.atrios@gmail.com to exercise these rights.`,
+Under the GDPR, you have the right to access, rectify, or erase your data. Contact us at atriossoftware@gmail.com to exercise these rights.`,
   budgetLimitReached: "Budget limit reached for the free plan! Upgrade to Premium to continue creating professional budgets.",
   forgotPassword: "Forgot Password?",
   resetPasswordTitle: "Reset Password",
@@ -975,6 +985,16 @@ Under the GDPR, you have the right to access, rectify, or erase your data. Conta
   premiumFeature: "Premium Feature",
   confirmDeleteBudget: "Are you sure you want to delete this budget?",
   deleteBudgetSuccess: "Budget deleted successfully!",
+  accountIdLabel: "Account ID",
+  autoHidesIn10s: "Hides in 10s",
+  showId: "Show ID",
+  hideId: "Hide",
+  copyId: "Copy ID",
+  pushSoundLabel: "Notification Sound",
+  pushSoundActiveDesc: "Sound enabled for new alerts",
+  pushSoundMutedDesc: "Silent notification mode",
+  pushSoundEnabled: "Sound Enabled",
+  pushSoundDisabled: "Sound Disabled",
 };
 
 const ptPT: Translation = {
@@ -1397,7 +1417,7 @@ Os dados são processados exclusivamente para fornecer o serviço, gerir subscri
 Partilhamos dados com o Stripe (processamento de pagamentos) e Supabase (armazenamento seguro de dados). Não vendemos os seus dados a terceiros.
 
 5. OS SEUS DIREITOS
-Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em software.atrios@gmail.com para exercer estes direitos.`,
+Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. Contacte-nos em atriossoftware@gmail.com para exercer estes direitos.`,
   budgetLimitReached: "Limite de orçamentos atingido no plano gratuito! Atualize para um plano pago para continuar a criar orçamentos profissionais.",
   forgotPassword: "Esqueceu-se da palavra-passe?",
   resetPasswordTitle: "Recuperar Palavra-passe",
@@ -1476,6 +1496,16 @@ Ao abrigo do RGPD, tem o direito de aceder, retificar ou apagar os seus dados. C
   premiumFeature: "Funcionalidade Premium",
   confirmDeleteBudget: "Tem a certeza que deseja eliminar este orçamento?",
   deleteBudgetSuccess: "Orçamento eliminado com sucesso!",
+  accountIdLabel: "ID da Conta",
+  autoHidesIn10s: "Oculta em 10s",
+  showId: "Ver ID",
+  hideId: "Ocultar",
+  copyId: "Copiar ID",
+  pushSoundLabel: "Som de Notificações",
+  pushSoundActiveDesc: "Som ativado para novos alertas",
+  pushSoundMutedDesc: "Notificações em modo silencioso",
+  pushSoundEnabled: "Som Ativado",
+  pushSoundDisabled: "Som Desativado",
 };
 
 const ptBR: Translation = {
@@ -1970,6 +2000,16 @@ const frFR: Translation = {
   premiumFeature: "Fonctionnalité Premium",
   confirmDeleteBudget: "Êtes-vous sûr de vouloir supprimer ce devis ?",
   deleteBudgetSuccess: "Devis supprimé avec succès !",
+  accountIdLabel: "Identifiant du Compte",
+  autoHidesIn10s: "Masqué dans 10s",
+  showId: "Afficher ID",
+  hideId: "Masquer",
+  copyId: "Copier l'ID",
+  pushSoundLabel: "Son des Notifications",
+  pushSoundActiveDesc: "Son activé pour les alertes",
+  pushSoundMutedDesc: "Notifications en mode silencieux",
+  pushSoundEnabled: "Son Activé",
+  pushSoundDisabled: "Son Désactivé",
 };
 
 const itIT: Translation = {
@@ -2445,6 +2485,16 @@ const itIT: Translation = {
   premiumFeature: "Funzionalità Premium",
   confirmDeleteBudget: "Sei sicuro di voler eliminare questo preventivo?",
   deleteBudgetSuccess: "Preventivo eliminato con successo!",
+  accountIdLabel: "ID dell'Account",
+  autoHidesIn10s: "Si nasconde in 10s",
+  showId: "Mostra ID",
+  hideId: "Nascondi",
+  copyId: "Copia ID",
+  pushSoundLabel: "Suono Notifiche",
+  pushSoundActiveDesc: "Suono attivo per nuovi avvisi",
+  pushSoundMutedDesc: "Notifiche in modalità silenziosa",
+  pushSoundEnabled: "Suono Attivato",
+  pushSoundDisabled: "Suono Disattivato",
 };
 
 const esES: Translation = {
@@ -2867,7 +2917,7 @@ Los datos se procesan exclusivamente para proporcionar el servicio, gestionar su
 Compartimos datos con Stripe (procesamiento de pagos) y Supabase (almacenamiento seguro de datos). No vendemos sus datos a terceros.
 
 5. SUS DERECHOS
-Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en software.atrios@gmail.com para ejercer estos derechos.`,
+Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáctenos en atriossoftware@gmail.com para ejercer estos derechos.`,
   budgetLimitReached: "Límite de presupuestos alcanzado en el plan gratuito! Actualiza a Premium para continuar.",
   forgotPassword: "¿Olvidó su contraseña?",
   resetPasswordTitle: "Recuperar Contraseña",
@@ -2944,6 +2994,16 @@ Bajo el RGPD, tiene derecho a acceder, rectificar o eliminar sus datos. Contáct
   premiumFeature: "Función Premium",
   confirmDeleteBudget: "¿Estás seguro de que quieres eliminar este presupuesto?",
   deleteBudgetSuccess: "¡Presupuesto eliminado con éxito!",
+  accountIdLabel: "ID de Cuenta",
+  autoHidesIn10s: "Se oculta en 10s",
+  showId: "Ver ID",
+  hideId: "Ocultar",
+  copyId: "Copiar ID",
+  pushSoundLabel: "Sonido de Notificaciones",
+  pushSoundActiveDesc: "Sonido activado para nuevas alertas",
+  pushSoundMutedDesc: "Notificaciones en modo silencioso",
+  pushSoundEnabled: "Sonido Activado",
+  pushSoundDisabled: "Sonido Desactivado",
 };
 
 const ruRU: Translation = {
@@ -3419,6 +3479,16 @@ const ruRU: Translation = {
   premiumFeature: "Премиум-функция",
   confirmDeleteBudget: "Вы уверены, что хотите удалить эту смету?",
   deleteBudgetSuccess: "Смета успешно удалена!",
+  accountIdLabel: "ID аккаунта",
+  autoHidesIn10s: "Скроется через 10с",
+  showId: "Показать ID",
+  hideId: "Скрыть",
+  copyId: "Копировать ID",
+  pushSoundLabel: "Звук уведомлений",
+  pushSoundActiveDesc: "Звук включен для оповещений",
+  pushSoundMutedDesc: "Уведомления без звука",
+  pushSoundEnabled: "Звук включен",
+  pushSoundDisabled: "Звук выключен",
 };
 
 const hiIN: Translation = {
@@ -3892,6 +3962,16 @@ const hiIN: Translation = {
   premiumFeature: "प्रीमियम सुविधा",
   confirmDeleteBudget: "क्या आप वाकई इस बजट को हटाना चाहते हैं?",
   deleteBudgetSuccess: "बजট सफलतापूर्वक हटा दिया गया!",
+  accountIdLabel: "खाता ID",
+  autoHidesIn10s: "10s में छिपता है",
+  showId: "ID देखें",
+  hideId: "छिपाएं",
+  copyId: "ID कॉपी करें",
+  pushSoundLabel: "सूचना ध्वनि",
+  pushSoundActiveDesc: "नए अलर्ट के लिए ध्वनि सक्रिय",
+  pushSoundMutedDesc: "मूक सूचना मोड",
+  pushSoundEnabled: "ध्वनि सक्षम",
+  pushSoundDisabled: "ध्वनि अक्षम",
 };
 
 const bnBD: Translation = {
@@ -4365,6 +4445,16 @@ const bnBD: Translation = {
   premiumFeature: "প্রিমিয়াম বৈশিষ্ট্য",
   confirmDeleteBudget: "আপনি কি নিশ্চিত যে আপনি এই বাজেটটি মুছে ফেলতে চান?",
   deleteBudgetSuccess: "বাজেট সফলভাবে মুছে ফেলা হয়েছে!",
+  accountIdLabel: "অ্যাকাউন্ট আইডি",
+  autoHidesIn10s: "১০ সেকেন্ডে লুকাবে",
+  showId: "আইডি দেখুন",
+  hideId: "লুকান",
+  copyId: "আইডি কপি করুন",
+  pushSoundLabel: "বিজ্ঞপ্তি শব্দ",
+  pushSoundActiveDesc: "বিজ্ঞপ্তির জন্য শব্দ চালু আছে",
+  pushSoundMutedDesc: "নীরব বিজ্ঞপ্তি মোড",
+  pushSoundEnabled: "শব্দ চালু",
+  pushSoundDisabled: "শব্দ বন্ধ",
 };
 
 export const translations: Record<Locale, Translation> = {

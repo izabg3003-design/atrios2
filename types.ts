@@ -348,3 +348,34 @@ export interface IntroBannerItem {
   updatedAt?: string;
 }
 
+export interface Worker {
+  id: string;
+  companyId: string;
+  name: string;
+  nif: string;
+  role: string;
+  address: string;
+  phone: string;
+  email?: string;
+  hourlyRate?: number;
+  admissionDate?: string;
+  active: boolean;
+  createdAt: string;
+}
+
+export interface WorkTimeLog {
+  id: string;
+  companyId: string;
+  workerId: string;
+  date: string; // YYYY-MM-DD
+  startTime: string; // ex: "08:00"
+  coffeeBreak: string; // ex: "15 min" ou "10:00 - 10:15"
+  lunchBreak: string; // ex: "1h00" ou "12:00 - 13:00"
+  endTime: string; // ex: "17:00"
+  totalHours: number; // calculated hours
+  workLocation: string; // Local da obra / serviço
+  details: string; // Detalhes do dia / tarefas executadas
+  createdAt: string;
+}
+
+
