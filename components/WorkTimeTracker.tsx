@@ -26,17 +26,28 @@ import {
   Building2, 
   Check, 
   Info,
-  CalendarDays
+  CalendarDays,
+  RefreshCw,
+  Cloud,
+  Share2,
+  Link as LinkIcon,
+  QrCode,
+  ExternalLink,
+  Copy,
+  MessageCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Company, Worker, WorkTimeLog } from '../types';
+import { generateQrCodeForUrl } from '../services/qrcode';
 import { 
   getWorkers, 
+  fetchWorkersFromCloud,
   saveWorker, 
   deleteWorker, 
   getWorkTimeLogs, 
+  fetchWorkTimeLogsFromCloud,
   saveWorkTimeLog, 
   deleteWorkTimeLog,
   generateShortId
@@ -57,6 +68,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [logs, setLogs] = useState<WorkTimeLog[]>([]);
   const [selectedWorkerId, setSelectedWorkerId] = useState<string | null>(null);
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
 
   // Filtro de Mês/Ano selecionado (Padrão: Mês atual)
   const [selectedMonthDate, setSelectedMonthDate] = useState<Date>(() => new Date());
@@ -70,6 +83,11 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<WorkTimeLog | null>(null);
+
+  // Modal de Partilha de Link do Colaborador
+  const [shareModalWorker, setShareModalWorker] = useState<Worker | null>(null);
+  const [shareQrCodeUrl, setShareQrCodeUrl] = useState<string>('');
+  const [copiedPortalLink, setCopiedPortalLink] = useState<boolean>(false);
 
   // Form states - Colaborador
   const [workerName, setWorkerName] = useState('');
@@ -92,59 +110,79 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   const [logWorkLocation, setLogWorkLocation] = useState('');
   const [logDetails, setLogDetails] = useState('');
 
-  // Carregamento inicial de dados
-  const loadData = () => {
+  // Carregamento de dados (Local + Supabase Cloud)
+  const loadData = async (forceCloud = false) => {
     if (!company?.id) return;
+
+    // 1. Carrega local imediatamente para UI instantânea
     const loadedWorkers = getWorkers(company.id);
     const loadedLogs = getWorkTimeLogs(company.id);
 
-    // Se a empresa ainda não tiver nenhum trabalhador, adiciona um inicial demonstrativo para agilizar o uso
-    if (loadedWorkers.length === 0) {
-      const defaultWorker: Worker = {
-        id: generateShortId(),
-        companyId: company.id,
-        name: 'João Silva',
-        nif: '254896321',
-        role: 'Pedreiro de 1ª',
-        address: 'Rua das Flores, nº 14, Lisboa',
-        phone: '+351 912 345 678',
-        email: 'joao.silva@exemplo.com',
-        hourlyRate: 12.5,
-        admissionDate: new Date().toISOString().split('T')[0],
-        active: true,
-        createdAt: new Date().toISOString()
-      };
-      saveWorker(defaultWorker);
-
-      // Adiciona um registo inicial para o João
-      const todayStr = new Date().toISOString().split('T')[0];
-      const defaultLog: WorkTimeLog = {
-        id: generateShortId(),
-        companyId: company.id,
-        workerId: defaultWorker.id,
-        date: todayStr,
-        startTime: '08:00',
-        coffeeBreak: '10:00 - 10:15 (15m)',
-        lunchBreak: '12:00 - 13:00 (1h)',
-        endTime: '17:00',
-        totalHours: 7.75,
-        workLocation: 'Edifício Panorama - Av. Principal, Lisboa',
-        details: 'Assentamento de blocos de alvenaria e preparação do piso da sala principal.',
-        createdAt: new Date().toISOString()
-      };
-      saveWorkTimeLog(defaultLog);
-
-      setWorkers([defaultWorker]);
-      setLogs([defaultLog]);
-      setSelectedWorkerId(defaultWorker.id);
-      return;
+    if (loadedWorkers.length > 0) {
+      setWorkers(loadedWorkers);
+      setLogs(loadedLogs);
+      if (!selectedWorkerId) {
+        setSelectedWorkerId(loadedWorkers[0].id);
+      }
     }
 
-    setWorkers(loadedWorkers);
-    setLogs(loadedLogs);
+    // 2. Busca dados atualizados da Nuvem (Supabase)
+    try {
+      setIsSyncing(true);
+      const [cloudWorkers, cloudLogs] = await Promise.all([
+        fetchWorkersFromCloud(company.id),
+        fetchWorkTimeLogsFromCloud(company.id)
+      ]);
 
-    if (!selectedWorkerId && loadedWorkers.length > 0) {
-      setSelectedWorkerId(loadedWorkers[0].id);
+      if (cloudWorkers && cloudWorkers.length > 0) {
+        setWorkers(cloudWorkers);
+        setLogs(cloudLogs || []);
+        if (!selectedWorkerId || !cloudWorkers.some(w => w.id === selectedWorkerId)) {
+          setSelectedWorkerId(cloudWorkers[0].id);
+        }
+      } else if (loadedWorkers.length === 0) {
+        // Se ainda não existir nenhum trabalhador nem no cloud nem localmente
+        const defaultWorker: Worker = {
+          id: generateShortId(),
+          companyId: company.id,
+          name: 'João Silva',
+          nif: '254896321',
+          role: 'Pedreiro de 1ª',
+          address: 'Rua das Flores, nº 14, Lisboa',
+          phone: '+351 912 345 678',
+          email: 'joao.silva@exemplo.com',
+          hourlyRate: 12.5,
+          admissionDate: new Date().toISOString().split('T')[0],
+          active: true,
+          createdAt: new Date().toISOString()
+        };
+        await saveWorker(defaultWorker);
+
+        const todayStr = new Date().toISOString().split('T')[0];
+        const defaultLog: WorkTimeLog = {
+          id: generateShortId(),
+          companyId: company.id,
+          workerId: defaultWorker.id,
+          date: todayStr,
+          startTime: '08:00',
+          coffeeBreak: '10:00 - 10:15 (15m)',
+          lunchBreak: '12:00 - 13:00 (1h)',
+          endTime: '17:00',
+          totalHours: 8.0,
+          workLocation: 'Edifício Panorama - Av. Principal, Lisboa',
+          details: 'Assentamento de blocos de alvenaria e preparação do piso da sala principal.',
+          createdAt: new Date().toISOString()
+        };
+        await saveWorkTimeLog(defaultLog);
+
+        setWorkers([defaultWorker]);
+        setLogs([defaultLog]);
+        setSelectedWorkerId(defaultWorker.id);
+      }
+    } catch (e) {
+      console.warn('[WorkTimeTracker] Erro ao sincronizar com Supabase:', e);
+    } finally {
+      setIsSyncing(false);
     }
   };
 
@@ -243,7 +281,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   };
 
   // Helper para calcular horas líquidas a partir de horários
-  const calculateTotalHours = (start: string, end: string, lunchText: string, coffeeText: string): number => {
+  const calculateTotalHours = (start: string, end: string, lunchText: string, coffeeText?: string): number => {
     try {
       if (!start || !end) return 8;
       const [startH, startM] = start.split(':').map(Number);
@@ -252,29 +290,17 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       let totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
       if (totalMinutes < 0) totalMinutes += 24 * 60; // caso vire a noite
 
-      // Deduz Almoço (padrão 60 min se contiver 1h ou padrão)
+      // Deduz apenas a Pausa de Almoço (a pausa de café / pequeno-almoço de 15m é remunerada e NÃO é abatida, totalizando 8h completas)
       let lunchDeductionMinutes = 60;
       if (lunchText.includes('30m') || lunchText.includes('30 min')) {
         lunchDeductionMinutes = 30;
       } else if (lunchText.includes('1.5h') || lunchText.includes('90 min')) {
         lunchDeductionMinutes = 90;
-      } else if (lunchText.includes('0m') || lunchText.includes('Sem pausa')) {
+      } else if (lunchText.includes('0m') || lunchText.includes('Sem pausa') || lunchText.includes('0 min')) {
         lunchDeductionMinutes = 0;
       }
 
-      // Deduz Café (padrão 15 min)
-      let coffeeDeductionMinutes = 15;
-      if (coffeeText.includes('10m') || coffeeText.includes('10 min')) {
-        coffeeDeductionMinutes = 10;
-      } else if (coffeeText.includes('20m') || coffeeText.includes('20 min')) {
-        coffeeDeductionMinutes = 20;
-      } else if (coffeeText.includes('30m') || coffeeText.includes('30 min')) {
-        coffeeDeductionMinutes = 30;
-      } else if (coffeeText.includes('0m') || coffeeText.includes('Sem pausa')) {
-        coffeeDeductionMinutes = 0;
-      }
-
-      const netMinutes = Math.max(0, totalMinutes - lunchDeductionMinutes - coffeeDeductionMinutes);
+      const netMinutes = Math.max(0, totalMinutes - lunchDeductionMinutes);
       return Number((netMinutes / 60).toFixed(2));
     } catch {
       return 8;
@@ -311,40 +337,94 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     setIsWorkerModalOpen(true);
   };
 
-  // Salvar Colaborador
-  const handleSaveWorkerSubmit = (e: React.FormEvent) => {
+  // Gerar Link do Portal do Colaborador com o Nome do Próprio
+  const getWorkerPortalUrl = (worker: Worker) => {
+    const origin = typeof window !== 'undefined' ? window.location.origin : 'https://atrios.app';
+    const workerSlug = encodeURIComponent(
+      worker.name
+        .trim()
+        .normalize('NFD')
+        .replace(/[\u0300-\u036f]/g, '')
+        .toLowerCase()
+        .replace(/[^a-z0-9]+/g, '-')
+        .replace(/^-+|-+$/g, '') || worker.name.trim().toLowerCase().replace(/\s+/g, '-')
+    );
+    const workerFullName = encodeURIComponent(worker.name.trim());
+    return `${origin}/?portal=ponto&colaborador=${workerSlug}&nome=${workerFullName}&workerId=${encodeURIComponent(worker.id)}&companyId=${encodeURIComponent(company.id)}`;
+  };
+
+  // Abrir Modal de Partilha de Link do Colaborador
+  const handleOpenShareModal = async (worker: Worker) => {
+    setShareModalWorker(worker);
+    setCopiedPortalLink(false);
+    const portalUrl = getWorkerPortalUrl(worker);
+    const qr = await generateQrCodeForUrl(portalUrl);
+    setShareQrCodeUrl(qr);
+  };
+
+  // Copiar Link do Colaborador
+  const handleCopyPortalLink = (worker: Worker) => {
+    const url = getWorkerPortalUrl(worker);
+    if (typeof window !== 'undefined') {
+      navigator.clipboard.writeText(url);
+      setCopiedPortalLink(true);
+      setTimeout(() => setCopiedPortalLink(false), 2500);
+    }
+  };
+
+  // Partilhar por WhatsApp
+  const handleOpenWhatsApp = (worker: Worker) => {
+    const url = getWorkerPortalUrl(worker);
+    const companyName = company.name || company.companyName || 'nossa empresa';
+    const cleanPhone = (worker.phone || '').replace(/\D/g, '');
+    const message = `Olá ${worker.name}, este é o seu link exclusivo e direto para registar as suas horas de trabalho diárias no sistema da ${companyName}:\n\n${url}\n\nAbra o link no telemóvel para submeter o seu ponto todos os dias.`;
+    const waUrl = cleanPhone && cleanPhone.length >= 8
+      ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
+      : `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(waUrl, '_blank');
+  };
+
+  // Salvar Colaborador (com Supabase Upsert)
+  const handleSaveWorkerSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!workerName.trim() || !workerNif.trim() || !workerRole.trim()) {
       alert('Por favor, preencha o Nome, NIF e Função do colaborador.');
       return;
     }
 
-    const workerObj: Worker = {
-      id: editingWorker ? editingWorker.id : generateShortId(),
-      companyId: company.id,
-      name: workerName.trim(),
-      nif: workerNif.trim(),
-      role: workerRole.trim(),
-      address: workerAddress.trim(),
-      phone: workerPhone.trim(),
-      email: workerEmail.trim() || undefined,
-      hourlyRate: workerHourlyRate ? parseFloat(workerHourlyRate) : undefined,
-      admissionDate: workerAdmissionDate || undefined,
-      active: workerActive,
-      createdAt: editingWorker ? editingWorker.createdAt : new Date().toISOString()
-    };
+    try {
+      setIsSaving(true);
+      const workerObj: Worker = {
+        id: editingWorker ? editingWorker.id : generateShortId(),
+        companyId: company.id,
+        name: workerName.trim(),
+        nif: workerNif.trim(),
+        role: workerRole.trim(),
+        address: workerAddress.trim(),
+        phone: workerPhone.trim(),
+        email: workerEmail.trim() || undefined,
+        hourlyRate: workerHourlyRate ? parseFloat(workerHourlyRate) : undefined,
+        admissionDate: workerAdmissionDate || undefined,
+        active: workerActive,
+        createdAt: editingWorker ? editingWorker.createdAt : new Date().toISOString()
+      };
 
-    saveWorker(workerObj);
-    setIsWorkerModalOpen(false);
-    loadData();
-    setSelectedWorkerId(workerObj.id);
+      await saveWorker(workerObj);
+      setIsWorkerModalOpen(false);
+      await loadData();
+      setSelectedWorkerId(workerObj.id);
+    } catch (err) {
+      console.error('Erro ao salvar colaborador:', err);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   // Eliminar Colaborador
-  const handleDeleteWorker = (worker: Worker) => {
+  const handleDeleteWorker = async (worker: Worker) => {
     if (confirm(`Tem a certeza que deseja eliminar o colaborador ${worker.name}? Todos os registos de horas deste trabalhador também serão removidos.`)) {
-      deleteWorker(worker.id, company.id);
-      loadData();
+      await deleteWorker(worker.id, company.id);
+      await loadData();
       if (selectedWorkerId === worker.id) {
         const remaining = workers.filter(w => w.id !== worker.id);
         setSelectedWorkerId(remaining.length > 0 ? remaining[0].id : null);
@@ -380,8 +460,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     setIsLogModalOpen(true);
   };
 
-  // Salvar Registo de Ponto
-  const handleSaveLogSubmit = (e: React.FormEvent) => {
+  // Salvar Registo de Ponto (com Supabase Upsert)
+  const handleSaveLogSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!logWorkerId) {
       alert('Selecione o colaborador.');
@@ -392,38 +472,45 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       return;
     }
 
-    const calculatedHours = calculateTotalHours(logStartTime, logEndTime, logLunchBreak, logCoffeeBreak);
+    try {
+      setIsSaving(true);
+      const calculatedHours = calculateTotalHours(logStartTime, logEndTime, logLunchBreak, logCoffeeBreak);
 
-    const logObj: WorkTimeLog = {
-      id: editingLog ? editingLog.id : generateShortId(),
-      companyId: company.id,
-      workerId: logWorkerId,
-      date: logDate,
-      startTime: logStartTime,
-      coffeeBreak: logCoffeeBreak,
-      lunchBreak: logLunchBreak,
-      endTime: logEndTime,
-      totalHours: calculatedHours,
-      workLocation: logWorkLocation.trim() || 'Obra Principal',
-      details: logDetails.trim(),
-      createdAt: editingLog ? editingLog.createdAt : new Date().toISOString()
-    };
+      const logObj: WorkTimeLog = {
+        id: editingLog ? editingLog.id : generateShortId(),
+        companyId: company.id,
+        workerId: logWorkerId,
+        date: logDate,
+        startTime: logStartTime,
+        coffeeBreak: logCoffeeBreak,
+        lunchBreak: logLunchBreak,
+        endTime: logEndTime,
+        totalHours: calculatedHours,
+        workLocation: logWorkLocation.trim() || 'Obra Principal',
+        details: logDetails.trim(),
+        createdAt: editingLog ? editingLog.createdAt : new Date().toISOString()
+      };
 
-    saveWorkTimeLog(logObj);
-    setIsLogModalOpen(false);
-    loadData();
-    setSelectedWorkerId(logWorkerId);
-  };
-
-  // Eliminar Registo de Ponto
-  const handleDeleteLog = (logId: string) => {
-    if (confirm('Tem a certeza que deseja eliminar este registo de horas?')) {
-      deleteWorkTimeLog(logId, company.id);
-      loadData();
+      await saveWorkTimeLog(logObj);
+      setIsLogModalOpen(false);
+      await loadData();
+      setSelectedWorkerId(logWorkerId);
+    } catch (err) {
+      console.error('Erro ao salvar registo de ponto:', err);
+    } finally {
+      setIsSaving(false);
     }
   };
 
-  // Exportar Folha de Horas / Ponto em PDF
+  // Eliminar Registo de Ponto
+  const handleDeleteLog = async (logId: string) => {
+    if (confirm('Tem a certeza que deseja eliminar este registo de horas?')) {
+      await deleteWorkTimeLog(logId, company.id);
+      await loadData();
+    }
+  };
+
+  // Exportar Folha de Horas / Ponto em PDF com Logo ÁTRIOS
   const handleExportPDF = () => {
     if (!selectedWorker) {
       alert('Selecione um colaborador para exportar a folha de ponto.');
@@ -433,52 +520,102 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     try {
       const doc = new jsPDF();
       const pageWidth = doc.internal.pageSize.width;
+      const pageHeight = doc.internal.pageSize.height;
 
-      // Header Empresa
+      // Função para desenhar o Logo Vetorial Oficial da ÁTRIOS
+      const drawAtriosLogo = (x: number, y: number, size: number = 15) => {
+        const s = size / 100;
+        
+        // Fundo Laranja Átrios (#F27D26)
+        doc.setFillColor(242, 125, 38);
+        doc.roundedRect(x, y, size, size, 25 * s, 25 * s, 'F');
+        
+        // Pernas da Barreira de Obra (Branco)
+        doc.setFillColor(255, 255, 255);
+        doc.roundedRect(x + 28 * s, y + 35 * s, 4 * s, 40 * s, 1 * s, 1 * s, 'F');
+        doc.roundedRect(x + 68 * s, y + 35 * s, 4 * s, 40 * s, 1 * s, 1 * s, 'F');
+        
+        // Barras horizontais da Barreira (Branco)
+        doc.roundedRect(x + 20 * s, y + 35 * s, 60 * s, 12 * s, 2 * s, 2 * s, 'F');
+        doc.roundedRect(x + 20 * s, y + 53 * s, 60 * s, 12 * s, 2 * s, 2 * s, 'F');
+        
+        // Listras diagonais de segurança na barra superior (Laranja)
+        doc.setDrawColor(242, 125, 38);
+        doc.setLineWidth(3.5 * s);
+        doc.line(x + 27 * s, y + 35 * s, x + 35 * s, y + 47 * s);
+        doc.line(x + 47 * s, y + 35 * s, x + 55 * s, y + 47 * s);
+        doc.line(x + 67 * s, y + 35 * s, x + 73 * s, y + 47 * s);
+        
+        // Listras diagonais de segurança na barra inferior (Laranja)
+        doc.line(x + 27 * s, y + 53 * s, x + 35 * s, y + 65 * s);
+        doc.line(x + 47 * s, y + 53 * s, x + 55 * s, y + 65 * s);
+        doc.line(x + 67 * s, y + 53 * s, x + 73 * s, y + 65 * s);
+      };
+
+      // 1. Barra Superior com Cor da Marca ÁTRIOS
+      doc.setFillColor(242, 125, 38); // Laranja Átrios
+      doc.rect(0, 0, pageWidth, 3.5, 'F');
+
+      // 2. Cabeçalho Principal (Slate-900)
       doc.setFillColor(15, 23, 42); // slate-900
-      doc.rect(0, 0, pageWidth, 28, 'F');
+      doc.rect(0, 3.5, pageWidth, 28.5, 'F');
+
+      // Identidade da Empresa (Esquerda)
+      let companyStartX = 14;
+      if (company.logo && company.logo.length > 50) {
+        try {
+          const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
+          doc.addImage(company.logo, format, 14, 6.5, 22, 22, undefined, 'FAST');
+          companyStartX = 40;
+        } catch (e) {
+          companyStartX = 14;
+        }
+      }
 
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(14);
-      doc.text(company.name.toUpperCase(), 14, 13);
+      doc.setFontSize(13);
+      const companyNameClean = (company.name || 'EMPRESA').toUpperCase();
+      doc.text(companyNameClean, companyStartX, 14.5);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(8.5);
+      doc.setFontSize(8);
       doc.setTextColor(203, 213, 225);
-      doc.text(`NIF: ${company.nif || 'Não informado'} | Email: ${company.email} | Tel: ${company.phone || 'Não informado'}`, 14, 21);
+      const nifText = company.nif ? `NIF: ${company.nif}` : 'NIF: N/A';
+      const phoneText = company.phone ? ` | Tel: ${company.phone}` : '';
+      doc.text(`${nifText} | Email: ${company.email || 'N/A'}${phoneText}`, companyStartX, 21.5);
 
-      // Título do Documento
+      // 3. Título do Documento
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
-      doc.setFontSize(16);
-      doc.text('FOLHA DE REGISTO DE HORAS & PONTO', 14, 40);
+      doc.setFontSize(15);
+      doc.text('FOLHA DE REGISTO DE HORAS & PONTO', 14, 41);
 
       doc.setFont('helvetica', 'normal');
-      doc.setFontSize(9.5);
+      doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Período de Referência: ${currentMonthYearLabel.toUpperCase()}`, 14, 47);
+      doc.text(`Período de Referência: ${currentMonthYearLabel.toUpperCase()}`, 14, 48);
 
-      // Bloco de Dados do Colaborador
+      // 4. Bloco de Dados do Colaborador
       doc.setFillColor(248, 250, 252);
       doc.setDrawColor(226, 232, 240);
-      doc.roundedRect(14, 52, pageWidth - 28, 26, 2, 2, 'FD');
+      doc.roundedRect(14, 53, pageWidth - 28, 26, 2, 2, 'FD');
 
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Colaborador: ${selectedWorker.name.toUpperCase()}`, 18, 60);
+      doc.text(`Colaborador: ${selectedWorker.name.toUpperCase()}`, 18, 61);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Função: ${selectedWorker.role}`, 18, 66);
-      doc.text(`NIF: ${selectedWorker.nif}`, 18, 72);
+      doc.text(`Função: ${selectedWorker.role}`, 18, 67);
+      doc.text(`NIF: ${selectedWorker.nif}`, 18, 73);
 
-      doc.text(`Contacto: ${selectedWorker.phone || 'N/A'}`, 110, 66);
-      doc.text(`Morada: ${selectedWorker.address || 'N/A'}`, 110, 72);
+      doc.text(`Contacto: ${selectedWorker.phone || 'N/A'}`, 110, 67);
+      doc.text(`Morada: ${selectedWorker.address || 'N/A'}`, 110, 73);
 
-      // Tabela com os Registos de Ponto
+      // 5. Tabela com os Registos de Ponto
       const tableData = currentWorkerLogsForMonth.map(log => {
         const d = new Date(log.date);
         const dayFormatted = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' });
@@ -524,7 +661,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
         margin: { left: 14, right: 14 }
       });
 
-      // Sumário de Totais
+      // 6. Sumário de Totais
       const finalY = (doc as any).lastAutoTable.finalY + 8;
       
       doc.setFillColor(241, 245, 249);
@@ -536,9 +673,9 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.text(`TOTAL DE DIAS TRABALHADOS: ${stats.totalDays}`, 20, finalY + 10);
       doc.text(`TOTAL DE HORAS LÍQUIDAS: ${stats.totalHours} Horas`, 110, finalY + 10);
 
-      // Assinaturas
+      // 7. Assinaturas
       const signY = finalY + 36;
-      if (signY + 20 < doc.internal.pageSize.height) {
+      if (signY + 20 < pageHeight) {
         doc.setDrawColor(148, 163, 184);
         doc.setLineWidth(0.5);
 
@@ -556,10 +693,18 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
         doc.text(company.name, pageWidth - 55, signY + 9, { align: 'center' });
       }
 
-      // Rodapé
-      doc.setFontSize(7);
+      // 8. Rodapé com Selo e Marca ÁTRIOS
+      drawAtriosLogo(14, pageHeight - 13, 7);
+
+      doc.setFontSize(6.8);
+      doc.setFont('helvetica', 'bold');
+      doc.setTextColor(71, 85, 105);
+      doc.text('ÁTRIOS BUILD', 23, pageHeight - 9.5);
+
+      doc.setFont('helvetica', 'normal');
+      doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
-      doc.text(`Documento emitido por ${company.name} através do Átrios Software em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT')}`, 14, doc.internal.pageSize.height - 8);
+      doc.text(`| Documento emitido por ${company.name} através do Átrios Software em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT')}`, 43, pageHeight - 9.5);
 
       const fileName = `Folha_Ponto_${selectedWorker.name.replace(/\s+/g, '_')}_${selectedMonthDate.getFullYear()}_${selectedMonthDate.getMonth() + 1}.pdf`;
       doc.save(fileName);
@@ -595,6 +740,20 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
         {/* Botões de Ação Topo */}
         <div className="flex flex-wrap items-center gap-2.5">
+          <button
+            onClick={() => loadData(true)}
+            disabled={isSyncing}
+            className={`px-3.5 py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 border cursor-pointer ${
+              isSyncing 
+                ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse' 
+                : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs'
+            }`}
+            title="Sincronizar dados com o Supabase"
+          >
+            <RefreshCw size={15} className={isSyncing ? 'animate-spin text-blue-600' : 'text-slate-500'} />
+            <span className="hidden sm:inline">{isSyncing ? 'Sincronizando...' : 'Nuvem Supabase'}</span>
+          </button>
+
           <button
             onClick={handleOpenNewWorkerModal}
             className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-xs cursor-pointer"
@@ -762,6 +921,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
+                              handleOpenShareModal(worker);
+                            }}
+                            className={`p-1 rounded-md hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-all`}
+                            title="Partilhar link exclusivo de ponto"
+                          >
+                            <Share2 size={12} />
+                          </button>
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
                               handleOpenEditWorkerModal(worker);
                             }}
                             className={`p-1 rounded-md hover:bg-white/20 transition-all ${isSelected ? 'text-white' : 'text-slate-500'}`}
@@ -839,7 +1008,15 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   </div>
 
                   {/* Ações do Colaborador */}
-                  <div className="flex items-center gap-2 self-end sm:self-center">
+                  <div className="flex flex-wrap items-center gap-2 self-end sm:self-center">
+                    <button
+                      onClick={() => handleOpenShareModal(selectedWorker)}
+                      className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
+                      title="Gerar Link e QR Code de Ponto para o Colaborador"
+                    >
+                      <Share2 size={14} />
+                      <span>Link do Colaborador</span>
+                    </button>
                     <button
                       onClick={() => handleOpenEditWorkerModal(selectedWorker)}
                       className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
@@ -850,7 +1027,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     </button>
                     <button
                       onClick={() => handleOpenNewLogModal(selectedWorker.id)}
-                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
+                      className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
                     >
                       <Plus size={14} />
                       <span>Registar Dia</span>
@@ -1472,6 +1649,132 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal de Partilha de Link / QR Code do Colaborador */}
+      <AnimatePresence>
+        {shareModalWorker && (
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white rounded-[2rem] max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto relative"
+            >
+              {/* Topo do Modal */}
+              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <Share2 size={24} />
+                  </div>
+                  <div>
+                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                      Portal do Colaborador
+                    </span>
+                    <h3 className="text-lg font-black text-slate-900 mt-1">
+                      {shareModalWorker.name}
+                    </h3>
+                    <p className="text-xs text-slate-500 font-bold">
+                      {shareModalWorker.role} • NIF: {shareModalWorker.nif}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setShareModalWorker(null)}
+                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              {/* Explicação */}
+              <p className="text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
+                Envie este link direto para <strong>{shareModalWorker.name}</strong>. Ele poderá abrir no telemóvel para submeter os seus horários diários de trabalho, intervalos e tarefas da obra. Os registos entram diretamente no sistema!
+              </p>
+
+              {/* Caixa com o Link do Colaborador */}
+              <div className="space-y-2">
+                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                  Link Direto de Submissão
+                </label>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    readOnly
+                    value={getWorkerPortalUrl(shareModalWorker)}
+                    className="flex-1 px-3.5 py-3 rounded-xl bg-slate-50 border-2 border-slate-200 text-xs font-mono font-bold text-slate-800 select-all outline-none"
+                  />
+                  <button
+                    onClick={() => handleCopyPortalLink(shareModalWorker)}
+                    className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-xs ${
+                      copiedPortalLink
+                        ? 'bg-emerald-600 text-white'
+                        : 'bg-slate-900 hover:bg-slate-800 text-white'
+                    }`}
+                  >
+                    {copiedPortalLink ? <Check size={16} /> : <Copy size={16} />}
+                    <span>{copiedPortalLink ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Botões de Ação Rápida: WhatsApp e Navegador */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <button
+                  onClick={() => handleOpenWhatsApp(shareModalWorker)}
+                  className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+                >
+                  <MessageCircle size={16} />
+                  <span>Enviar via WhatsApp</span>
+                </button>
+
+                <a
+                  href={getWorkerPortalUrl(shareModalWorker)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 text-center"
+                >
+                  <ExternalLink size={16} />
+                  <span>Abrir Portal</span>
+                </a>
+              </div>
+
+              {/* Secção QR Code */}
+              {shareQrCodeUrl && (
+                <div className="pt-3 border-t border-slate-100 flex flex-col items-center justify-center text-center space-y-3">
+                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
+                    QR Code para Leitura na Obra
+                  </p>
+                  <div className="p-3 bg-white border-2 border-slate-200 rounded-2xl shadow-xs">
+                    <img
+                      src={shareQrCodeUrl}
+                      alt={`QR Code de ${shareModalWorker.name}`}
+                      className="w-40 h-40 object-contain rounded-lg"
+                    />
+                  </div>
+                  <a
+                    href={shareQrCodeUrl}
+                    download={`qrcode-ponto-${shareModalWorker.name.toLowerCase().replace(/\s+/g, '-')}.png`}
+                    className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1"
+                  >
+                    <Download size={14} />
+                    <span>Descarregar Imagem do QR Code</span>
+                  </a>
+                </div>
+              )}
+
+              {/* Rodapé do Modal */}
+              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                <button
+                  onClick={() => setShareModalWorker(null)}
+                  className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  Fechar
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

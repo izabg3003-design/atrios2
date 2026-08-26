@@ -59,7 +59,7 @@ export const InstallPWA: React.FC<InstallPWAProps> = ({ view }) => {
     // Mostrar modal automaticamente após 3.5 segundos se não for standalone e não tiver sido dispensado na sessão
     const dismissedSession = sessionStorage.getItem('atrios_pwa_dismissed');
     let autoTimer: any = null;
-    if (!isStandalone && !dismissedSession) {
+    if (!isStandalone && !dismissedSession && view !== 'worker-portal' && view !== 'client-portal') {
       autoTimer = setTimeout(() => {
         setIsVisible(true);
       }, 3500);

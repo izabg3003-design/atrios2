@@ -6,6 +6,7 @@ import { JobOffers } from './components/JobOffers';
 import { ClientRequestsHub } from './components/ClientRequestsHub';
 import { WorkTimeTracker } from './components/WorkTimeTracker';
 import { ClientPortal } from './components/ClientPortal';
+import { WorkerPortal } from './components/WorkerPortal';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
@@ -220,7 +221,18 @@ const App: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(session?.currencyCode as any || 'EUR');
   const t = translations[locale];
 
-  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master' | 'client-portal'>(session?.view as any || 'landing');
+  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master' | 'client-portal' | 'worker-portal'>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      if (params.get('portal') === 'ponto' || params.get('colaborador') || params.get('workerId') || params.get('worker') || params.get('w') || params.get('view') === 'worker-portal') {
+        return 'worker-portal';
+      }
+      if (params.get('portal') === 'client' || params.get('view') === 'client-portal') {
+        return 'client-portal';
+      }
+    }
+    return (session?.view as any) || 'landing';
+  });
   const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs' | 'client_requests' | 'work_hours'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
@@ -2973,7 +2985,7 @@ const App: React.FC = () => {
   return (
     <>
       <InAppPushBalloonContainer />
-      <div className={`flex ${(view === 'landing' || view === 'client-portal' || view === 'login' || view === 'signup' || view === 'forgot-password') ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full max-w-full overflow-x-hidden justify-center`}>
+      <div className={`flex ${(view === 'landing' || view === 'client-portal' || view === 'worker-portal' || view === 'login' || view === 'signup' || view === 'forgot-password') ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full max-w-full overflow-x-hidden justify-center`}>
       {showCertificateModal && (
         <CertificateModal 
           company={certificateCompany || currentUser} 
@@ -3070,7 +3082,18 @@ const App: React.FC = () => {
         />
       )}
 
-      {view === 'client-portal' ? (
+      {view === 'worker-portal' ? (
+        <WorkerPortal
+          onBackToHome={() => {
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.search = '';
+              window.history.replaceState({}, document.title, url.toString());
+            }
+            setView(currentUser ? 'app' : 'landing');
+          }}
+        />
+      ) : view === 'client-portal' ? (
         <ClientPortal
           onBackToHome={() => setView('landing')}
           currencyCode={currencyCode}

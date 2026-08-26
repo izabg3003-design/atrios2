@@ -2362,6 +2362,40 @@ export const resetIntroBannersToDefault = async (): Promise<{ success: boolean }
 const getWorkersStorageKey = (companyId: string) => `atrios_workers_${companyId}`;
 const getWorkLogsStorageKey = (companyId: string) => `atrios_work_logs_${companyId}`;
 
+export const mapWorkerFromSupabase = (data: any): Worker => {
+  return {
+    id: String(data.id),
+    companyId: String(data.company_id || data.companyId || ''),
+    name: data.name || '',
+    nif: data.nif || '',
+    role: data.role || '',
+    address: data.address || '',
+    phone: data.phone || '',
+    email: data.email || undefined,
+    hourlyRate: data.hourly_rate !== undefined && data.hourly_rate !== null ? Number(data.hourly_rate) : (data.hourlyRate ? Number(data.hourlyRate) : undefined),
+    admissionDate: data.admission_date || data.admissionDate || undefined,
+    active: data.active !== undefined ? Boolean(data.active) : true,
+    createdAt: data.created_at || data.createdAt || new Date().toISOString()
+  };
+};
+
+export const mapWorkTimeLogFromSupabase = (data: any): WorkTimeLog => {
+  return {
+    id: String(data.id),
+    companyId: String(data.company_id || data.companyId || ''),
+    workerId: String(data.worker_id || data.workerId || ''),
+    date: data.date || new Date().toISOString().split('T')[0],
+    startTime: data.start_time || data.startTime || '08:00',
+    coffeeBreak: data.coffee_break || data.coffeeBreak || '15 min',
+    lunchBreak: data.lunch_break || data.lunchBreak || '12:00 - 13:00 (1h)',
+    endTime: data.end_time || data.endTime || '17:00',
+    totalHours: Number(data.total_hours ?? data.totalHours ?? 8),
+    workLocation: data.work_location || data.workLocation || '',
+    details: data.details || '',
+    createdAt: data.created_at || data.createdAt || new Date().toISOString()
+  };
+};
+
 export const getWorkers = (companyId: string): Worker[] => {
   if (!companyId) return [];
   const stored = safeGetItem(getWorkersStorageKey(companyId));
@@ -2375,7 +2409,54 @@ export const getWorkers = (companyId: string): Worker[] => {
   return [];
 };
 
-export const saveWorker = (worker: Worker): void => {
+export const getWorkerById = (companyId: string, workerId: string): Worker | null => {
+  if (!companyId || !workerId) return null;
+  const workers = getWorkers(companyId);
+  return workers.find(w => w.id === workerId) || null;
+};
+
+export const fetchWorkerById = async (companyId: string, workerId: string): Promise<Worker | null> => {
+  if (!companyId || !workerId) return null;
+  const local = getWorkerById(companyId, workerId);
+  try {
+    const { data, error } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('id', workerId)
+      .maybeSingle();
+
+    if (!error && data) {
+      return mapWorkerFromSupabase(data);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Erro ao buscar worker por id:', err);
+  }
+  return local;
+};
+
+export const fetchWorkersFromCloud = async (companyId: string): Promise<Worker[]> => {
+  if (!companyId) return [];
+  try {
+    const { data, error } = await supabase
+      .from('workers')
+      .select('*')
+      .eq('company_id', companyId)
+      .order('created_at', { ascending: false });
+
+    if (!error && data && Array.isArray(data)) {
+      const mapped = data.map(mapWorkerFromSupabase);
+      safeSetItem(getWorkersStorageKey(companyId), JSON.stringify(mapped));
+      return mapped;
+    } else if (error) {
+      console.warn('[Supabase] Erro ao buscar workers:', error);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Falha de conexão ao buscar workers:', err);
+  }
+  return getWorkers(companyId);
+};
+
+export const saveWorker = async (worker: Worker): Promise<void> => {
   if (!worker || !worker.companyId) return;
   const list = getWorkers(worker.companyId);
   const existingIdx = list.findIndex(w => w.id === worker.id);
@@ -2387,18 +2468,51 @@ export const saveWorker = (worker: Worker): void => {
     updated = [worker, ...list];
   }
   safeSetItem(getWorkersStorageKey(worker.companyId), JSON.stringify(updated));
+
+  // Sincroniza com o Supabase
+  try {
+    const payload = {
+      id: worker.id,
+      company_id: worker.companyId,
+      name: worker.name,
+      nif: worker.nif,
+      role: worker.role,
+      address: worker.address || null,
+      phone: worker.phone || null,
+      email: worker.email || null,
+      hourly_rate: worker.hourlyRate || 0,
+      admission_date: worker.admissionDate || null,
+      active: worker.active !== undefined ? worker.active : true,
+      created_at: worker.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('workers').upsert(payload);
+    if (error) {
+      console.warn('[Supabase] Erro ao sincronizar worker no Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Falha ao upsert worker:', err);
+  }
 };
 
-export const deleteWorker = (workerId: string, companyId: string): void => {
+export const deleteWorker = async (workerId: string, companyId: string): Promise<void> => {
   if (!workerId || !companyId) return;
   const list = getWorkers(companyId);
   const updated = list.filter(w => w.id !== workerId);
   safeSetItem(getWorkersStorageKey(companyId), JSON.stringify(updated));
 
-  // Também remove os logs associados
+  // Também remove os logs associados localmente
   const logs = getWorkTimeLogs(companyId);
   const updatedLogs = logs.filter(l => l.workerId !== workerId);
   safeSetItem(getWorkLogsStorageKey(companyId), JSON.stringify(updatedLogs));
+
+  // Sincroniza exclusão com o Supabase
+  try {
+    await supabase.from('work_time_logs').delete().eq('worker_id', workerId);
+    await supabase.from('workers').delete().eq('id', workerId);
+  } catch (err) {
+    console.warn('[Supabase] Erro ao deletar worker no Supabase:', err);
+  }
 };
 
 export const getWorkTimeLogs = (companyId: string, workerId?: string): WorkTimeLog[] => {
@@ -2418,7 +2532,36 @@ export const getWorkTimeLogs = (companyId: string, workerId?: string): WorkTimeL
   return logs;
 };
 
-export const saveWorkTimeLog = (log: WorkTimeLog): void => {
+export const fetchWorkTimeLogsFromCloud = async (companyId: string, workerId?: string): Promise<WorkTimeLog[]> => {
+  if (!companyId) return [];
+  try {
+    let query = supabase
+      .from('work_time_logs')
+      .select('*')
+      .eq('company_id', companyId);
+
+    if (workerId) {
+      query = query.eq('worker_id', workerId);
+    }
+
+    const { data, error } = await query.order('date', { ascending: false });
+
+    if (!error && data && Array.isArray(data)) {
+      const mapped = data.map(mapWorkTimeLogFromSupabase);
+      if (!workerId) {
+        safeSetItem(getWorkLogsStorageKey(companyId), JSON.stringify(mapped));
+      }
+      return mapped;
+    } else if (error) {
+      console.warn('[Supabase] Erro ao buscar work_time_logs:', error);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Falha de conexão ao buscar work_time_logs:', err);
+  }
+  return getWorkTimeLogs(companyId, workerId);
+};
+
+export const saveWorkTimeLog = async (log: WorkTimeLog): Promise<void> => {
   if (!log || !log.companyId) return;
   const list = getWorkTimeLogs(log.companyId);
   const existingIdx = list.findIndex(l => l.id === log.id);
@@ -2432,13 +2575,45 @@ export const saveWorkTimeLog = (log: WorkTimeLog): void => {
   // Ordena por data mais recente primeiro
   updated.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
   safeSetItem(getWorkLogsStorageKey(log.companyId), JSON.stringify(updated));
+
+  // Sincroniza com o Supabase
+  try {
+    const payload = {
+      id: log.id,
+      company_id: log.companyId,
+      worker_id: log.workerId,
+      date: log.date,
+      start_time: log.startTime,
+      coffee_break: log.coffeeBreak || null,
+      lunch_break: log.lunchBreak || null,
+      end_time: log.endTime,
+      total_hours: Number(log.totalHours) || 0,
+      work_location: log.workLocation || '',
+      details: log.details || null,
+      created_at: log.createdAt || new Date().toISOString(),
+      updated_at: new Date().toISOString()
+    };
+    const { error } = await supabase.from('work_time_logs').upsert(payload);
+    if (error) {
+      console.warn('[Supabase] Erro ao sincronizar work_time_logs no Supabase:', error);
+    }
+  } catch (err) {
+    console.warn('[Supabase] Falha ao upsert work_time_logs:', err);
+  }
 };
 
-export const deleteWorkTimeLog = (logId: string, companyId: string): void => {
+export const deleteWorkTimeLog = async (logId: string, companyId: string): Promise<void> => {
   if (!logId || !companyId) return;
   const list = getWorkTimeLogs(companyId);
   const updated = list.filter(l => l.id !== logId);
   safeSetItem(getWorkLogsStorageKey(companyId), JSON.stringify(updated));
+
+  // Sincroniza exclusão com o Supabase
+  try {
+    await supabase.from('work_time_logs').delete().eq('id', logId);
+  } catch (err) {
+    console.warn('[Supabase] Erro ao deletar work_time_log no Supabase:', err);
+  }
 };
 
 
