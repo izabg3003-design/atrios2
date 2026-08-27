@@ -31,9 +31,13 @@ import {
   Wrench,
   Image as ImageIcon,
   Tag,
-  X
+  X,
+  Globe
 } from 'lucide-react';
 import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode } from '../types';
+import { Locale } from '../translations';
+import { clientPortalTranslations } from './clientPortalTranslations';
+import { LOCALE_OPTIONS } from './landingExtendedTranslations';
 import { 
   getStoredClientRequests, 
   fetchClientRequestsFromSupabase, 
@@ -47,12 +51,42 @@ import { ClientRequestModal } from './ClientRequestModal';
 interface ClientPortalProps {
   onBackToHome: () => void;
   currencyCode?: CurrencyCode;
+  initialLocale?: Locale;
 }
 
 export const ClientPortal: React.FC<ClientPortalProps> = ({
   onBackToHome,
-  currencyCode = 'EUR'
+  currencyCode = 'EUR',
+  initialLocale
 }) => {
+  // Locale state
+  const [portalLocale, setPortalLocale] = useState<Locale>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = params.get('lang') || params.get('locale');
+      if (urlLang && clientPortalTranslations[urlLang as Locale]) {
+        return urlLang as Locale;
+      }
+    }
+    if (initialLocale && clientPortalTranslations[initialLocale]) {
+      return initialLocale;
+    }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('atrios_locale') as Locale;
+      if (saved && clientPortalTranslations[saved]) return saved;
+    }
+    return 'pt-PT';
+  });
+
+  const t = clientPortalTranslations[portalLocale] || clientPortalTranslations['pt-PT'];
+
+  const handleLanguageChange = (newLoc: Locale) => {
+    setPortalLocale(newLoc);
+    if (typeof window !== 'undefined') {
+      localStorage.setItem('atrios_locale', newLoc);
+    }
+  };
+
   // Authentication state for the client
   const [authenticatedPhone, setAuthenticatedPhone] = useState<string>(() => {
     return localStorage.getItem('atrios_client_session_phone') || '';
@@ -166,7 +200,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
     const clean = phoneInput.replace(/\D/g, '');
     if (clean.length < 6) {
-      setLoginError('Por favor insira um número de telemóvel válido.');
+      setLoginError(t.errorInvalidPhone);
       return;
     }
 
@@ -179,7 +213,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       setAccessCodeInput('');
       setSimulatedOtp(null);
     } catch (err) {
-      setLoginError('Não foi possível entrar na área de cliente. Tente novamente.');
+      setLoginError(t.errorLoginFailed);
     } finally {
       setIsLoggingIn(false);
     }
@@ -222,7 +256,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
       setAccessCodeInput('');
       setSimulatedOtp(null);
     } else {
-      setLoginError('Código incorreto. Por favor insira o código fornecido no momento do pedido ou fale com o suporte.');
+      setLoginError(t.errorIncorrectCode);
     }
   };
 
@@ -244,8 +278,10 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
   // Format currency helper
   const formatCurrency = (val: number) => {
-    return `${val.toLocaleString('pt-PT', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr.symbol}`;
+    return `${val.toLocaleString(portalLocale, { minimumFractionDigits: 2, maximumFractionDigits: 2 })} ${curr.symbol}`;
   };
+
+  const activeLocaleOption = LOCALE_OPTIONS.find(o => o.value === portalLocale) || LOCALE_OPTIONS[0];
 
   return (
     <div className="min-h-screen w-full max-w-full overflow-x-hidden bg-slate-950 text-slate-100 flex flex-col selection:bg-amber-500 selection:text-slate-950">
@@ -257,7 +293,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               onClick={onBackToHome}
               className="p-2 sm:px-3 sm:py-2 rounded-xl bg-white/5 hover:bg-white/10 text-slate-300 hover:text-white transition-all flex items-center gap-1 text-xs font-bold shrink-0 cursor-pointer"
             >
-              <ArrowLeft size={16} /> <span className="hidden sm:inline">Voltar ao Início</span><span className="sm:hidden">Voltar</span>
+              <ArrowLeft size={16} /> <span className="hidden sm:inline">{t.backToHome}</span><span className="sm:hidden">{t.back}</span>
             </button>
             <div className="h-4 w-px bg-white/10 hidden sm:block shrink-0" />
             <div className="flex items-center gap-2 min-w-0">
@@ -266,30 +302,51 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               </div>
               <div className="min-w-0">
                 <h1 className="text-xs sm:text-base font-black tracking-tight text-white leading-tight truncate">
-                  Portal do Cliente <span className="text-amber-400">ÁTRIOS</span>
+                  {t.portalTitle} <span className="text-amber-400">ÁTRIOS</span>
                 </h1>
-                <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">Os Seus Pedidos & Orçamentos</p>
+                <p className="text-[9px] sm:text-[10px] text-slate-400 font-medium truncate">{t.portalSubtitle}</p>
               </div>
             </div>
           </div>
 
-          {authenticatedPhone && (
-            <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
-              <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
-                <Phone size={13} className="text-amber-400" />
-                <span>{authenticatedPhone}</span>
-              </div>
-              
-              <button
-                onClick={handleLogout}
-                className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
-                title="Terminar Sessão"
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
+            {/* Language Selector */}
+            <div className="relative inline-block text-left">
+              <select
+                value={portalLocale}
+                onChange={(e) => handleLanguageChange(e.target.value as Locale)}
+                aria-label={t.portalTitle}
+                className="appearance-none bg-white/5 hover:bg-white/10 border border-white/10 text-slate-200 text-xs font-bold rounded-xl px-2.5 py-1.5 sm:px-3 sm:py-2 pr-7 cursor-pointer focus:outline-none focus:border-amber-500 transition-colors"
               >
-                <LogOut size={14} />
-                <span className="hidden sm:inline">Sair</span>
-              </button>
+                {LOCALE_OPTIONS.map((opt) => (
+                  <option key={opt.value} value={opt.value} className="bg-slate-900 text-slate-100">
+                    {opt.flag} {opt.label}
+                  </option>
+                ))}
+              </select>
+              <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-slate-400">
+                <Globe size={13} />
+              </div>
             </div>
-          )}
+
+            {authenticatedPhone && (
+              <>
+                <div className="hidden sm:flex items-center gap-2 px-3 py-1.5 rounded-xl bg-white/5 border border-white/10 text-xs font-mono text-slate-300">
+                  <Phone size={13} className="text-amber-400" />
+                  <span>{authenticatedPhone}</span>
+                </div>
+                
+                <button
+                  onClick={handleLogout}
+                  className="p-2 sm:px-3 sm:py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-300 border border-rose-500/20 text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
+                  title={t.logoutTooltip}
+                >
+                  <LogOut size={14} />
+                  <span className="hidden sm:inline">{t.logout}</span>
+                </button>
+              </>
+            )}
+          </div>
         </div>
       </header>
 
@@ -307,9 +364,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 <div className="w-14 h-14 bg-amber-500/10 border border-amber-500/30 text-amber-400 rounded-2xl flex items-center justify-center mx-auto shadow-inner">
                   <ShieldCheck size={30} />
                 </div>
-                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">Área Exclusiva do Cliente</h2>
+                <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">{t.loginTitle}</h2>
                 <p className="text-xs text-slate-400 leading-relaxed">
-                  Consulte em tempo real as propostas e orçamentos detalhados enviados pelos construtores para a sua obra.
+                  {t.loginSubtitle}
                 </p>
               </div>
 
@@ -324,7 +381,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 <form onSubmit={handleRequestAccess} className="space-y-4">
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-300 mb-2">
-                      Telemóvel do Pedido
+                      {t.phoneLabel}
                     </label>
                     <div className="relative">
                       <Phone size={16} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-500" />
@@ -333,13 +390,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         required
                         value={phoneInput}
                         onChange={(e) => setPhoneInput(e.target.value)}
-                        placeholder="Ex: 912 345 678"
+                        placeholder={t.phonePlaceholder}
                         className="w-full bg-slate-950 border border-white/15 rounded-xl pl-10 pr-4 py-3 text-sm text-white placeholder:text-slate-600 focus:border-amber-500 focus:ring-1 focus:ring-amber-500 outline-none font-mono"
                         autoFocus
                       />
                     </div>
                     <p className="text-[11px] text-slate-500 mt-1.5">
-                      Insira o mesmo número que utilizou ao pedir o orçamento na plataforma.
+                      {t.phoneHint}
                     </p>
                   </div>
 
@@ -348,7 +405,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     disabled={isLoggingIn}
                     className="w-full py-3.5 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/20 flex items-center justify-center gap-2 cursor-pointer active:scale-95"
                   >
-                    <KeyRound size={16} /> Entrar na Minha Área
+                    <KeyRound size={16} /> {t.loginButton}
                   </button>
                 </form>
               ) : (
@@ -356,7 +413,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   <div>
                     <div className="flex items-center justify-between mb-2">
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-300">
-                        Código de Acesso de 4 Dígitos
+                        {t.accessCodeLabel}
                       </label>
                       <span className="text-[11px] text-amber-400/80 font-mono">
                         {phoneInput}
@@ -368,12 +425,12 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       required
                       value={accessCodeInput}
                       onChange={(e) => setAccessCodeInput(e.target.value)}
-                      placeholder="0000"
+                      placeholder={t.accessCodePlaceholder}
                       className="w-full bg-slate-950 border border-white/15 rounded-xl px-4 py-3 text-center text-xl font-mono font-black tracking-widest text-amber-400 focus:border-amber-500 outline-none"
                       autoFocus
                     />
                     <p className="text-[11px] text-slate-500 mt-1.5 text-center">
-                      Insira o código de 4 dígitos gerado na confirmação da sua solicitação.
+                      {t.accessCodeHint}
                     </p>
                   </div>
 
@@ -383,13 +440,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       onClick={() => setLoginStep('phone')}
                       className="w-1/3 py-3 bg-white/5 hover:bg-white/10 text-slate-300 font-bold rounded-xl text-xs uppercase transition-all cursor-pointer"
                     >
-                      Alterar Número
+                      {t.changePhone}
                     </button>
                     <button
                       type="submit"
                       className="w-2/3 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-lg cursor-pointer"
                     >
-                      Validar & Entrar
+                      {t.validateAndEnter}
                     </button>
                   </div>
                 </form>
@@ -400,7 +457,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   onClick={onBackToHome}
                   className="text-xs text-slate-400 hover:text-white transition-colors underline"
                 >
-                  Voltar à Página Principal
+                  {t.backToMain}
                 </button>
               </div>
             </div>
@@ -419,9 +476,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     <CheckCircle2 size={22} />
                   </div>
                   <div className="min-w-0">
-                    <h4 className="text-sm font-black text-white truncate">Nova Solicitação Registada!</h4>
+                    <h4 className="text-sm font-black text-white truncate">{t.newRequestRegistered}</h4>
                     <p className="text-xs text-emerald-300 break-words">
-                      ID Exclusivo: <span className="font-mono font-black text-white underline">{newlyCreatedRequestId}</span> — Os construtores foram notificados.
+                      {t.exclusiveId}: <span className="font-mono font-black text-white underline">{newlyCreatedRequestId}</span> — {t.buildersNotified}
                     </p>
                   </div>
                 </div>
@@ -431,11 +488,12 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                     className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-bold flex items-center gap-1.5 transition-all cursor-pointer"
                   >
                     {copiedId === newlyCreatedRequestId ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                    {copiedId === newlyCreatedRequestId ? 'Copiado!' : 'Copiar ID'}
+                    {copiedId === newlyCreatedRequestId ? t.copied : t.copyId}
                   </button>
                   <button
                     onClick={() => setNewlyCreatedRequestId(null)}
-                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors"
+                    aria-label={t.close}
+                    className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-white/5 hover:bg-white/10 transition-colors cursor-pointer"
                   >
                     <X size={16} />
                   </button>
@@ -447,23 +505,23 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             <div className="bg-gradient-to-r from-slate-900 via-slate-900 to-amber-950/40 border border-white/10 rounded-3xl p-4 sm:p-8 flex flex-col lg:flex-row items-start lg:items-center justify-between gap-4 sm:gap-6 relative overflow-hidden w-full">
               <div className="space-y-2 z-10 w-full lg:w-auto">
                 <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-[10px] font-black uppercase tracking-wider">
-                  <Sparkles size={12} /> Central Exclusiva do Cliente
+                  <Sparkles size={12} /> {t.exclusiveBadge}
                 </div>
                 <h2 className="text-xl sm:text-3xl font-black text-white tracking-tight">
-                  {existingClientName ? `Olá, ${existingClientName}!` : 'Bem-vindo à Sua Central de Obras'}
+                  {existingClientName ? t.welcomeWithClient(existingClientName) : t.welcomeDefault}
                 </h2>
                 <p className="text-xs sm:text-sm text-slate-400 max-w-xl leading-relaxed">
-                  Acompanhe todas as suas solicitações de obra ou submeta novos pedidos de orçamento a qualquer momento. Cada pedido recebe um ID próprio e exclusivo para total organização.
+                  {t.portalDescription}
                 </p>
               </div>
 
               <div className="grid grid-cols-2 sm:flex sm:flex-wrap items-center gap-2.5 sm:gap-3 z-10 shrink-0 w-full lg:w-auto">
                 <div className="bg-slate-950/80 border border-white/10 p-3 sm:p-4 rounded-2xl text-center">
-                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">Minhas Solicitações</span>
+                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">{t.myRequestsStat}</span>
                   <span className="text-xl sm:text-2xl font-black text-amber-400">{myRequests.length}</span>
                 </div>
                 <div className="bg-slate-950/80 border border-white/10 p-3 sm:p-4 rounded-2xl text-center">
-                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">Propostas Recebidas</span>
+                  <span className="text-[9px] sm:text-[10px] uppercase font-bold text-slate-400 block">{t.proposalsReceivedStat}</span>
                   <span className="text-xl sm:text-2xl font-black text-emerald-400">{myBudgets.length}</span>
                 </div>
 
@@ -473,7 +531,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                   className="col-span-2 sm:col-span-1 w-full sm:w-auto px-4 sm:px-5 py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black rounded-2xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 shadow-xl shadow-amber-500/25 active:scale-95 cursor-pointer"
                 >
                   <PlusCircle size={18} />
-                  <span>Submeter Nova Solicitação</span>
+                  <span>{t.submitNewRequestBtn}</span>
                 </button>
               </div>
             </div>
@@ -489,7 +547,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 }`}
               >
                 <FileText size={14} />
-                Orçamentos Recebidos ({myBudgets.length})
+                {t.tabBudgets(myBudgets.length)}
               </button>
               <button
                 onClick={() => setActivePortalTab('my_requests')}
@@ -500,7 +558,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 }`}
               >
                 <Clock size={14} />
-                Minhas Solicitações ({myRequests.length})
+                {t.tabRequests(myRequests.length)}
               </button>
             </div>
 
@@ -513,9 +571,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                       <FileText size={28} />
                     </div>
                     <div className="space-y-1">
-                      <h3 className="text-lg font-black text-white">Nenhum orçamento recebido ainda</h3>
+                      <h3 className="text-lg font-black text-white">{t.noBudgetsTitle}</h3>
                       <p className="text-xs text-slate-400 max-w-md mx-auto leading-relaxed">
-                        Os construtores parceiros estão a analisar os seus pedidos. Assim que elaborarem uma proposta com valores, ela aparecerá aqui automaticamente.
+                        {t.noBudgetsDesc}
                       </p>
                     </div>
                     {myRequests.length === 0 && (
@@ -523,7 +581,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         onClick={() => setIsNewRequestModalOpen(true)}
                         className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 inline-flex items-center gap-2 cursor-pointer"
                       >
-                        <Plus size={16} /> Submeter Primeiro Pedido de Orçamento
+                        <Plus size={16} /> {t.submitFirstBudget}
                       </button>
                     )}
                   </div>
@@ -542,19 +600,19 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                             <div className="flex items-start justify-between gap-3">
                               <div className="space-y-1">
                                 <span className="px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 inline-block">
-                                  Proposta Disponível
+                                  {t.proposalAvailable}
                                 </span>
                                 <h3 className="text-lg font-black text-white tracking-tight">
-                                  Orçamento #{budget.id}
+                                  {t.budgetNumber(budget.id)}
                                 </h3>
                                 <p className="text-xs text-slate-400 flex items-center gap-1.5">
                                   <Calendar size={12} className="text-slate-500" />
-                                  {new Date(budget.createdAt).toLocaleDateString('pt-PT')}
+                                  {new Date(budget.createdAt).toLocaleDateString(portalLocale)}
                                 </p>
                               </div>
 
                               <div className="text-right">
-                                <span className="text-[10px] uppercase font-bold text-slate-400 block">Valor Total</span>
+                                <span className="text-[10px] uppercase font-bold text-slate-400 block">{t.totalValue}</span>
                                 <span className="text-xl font-black text-amber-400 font-mono">
                                   {formatCurrency(finalTotal)}
                                 </span>
@@ -564,16 +622,16 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                             {/* Detalhes da obra */}
                             <div className="bg-slate-950/60 p-4 rounded-2xl border border-white/5 space-y-2 text-xs">
                               <div className="flex items-center justify-between text-slate-300">
-                                <span className="text-slate-500">Local da Obra:</span>
-                                <span className="font-bold text-white truncate max-w-[200px]">{budget.workLocation || 'Não especificado'}</span>
+                                <span className="text-slate-500">{t.workLocation}:</span>
+                                <span className="font-bold text-white truncate max-w-[200px]">{budget.workLocation || t.notSpecified}</span>
                               </div>
                               <div className="flex items-center justify-between text-slate-300">
-                                <span className="text-slate-500">Serviços / Itens:</span>
-                                <span className="font-bold text-amber-300">{budget.items ? budget.items.length : 0} item(ns) cotado(s)</span>
+                                <span className="text-slate-500">{t.servicesItems}:</span>
+                                <span className="font-bold text-amber-300">{t.itemsQuoted(budget.items ? budget.items.length : 0)}</span>
                               </div>
                               {budget.validity && (
                                 <div className="flex items-center justify-between text-slate-300">
-                                  <span className="text-slate-500">Validade da Proposta:</span>
+                                  <span className="text-slate-500">{t.proposalValidity}:</span>
                                   <span className="font-mono text-emerald-400">{budget.validity}</span>
                                 </div>
                               )}
@@ -585,7 +643,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                               onClick={() => setSelectedBudgetView(budget)}
                               className="flex-1 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer shadow-md shadow-amber-500/10"
                             >
-                              <Eye size={14} /> Ver Detalhes do Orçamento
+                              <Eye size={14} /> {t.viewBudgetDetails}
                             </button>
                           </div>
                         </div>
@@ -600,24 +658,24 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             {activePortalTab === 'my_requests' && (
               <div className="space-y-4">
                 <div>
-                  <h3 className="text-base font-black text-white">Todas as Suas Solicitações Registadas</h3>
-                  <p className="text-xs text-slate-400">Pode submeter múltiplas solicitações. Cada uma tem o seu próprio ID e acompanhamento independente.</p>
+                  <h3 className="text-base font-black text-white">{t.allRequestsTitle}</h3>
+                  <p className="text-xs text-slate-400">{t.allRequestsSubtitle}</p>
                 </div>
 
                 {myRequests.length === 0 ? (
                   <div className="bg-slate-900/60 border border-dashed border-white/10 rounded-3xl p-12 text-center space-y-4">
                     <Clock size={28} className="text-slate-500 mx-auto" />
                     <div className="space-y-1">
-                      <h3 className="text-lg font-black text-white">Nenhuma solicitação registada com este contacto</h3>
+                      <h3 className="text-lg font-black text-white">{t.noRequestsTitle}</h3>
                       <p className="text-xs text-slate-400 max-w-md mx-auto">
-                        Ainda não tem pedidos registados associados ao número {authenticatedPhone}. Clique abaixo para submeter o seu primeiro pedido.
+                        {t.noRequestsDesc(authenticatedPhone)}
                       </p>
                     </div>
                     <button
                       onClick={() => setIsNewRequestModalOpen(true)}
                       className="px-6 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all shadow-md shadow-amber-500/20 inline-flex items-center gap-2 cursor-pointer"
                     >
-                      <Plus size={16} /> Submeter Pedido de Orçamento
+                      <Plus size={16} /> {t.submitRequestBtn}
                     </button>
                   </div>
                 ) : (
@@ -630,14 +688,14 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                         <div className="space-y-3">
                           <div className="flex items-start justify-between gap-2">
                             <span className="px-2.5 py-1 rounded-full text-[10px] font-black uppercase tracking-wider bg-amber-500/10 text-amber-400 border border-amber-500/20">
-                              {req.category}
+                              {t.requestModalForm?.categories?.[req.category]?.label || req.category}
                             </span>
                             <span className={`px-2.5 py-0.5 rounded-full text-[10px] font-black uppercase ${
                               req.status === 'completed' 
                                 ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                 : 'bg-slate-800 text-slate-300 border border-white/5'
                             }`}>
-                              {req.status === 'open' || req.status === 'pending' ? 'Em Análise' : req.status}
+                              {req.status === 'open' || req.status === 'pending' ? t.statusUnderReview : req.status}
                             </span>
                           </div>
 
@@ -650,7 +708,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
                           <div className="bg-slate-950/60 p-3.5 rounded-2xl border border-white/5 space-y-1.5 text-xs text-slate-400">
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500">ID da Solicitação:</span>
+                              <span className="text-slate-500">{t.requestIdLabel}:</span>
                               <div className="flex items-center gap-1.5">
                                 <span className="font-mono font-bold text-amber-400 bg-amber-500/10 px-2 py-0.5 rounded-md border border-amber-500/20">
                                   #{req.id}
@@ -658,25 +716,25 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                                 <button
                                   type="button"
                                   onClick={() => copyToClipboard(req.id)}
-                                  className="p-1 text-slate-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10"
-                                  title="Copiar ID"
+                                  className="p-1 text-slate-400 hover:text-white rounded-md bg-white/5 hover:bg-white/10 cursor-pointer"
+                                  title={t.copyId}
                                 >
                                   {copiedId === req.id ? <Check size={12} className="text-emerald-400" /> : <Copy size={12} />}
                                 </button>
                               </div>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500">Local da Obra:</span>
-                              <span className="text-white font-medium truncate max-w-[180px]">{req.location || req.city || 'Portugal'}</span>
+                              <span className="text-slate-500">{t.workLocation}:</span>
+                              <span className="text-white font-medium truncate max-w-[180px]">{req.location || req.city || t.notSpecified}</span>
                             </div>
                             <div className="flex items-center justify-between">
-                              <span className="text-slate-500">Submetido em:</span>
-                              <span className="text-slate-300">{new Date(req.createdAt).toLocaleDateString('pt-PT')}</span>
+                              <span className="text-slate-500">{t.submittedOn}:</span>
+                              <span className="text-slate-300">{new Date(req.createdAt).toLocaleDateString(portalLocale)}</span>
                             </div>
                             {req.photos && req.photos.length > 0 && (
                               <div className="flex items-center justify-between text-amber-300/90 pt-0.5">
-                                <span className="text-slate-500">Fotos Anexadas:</span>
-                                <span className="font-bold">{req.photos.length} foto(s)</span>
+                                <span className="text-slate-500">{t.photosAttached}:</span>
+                                <span className="font-bold">{t.photosCount(req.photos.length)}</span>
                               </div>
                             )}
                           </div>
@@ -684,13 +742,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
                         <div className="pt-2 border-t border-white/5 flex items-center justify-between gap-2">
                           <span className="text-amber-400 font-bold text-xs">
-                            {req.budgetRange && req.budgetRange !== '500€ - 2.000€' ? req.budgetRange : (req.estimatedBudget || 'Sob Consulta')}
+                            {req.budgetRange && req.budgetRange !== '500€ - 2.000€' ? req.budgetRange : (req.estimatedBudget || t.underConsultation)}
                           </span>
                           <button
                             onClick={() => setSelectedRequest(req)}
                             className="px-3.5 py-2 rounded-xl bg-white/5 hover:bg-white/10 text-white text-xs font-bold flex items-center gap-1.5 transition-colors cursor-pointer"
                           >
-                            <Eye size={13} /> Ver Detalhes
+                            <Eye size={13} /> {t.viewDetails}
                           </button>
                         </div>
                       </div>
@@ -712,7 +770,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950/20 px-2.5 py-0.5 rounded-full inline-block">
-                    Solicitação de Obra
+                    {t.requestModalBadge}
                   </span>
                   <span className="font-mono font-black text-xs bg-slate-950 text-amber-400 px-2 py-0.5 rounded-full">
                     #{selectedRequest.id}
@@ -720,12 +778,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 </div>
                 <h3 className="text-lg sm:text-xl font-black tracking-tight break-words">{selectedRequest.title || selectedRequest.projectTitle}</h3>
                 <p className="text-xs font-bold opacity-80">
-                  Submetido a {new Date(selectedRequest.createdAt).toLocaleDateString('pt-PT')}
+                  {t.submittedAt(new Date(selectedRequest.createdAt).toLocaleDateString(portalLocale))}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedRequest(null)}
-                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0"
+                aria-label={t.close}
+                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0 cursor-pointer"
               >
                 <X size={18} />
               </button>
@@ -736,32 +795,34 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               {/* Status & Category */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 sm:gap-3 bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5">
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Categoria</span>
-                  <span className="font-black text-amber-400 text-sm break-words">{selectedRequest.category}</span>
-                </div>
-                <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Estado do Pedido</span>
-                  <span className="font-bold text-emerald-400 text-sm break-words">
-                    {selectedRequest.status === 'open' || selectedRequest.status === 'pending' ? 'Em Análise por Construtores' : selectedRequest.status}
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.categoryLabel}</span>
+                  <span className="font-black text-amber-400 text-sm break-words">
+                    {t.requestModalForm?.categories?.[selectedRequest.category]?.label || selectedRequest.category}
                   </span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Localidade</span>
-                  <span className="text-white font-medium break-words">{selectedRequest.location || selectedRequest.city || 'Portugal'}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.requestStatusLabel}</span>
+                  <span className="font-bold text-emerald-400 text-sm break-words">
+                    {selectedRequest.status === 'open' || selectedRequest.status === 'pending' ? t.statusUnderReviewBuilders : selectedRequest.status}
+                  </span>
                 </div>
                 <div>
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Estimativa de Orçamento</span>
-                  <span className="text-white font-medium">{selectedRequest.budgetRange && selectedRequest.budgetRange !== '500€ - 2.000€' ? selectedRequest.budgetRange : (selectedRequest.estimatedBudget || 'Sob Consulta')}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.locationLabel}</span>
+                  <span className="text-white font-medium break-words">{selectedRequest.location || selectedRequest.city || t.notSpecified}</span>
+                </div>
+                <div>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.budgetEstimateLabel}</span>
+                  <span className="text-white font-medium">{selectedRequest.budgetRange && selectedRequest.budgetRange !== '500€ - 2.000€' ? selectedRequest.budgetRange : (selectedRequest.estimatedBudget || t.underConsultation)}</span>
                 </div>
               </div>
 
               {/* Descrição Detalhada */}
               <div className="space-y-1.5">
                 <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">
-                  Descrição dos Trabalhos
+                  {t.workDescriptionLabel}
                 </span>
                 <div className="bg-slate-950 p-3.5 sm:p-4 rounded-2xl border border-white/10 text-slate-300 leading-relaxed whitespace-pre-wrap break-words">
-                  {selectedRequest.description || selectedRequest.projectDescription || 'Sem descrição adicional fornecida.'}
+                  {selectedRequest.description || selectedRequest.projectDescription || t.noDescription}
                 </div>
               </div>
 
@@ -769,7 +830,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               {selectedRequest.photos && selectedRequest.photos.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 flex items-center gap-1.5">
-                    <ImageIcon size={13} className="text-amber-400" /> Fotografias do Local ({selectedRequest.photos.length})
+                    <ImageIcon size={13} className="text-amber-400" /> {t.sitePhotosLabel(selectedRequest.photos.length)}
                   </span>
                   <div className="grid grid-cols-3 gap-2">
                     {selectedRequest.photos.map((photo, idx) => (
@@ -783,12 +844,12 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
 
               {/* Informações de Contacto */}
               <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 space-y-2">
-                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">Dados do Solicitante</span>
+                <span className="text-[10px] font-black uppercase tracking-wider text-slate-500 block">{t.requesterInfoLabel}</span>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-slate-300">
-                  <div className="break-words">Nome: <strong className="text-white">{selectedRequest.clientName}</strong></div>
-                  <div>Telemóvel: <strong className="text-amber-400 font-mono">{selectedRequest.clientPhone}</strong></div>
+                  <div className="break-words">{t.nameLabel}: <strong className="text-white">{selectedRequest.clientName}</strong></div>
+                  <div>{t.phoneLabelShort}: <strong className="text-amber-400 font-mono">{selectedRequest.clientPhone}</strong></div>
                   {selectedRequest.clientEmail && (
-                    <div className="sm:col-span-2 break-words">Email: <strong className="text-white">{selectedRequest.clientEmail}</strong></div>
+                    <div className="sm:col-span-2 break-words">{t.emailLabelShort}: <strong className="text-white">{selectedRequest.clientEmail}</strong></div>
                   )}
                 </div>
               </div>
@@ -801,13 +862,13 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 className="px-4 py-2.5 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-colors cursor-pointer"
               >
                 {copiedId === selectedRequest.id ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                {copiedId === selectedRequest.id ? 'ID Copiado!' : 'Copiar ID do Pedido'}
+                {copiedId === selectedRequest.id ? t.copied : t.copyRequestId}
               </button>
               <button
                 onClick={() => setSelectedRequest(null)}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl text-xs font-black uppercase tracking-wider transition-colors cursor-pointer text-center"
               >
-                Fechar
+                {t.close}
               </button>
             </div>
           </div>
@@ -822,16 +883,17 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
             <div className="bg-gradient-to-r from-amber-500 to-amber-600 p-4 sm:p-6 text-slate-950 flex items-start justify-between shrink-0 gap-2">
               <div className="min-w-0">
                 <span className="text-[10px] font-black uppercase tracking-wider bg-slate-950/20 px-2 py-0.5 rounded-full inline-block mb-1">
-                  Orçamento Oficial
+                  {t.budgetModalBadge}
                 </span>
-                <h3 className="text-lg sm:text-xl font-black tracking-tight break-words">Proposta #{selectedBudgetView.id}</h3>
+                <h3 className="text-lg sm:text-xl font-black tracking-tight break-words">{t.proposalNumber(selectedBudgetView.id)}</h3>
                 <p className="text-xs font-bold opacity-80">
-                  Emitido em {new Date(selectedBudgetView.createdAt).toLocaleDateString('pt-PT')}
+                  {t.issuedOn(new Date(selectedBudgetView.createdAt).toLocaleDateString(portalLocale))}
                 </p>
               </div>
               <button
                 onClick={() => setSelectedBudgetView(null)}
-                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0"
+                aria-label={t.close}
+                className="p-1.5 rounded-full bg-slate-950/20 hover:bg-slate-950/40 text-slate-950 transition-colors shrink-0 cursor-pointer"
               >
                 <ArrowLeft size={18} />
               </button>
@@ -842,32 +904,32 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               {/* Resumo do Cliente e Obra */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 text-xs">
                 <div className="min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Cliente</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.clientLabel}</span>
                   <span className="font-black text-white break-words">{selectedBudgetView.clientName}</span>
                 </div>
                 <div className="min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Contacto</span>
-                  <span className="font-mono text-amber-400 break-words">{selectedBudgetView.contactPhone || 'Sem contacto'}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.contactLabel}</span>
+                  <span className="font-mono text-amber-400 break-words">{selectedBudgetView.contactPhone || t.noContact}</span>
                 </div>
                 <div className="sm:col-span-2 min-w-0">
-                  <span className="text-[10px] uppercase font-bold text-slate-500 block">Local da Obra</span>
-                  <span className="text-slate-300 break-words">{selectedBudgetView.workLocation || 'Não especificado'}</span>
+                  <span className="text-[10px] uppercase font-bold text-slate-500 block">{t.workLocation}</span>
+                  <span className="text-slate-300 break-words">{selectedBudgetView.workLocation || t.notSpecified}</span>
                 </div>
               </div>
 
               {/* Tabela de Itens e Serviços Cotados */}
               <div className="space-y-2">
                 <span className="text-[10px] font-black uppercase tracking-wider text-amber-400">
-                  Discriminação dos Serviços e Materiais
+                  {t.servicesBreakdown}
                 </span>
                 <div className="bg-slate-950 rounded-2xl border border-white/10 overflow-x-auto w-full">
                   <table className="w-full text-left text-xs min-w-[340px]">
                     <thead>
                       <tr className="border-b border-white/10 bg-white/5 text-[10px] uppercase font-black text-slate-400">
-                        <th className="p-3">Descrição</th>
-                        <th className="p-3 text-center">Qtd</th>
-                        <th className="p-3 text-right">P. Unit</th>
-                        <th className="p-3 text-right">Total</th>
+                        <th className="p-3">{t.colDescription}</th>
+                        <th className="p-3 text-center">{t.colQuantity}</th>
+                        <th className="p-3 text-right">{t.colUnitPrice}</th>
+                        <th className="p-3 text-right">{t.colTotal}</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-white/5">
@@ -887,7 +949,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               {/* Observações */}
               {selectedBudgetView.observations && (
                 <div className="bg-slate-950/60 p-3.5 sm:p-4 rounded-2xl border border-white/5 space-y-1">
-                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">Observações & Condições</span>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400">{t.observationsConditions}</span>
                   <p className="text-xs text-slate-300 leading-relaxed whitespace-pre-wrap break-words">{selectedBudgetView.observations}</p>
                 </div>
               )}
@@ -895,9 +957,9 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
               {/* Total Card */}
               <div className="bg-gradient-to-br from-slate-950 to-amber-950/30 p-4 sm:p-5 rounded-2xl border border-amber-500/30 flex items-center justify-between gap-3">
                 <div className="min-w-0">
-                  <span className="text-xs uppercase font-bold text-slate-400 block">Total do Orçamento</span>
+                  <span className="text-xs uppercase font-bold text-slate-400 block">{t.budgetTotalCard}</span>
                   <span className="text-[11px] text-slate-500">
-                    {selectedBudgetView.includeIva ? `Inclui IVA (${selectedBudgetView.ivaPercentage || 23}%)` : 'Isento de IVA / Sem IVA'}
+                    {selectedBudgetView.includeIva ? t.includesVat(selectedBudgetView.ivaPercentage || 23) : t.vatExempt}
                   </span>
                 </div>
                 <div className="text-right shrink-0">
@@ -914,7 +976,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 onClick={() => setSelectedBudgetView(null)}
                 className="px-5 py-2.5 bg-white/5 hover:bg-white/10 text-slate-300 rounded-xl text-xs font-bold cursor-pointer text-center"
               >
-                Fechar
+                {t.close}
               </button>
               <button
                 onClick={() => {
@@ -922,7 +984,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 }}
                 className="px-5 py-2.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black rounded-xl text-xs uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
-                <Download size={14} /> Imprimir / Salvar Proposta
+                <Download size={14} /> {t.printProposal}
               </button>
             </div>
           </div>
@@ -934,6 +996,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
         <ClientRequestModal
           isOpen={isNewRequestModalOpen}
           onClose={() => setIsNewRequestModalOpen(false)}
+          locale={portalLocale}
           initialClientPhone={authenticatedPhone}
           initialClientName={existingClientName}
           initialClientEmail={existingClientEmail}

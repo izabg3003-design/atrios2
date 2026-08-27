@@ -1,10 +1,10 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { 
-  ChevronLeft, 
   ChevronRight, 
   ArrowRight, 
-  Construction
+  Construction,
+  Monitor
 } from 'lucide-react';
 import { Locale } from '../translations';
 import { IntroBannerItem } from '../types';
@@ -25,9 +25,21 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
   const [currentSlide, setCurrentSlide] = useState(0);
   const [direction, setDirection] = useState<number>(0);
   const [, setIsDragging] = useState(false);
+  const [windowWidth, setWindowWidth] = useState<number>(() => typeof window !== 'undefined' ? window.innerWidth : 1200);
   const containerRef = useRef<HTMLDivElement>(null);
   const touchStartXRef = useRef<number | null>(null);
   const touchEndXRef = useRef<number | null>(null);
+
+  // Monitor Window Resize for reliable desktop/mobile switching (768px+)
+  useEffect(() => {
+    const handleResize = () => {
+      setWindowWidth(window.innerWidth);
+    };
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, []);
+
+  const isDesktop = windowWidth >= 768;
 
   // Sync with Supabase on mount
   useEffect(() => {
@@ -138,11 +150,18 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
     })
   };
 
-  // Resolve banner image source with reliable fallback
-  const getBannerImageSrc = (bannerItem: IntroBannerItem, index: number) => {
+  // Resolve banner image source with reliable fallback and desktop/mobile responsiveness
+  const getBannerImageSrc = (bannerItem: IntroBannerItem, index: number, isDesktopView: boolean = false) => {
+    // Se for ecrã de desktop/computador e tiver imagem dedicada para computador configurada
+    if (isDesktopView && bannerItem.desktopImageUrl && bannerItem.desktopImageUrl.trim().length > 0) {
+      return bannerItem.desktopImageUrl;
+    }
+    
+    // Imagem principal configurada (mobile / geral)
     if (bannerItem.imageUrl && bannerItem.imageUrl.trim().length > 0) {
       return bannerItem.imageUrl;
     }
+
     // Fallback to one of the 4 generated full-screen banners
     const fallbackBanners = [
       '/banners/banner_1.jpg',
@@ -153,7 +172,9 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
     return fallbackBanners[index % fallbackBanners.length];
   };
 
-  const currentImageSrc = getBannerImageSrc(slide, safeIndex);
+  const mobileImageSrc = getBannerImageSrc(slide, safeIndex, false);
+  const desktopImageSrc = getBannerImageSrc(slide, safeIndex, true);
+  const hasDedicatedDesktopImage = Boolean(slide.desktopImageUrl && slide.desktopImageUrl.trim().length > 0);
 
   return (
     <div 
@@ -213,10 +234,10 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
         </div>
       </header>
 
-      {/* MAIN BANNER CONTAINER: APANHA 100% DE TODA A ÁREA DO ECRÃ ABAIXO DO CABEÇALHO */}
-      <main className="relative flex-1 w-full h-full overflow-hidden bg-black flex items-center justify-center p-0 m-0">
+      {/* MAIN BANNER CONTAINER: ÁREA DO BANNER COM ESPAÇAMENTO DE SEGURANÇA E RESPONSIVIDADE */}
+      <main className="relative flex-1 w-full h-full overflow-hidden bg-slate-950 flex items-center justify-center p-0 m-0">
         
-        {/* Banner Images in Full Area */}
+        {/* Banner Images in Safe Area */}
         <AnimatePresence custom={direction} mode="wait">
           <motion.div
             key={safeIndex}
@@ -237,46 +258,42 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
                 prevSlide();
               }
             }}
-            className="absolute inset-0 w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing bg-black"
+            className="absolute inset-0 w-full h-full flex items-center justify-center cursor-grab active:cursor-grabbing bg-slate-950 pt-1 pb-20 sm:pb-24 px-2 sm:px-4 md:px-8"
           >
-            {/* Pure Fullscreen Banner Image taking 100% of the screen */}
-            <img
-              src={currentImageSrc}
-              alt={`Banner ${safeIndex + 1}`}
-              referrerPolicy="no-referrer"
-              className="w-full h-full object-cover object-center select-none pointer-events-none"
-            />
+            {/* CONTAINER ADAPTATIVO: Mobile / Tablet / Desktop */}
+            <div className="relative w-full h-full flex items-center justify-center">
+              
+              {/* Se o ecrã for Desktop (>= 768px) e tiver imagem dedicada de computador */}
+              {isDesktop && hasDedicatedDesktopImage ? (
+                <div className="w-full h-full flex items-center justify-center max-w-[1500px] mx-auto px-2 md:px-6">
+                  <img
+                    src={desktopImageSrc}
+                    alt={`Banner Desktop ${safeIndex + 1}`}
+                    referrerPolicy="no-referrer"
+                    className="w-full h-auto max-h-[82vh] object-contain object-center select-none pointer-events-none rounded-xl sm:rounded-2xl shadow-2xl border border-white/10 transition-transform duration-300"
+                  />
+                </div>
+              ) : (
+                /* Versão Mobile / Tablet ou Fallback */
+                <div className="w-full h-full flex items-center justify-center max-w-5xl mx-auto">
+                  <img
+                    src={isDesktop && hasDedicatedDesktopImage ? desktopImageSrc : mobileImageSrc}
+                    alt={`Banner ${safeIndex + 1}`}
+                    referrerPolicy="no-referrer"
+                    className="w-auto h-auto max-w-full max-h-full object-contain object-center select-none pointer-events-none rounded-xl sm:rounded-2xl shadow-2xl transition-transform duration-300"
+                  />
+                </div>
+              )}
+            </div>
           </motion.div>
         </AnimatePresence>
 
-        {/* Left Arrow Navigation Button */}
-        <button
-          onClick={prevSlide}
-          id="btn-intro-prev-slide"
-          aria-label="Banner anterior"
-          className="absolute left-4 sm:left-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-950/70 hover:bg-[#ff5722] text-white border border-white/20 hover:border-orange-500 backdrop-blur-md flex items-center justify-center transition-all cursor-pointer shadow-2xl active:scale-90 group"
-          title="Anterior (Seta Esquerda)"
-        >
-          <ChevronLeft size={30} className="group-hover:-translate-x-0.5 transition-transform" strokeWidth={2.5} />
-        </button>
-
-        {/* Right Arrow Navigation Button */}
-        <button
-          onClick={nextSlide}
-          id="btn-intro-next-slide"
-          aria-label="Próximo banner"
-          className="absolute right-4 sm:right-8 top-1/2 -translate-y-1/2 z-30 w-12 h-12 sm:w-16 sm:h-16 rounded-full bg-slate-950/70 hover:bg-[#ff5722] text-white border border-white/20 hover:border-orange-500 backdrop-blur-md flex items-center justify-center transition-all cursor-pointer shadow-2xl active:scale-90 group"
-          title="Seguinte (Seta Direita)"
-        >
-          <ChevronRight size={30} className="group-hover:translate-x-0.5 transition-transform" strokeWidth={2.5} />
-        </button>
-
-        {/* FLOATING BOTTOM CONTROLS (SEM OCUPAR ESPAÇO DO BANNER) */}
-        <div className="absolute bottom-5 sm:bottom-8 left-0 right-0 z-30 flex items-center justify-center px-4 pointer-events-none">
-          <div className="flex items-center justify-between gap-4 sm:gap-8 px-4 sm:px-6 py-2.5 sm:py-3 rounded-full bg-slate-950/80 backdrop-blur-md border border-white/15 shadow-2xl pointer-events-auto">
+        {/* FLOATING BOTTOM CONTROLS (POSICIONADO COM FOLGA ABAIXO DO BANNER) */}
+        <div className="absolute bottom-3 sm:bottom-6 left-0 right-0 z-30 flex items-center justify-center px-4 pointer-events-none">
+          <div className="flex items-center justify-between gap-3 sm:gap-6 px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-full bg-slate-950/90 backdrop-blur-lg border border-white/20 shadow-2xl pointer-events-auto">
             
-            {/* Dots / Pills Navigation for the 4 Banners */}
-            <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Dots / Pills Navigation for the Banners */}
+            <div className="flex items-center gap-1.5 sm:gap-2">
               {rawBanners.map((s, idx) => (
                 <button
                   key={s.id || idx}
@@ -284,12 +301,12 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
                   aria-label={`Ir para banner ${idx + 1}`}
                   className={`transition-all duration-300 rounded-full cursor-pointer ${
                     safeIndex === idx 
-                      ? 'w-7 sm:w-10 h-2 sm:h-2.5 shadow-lg' 
-                      : 'w-2 sm:w-2.5 h-2 sm:h-2.5 bg-slate-600 hover:bg-slate-400'
+                      ? 'w-6 sm:w-8 h-2 sm:h-2.5 shadow-lg' 
+                      : 'w-2 h-2 sm:w-2.5 sm:h-2.5 bg-slate-600 hover:bg-slate-400'
                   }`}
                   style={{ 
                     backgroundColor: safeIndex === idx ? (s.accentColor || '#ff5722') : undefined,
-                    boxShadow: safeIndex === idx ? `0 0 12px ${s.accentColor || '#ff5722'}` : undefined
+                    boxShadow: safeIndex === idx ? `0 0 10px ${s.accentColor || '#ff5722'}` : undefined
                   }}
                   title={`Banner ${idx + 1}`}
                 />
@@ -301,18 +318,18 @@ export const FullscreenIntroBanner: React.FC<FullscreenIntroBannerProps> = ({ on
               {safeIndex === totalSlides - 1 ? (
                 <button
                   onClick={onFinish}
-                  className="px-4 sm:px-5 py-1.5 sm:py-2 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-full font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/30 active:scale-95 transition-all flex items-center gap-2 cursor-pointer"
+                  className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-full font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/30 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
                 >
                   <span>COMEÇAR AGORA</span>
-                  <ArrowRight size={14} />
+                  <ArrowRight size={13} />
                 </button>
               ) : (
                 <button
                   onClick={nextSlide}
-                  className="px-3.5 sm:px-4 py-1.5 sm:py-2 bg-white/15 hover:bg-white/25 text-white rounded-full font-black text-xs uppercase tracking-wider border border-white/20 active:scale-95 transition-all flex items-center gap-1.5 cursor-pointer"
+                  className="px-3 sm:px-3.5 py-1.5 sm:py-2 bg-white/15 hover:bg-white/25 text-white rounded-full font-black text-xs uppercase tracking-wider border border-white/20 active:scale-95 transition-all flex items-center gap-1 cursor-pointer"
                 >
                   <span>PRÓXIMO</span>
-                  <ChevronRight size={14} />
+                  <ChevronRight size={13} />
                 </button>
               )}
             </div>

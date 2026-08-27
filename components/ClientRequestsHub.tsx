@@ -8,6 +8,8 @@ import {
   X, HelpCircle, ArrowUpRight
 } from 'lucide-react';
 import { ClientServiceRequest, Company, ServiceCategory, PlanType } from '../types';
+import { Locale } from '../translations';
+import { clientHubTranslations } from './clientHubTranslations';
 import { getStoredClientRequests, fetchClientRequestsFromSupabase, saveClientServiceRequest } from '../services/storage';
 
 interface ClientRequestsHubProps {
@@ -22,6 +24,7 @@ interface ClientRequestsHubProps {
     category: ServiceCategory;
   }) => void;
   onUpgrade?: () => void;
+  locale?: string;
 }
 
 const MONTHLY_QUOTES_LIMIT = 2;
@@ -53,8 +56,10 @@ const CATEGORY_MAP: Record<string, { label: string; icon: React.FC<{ size?: numb
 export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
   currentUser,
   onCreateBudgetForClient,
-  onUpgrade
+  onUpgrade,
+  locale = 'pt-PT'
 }) => {
+  const cht = clientHubTranslations[locale as Locale] || clientHubTranslations['pt-PT'];
   const [requests, setRequests] = useState<ClientServiceRequest[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -220,26 +225,26 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
         
         <div className="relative z-10 max-w-3xl space-y-3">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/30 text-xs font-black uppercase tracking-wider">
-            <Sparkles size={14} className="text-amber-400" /> Oportunidades em Tempo Real
+            <Sparkles size={14} className="text-amber-400" /> {cht.bannerTag}
           </div>
           
           <h2 className="text-2xl sm:text-4xl font-black tracking-tight text-white">
-            Pedidos de Orçamento & Obras de Clientes
+            {cht.subtitle}
           </h2>
           
           <p className="text-slate-300 text-xs sm:text-base leading-relaxed">
-            Particulares à procura de profissionais qualificados. Envie orçamentos em PDF com a sua marca e feche novos trabalhos na sua área de atuação.
+            {cht.bannerDesc}
           </p>
 
           <div className="flex flex-wrap items-center gap-3 pt-2 text-xs font-bold text-slate-300">
             <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl">
-              <CheckCircle2 size={15} className="text-emerald-400" /> Contactos Verificados
+              <CheckCircle2 size={15} className="text-emerald-400" /> {cht.verifiedContacts}
             </span>
             <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl">
-              <FileText size={15} className="text-amber-400" /> Gerar Orçamento Direto
+              <FileText size={15} className="text-amber-400" /> {cht.directQuote}
             </span>
             <span className="flex items-center gap-1.5 bg-white/10 px-3 py-1.5 rounded-xl">
-              <MapPin size={15} className="text-cyan-400" /> Todas as Regiões
+              <MapPin size={15} className="text-cyan-400" /> {cht.allRegions}
             </span>
           </div>
         </div>
@@ -255,15 +260,15 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-xs font-black uppercase tracking-wider bg-rose-100 text-rose-700 px-2.5 py-0.5 rounded-full border border-rose-200">
-                  Plano Gratuito • Bloqueado
+                  {cht.freePlanLocked}
                 </span>
-                <span className="text-xs font-bold text-slate-500">Dados Mascarados (3 caracteres + ********)</span>
+                <span className="text-xs font-bold text-slate-500">{cht.maskedDataLabel}</span>
               </div>
               <h3 className="text-base sm:text-lg font-black text-slate-950 mt-1">
-                Visualização Bloqueada para Utilizadores Gratuitos
+                {cht.freeLockedTitle}
               </h3>
               <p className="text-xs sm:text-sm text-slate-600 mt-0.5 max-w-2xl font-medium leading-relaxed">
-                Para desbloquear todos os contactos reais, moradas, fotos e enviar orçamentos diretos aos clientes, escolha um plano <strong>Mensal</strong> (2 respostas/mês) ou <strong>Premium Ilimitado</strong>.
+                {cht.freeLockedDesc}
               </p>
             </div>
           </div>
@@ -273,7 +278,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             className="w-full md:w-auto px-6 py-3.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer"
           >
             <Crown size={16} />
-            <span>Desbloquear Oportunidades</span>
+            <span>{cht.unlockBtn}</span>
           </button>
         </div>
       )}
@@ -283,7 +288,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
           <div className="space-y-2 flex-1">
             <div className="flex items-center gap-2">
               <span className="text-xs font-black uppercase tracking-wider bg-amber-100 text-amber-800 px-2.5 py-0.5 rounded-full border border-amber-300 flex items-center gap-1">
-                <Sparkles size={12} /> Plano Mensal
+                <Sparkles size={12} /> {cht.monthlyPlanBadge}
               </span>
               <span className="text-xs font-bold text-slate-500">
                 {currentMonthFormatted}
@@ -292,7 +297,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
 
             <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4">
               <h3 className="text-sm sm:text-base font-black text-slate-900">
-                Orçamentos Respondidos: <span className={respondedCount >= MONTHLY_QUOTES_LIMIT ? 'text-rose-600 font-black' : 'text-[#ff5722] font-black'}>{respondedCount} / {MONTHLY_QUOTES_LIMIT}</span> este mês
+                {cht.quotesAnswered} <span className={respondedCount >= MONTHLY_QUOTES_LIMIT ? 'text-rose-600 font-black' : 'text-[#ff5722] font-black'}>{respondedCount} / {MONTHLY_QUOTES_LIMIT}</span> {cht.thisMonth}
               </h3>
               
               {/* Progress pill */}
@@ -305,17 +310,17 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
 
               {respondedCount >= MONTHLY_QUOTES_LIMIT ? (
                 <span className="text-xs font-black text-rose-600 flex items-center gap-1 bg-rose-50 px-2.5 py-1 rounded-xl border border-rose-200">
-                  <ShieldAlert size={14} /> Limite mensal atingido (2/2)
+                  <ShieldAlert size={14} /> {cht.monthlyLimitReachedBadge}
                 </span>
               ) : (
                 <span className="text-xs font-bold text-emerald-700 flex items-center gap-1 bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200">
-                  <CheckCircle2 size={14} /> {MONTHLY_QUOTES_LIMIT - respondedCount} resposta(s) disponível(is)
+                  <CheckCircle2 size={14} /> {MONTHLY_QUOTES_LIMIT - respondedCount} {cht.responsesAvailable}
                 </span>
               )}
             </div>
 
             <p className="text-xs text-slate-500 font-medium">
-              O Plano Mensal inclui até 2 respostas a pedidos de clientes por mês. Para responder sem qualquer limite, faça upgrade para o Plano Premium Anual.
+              {cht.monthlyPlanNotice}
             </p>
           </div>
 
@@ -325,7 +330,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               className="w-full md:w-auto px-5 py-3 bg-slate-900 hover:bg-slate-800 text-white rounded-2xl font-bold text-xs uppercase tracking-wider active:scale-95 transition-all flex items-center justify-center gap-2 shrink-0 cursor-pointer shadow-sm"
             >
               <Crown size={15} className="text-amber-400" />
-              <span>Upgrade para Ilimitado</span>
+              <span>{cht.upgradeUnlimitedBtn}</span>
             </button>
           )}
         </div>
@@ -340,18 +345,18 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             <div>
               <div className="flex items-center gap-2">
                 <span className="text-[11px] font-black uppercase tracking-wider bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full border border-emerald-200">
-                  Plano Premium Ativo
+                  {cht.premiumActiveBadge}
                 </span>
-                <span className="text-xs font-black text-emerald-700">Orçamentos Ilimitados</span>
+                <span className="text-xs font-black text-emerald-700">{cht.unlimitedQuotesLabel}</span>
               </div>
               <p className="text-xs text-emerald-900 font-medium mt-0.5">
-                Pode responder a todos os pedidos de clientes e particulares sem qualquer restrição de quantidade.
+                {cht.premiumActiveDesc}
               </p>
             </div>
           </div>
 
           <span className="text-xs font-black text-emerald-700 bg-white px-3 py-1.5 rounded-xl border border-emerald-200 shadow-2xs shrink-0">
-            Acesso Total Desbloqueado ✨
+            {cht.totalAccessUnlocked}
           </span>
         </div>
       )}
@@ -367,7 +372,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               type="text"
               value={searchTerm}
               onChange={e => setSearchTerm(e.target.value)}
-              placeholder="Pesquisar por serviço, tipo de trabalho, cidade ou nome..."
+              placeholder={cht.searchPlaceholder}
               className="w-full pl-10 pr-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none transition-all"
             />
           </div>
@@ -379,10 +384,13 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               onChange={e => setSelectedCategory(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:bg-white focus:border-amber-500 outline-none cursor-pointer"
             >
-              <option value="all">Todas as Categorias</option>
-              {Object.entries(CATEGORY_MAP).map(([key, item]) => (
-                <option key={key} value={key}>{item.label}</option>
-              ))}
+              <option value="all">{cht.allCategories}</option>
+              {Object.entries(CATEGORY_MAP).map(([key, item]) => {
+                const localizedLabel = (cht.categoryLabels as any)?.[key] || item.label;
+                return (
+                  <option key={key} value={key}>{localizedLabel}</option>
+                );
+              })}
             </select>
           </div>
 
@@ -393,7 +401,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               onChange={e => setSelectedLocation(e.target.value)}
               className="w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 focus:bg-white focus:border-amber-500 outline-none cursor-pointer"
             >
-              <option value="all">Todas as Cidades / Zonas</option>
+              <option value="all">{cht.allLocations}</option>
               {locationsList.map(loc => (
                 <option key={loc} value={loc}>{isFree ? maskText(loc) : loc}</option>
               ))}
@@ -407,18 +415,19 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             onClick={() => setSelectedCategory('all')}
             className={`px-3.5 py-1.5 rounded-xl shrink-0 transition-all ${selectedCategory === 'all' ? 'bg-slate-900 text-white shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
           >
-            Todos ({requests.length})
+            {cht.filterAll} ({requests.length})
           </button>
           {Object.entries(CATEGORY_MAP).map(([catKey, cat]) => {
             const count = requests.filter(r => r.category === catKey).length;
             if (count === 0 && selectedCategory !== catKey) return null;
+            const localizedCatLabel = (cht.categoryLabels as any)?.[catKey] || cat.label;
             return (
               <button
                 key={catKey}
                 onClick={() => setSelectedCategory(catKey)}
                 className={`px-3 py-1.5 rounded-xl shrink-0 transition-all flex items-center gap-1.5 ${selectedCategory === catKey ? 'bg-amber-500 text-slate-950 font-black shadow-md' : 'bg-slate-100 text-slate-700 hover:bg-slate-200'}`}
               >
-                <span>{cat.label}</span>
+                <span>{localizedCatLabel}</span>
                 <span className="text-[10px] opacity-75">({count})</span>
               </button>
             );
@@ -430,22 +439,22 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
       {loading ? (
         <div className="text-center py-16 bg-white rounded-3xl border border-slate-200">
           <div className="w-10 h-10 border-4 border-amber-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
-          <p className="text-slate-500 font-bold text-sm">A carregar oportunidades de clientes...</p>
+          <p className="text-slate-500 font-bold text-sm">{cht.loadingRequests}</p>
         </div>
       ) : filteredRequests.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-6 space-y-4">
           <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-full flex items-center justify-center mx-auto">
             <Search size={32} />
           </div>
-          <h3 className="text-lg font-black text-slate-900">Nenhum pedido encontrado com estes filtros</h3>
+          <h3 className="text-lg font-black text-slate-900">{cht.noRequestsTitle}</h3>
           <p className="text-slate-500 text-xs sm:text-sm max-w-md mx-auto">
-            Tente remover os filtros ou pesquisar por outra localidade. Novos pedidos de clientes particulares surgem em tempo real.
+            {cht.noRequestsDesc}
           </p>
           <button
             onClick={() => { setSearchTerm(''); setSelectedCategory('all'); setSelectedLocation('all'); }}
             className="px-5 py-2.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-bold text-xs uppercase tracking-wider"
           >
-            Limpar Filtros
+            {cht.clearFilters}
           </button>
         </div>
       ) : (
@@ -453,6 +462,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
           {filteredRequests.map(req => {
             const catInfo = CATEGORY_MAP[req.category] || CATEGORY_MAP.other;
             const CatIcon = catInfo.icon;
+            const catLabel = (cht.categoryLabels as any)?.[req.category] || catInfo.label;
             const isRevealed = !isFree && contactRevealed[req.id];
             const hasAlreadyResponded = respondedIds.includes(req.id);
 
@@ -462,7 +472,6 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             const displayLocation = maskText(req.location);
             const displayClientName = maskText(req.clientName);
             const displayPhone = maskText(req.clientPhone);
-            const displayEmail = maskText(req.clientEmail);
             const displayBudget = maskText(req.budgetRange);
 
             return (
@@ -473,7 +482,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                 {/* Free User Lock Badge Overlay (Non-intrusive) */}
                 {isFree && (
                   <div className="absolute top-3 right-3 flex items-center gap-1 bg-amber-50 border border-amber-200 text-amber-800 px-2 py-0.5 rounded-full text-[10px] font-black uppercase">
-                    <Lock size={10} /> Bloqueado no Free
+                    <Lock size={10} /> {cht.lockedOnFreeBadge}
                   </div>
                 )}
 
@@ -482,7 +491,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                   {/* Top Badge & Time */}
                   <div className="flex items-center justify-between gap-2">
                     <div className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-xl text-xs font-black border ${catInfo.color}`}>
-                      <CatIcon size={14} /> {catInfo.label}
+                      <CatIcon size={14} /> {catLabel}
                     </div>
 
                     {!isFree && (
@@ -509,12 +518,12 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                     </span>
                     {req.propertyType && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-slate-100 text-slate-700 font-bold text-[11px] capitalize">
-                        <Home size={12} className="text-blue-500" /> {req.propertyType === 'apartment' ? 'Apartamento' : req.propertyType === 'house' ? 'Moradia' : 'Comércio'}
+                        <Home size={12} className="text-blue-500" /> {req.propertyType === 'apartment' ? cht.apartment : req.propertyType === 'house' ? cht.house : cht.commercial}
                       </span>
                     )}
                     {req.urgency && (
                       <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-amber-50 text-amber-800 font-bold text-[11px]">
-                        <Clock size={12} className="text-amber-600" /> {req.urgency === 'immediate' ? 'Urgente' : 'Próximas semanas'}
+                        <Clock size={12} className="text-amber-600" /> {req.urgency === 'immediate' ? cht.urgent : cht.nextWeeks}
                       </span>
                     )}
                     {req.budgetRange && req.budgetRange !== '500€ - 2.000€' && (
@@ -542,7 +551,7 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                         </div>
                       ))}
                       {req.photos.length > 3 && (
-                        <span className="text-[11px] font-bold text-slate-500">+{req.photos.length - 3} fotos</span>
+                        <span className="text-[11px] font-bold text-slate-500">+{req.photos.length - 3} {cht.morePhotos}</span>
                       )}
                     </div>
                   )}
@@ -582,12 +591,12 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                       >
                         {isFree ? (
                           <>
-                            <Lock size={10} /> Ver Contacto
+                            <Lock size={10} /> {cht.viewContact}
                           </>
                         ) : isRevealed ? (
-                          'Ocultar'
+                          cht.hideContact
                         ) : (
-                          'Ver Contacto'
+                          cht.viewContact
                         )}
                       </button>
                     </div>
@@ -607,19 +616,19 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                     >
                       {isFree ? (
                         <>
-                          <Lock size={15} /> Desbloquear e Criar Orçamento
+                          <Lock size={15} /> {cht.unlockAndCreateBudget}
                         </>
                       ) : monthlyLimitReached && !hasAlreadyResponded ? (
                         <>
-                          <Crown size={15} /> Limite 2/2 Atingido • Upgrade
+                          <Crown size={15} /> {cht.limitReachedUpgrade}
                         </>
                       ) : hasAlreadyResponded ? (
                         <>
-                          <FileText size={15} /> Editar Orçamento Enviado
+                          <FileText size={15} /> {cht.editSentBudget}
                         </>
                       ) : (
                         <>
-                          <FileText size={15} /> Criar Orçamento p/ Cliente
+                          <FileText size={15} /> {cht.createBudgetForClient}
                         </>
                       )}
                     </button>
@@ -656,14 +665,14 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
             <div className="space-y-2">
               <h3 className="text-xl sm:text-2xl font-black text-slate-950 tracking-tight">
                 {upgradeModalInfo.reason === 'free_blocked'
-                  ? 'Acesso Exclusivo para Profissionais com Plano Ativo'
-                  : 'Limite Mensal Atingido (2/2 Orçamentos)'}
+                  ? cht.upgradeModalTitleFree
+                  : cht.upgradeModalTitleLimit}
               </h3>
               
               <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
                 {upgradeModalInfo.reason === 'free_blocked'
-                  ? 'Os pedidos de particulares contêm dados reais de obras e contactos diretos. No Plano Gratuito, as informações ficam mascaradas. Escolha o seu plano para desbloquear:'
-                  : 'O seu Plano Mensal permite responder a até 2 pedidos de clientes por mês. Já utilizou todas as suas respostas disponíveis neste mês.'}
+                  ? cht.upgradeModalDescFree
+                  : cht.upgradeModalDescLimit}
               </p>
             </div>
 
@@ -672,28 +681,28 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
               <div className="p-3.5 rounded-2xl border-2 border-amber-400 bg-amber-50/60 flex items-center justify-between">
                 <div>
                   <div className="text-xs font-black text-slate-900 flex items-center gap-1.5">
-                    <Crown size={14} className="text-[#ff5722]" /> Plano Premium Anual / Vitalício
+                    <Crown size={14} className="text-[#ff5722]" /> {cht.planPremiumAnnual}
                   </div>
                   <div className="text-[11px] text-slate-600 font-bold mt-0.5">
-                    ✨ Orçamentos Ilimitados para responder a todos os clientes
+                    {cht.planPremiumAnnualDesc}
                   </div>
                 </div>
                 <span className="text-xs font-black text-emerald-600 bg-emerald-100 px-2 py-0.5 rounded-md">
-                  Ilimitado
+                  {cht.unlimitedBadge}
                 </span>
               </div>
 
               <div className="p-3.5 rounded-2xl border border-slate-200 bg-slate-50 flex items-center justify-between">
                 <div>
                   <div className="text-xs font-bold text-slate-900">
-                    Plano Mensal
+                    {cht.monthlyPlanBadge}
                   </div>
                   <div className="text-[11px] text-slate-500 font-medium mt-0.5">
-                    Até 2 orçamentos respondidos por mês
+                    {cht.planMonthlyDesc}
                   </div>
                 </div>
                 <span className="text-xs font-black text-slate-700 bg-slate-200 px-2 py-0.5 rounded-md">
-                  2 / mês
+                  {cht.monthlyQuotaBadge}
                 </span>
               </div>
             </div>
@@ -708,14 +717,14 @@ export const ClientRequestsHub: React.FC<ClientRequestsHubProps> = ({
                 className="flex-1 py-3.5 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-xs uppercase tracking-wider shadow-lg shadow-orange-500/25 active:scale-95 transition-all flex items-center justify-center gap-2 cursor-pointer"
               >
                 <Crown size={16} />
-                <span>Ver Planos & Fazer Upgrade</span>
+                <span>{cht.viewPlansUpgradeBtn}</span>
               </button>
 
               <button
                 onClick={() => setUpgradeModalInfo({ open: false, reason: 'free_blocked' })}
                 className="py-3.5 px-5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-2xl font-bold text-xs uppercase tracking-wider transition-all cursor-pointer text-center"
               >
-                Fechar
+                {cht.closeBtn}
               </button>
             </div>
 

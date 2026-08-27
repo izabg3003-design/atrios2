@@ -110,6 +110,19 @@ export interface LandingExtended {
       cta: string;
     };
   };
+  timeTrackerBanner: {
+    badge: string;
+    title: string;
+    sub: string;
+    bullets: string[];
+    sampleWorker: string;
+    sampleRole: string;
+    sampleProject: string;
+    sampleHours: string;
+    sampleExtra: string;
+    sampleCost: string;
+    cta: string;
+  };
   features10: {
     eyebrow: string;
     title: string;
@@ -262,6 +275,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Analise e prepare o seu orçamento',
           'Envie propostas de forma profissional',
           'Organize obras, clientes e documentos',
+          'Controlo de horas e ponto dos colaboradores por obra',
           'Acompanhe pagamentos e resultados',
           'Tudo numa única plataforma'
         ],
@@ -276,6 +290,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'QUERO RECEBER PEDIDOS'
       }
     },
+    timeTrackerBanner: {
+      badge: 'GESTÃO DE EQUIPA & PICAGEM DE PONTO',
+      title: 'Controlo de Horas dos Colaboradores por Obra',
+      sub: 'Registe entradas, saídas, pausas e horas extraordinárias da sua equipa. Saiba com precisão os custos reais de mão de obra em cada projeto.',
+      bullets: [
+        'Picagem de ponto rápida por telemóvel ou QR Code',
+        'Cálculo automático de horas normais e extraordinárias',
+        'Associação direta dos custos de pessoal a cada obra',
+        'Exportação de folhas de ponto e relatórios em PDF e Excel'
+      ],
+      sampleWorker: 'João Silva',
+      sampleRole: 'Oficial de Construção',
+      sampleProject: 'Obra: Moradia Cascais',
+      sampleHours: '8.0h Normais',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Custo Mão de Obra Calculado',
+      cta: 'COMEÇAR A GERIR EQUIPA'
+    },
     features10: {
       eyebrow: 'TUDO O QUE PRECISA PARA GERIR O SEU NEGÓCIO',
       title: 'Funcionalidades completas para o dia a dia',
@@ -283,6 +315,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Orçamentos', desc: 'Crie orçamentos e propostas profissionais em minutos.' },
         { title: 'Obras', desc: 'Acompanhe o progresso de cada obra em tempo real.' },
         { title: 'Clientes', desc: 'Organize clientes e fornecedores num só lugar.', isHighlighted: true },
+        { title: 'Controlo de Horas', desc: 'Registe ponto, horas normais e extras dos colaboradores por obra.', isNew: true },
         { title: 'Serviços', desc: 'Gerencie serviços, materiais e mão de obra.' },
         { title: 'Pagamentos', desc: 'Controle recebimentos e pagamentos.' },
         { title: 'Relatórios', desc: 'Relatórios e indicadores para melhores decisões.' },
@@ -447,6 +480,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Analise e prepare o seu orçamento',
           'Envie propostas em PDF com sua marca',
           'Organize obras, clientes e materiais',
+          'Controle de horas e ponto dos colaboradores por obra',
           'Acompanhe recebimentos e fluxo de caixa',
           'Tudo em uma única plataforma'
         ],
@@ -461,6 +495,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'QUERO RECEBER PEDIDOS'
       }
     },
+    timeTrackerBanner: {
+      badge: 'GESTÃO DE EQUIPE & PONTO ELETRÔNICO',
+      title: 'Controle de Horas dos Colaboradores por Obra',
+      sub: 'Registre entradas, saídas, pausas e horas extras da sua equipe. Saiba com exatidão os custos reais de mão de obra em cada projeto.',
+      bullets: [
+        'Registro de ponto rápido pelo celular ou QR Code',
+        'Cálculo automático de horas normais e horas extras',
+        'Alocação direta dos custos de equipe por obra',
+        'Exportação de folhas de ponto e relatórios em PDF e Excel'
+      ],
+      sampleWorker: 'João Silva',
+      sampleRole: 'Oficial de Construção',
+      sampleProject: 'Obra: Residência Jardins',
+      sampleHours: '8.0h Normais',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Custo de Mão de Obra Calculado',
+      cta: 'COMEÇAR A GERENCIAR EQUIPE'
+    },
     features10: {
       eyebrow: 'TUDO O QUE VOCÊ PRECISA PARA GERENCIAR SEU NEGÓCIO',
       title: 'Funcionalidades completas para o dia a dia',
@@ -468,6 +520,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Orçamentos', desc: 'Crie orçamentos e propostas profissionais em minutos.' },
         { title: 'Obras', desc: 'Acompanhe o andamento de cada obra em tempo real.' },
         { title: 'Clientes', desc: 'Organize clientes e fornecedores em um só lugar.', isHighlighted: true },
+        { title: 'Controle de Horas', desc: 'Registre ponto, horas normais e extras dos colaboradores por obra.', isNew: true },
         { title: 'Serviços', desc: 'Gerencie serviços, materiais e mão de obra.' },
         { title: 'Pagamentos', desc: 'Controle recebimentos e pagamentos.' },
         { title: 'Relatórios', desc: 'Relatórios e indicadores para melhores decisões.' },
@@ -632,6 +685,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Create itemized estimates with 1 click',
           'Send branded PDF quotes with your logo',
           'Manage tasks, materials, and work orders',
+          'Track crew hours and job site time tracking',
           'Track milestone payments and client invoices',
           'All inside one unified software'
         ],
@@ -646,6 +700,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'START RECEIVING LEADS'
       }
     },
+    timeTrackerBanner: {
+      badge: 'CREW MANAGEMENT & TIME CLOCK',
+      title: 'Employee Time Tracking & Job Costing',
+      sub: 'Clock in/out, log meal breaks, and track overtime by job site. Calculate exact labor costs for every construction project automatically.',
+      bullets: [
+        'Mobile time clock and job site QR Code punch-in',
+        'Automatic calculation of regular and overtime hours',
+        'Direct labor cost allocation to specific projects',
+        'One-click export of timesheets to PDF and Excel'
+      ],
+      sampleWorker: 'John Miller',
+      sampleRole: 'Lead Carpenter',
+      sampleProject: 'Site: Modern Villa Reno',
+      sampleHours: '8.0h Regular',
+      sampleExtra: '+1.5h Overtime',
+      sampleCost: 'Calculated Labor Cost',
+      cta: 'START TRACKING CREW TIME'
+    },
     features10: {
       eyebrow: 'EVERYTHING YOU NEED TO RUN YOUR BUSINESS',
       title: 'Complete features for your daily operations',
@@ -653,6 +725,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Estimates & Quotes', desc: 'Create accurate, professional bids in minutes.' },
         { title: 'Project Tracking', desc: 'Monitor job site progress and milestones in real-time.' },
         { title: 'Client Directory', desc: 'Organize customers, suppliers, and contacts.', isHighlighted: true },
+        { title: 'Employee Time Clock', desc: 'Track crew hours, regular vs overtime, and site labor costs.', isNew: true },
         { title: 'Labor & Materials', desc: 'Track trade hours, unit rates, and inventory costs.' },
         { title: 'Invoicing & Payments', desc: 'Control incoming payments and project receivables.' },
         { title: 'Profit Reports', desc: 'Real-time financial analytics and margin calculation.' },
@@ -808,15 +881,16 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         portalLink: 'Portal del Cliente'
       },
       pro: {
-        badge: 'PARA PROFESIONALES',
+        badge: 'PARA PROFISSIONALES',
         title: 'Transforme solicitudes de presupuesto en nuevas oportunidades.',
         sub: 'Reciba pedidos, cierre obras y gestione todo en el mismo lugar.',
         bullets: [
           'Reciba nuevas solicitudes de presupuesto',
           'Consulte detalles y ubicación de la obra',
-          'Analice y prepare su presupuesto en minutos',
+          'Analise y prepare su presupuesto en minutos',
           'Envíe propuestas en PDF con su logotipo',
           'Organice obras, clientes y documentos',
+          'Control de horas y fichaje de empleados por obra',
           'Controle pagos y resultados financieros',
           'Todo en una única plataforma'
         ],
@@ -831,6 +905,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'QUIERO RECIBIR SOLICITUDES'
       }
     },
+    timeTrackerBanner: {
+      badge: 'GESTIÓN DE EQUIPOS Y FICHAJE DE PUNTUALIDAD',
+      title: 'Control de Horas de los Empleados por Obra',
+      sub: 'Registre entradas, salidas, descansos y horas extras de su equipo. Conozca con precisión los costes reales de mano de obra en cada proyecto.',
+      bullets: [
+        'Fichaje rápido desde el móvil o con código QR en obra',
+        'Cálculo automático de horas ordinarias y extraordinarias',
+        'Imputación directa del coste de personal a cada obra',
+        'Exportación de partes de trabajo e informes a PDF y Excel'
+      ],
+      sampleWorker: 'Juan García',
+      sampleRole: 'Oficial de Albañilería',
+      sampleProject: 'Obra: Reforma Gran Vía',
+      sampleHours: '8.0h Ordinarias',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Coste de Mano de Obra Calculado',
+      cta: 'COMENZAR A GESTIONAR EQUIPO'
+    },
     features10: {
       eyebrow: 'TODO LO QUE NECESITA PARA GESTIONAR SU NEGOCIO',
       title: 'Funcionalidades completas para el día a día',
@@ -838,6 +930,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Presupuestos', desc: 'Cree presupuestos y propuestas profesionales en minutos.' },
         { title: 'Obras', desc: 'Siga el progreso de cada obra en tiempo real.' },
         { title: 'Clientes', desc: 'Organice clientes y proveedores en un solo lugar.', isHighlighted: true },
+        { title: 'Control de Horas', desc: 'Registre fichaje, horas ordinarias y extras de empleados por obra.', isNew: true },
         { title: 'Servicios', desc: 'Gestione servicios, materiales y mano de obra.' },
         { title: 'Pagos', desc: 'Controle cobros y pagos de cada proyecto.' },
         { title: 'Informes', desc: 'Informes y métricas para tomar mejores decisiones.' },
@@ -1002,6 +1095,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Créez des devis précis en quelques clics',
           'Générez des PDF élégants avec votre logo et mentions',
           'Organisez vos équipes, matériaux et ordres de mission',
+          'Suivi des heures et pointage des équipes par chantier',
           'Pilotez les acomptes, factures et règlements',
           'Tout réuni sur une seule plateforme intuitive'
         ],
@@ -1016,6 +1110,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'RECEVOIR DES DEMANDES'
       }
     },
+    timeTrackerBanner: {
+      badge: 'GESTION D’ÉQUIPE & POINTAGE DE CHANTIER',
+      title: 'Suivi des Heures et Pointage des Ouvriers par Chantier',
+      sub: 'Enregistrez les arrivées, départs, pauses et heures supplémentaires de vos collaborateurs. Calculez précisément le coût réel de main-d’œuvre pour chaque projet.',
+      bullets: [
+        'Pointage mobile instantané ou badge par QR Code sur chantier',
+        'Calcul automatique des heures normales et majorées',
+        'Affectation directe des coûts de personnel à chaque chantier',
+        'Export des feuilles d’heures et rapports en PDF et Excel'
+      ],
+      sampleWorker: 'Thomas Martin',
+      sampleRole: 'Chef de Chantier',
+      sampleProject: 'Chantier: Rénovation Haussmann',
+      sampleHours: '8.0h Normales',
+      sampleExtra: '+1.5h Sup.',
+      sampleCost: 'Coût Main-d’œuvre Calculé',
+      cta: 'DÉMARRER LE SUIVI D’ÉQUIPE'
+    },
     features10: {
       eyebrow: 'TOUT POUR PILOTER VOTRE ACTIVITÉ',
       title: 'Des fonctionnalités complètes pour le quotidien',
@@ -1023,6 +1135,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Devis & Chiffrage', desc: 'Créez des devis et propositions professionnels en quelques minutes.' },
         { title: 'Gestion de Chantiers', desc: 'Suivez l’avancement de chaque chantier en temps réel.' },
         { title: 'Répertoire Clients', desc: 'Centralisez clients, sous-traitants et fournisseurs.', isHighlighted: true },
+        { title: 'Pointage & Heures', desc: 'Suivez les heures d’équipe, pointages et coûts de main-d’œuvre.', isNew: true },
         { title: 'Main-d’œuvre & Matériaux', desc: 'Gérez vos taux horaires, fournitures et coûts d’achat.' },
         { title: 'Suivi des Règlements', desc: 'Gardez le contrôle sur les acomptes et factures payées.' },
         { title: 'Tableaux de Bord', desc: 'Indicateurs de rentabilité et suivi des marges en direct.' },
@@ -1187,6 +1300,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Crea preventivi dettagliati in pochi minuti',
           'Invia PDF professionali con il tuo logo e condizioni',
           'Organizza cantieri, manodopera e materiali',
+          'Controllo ore e timbratura presenze operai per cantiere',
           'Controlla scadenze di pagamento e flussi di cassa',
           'Tutto in un’unica applicazione facile e moderna'
         ],
@@ -1201,6 +1315,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'VOGLIO RICEVERE RICHIESTE'
       }
     },
+    timeTrackerBanner: {
+      badge: 'GESTIONE SQUADRA E RILEVAZIONE PRESENZE',
+      title: 'Controllo Ore dei Collaboratori per Cantiere',
+      sub: 'Registra ingressi, uscite, pause e straordinari della tua squadra. Conosci con precisione millimetrica il costo reale della manodopera per ogni progetto.',
+      bullets: [
+        'Timbratura rapida da smartphone o tramite QR Code in cantiere',
+        'Calcolo automatico di ore ordinarie e straordinari',
+        'Attribuzione diretta del costo del personale a ciascun cantiere',
+        'Esportazione dei rapportini e fogli presenza in PDF ed Excel'
+      ],
+      sampleWorker: 'Marco Rossi',
+      sampleRole: 'Capocantiere',
+      sampleProject: 'Cantiere: Villa Navigli',
+      sampleHours: '8.0h Ordinarie',
+      sampleExtra: '+1.5h Straord.',
+      sampleCost: 'Costo Manodopera Calcolato',
+      cta: 'INIZIA A GESTIRE LA SQUADRA'
+    },
     features10: {
       eyebrow: 'TUTTO IL NECESSARIO PER IL TUO LAVORO',
       title: 'Funzionalità complete per la gestione quotidiana',
@@ -1208,6 +1340,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Preventivi & Computi', desc: 'Crea preventivi professionali in PDF in pochi minuti.' },
         { title: 'Gestione Cantieri', desc: 'Monitora l’avanzamento di ogni opera in tempo reale.' },
         { title: 'Anagrafica Clienti', desc: 'Organizza clienti, fornitori e collaboratori.', isHighlighted: true },
+        { title: 'Controllo Ore & Punti', desc: 'Traccia presenze, ore ordinarie e straordinari della squadra.', isNew: true },
         { title: 'Materiali e Manodopera', desc: 'Gestisci tariffe orarie, forniture e costi.' },
         { title: 'Controllo Pagamenti', desc: 'Traccia acconti, fatture emesse e saldi da incassare.' },
         { title: 'Report e Margini', desc: 'Statistiche e analisi finanziaria del margine effettivo.' },
@@ -1372,6 +1505,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'Создавайте точные сметы за считанные минуты',
           'Формируйте PDF сметы с вашим логотипом и условиями',
           'Управляйте бригадами, материалами и нарядами',
+          'Учет рабочего времени и электронный табель бригад',
           'Контролируйте авансы, оплаты и задолженности',
           'Все инструменты в единой удобной программе'
         ],
@@ -1386,6 +1520,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'ХОЧУ ПОЛУЧАТЬ ЗАКАЗЫ'
       }
     },
+    timeTrackerBanner: {
+      badge: 'УПРАВЛЕНИЕ БРИГАДАМИ И ЭЛЕКТРОННЫЙ ТАБЕЛЬ',
+      title: 'Учет Рабочего Времени Сотрудников по Объектам',
+      sub: 'Фиксируйте приход, уход, обеденные перерывы и переработки мастеров. Рассчитывайте точные затраты на оплату труда по каждому строительному объекту.',
+      bullets: [
+        'Быстрая отметка времени со смартфона или по QR-коду на объекте',
+        'Автоматический расчет обычных и сверхурочных часов',
+        'Прямое отнесение фонда оплаты труда на себестоимость объекта',
+        'Выгрузка табелей учета рабочего времени в PDF и Excel'
+      ],
+      sampleWorker: 'Алексей Смирнов',
+      sampleRole: 'Бригадир / Мастер',
+      sampleProject: 'Объект: ЖК «Панорама»',
+      sampleHours: '8.0ч Осн.',
+      sampleExtra: '+1.5ч Сверхуроч.',
+      sampleCost: 'Расчет стоимости работ',
+      cta: 'НАЧАТЬ УЧЕТ ВРЕМЕНИ БРИГАД'
+    },
     features10: {
       eyebrow: 'ВСЁ ДЛЯ УПРАВЛЕНИЯ ВАШИМ СТРОИТЕЛЬНЫМ БИЗНЕСОМ',
       title: 'Полный набор инструментов на каждый день',
@@ -1393,6 +1545,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'Сметы и расчеты', desc: 'Создание профессиональных смет и расчетов за пару минут.' },
         { title: 'Учет объектов', desc: 'Отслеживайте ход выполнения работ на каждом объекте.' },
         { title: 'База клиентов', desc: 'Удобное хранение контактов клиентов и поставщиков.', isHighlighted: true },
+        { title: 'Учет времени и табель', desc: 'Табель смен, учет часов и расчет затрат на рабочих по объектам.', isNew: true },
         { title: 'Работы и материалы', desc: 'Учет расценок за работу, нормы расхода и стоимость материалов.' },
         { title: 'Платежи и финансы', desc: 'Контроль поступления оплат от заказчиков и расходов.' },
         { title: 'Отчеты и маржа', desc: 'Финансовая аналитика и расчет реальной чистой прибыли.' },
@@ -1557,6 +1710,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'मिनटों में पेशेवर कोटेशन और बिल तैयार करें',
           'अपने लोगो और शर्तों के साथ सुंदर PDF भेजें',
           'मजदूरों, सामग्रियों और कार्यों का हिसाब रखें',
+          'साइट पर मजदूरों के काम के घंटे और हाजिरी का नियंत्रण',
           'भुगतान और बकाया राशि पर पूरा नियंत्रण रखें',
           'सब कुछ एक आधुनिक और सरल सॉफ्टवेयर में'
         ],
@@ -1571,6 +1725,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'काम के अनुरोध पाना शुरू करें'
       }
     },
+    timeTrackerBanner: {
+      badge: 'मजदूर प्रबंधन और डिजिटल हाजिरी',
+      title: 'साइट अनुसार मजदूरों के काम के घंटे और हाजिरी का नियंत्रण',
+      sub: 'काम पर आने, जाने, लंच ब्रेक और ओवरटाइम का सटीक रिकॉर्ड रखें। हर निर्माण प्रोजेक्ट में मजदूरी की वास्तविक लागत तुरंत जानें।',
+      bullets: [
+        'मोबाइल या साइट QR कोड से त्वरित डिजिटल हाजिरी',
+        'सामान्य और ओवरटाइम घंटों की स्वचालित गणना',
+        'मजदूरी लागत का सीधा प्रोजेक्ट अनुसार आवंटन',
+        'PDF और Excel में टाइमशीट और रिपोर्ट एक क्लिक में डाउनलोड'
+      ],
+      sampleWorker: 'राजेश कुमार',
+      sampleRole: 'मुख्य मिस्त्री',
+      sampleProject: 'साइट: विला रिनोवेशन',
+      sampleHours: '8.0h सामान्य',
+      sampleExtra: '+1.5h ओवरटाइम',
+      sampleCost: 'मजदूरी लागत की गणना',
+      cta: 'टीम हाजिरी प्रबंधन शुरू करें'
+    },
     features10: {
       eyebrow: 'आपके व्यवसाय प्रबंधन के लिए आवश्यक सब कुछ',
       title: 'दैनिक कार्यों के लिए संपूर्ण सुविधाएं',
@@ -1578,6 +1750,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'कोटेशन और एस्टीमेट', desc: 'मिनटों में पेशेवर निर्माण कोटेशन बनाएं।' },
         { title: 'प्रोजेक्ट ट्रैकिंग', desc: 'साइट की प्रगति और कार्यों की रियल-टाइम निगरानी।' },
         { title: 'ग्राहक डायरेक्टरी', desc: 'ग्राहकों और सप्लायर्स की जानकारी एक जगह रखें।', isHighlighted: true },
+        { title: 'मजदूरों की हाजिरी और समय', desc: 'मजदूरों के घंटे, सामान्य व ओवरटाइम और साइट मजदूरी लागत।', isNew: true },
         { title: 'मजदूरी और सामग्री', desc: 'मजदूरों के घंटे और निर्माण सामग्री की लागत का हिसाब।' },
         { title: 'भुगतान नियंत्रण', desc: 'आए हुए भुगतान और बकाया राशि का ट्रैक रखें।' },
         { title: 'लाभ और रिपोर्ट्स', desc: 'वास्तविक मुनाफे और मार्जिन का सटीक वित्तीय विश्लेषण।' },
@@ -1742,6 +1915,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
           'কয়েক মিনিটে নিখুঁত এস্টিমেট ও বিল বানান',
           'নিজের লোগো সহ সুন্দর PDF কোটেশন পাঠান',
           'শ্রমিক, মালামাল ও কাজের তালিকা সামলান',
+          'সাইটে কর্মীদের কাজের সময় ও ডিজিটাল হাজিরা ট্র্যাকিং',
           'বকেয়া টাকা ও আদায়ের হিসাব রাখুন',
           'সবকিছু একটি আধুনিক সহজ সফটওয়্যারে'
         ],
@@ -1756,6 +1930,24 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         cta: 'কাজের অনুরোধ পেতে শুরু করুন'
       }
     },
+    timeTrackerBanner: {
+      badge: 'কর্মী ব্যবস্থাপনা ও ডিজিটাল হাজিরা',
+      title: 'সাইট অনুযায়ী কর্মীদের কাজের সময় ও হাজিরা নিয়ন্ত্রণ',
+      sub: 'কাজে প্রবেশ, প্রস্থান, খাবারের বিরতি ও ওভারটাইমের নিখুঁত হিসাব রাখুন। প্রতিটি নির্মাণ প্রকল্পে শ্রমিকের প্রকৃত মজুরি ব্যয় সরাসরি হিসাব করুন।',
+      bullets: [
+        'মোবাইল বা সাইট QR কোড দিয়ে সহজে ডিজিটাল হাজিরা',
+        'স্বাভাবিক ও ওভারটাইম ঘণ্টার স্বয়ংক্রিয় হিসাব',
+        'নির্দিষ্ট প্রকল্পে শ্রমিকের খরচ সরাসরি বণ্টন',
+        'এক ক্লিকেই PDF ও Excel ফরম্যাটে টাইমশিট ডাউনলোড'
+      ],
+      sampleWorker: 'করিম হোসেন',
+      sampleRole: 'প্রধান মিস্ত্রি',
+      sampleProject: 'সাইট: মডার্ন ভিলা সংস্কার',
+      sampleHours: '৮.০ ঘণ্টা স্বাভাবিক',
+      sampleExtra: '+১.৫ ঘণ্টা ওভারটাইম',
+      sampleCost: 'হিসাবকৃত মোট মজুরি',
+      cta: 'টিম হাজিরা পরিচালনা শুরু করুন'
+    },
     features10: {
       eyebrow: 'ব্যবসা পরিচালনার সব টুলস এক সাথে',
       title: 'দৈনন্দিন কাজের জন্য পূর্ণাঙ্গ সমাধান',
@@ -1763,6 +1955,7 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
         { title: 'কোটেশন ও এস্টিমেট', desc: 'মিনিটের মধ্যে পেশাদার নির্মাণ কোটেশন তৈরি করুন।' },
         { title: 'প্রজেক্ট ট্র্যাকিং', desc: 'সাইটের কাজের অগ্রগতি সরাসরি রিয়েল-টাইমে দেখুন।' },
         { title: 'ক্লায়েন্ট ডিরেক্টরি', desc: 'গ্রাহক ও সাপ্লায়ারদের তথ্য সুন্দরভাবে সাজিয়ে রাখুন।', isHighlighted: true },
+        { title: 'কর্মীদের হাজিরা ও সময়', desc: 'শ্রমিকদের কাজের সময়, সাধারণ ও ওভারটাইম এবং সাইট মজুরি খরচ।', isNew: true },
         { title: 'শ্রমিক ও মালামাল', desc: 'শ্রমিকদের মজুরি ও কাঁচামালের সঠিক হিসাব রাখুন।' },
         { title: 'পেমেন্ট ট্র্যাকিং', desc: 'আদায় ও খরচের পূর্ণ হিসাব রাখুন।' },
         { title: 'লাভ ও রিপোর্ট', desc: 'প্রকৃত লাভ এবং আর্থিক অগ্রগতির স্পষ্ট চিত্র।' },

@@ -39,6 +39,7 @@ import {
   saveIntroBannersOrder, 
   fetchIntroBannersFromSupabase, 
   resetIntroBannersToDefault,
+  uploadBannerImageToSupabase,
   DEFAULT_INTRO_BANNERS 
 } from '../services/storage';
 import FullscreenIntroBanner from './FullscreenIntroBanner';
@@ -85,6 +86,7 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
   const [formSubtitle, setFormSubtitle] = useState('');
   const [formDescription, setFormDescription] = useState('');
   const [formImageUrl, setFormImageUrl] = useState('');
+  const [formDesktopImageUrl, setFormDesktopImageUrl] = useState('');
   const [formAccentColor, setFormAccentColor] = useState('#ff5722');
   const [formTagColor, setFormTagColor] = useState('bg-orange-500/20 text-orange-400 border-orange-500/30');
   const [formHighlights, setFormHighlights] = useState<string[]>(['', '', '']);
@@ -92,8 +94,13 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
   const [formMockupHeadline, setFormMockupHeadline] = useState('');
   const [formActive, setFormActive] = useState(true);
   const [uploadError, setUploadError] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [isUploadingDesktopImage, setIsUploadingDesktopImage] = useState(false);
+  const [imageUploadSuccessMsg, setImageUploadSuccessMsg] = useState<string | null>(null);
+  const [desktopImageUploadSuccessMsg, setDesktopImageUploadSuccessMsg] = useState<string | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const desktopFileInputRef = useRef<HTMLInputElement>(null);
 
   // Listen for storage events
   useEffect(() => {
@@ -133,12 +140,15 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
     setFormSubtitle('Descreva o benefício principal desta funcionalidade');
     setFormDescription('Explique aos utilizadores como esta ferramenta vai transformar e facilitar o seu dia a dia na construção civil.');
     setFormImageUrl('');
+    setFormDesktopImageUrl('');
     setFormAccentColor('#ff5722');
     setFormHighlights(['Funcionalidade 100% prática', 'Disponível no telemóvel e computador', 'Acesso imediato']);
     setFormMockupBadge('DESTAQUE DA PLATAFORMA');
     setFormMockupHeadline('Gestão Inteligente Átrios');
     setFormActive(true);
     setUploadError(null);
+    setImageUploadSuccessMsg(null);
+    setDesktopImageUploadSuccessMsg(null);
   };
 
   const handleOpenEdit = (banner: IntroBannerItem) => {
@@ -150,6 +160,7 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
     setFormSubtitle(banner.subtitle || '');
     setFormDescription(banner.description || '');
     setFormImageUrl(banner.imageUrl || '');
+    setFormDesktopImageUrl(banner.desktopImageUrl || '');
     setFormAccentColor(banner.accentColor || '#ff5722');
     setFormHighlights(
       banner.highlights && banner.highlights.length > 0 
@@ -160,16 +171,20 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
     setFormMockupHeadline(banner.mockupHeadline || '');
     setFormActive(banner.active ?? true);
     setUploadError(null);
+    setImageUploadSuccessMsg(null);
+    setDesktopImageUploadSuccessMsg(null);
   };
 
   const handleCloseForm = () => {
     setIsCreating(false);
     setEditingBanner(null);
     setUploadError(null);
+    setImageUploadSuccessMsg(null);
+    setDesktopImageUploadSuccessMsg(null);
   };
 
-  // Image Upload and Compression
-  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // Image Upload and Compression for Mobile / General Banner
+  const handleImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
@@ -179,44 +194,144 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
     }
 
     setUploadError(null);
+    setImageUploadSuccessMsg(null);
+    setIsUploadingImage(true);
 
-    // Read and compress image
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      const img = new Image();
-      img.onload = () => {
-        const canvas = document.createElement('canvas');
-        const MAX_WIDTH = 1200;
-        const MAX_HEIGHT = 800;
-        let width = img.width;
-        let height = img.height;
+    try {
+      // 1. Carregar e comprimir imagem para dimensões ideais de banner (1920x1080)
+      const compressedDataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 1920;
+            const MAX_HEIGHT = 1080;
+            let width = img.width;
+            let height = img.height;
 
-        if (width > height) {
-          if (width > MAX_WIDTH) {
-            height *= MAX_WIDTH / width;
-            width = MAX_WIDTH;
-          }
-        } else {
-          if (height > MAX_HEIGHT) {
-            width *= MAX_HEIGHT / height;
-            height = MAX_HEIGHT;
-          }
-        }
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
 
-        canvas.width = width;
-        canvas.height = height;
-        const ctx = canvas.getContext('2d');
-        if (ctx) {
-          ctx.drawImage(img, 0, 0, width, height);
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.85);
-          setFormImageUrl(compressedDataUrl);
-        } else {
-          setFormImageUrl(event.target?.result as string);
-        }
-      };
-      img.src = event.target?.result as string;
-    };
-    reader.readAsDataURL(file);
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.86));
+            } else {
+              resolve(event.target?.result as string);
+            }
+          };
+          img.onerror = () => reject(new Error('Erro ao processar ficheiro de imagem.'));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('Erro ao ler ficheiro.'));
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Tentar upload direto para o Supabase Storage (se buckets estiverem ativos)
+      const targetBannerId = editingBanner ? editingBanner.id : `banner_${Date.now()}`;
+      const cloudUpload = await uploadBannerImageToSupabase(file, `${targetBannerId}_mobile`);
+
+      if (cloudUpload.isCloudUrl && cloudUpload.url) {
+        setFormImageUrl(cloudUpload.url);
+        setImageUploadSuccessMsg('Imagem enviada e sincronizada com o Supabase Storage com sucesso!');
+      } else {
+        // Fallback para Base64 otimizado
+        setFormImageUrl(compressedDataUrl);
+        setImageUploadSuccessMsg('Imagem otimizada (1920x1080 HD) e pronta a guardar no Supabase!');
+      }
+    } catch (err: any) {
+      console.warn('Erro no processamento da imagem:', err);
+      setUploadError(`Erro ao carregar imagem: ${err.message || err}`);
+    } finally {
+      setIsUploadingImage(false);
+    }
+  };
+
+  // Image Upload and Compression for Dedicated Desktop Banner
+  const handleDesktopImageFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Por favor seleccione um ficheiro de imagem válido (PNG, JPG, WEBP).');
+      return;
+    }
+
+    setUploadError(null);
+    setDesktopImageUploadSuccessMsg(null);
+    setIsUploadingDesktopImage(true);
+
+    try {
+      // 1. Carregar e comprimir imagem widescreen para desktop (até 2560x1440 ou 1920x1080)
+      const compressedDataUrl: string = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = (event) => {
+          const img = new Image();
+          img.onload = () => {
+            const canvas = document.createElement('canvas');
+            const MAX_WIDTH = 2560;
+            const MAX_HEIGHT = 1440;
+            let width = img.width;
+            let height = img.height;
+
+            if (width > height) {
+              if (width > MAX_WIDTH) {
+                height *= MAX_WIDTH / width;
+                width = MAX_WIDTH;
+              }
+            } else {
+              if (height > MAX_HEIGHT) {
+                width *= MAX_HEIGHT / height;
+                height = MAX_HEIGHT;
+              }
+            }
+
+            canvas.width = Math.round(width);
+            canvas.height = Math.round(height);
+            const ctx = canvas.getContext('2d');
+            if (ctx) {
+              ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+              resolve(canvas.toDataURL('image/jpeg', 0.88));
+            } else {
+              resolve(event.target?.result as string);
+            }
+          };
+          img.onerror = () => reject(new Error('Erro ao processar ficheiro de imagem.'));
+          img.src = event.target?.result as string;
+        };
+        reader.onerror = () => reject(new Error('Erro ao ler ficheiro.'));
+        reader.readAsDataURL(file);
+      });
+
+      // 2. Upload para o Supabase
+      const targetBannerId = editingBanner ? editingBanner.id : `banner_${Date.now()}`;
+      const cloudUpload = await uploadBannerImageToSupabase(file, `${targetBannerId}_desktop`);
+
+      if (cloudUpload.isCloudUrl && cloudUpload.url) {
+        setFormDesktopImageUrl(cloudUpload.url);
+        setDesktopImageUploadSuccessMsg('Imagem de Computador enviada e sincronizada com sucesso!');
+      } else {
+        setFormDesktopImageUrl(compressedDataUrl);
+        setDesktopImageUploadSuccessMsg('Imagem de Computador otimizada e pronta a guardar no Supabase!');
+      }
+    } catch (err: any) {
+      console.warn('Erro no processamento da imagem de computador:', err);
+      setUploadError(`Erro ao carregar imagem para computador: ${err.message || err}`);
+    } finally {
+      setIsUploadingDesktopImage(false);
+    }
   };
 
   const handleSaveForm = async (e: React.FormEvent) => {
@@ -240,6 +355,7 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
         subtitle: formSubtitle.trim(),
         description: formDescription.trim(),
         imageUrl: formImageUrl.trim(),
+        desktopImageUrl: formDesktopImageUrl.trim(),
         accentColor: formAccentColor,
         highlights: cleanedHighlights.length > 0 ? cleanedHighlights : ['Funcionalidade completa', 'Interface intuitiva', 'Sincronização em nuvem'],
         mockupBadge: formMockupBadge.trim() || 'MÓDULO ÁTRIOS',
@@ -253,13 +369,14 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
 
       const res = await saveIntroBanner(bannerPayload);
       if (res.success) {
+        // Atualiza estado local imediatamente
         setBanners(getStoredIntroBanners());
         handleCloseForm();
         if (onSuccessToast) {
-          onSuccessToast(isCreating ? 'Novo banner adicionado e salvo no Supabase!' : 'Banner atualizado com sucesso no Supabase!');
+          onSuccessToast(isCreating ? 'Novo banner adicionado e sincronizado com o Supabase!' : 'Banner atualizado e sincronizado com o Supabase!');
         }
       } else {
-        setUploadError('Erro ao guardar banner. Verifique a consola.');
+        setUploadError('Erro ao guardar banner no Supabase. As alterações foram salvas localmente.');
       }
     } catch (err: any) {
       setUploadError(`Erro ao salvar: ${err.message || err}`);
@@ -312,10 +429,41 @@ export const MasterIntroBannersSettings: React.FC<MasterIntroBannersSettingsProp
   };
 
   const sqlSchemaCode = `-- =========================================================
--- TABELA: intro_banners (Supabase)
--- Banners de Apresentação em Tela Cheia do Átrios Build
+-- 1. ADICIONAR A COLUNA DE DESKTOP NA TABELA EXISTENTE (SUPABASE SQL EDITOR):
 -- =========================================================
+ALTER TABLE public.intro_banners 
+ADD COLUMN IF NOT EXISTS desktop_image_url TEXT;
 
+-- =========================================================
+-- 2. QUERY PARA ATUALIZAR/SALVAR O BANNER DE DESKTOP POR ID:
+-- =========================================================
+-- Exemplo para o Banner 1:
+UPDATE public.intro_banners
+SET desktop_image_url = 'https://seusite.com/banner-desktop-1.jpg',
+    updated_at = NOW()
+WHERE id = 'banner_1';
+
+-- Exemplo para o Banner 2:
+UPDATE public.intro_banners
+SET desktop_image_url = 'https://seusite.com/banner-desktop-2.jpg',
+    updated_at = NOW()
+WHERE id = 'banner_2';
+
+-- Exemplo para o Banner 3:
+UPDATE public.intro_banners
+SET desktop_image_url = 'https://seusite.com/banner-desktop-3.jpg',
+    updated_at = NOW()
+WHERE id = 'banner_3';
+
+-- Exemplo para o Banner 4:
+UPDATE public.intro_banners
+SET desktop_image_url = 'https://seusite.com/banner-desktop-4.jpg',
+    updated_at = NOW()
+WHERE id = 'banner_4';
+
+-- =========================================================
+-- 3. CRIAR A TABELA COMPLETA (SE AINDA NÃO EXISTIR):
+-- =========================================================
 CREATE TABLE IF NOT EXISTS public.intro_banners (
   id TEXT PRIMARY KEY,
   tag TEXT DEFAULT 'OPORTUNIDADES',
@@ -324,6 +472,7 @@ CREATE TABLE IF NOT EXISTS public.intro_banners (
   subtitle TEXT,
   description TEXT,
   image_url TEXT,
+  desktop_image_url TEXT,
   accent_color TEXT DEFAULT '#ff5722',
   highlights JSONB DEFAULT '[]'::jsonb,
   mockup_badge TEXT,
@@ -336,7 +485,7 @@ CREATE TABLE IF NOT EXISTS public.intro_banners (
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Ativar RLS (Row Level Security) e permitir leitura e escrita pública/autenticada
+-- Ativar RLS (Row Level Security)
 ALTER TABLE public.intro_banners ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY "Permitir Leitura Pública de intro_banners"
@@ -691,12 +840,12 @@ WITH CHECK (true);`;
               {/* Right Column: Image Upload & Mockup Config */}
               <div className="lg:col-span-5 space-y-4">
                 
-                {/* IMAGE UPLOAD SECTION */}
+                {/* IMAGE UPLOAD SECTION (MOBILE & TABLET / GERAL) */}
                 <div className="p-5 rounded-2xl bg-slate-950 border border-white/10 space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="text-[10px] font-black uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                      <ImageIcon size={14} className="text-orange-400" />
-                      Imagem / Foto do Banner
+                      <Smartphone size={14} className="text-orange-400" />
+                      Banner Mobile & Tablet (Padrão)
                     </label>
                     {formImageUrl && (
                       <button
@@ -704,7 +853,7 @@ WITH CHECK (true);`;
                         onClick={() => setFormImageUrl('')}
                         className="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer"
                       >
-                        <Trash2 size={12} /> Remover Imagem
+                        <Trash2 size={12} /> Remover
                       </button>
                     )}
                   </div>
@@ -712,16 +861,18 @@ WITH CHECK (true);`;
                   {/* Dimension recommendation pill */}
                   <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-orange-500/10 border border-orange-500/20 text-[10px] text-orange-300">
                     <span className="font-bold flex items-center gap-1">
-                      <Ruler size={12} /> Tamanho Ideal: <strong>1920 × 1080 px</strong>
+                      <Ruler size={12} /> Mobile / Tablet: <strong>1080 × 1920</strong> ou <strong>1920 × 1080</strong>
                     </span>
-                    <span className="font-mono bg-orange-500/20 px-1.5 py-0.5 rounded text-orange-200 font-bold">16:9 Widescreen</span>
+                    <span className="font-mono bg-orange-500/20 px-1.5 py-0.5 rounded text-orange-200 font-bold">Mobile First</span>
                   </div>
 
-                  {/* Upload Box / Dropzone */}
+                  {/* Upload Box / Dropzone for Mobile */}
                   <div
-                    onClick={() => fileInputRef.current?.click()}
+                    onClick={() => !isUploadingImage && fileInputRef.current?.click()}
                     className={`relative border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
-                      formImageUrl 
+                      isUploadingImage 
+                        ? 'border-orange-500 bg-orange-500/10 cursor-wait' 
+                        : formImageUrl 
                         ? 'border-orange-500/40 bg-orange-500/5 hover:border-orange-500' 
                         : 'border-white/20 bg-white/5 hover:border-orange-500 hover:bg-white/10'
                     }`}
@@ -732,35 +883,51 @@ WITH CHECK (true);`;
                       accept="image/*"
                       onChange={handleImageFileChange}
                       className="hidden"
+                      disabled={isUploadingImage}
                     />
 
-                    {formImageUrl ? (
+                    {isUploadingImage ? (
+                      <div className="py-6 space-y-2 flex flex-col items-center justify-center">
+                        <div className="w-8 h-8 border-2 border-orange-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold text-orange-400">
+                          A otimizar e enviar imagem para o Supabase...
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Processamento Mobile HD
+                        </span>
+                      </div>
+                    ) : formImageUrl ? (
                       <div className="space-y-2">
                         <div className="relative max-h-44 rounded-xl overflow-hidden shadow-md border border-white/10 mx-auto">
                           <img
                             src={formImageUrl}
-                            alt="Pré-visualização do banner"
-                            className="w-full h-36 object-cover"
+                            alt="Pré-visualização do banner mobile"
+                            className="w-full h-36 object-contain bg-slate-900"
                           />
                         </div>
                         <span className="text-[11px] text-emerald-400 font-bold block">
-                          ✓ Imagem carregada e pronta para o Supabase
+                          ✓ Imagem mobile pronta para o Supabase
                         </span>
+                        {imageUploadSuccessMsg && (
+                          <span className="text-[10px] text-emerald-300 font-medium block">
+                            {imageUploadSuccessMsg}
+                          </span>
+                        )}
                         <span className="text-[10px] text-slate-400 block">
-                          Clique para alterar a imagem (1920×1080 recomendado)
+                          Clique para alterar a imagem mobile/tablet
                         </span>
                       </div>
                     ) : (
                       <div className="py-4 space-y-2">
-                        <div className="w-12 h-12 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center mx-auto shadow-md">
-                          <Upload size={22} />
+                        <div className="w-10 h-10 rounded-2xl bg-orange-500/20 text-orange-400 flex items-center justify-center mx-auto shadow-md">
+                          <Upload size={20} />
                         </div>
                         <div>
                           <span className="text-xs font-black text-white block">
-                            Clique para fazer upload de imagem
+                            Upload Banner Mobile & Tablet
                           </span>
                           <span className="text-[10px] text-slate-400 block mt-0.5">
-                            Ideal: <strong>1920×1080px (16:9)</strong> • JPG, PNG, WEBP (Máx 2MB)
+                            Exibido em telemóveis e tablets • JPG, PNG, WEBP
                           </span>
                         </div>
                       </div>
@@ -770,14 +937,127 @@ WITH CHECK (true);`;
                   {/* Or Direct URL */}
                   <div className="space-y-1">
                     <span className="text-[9px] font-bold text-slate-500 uppercase">
-                      Ou insira o URL direto da imagem:
+                      Ou URL direto (Mobile/Tablet):
                     </span>
                     <input
                       type="url"
                       value={formImageUrl}
                       onChange={e => setFormImageUrl(e.target.value)}
-                      placeholder="https://exemplo.com/minha-imagem.jpg"
+                      placeholder="https://exemplo.com/banner-mobile.jpg"
                       className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs font-mono text-slate-300 outline-none focus:border-orange-500"
+                    />
+                  </div>
+                </div>
+
+                {/* DEDICATED DESKTOP / COMPUTADORES BANNER SECTION */}
+                <div className="p-5 rounded-2xl bg-slate-950 border-2 border-blue-500/30 space-y-3 relative overflow-hidden">
+                  <div className="flex items-center justify-between">
+                    <label className="text-[10px] font-black uppercase tracking-wider text-blue-400 flex items-center gap-1.5">
+                      <Monitor size={14} className="text-blue-400" />
+                      Banner Dedicado para Computadores (Desktop)
+                    </label>
+                    {formDesktopImageUrl && (
+                      <button
+                        type="button"
+                        onClick={() => setFormDesktopImageUrl('')}
+                        className="text-[10px] text-rose-400 hover:text-rose-300 font-bold flex items-center gap-1 cursor-pointer"
+                      >
+                        <Trash2 size={12} /> Remover
+                      </button>
+                    )}
+                  </div>
+
+                  {/* Dimension recommendation pill for desktop */}
+                  <div className="flex items-center justify-between px-3 py-1.5 rounded-xl bg-blue-500/10 border border-blue-500/20 text-[10px] text-blue-300">
+                    <span className="font-bold flex items-center gap-1">
+                      <Ruler size={12} /> Computador: <strong>1920 × 1080</strong> ou <strong>2560 × 1440 px</strong>
+                    </span>
+                    <span className="font-mono bg-blue-500/20 px-1.5 py-0.5 rounded text-blue-200 font-bold">16:9 Desktop</span>
+                  </div>
+
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Insira aqui um banner panorâmico de alta resolução. Em ecrãs grandes de computador este banner será exibido em tela cheia com máxima nitidez!
+                  </p>
+
+                  {/* Upload Box / Dropzone for Desktop */}
+                  <div
+                    onClick={() => !isUploadingDesktopImage && desktopFileInputRef.current?.click()}
+                    className={`relative border-2 border-dashed rounded-2xl p-4 text-center cursor-pointer transition-all ${
+                      isUploadingDesktopImage 
+                        ? 'border-blue-500 bg-blue-500/10 cursor-wait' 
+                        : formDesktopImageUrl 
+                        ? 'border-blue-500/40 bg-blue-500/5 hover:border-blue-500' 
+                        : 'border-white/20 bg-white/5 hover:border-blue-500 hover:bg-white/10'
+                    }`}
+                  >
+                    <input
+                      ref={desktopFileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleDesktopImageFileChange}
+                      className="hidden"
+                      disabled={isUploadingDesktopImage}
+                    />
+
+                    {isUploadingDesktopImage ? (
+                      <div className="py-6 space-y-2 flex flex-col items-center justify-center">
+                        <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                        <span className="text-xs font-bold text-blue-400">
+                          A otimizar e enviar imagem Widescreen para o Supabase...
+                        </span>
+                        <span className="text-[10px] text-slate-400">
+                          Processamento Ultra HD (Desktop)
+                        </span>
+                      </div>
+                    ) : formDesktopImageUrl ? (
+                      <div className="space-y-2">
+                        <div className="relative max-h-44 rounded-xl overflow-hidden shadow-md border border-white/10 mx-auto">
+                          <img
+                            src={formDesktopImageUrl}
+                            alt="Pré-visualização do banner desktop"
+                            className="w-full h-36 object-contain bg-slate-900"
+                          />
+                        </div>
+                        <span className="text-[11px] text-blue-400 font-bold block">
+                          ✓ Banner de computador pronto e sincronizado
+                        </span>
+                        {desktopImageUploadSuccessMsg && (
+                          <span className="text-[10px] text-blue-300 font-medium block">
+                            {desktopImageUploadSuccessMsg}
+                          </span>
+                        )}
+                        <span className="text-[10px] text-slate-400 block">
+                          Clique para alterar a imagem de computador
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="py-4 space-y-2">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center mx-auto shadow-md">
+                          <Monitor size={20} />
+                        </div>
+                        <div>
+                          <span className="text-xs font-black text-white block">
+                            Upload de Banner para Computador
+                          </span>
+                          <span className="text-[10px] text-slate-400 block mt-0.5">
+                            Ideal: <strong>1920×1080px (16:9 Widescreen)</strong>
+                          </span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Or Direct URL for Desktop */}
+                  <div className="space-y-1">
+                    <span className="text-[9px] font-bold text-slate-500 uppercase">
+                      Ou URL direto para Computador:
+                    </span>
+                    <input
+                      type="url"
+                      value={formDesktopImageUrl}
+                      onChange={e => setFormDesktopImageUrl(e.target.value)}
+                      placeholder="https://exemplo.com/banner-desktop-1920x1080.jpg"
+                      className="w-full px-3 py-2 bg-slate-900 border border-white/10 rounded-xl text-xs font-mono text-slate-300 outline-none focus:border-blue-500"
                     />
                   </div>
                 </div>
@@ -982,8 +1262,13 @@ WITH CHECK (true);`;
                           </span>
                         )}
                         {banner.imageUrl && (
-                          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold">
-                            🖼️ Imagem Personalizada
+                          <span className="px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-400 border border-orange-500/20 text-[9px] font-bold flex items-center gap-1">
+                            <Smartphone size={10} /> Mobile
+                          </span>
+                        )}
+                        {banner.desktopImageUrl && (
+                          <span className="px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-400 border border-blue-500/20 text-[9px] font-bold flex items-center gap-1">
+                            <Monitor size={10} /> Computador (Desktop)
                           </span>
                         )}
                       </div>

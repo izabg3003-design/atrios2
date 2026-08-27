@@ -2059,81 +2059,81 @@ export const fetchCloudAppSettings = async () => {
 
 export const DEFAULT_INTRO_BANNERS: IntroBannerItem[] = [
   {
-    id: 'banner_opportunities',
-    tag: 'OPORTUNIDADES DE NEGÓCIO',
+    id: 'banner_companies',
+    tag: 'PARA EMPRESAS & EMPREITEIROS',
     tagColor: 'bg-orange-500/20 text-orange-400 border-orange-500/30',
-    title: 'Encontre Novos Clientes e Receba Pedidos de Obra',
-    subtitle: 'Conectamos clientes particulares a profissionais de topo da construção civil.',
-    description: 'Receba solicitações detalhadas com fotos, localização e descrição do serviço diretamente na plataforma.',
+    title: 'Receba Pedidos, Crie Orçamentos em Minutos e Faça a Gestão de Obras',
+    subtitle: 'A solução definitiva para construtores, técnicos e empresas de remodelação.',
+    description: 'Receba pedidos reais de clientes, crie propostas em PDF com apoio de Inteligência Artificial e acompanhe cada etapa da obra.',
     imageUrl: '/banners/banner_1.jpg',
     accentColor: '#ff5722',
     highlights: [
-      'Pedidos qualificados em tempo real',
-      'Localização exata e fotos da obra',
-      'Comunicação direta e transparente'
+      'Receção de pedidos qualificados na sua região',
+      'Orçamentos detalhados e propostas em PDF profissional',
+      'Diário de obra, fotos e cronograma de execução'
     ],
-    mockupBadge: 'NOVO PEDIDO DISPONÍVEL',
-    mockupHeadline: 'Remodelação Geral de Moradia T3',
+    mockupBadge: 'PAINEL EMPRESA & OBRAS',
+    mockupHeadline: 'Proposta Comercial & Gestão Integrada',
     sortOrder: 0,
     active: true,
     createdAt: new Date().toISOString()
   },
   {
-    id: 'banner_budgets',
-    tag: 'ORÇAMENTOS RÁPIDOS & PRECISOS',
+    id: 'banner_clients',
+    tag: 'PARA CLIENTES & PROPRIETÁRIOS',
     tagColor: 'bg-amber-500/20 text-amber-400 border-amber-500/30',
-    title: 'Crie Orçamentos e Propostas Profissionais em Minutos',
-    subtitle: 'Acabou a perda de tempo com folhas de cálculo complexas e orçamentos desorganizados.',
-    description: 'Calcule custos de mão de obra, materiais e margem de lucro com precisão cirúrgica.',
+    title: 'Peça Orçamentos Grátis e Encontre Profissionais de Confiança',
+    subtitle: 'Publique o seu pedido em 2 passos e compare propostas transparentes.',
+    description: 'Acompanhe as suas solicitações a qualquer hora com o seu Código PIN único e aprove as melhores ofertas.',
     imageUrl: '/banners/banner_2.jpg',
     accentColor: '#f59e0b',
     highlights: [
-      'Cálculo automático de margem e impostos',
-      'PDFs elegantes prontos a imprimir',
-      'Assinatura e aprovação digital do cliente'
+      'Pedido de orçamento simples, rápido e sem compromisso',
+      'Código PIN exclusivo para consulta de propostas',
+      'Comparação clara de mão de obra, materiais e prazos'
     ],
-    mockupBadge: 'PROPOSTA COMERCIAL #2026-08',
-    mockupHeadline: 'Reabilitação de Cozinha e Casa de Banho',
+    mockupBadge: 'PORTAL DO CLIENTE',
+    mockupHeadline: 'Acompanhe Orçamentos com Código PIN',
     sortOrder: 1,
     active: true,
     createdAt: new Date().toISOString()
   },
   {
-    id: 'banner_management',
-    tag: 'GESTÃO & CRONOGRAMAS',
+    id: 'banner_workers',
+    tag: 'PARA COLABORADORES & EQUIPAS',
     tagColor: 'bg-blue-500/20 text-blue-400 border-blue-500/30',
-    title: 'Acompanhe as suas Obras do Início à Conclusão',
-    subtitle: 'Mantenha todas as etapas, equipas e prazos rigorosamente sob controlo.',
-    description: 'Registo diário de obra, controlo de tarefas pendentes, fotos do avanço físico e histórico completo.',
+    title: 'Relógio de Ponto no Telemóvel e Controlo de Horas por Obra',
+    subtitle: 'Picagem rápida por QR Code, registo de pausas e cálculo de horas extraordinárias.',
+    description: 'Elimine folhas de papel. Cada colaborador regista o ponto com facilidade e os custos de mão de obra são calculados automaticamente por projeto.',
     imageUrl: '/banners/banner_3.jpg',
     accentColor: '#3b82f6',
     highlights: [
-      'Acompanhamento do progresso em tempo real',
-      'Atribuição de tarefas e equipas',
-      'Diário fotográfico de evolução da obra'
+      'Picagem de ponto rápida por telemóvel ou QR Code',
+      'Cálculo automático de horas normais e extraordinárias',
+      'Associação direta dos custos de pessoal a cada obra'
     ],
-    mockupBadge: 'OBRA EM EXECUÇÃO',
-    mockupHeadline: 'Edifício Residencial Horizonte',
+    mockupBadge: 'PONTO ELETRÓNICO & EQUIPA',
+    mockupHeadline: 'Registo de Horas & Turnos por Obra',
     sortOrder: 2,
     active: true,
     createdAt: new Date().toISOString()
   },
   {
     id: 'banner_finances',
-    tag: 'SAÚDE FINANCEIRA & CONTROLO',
+    tag: 'GESTÃO FINANCEIRA & RENTABILIDADE',
     tagColor: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30',
-    title: 'Controle Pagamentos, Custos Reais e Lucro Líquido',
-    subtitle: 'Tenha clareza total sobre o fluxo de caixa de cada projeto.',
-    description: 'Gestão de adiantamentos, pagamentos parciais por auto de medição e relatórios financeiros automáticos.',
+    title: 'Controle Pagamentos, Custos Reais e Lucro Líquido em Tempo Real',
+    subtitle: 'Tenha clareza total sobre o fluxo de caixa e margens de cada projeto.',
+    description: 'Gestão de adiantamentos, pagamentos faseados por auto de medição e relatórios de rentabilidade em PDF e Excel.',
     imageUrl: '/banners/banner_4.jpg',
     accentColor: '#10b981',
     highlights: [
-      'Registo de adiantamentos e pagamentos parcelados',
-      'Controlo de faturas de compras e fornecedores',
-      'Relatórios gráficos de rentabilidade por obra'
+      'Controlo de adiantamentos, sinais e valores pendentes',
+      'Gestão de compras, materiais e despesas por obra',
+      'Relatórios gráficos de rentabilidade e margem real'
     ],
-    mockupBadge: 'FLUXO FINANCEIRO',
-    mockupHeadline: 'Resumo Consolidado de Faturação',
+    mockupBadge: 'SAÚDE FINANCEIRA 360°',
+    mockupHeadline: 'Relatórios de Margem & Fluxo de Caixa',
     sortOrder: 3,
     active: true,
     createdAt: new Date().toISOString()
@@ -2173,6 +2173,7 @@ export const mapIntroBannerFromSupabase = (raw: any): IntroBannerItem => {
     subtitle: raw.subtitle || '',
     description: raw.description || raw.desc || '',
     imageUrl: raw.image_url || raw.imageUrl || raw.image || raw.photo_url || '',
+    desktopImageUrl: raw.desktop_image_url || raw.desktopImageUrl || raw.desktop_image || '',
     accentColor: raw.accent_color || raw.accentColor || '#ff5722',
     highlights: highlightsArray.length > 0 ? highlightsArray : ['Funcionalidade completa', 'Interface intuitiva', 'Sincronização em nuvem'],
     mockupBadge: raw.mockup_badge || raw.mockupBadge || 'DESTAQUE',
@@ -2183,6 +2184,44 @@ export const mapIntroBannerFromSupabase = (raw: any): IntroBannerItem => {
     createdAt: raw.created_at || raw.createdAt || new Date().toISOString(),
     updatedAt: raw.updated_at || raw.updatedAt || new Date().toISOString()
   };
+};
+
+export const uploadBannerImageToSupabase = async (
+  fileOrBlob: File | Blob,
+  bannerId: string
+): Promise<{ url: string; isCloudUrl: boolean }> => {
+  try {
+    const fileExt = (fileOrBlob instanceof File && fileOrBlob.name.split('.').pop()) || 'jpg';
+    const cleanBannerId = (bannerId || 'banner').replace(/[^a-zA-Z0-9_-]/g, '_');
+    const fileName = `banner_${cleanBannerId}_${Date.now()}.${fileExt}`;
+    const filePath = `intro_banners/${fileName}`;
+
+    // Tenta os buckets de armazenamento configurados no Supabase
+    const candidateBuckets = ['banners', 'intro_banners', 'public', 'app_media', 'construction_photos', 'project_files'];
+
+    for (const bucket of candidateBuckets) {
+      try {
+        const { data, error } = await supabase.storage.from(bucket).upload(filePath, fileOrBlob, {
+          cacheControl: '3600',
+          upsert: true
+        });
+
+        if (!error && data) {
+          const { data: publicData } = supabase.storage.from(bucket).getPublicUrl(filePath);
+          if (publicData?.publicUrl) {
+            console.log(`[Storage] Imagem de banner enviada para bucket '${bucket}' no Supabase:`, publicData.publicUrl);
+            return { url: publicData.publicUrl, isCloudUrl: true };
+          }
+        }
+      } catch (bucketErr) {
+        // Tenta próximo bucket
+      }
+    }
+  } catch (e) {
+    console.warn('[Storage] Erro ao tentar upload para Supabase Storage:', e);
+  }
+
+  return { url: '', isCloudUrl: false };
 };
 
 export const getStoredIntroBanners = (): IntroBannerItem[] => {
@@ -2212,24 +2251,73 @@ export const fetchIntroBannersFromSupabase = async (): Promise<IntroBannerItem[]
       supabase.from('intro_banners').select('*').order('sort_order', { ascending: true })
     );
 
-    if (error) {
-      // Se der erro (ex: tabela ainda não criada ou coluna diferente), tentamos sem order
+    let supabaseBanners: any[] | null = null;
+
+    if (!error && data && Array.isArray(data) && data.length > 0) {
+      supabaseBanners = data;
+    } else {
+      // Fallback sem order se a coluna sort_order for diferente
       const fallbackRes = await safeFetch<any[]>(supabase.from('intro_banners').select('*'));
-      if (fallbackRes.data && Array.isArray(fallbackRes.data) && fallbackRes.data.length > 0) {
-        const mapped = fallbackRes.data.map(mapIntroBannerFromSupabase).sort((a, b) => a.sortOrder - b.sortOrder);
-        saveIntroBannersLocally(mapped);
-        return mapped;
+      if (!fallbackRes.error && fallbackRes.data && Array.isArray(fallbackRes.data) && fallbackRes.data.length > 0) {
+        supabaseBanners = fallbackRes.data;
       }
-      return getStoredIntroBanners();
     }
 
-    if (data && Array.isArray(data) && data.length > 0) {
-      const mapped = data.map(mapIntroBannerFromSupabase).sort((a, b) => a.sortOrder - b.sortOrder);
-      saveIntroBannersLocally(mapped);
-      return mapped;
+    const localBanners = getStoredIntroBanners();
+
+    if (supabaseBanners && supabaseBanners.length > 0) {
+      const mappedFromCloud = supabaseBanners.map(mapIntroBannerFromSupabase).sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      
+      // Inteligente: se o banner local tiver imagem personalizada ou data mais recente, mantemos e sincronizamos
+      const mergedList = mappedFromCloud.map(cloudBanner => {
+        const localMatch = localBanners.find(l => l.id === cloudBanner.id);
+        if (localMatch) {
+          const localTime = new Date(localMatch.updatedAt || localMatch.createdAt || 0).getTime();
+          const cloudTime = new Date(cloudBanner.updatedAt || cloudBanner.createdAt || 0).getTime();
+          
+          // Se o local tiver novos dados ainda não salvos na nuvem
+          if (localTime > cloudTime && (localMatch.imageUrl !== cloudBanner.imageUrl || localMatch.desktopImageUrl !== cloudBanner.desktopImageUrl)) {
+            syncToCloud('intro_banners', localMatch);
+            return {
+              ...cloudBanner,
+              ...localMatch,
+              desktopImageUrl: localMatch.desktopImageUrl || cloudBanner.desktopImageUrl || '',
+              imageUrl: localMatch.imageUrl || cloudBanner.imageUrl || ''
+            };
+          }
+
+          // Se a nuvem tem imagem de desktop, garante que prevalece
+          return {
+            ...localMatch,
+            ...cloudBanner,
+            desktopImageUrl: cloudBanner.desktopImageUrl || localMatch.desktopImageUrl || '',
+            imageUrl: cloudBanner.imageUrl || localMatch.imageUrl || ''
+          };
+        }
+        return cloudBanner;
+      });
+
+      // Inclui banners criados localmente que ainda não existam no Supabase
+      localBanners.forEach(localBanner => {
+        if (!mergedList.some(m => m.id === localBanner.id)) {
+          mergedList.push(localBanner);
+          syncToCloud('intro_banners', localBanner);
+        }
+      });
+
+      const sorted = mergedList.sort((a, b) => (a.sortOrder ?? 0) - (b.sortOrder ?? 0));
+      saveIntroBannersLocally(sorted);
+      return sorted;
     }
 
-    return getStoredIntroBanners();
+    // Se o Supabase estiver sem dados ou inacessível, usamos local e semeamos os banners locais para a tabela Supabase
+    if (localBanners && localBanners.length > 0) {
+      for (const b of localBanners) {
+        syncToCloud('intro_banners', b);
+      }
+    }
+
+    return localBanners;
   } catch (err) {
     console.warn('[Storage] fetchIntroBannersFromSupabase error:', err);
     return getStoredIntroBanners();
@@ -2261,34 +2349,14 @@ export const saveIntroBanner = async (banner: IntroBannerItem): Promise<{ succes
 
     saveIntroBannersLocally(updatedList);
 
-    // Sincronizar com Supabase na tabela intro_banners
+    // Sincronizar com Supabase na tabela intro_banners usando syncToCloud (com auto-retry e suporte de colunas)
     try {
-      const payload: Record<string, any> = {
-        id: bannerToSave.id,
-        tag: bannerToSave.tag,
-        tag_color: bannerToSave.tagColor,
-        title: bannerToSave.title,
-        subtitle: bannerToSave.subtitle,
-        description: bannerToSave.description,
-        image_url: bannerToSave.imageUrl || '',
-        accent_color: bannerToSave.accentColor,
-        highlights: JSON.stringify(bannerToSave.highlights || []),
-        mockup_badge: bannerToSave.mockupBadge,
-        mockup_headline: bannerToSave.mockupHeadline,
-        mockup_details: JSON.stringify(bannerToSave.mockupDetails || []),
-        sort_order: bannerToSave.sortOrder,
-        active: bannerToSave.active,
-        is_active: bannerToSave.active,
-        created_at: bannerToSave.createdAt,
-        updated_at: bannerToSave.updatedAt
-      };
-
-      const { error } = await supabase.from('intro_banners').upsert(payload);
-      if (error) {
-        console.warn('[Storage] Aviso ao sincronizar intro_banners no Supabase:', error);
+      const syncRes = await syncToCloud('intro_banners', bannerToSave);
+      if (!syncRes.success) {
+        console.warn('[Storage] Aviso ao sincronizar intro_banners no Supabase:', syncRes.error);
       }
     } catch (sbErr) {
-      console.warn('[Storage] Falha ao upsert em intro_banners no Supabase:', sbErr);
+      console.warn('[Storage] Falha ao sincronizar intro_banners no Supabase:', sbErr);
     }
 
     return { success: true, data: bannerToSave };
@@ -2323,12 +2391,7 @@ export const saveIntroBannersOrder = async (banners: IntroBannerItem[]): Promise
 
     try {
       for (const banner of updated) {
-        await supabase.from('intro_banners').upsert({
-          id: banner.id,
-          title: banner.title,
-          sort_order: banner.sortOrder,
-          updated_at: banner.updatedAt
-        });
+        await syncToCloud('intro_banners', banner);
       }
     } catch (e) {}
 

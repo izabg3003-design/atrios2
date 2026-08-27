@@ -41,7 +41,10 @@ import {
   HardHat,
   ChevronRight,
   Shield,
-  Lock
+  Lock,
+  Clock,
+  QrCode,
+  Timer
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
@@ -67,7 +70,7 @@ interface LandingPageProps {
 
 const STEP_ICONS = [FileText, Users, FileText, Send, Users, HardHat, TrendingUp];
 const FEATURE_ICONS = [
-  FileText, Hammer, Users, Layers, CreditCard,
+  FileText, Hammer, Users, Clock, Layers, CreditCard,
   BarChart3, Inbox, Send, Folder, Smartphone
 ];
 const TRUST_BANNER_ICONS = [ShieldCheck, Headphones, RefreshCw, TrendingUp];
@@ -473,24 +476,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       <section className="relative pt-20 sm:pt-32 lg:pt-36 pb-12 sm:pb-20 overflow-hidden bg-white w-full max-w-full">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           
-          {/* Top Presentation Banner Pill */}
-          <div className="mb-6 sm:mb-8 text-left max-w-full overflow-hidden">
-            <button
-              onClick={() => {
-                if (onOpenIntroBanners) {
-                  onOpenIntroBanners();
-                } else {
-                  setShowDemoModal(true);
-                }
-              }}
-              className="inline-flex items-center gap-2 px-3.5 sm:px-4 py-2 rounded-full bg-amber-50/90 hover:bg-amber-100/90 border border-amber-200/80 text-[#d9531e] text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all cursor-pointer shadow-xs group max-w-full text-left"
-            >
-              <Sparkles size={14} className="text-[#ff5722] shrink-0" />
-              <span className="truncate">{ltx.hero.bannerPill}</span>
-              <ChevronRight size={14} className="text-[#ff5722] group-hover:translate-x-0.5 transition-transform shrink-0" />
-            </button>
-          </div>
-
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-8 items-center w-full max-w-full">
             
             {/* Left Column: Headline, Subtitle, Large CTAs */}
@@ -935,6 +920,118 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           </div>
 
+        </div>
+      </section>
+
+      {/* 4.5. SECTION "CONTROLO DE HORAS DOS COLABORADORES POR OBRA" */}
+      <section className="py-12 sm:py-20 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/80 border-t border-slate-200/80 w-full max-w-full overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
+          <div className="bg-slate-900 rounded-3xl p-6 sm:p-10 lg:p-14 text-white shadow-xl border border-slate-800 relative overflow-hidden">
+            {/* Background ambient decoration */}
+            <div className="absolute top-0 right-0 w-96 h-96 bg-orange-500/10 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20" />
+            <div className="absolute bottom-0 left-0 w-80 h-80 bg-blue-500/10 rounded-full blur-3xl pointer-events-none -ml-20 -mb-20" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center relative z-10">
+              
+              {/* Left Column: Copy, Highlights and CTA */}
+              <div className="lg:col-span-7 text-left space-y-4 sm:space-y-6">
+                <div className="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-orange-500/15 border border-orange-500/30 text-orange-400 text-[11px] font-black uppercase tracking-wider">
+                  <Clock size={13} className="shrink-0" />
+                  <span>{ltx.timeTrackerBanner.badge}</span>
+                </div>
+
+                <h2 className="text-2xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-white leading-tight break-words">
+                  {ltx.timeTrackerBanner.title}
+                </h2>
+
+                <p className="text-slate-300 text-sm sm:text-base font-normal leading-relaxed break-words">
+                  {ltx.timeTrackerBanner.sub}
+                </p>
+
+                {/* Bullets */}
+                <ul className="space-y-3 pt-2">
+                  {ltx.timeTrackerBanner.bullets.map((bullet, idx) => (
+                    <li key={idx} className="flex items-start gap-3 text-slate-200 text-xs sm:text-sm font-semibold">
+                      <div className="w-5 h-5 rounded-full bg-orange-500/20 text-orange-400 border border-orange-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                      <span className="break-words">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Action CTA */}
+                <div className="pt-3 sm:pt-4">
+                  <button
+                    onClick={onStartFree}
+                    className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-[#ff5722] hover:bg-[#e64a19] text-white rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-orange-500/30 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>{ltx.timeTrackerBanner.cta}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Live Mockup Card */}
+              <div className="lg:col-span-5 w-full">
+                <div className="bg-slate-950/80 rounded-2xl p-4 sm:p-6 border border-slate-800 shadow-2xl backdrop-blur-sm space-y-4">
+                  
+                  {/* Mockup Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-800">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-orange-500/20 text-orange-400 flex items-center justify-center font-black text-xs">
+                        <Timer size={18} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-white flex items-center gap-1.5">
+                          <span>{ltx.timeTrackerBanner.sampleWorker}</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          {ltx.timeTrackerBanner.sampleRole}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase">
+                      ONLINE
+                    </div>
+                  </div>
+
+                  {/* Project Location Badge */}
+                  <div className="bg-slate-900/90 rounded-xl p-3 border border-slate-800/80 flex items-center justify-between gap-2">
+                    <div className="text-xs font-bold text-slate-300 truncate">
+                      {ltx.timeTrackerBanner.sampleProject}
+                    </div>
+                    <div className="flex items-center gap-1 text-[10px] font-bold text-orange-400 shrink-0">
+                      <QrCode size={13} />
+                      <span>QR PUNCH</span>
+                    </div>
+                  </div>
+
+                  {/* Hours Breakdown Grid */}
+                  <div className="grid grid-cols-2 gap-2.5 text-center">
+                    <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-bold text-slate-400 block mb-0.5">Horas Normais</span>
+                      <span className="text-sm font-black text-white">{ltx.timeTrackerBanner.sampleHours}</span>
+                    </div>
+                    <div className="p-3 bg-slate-900/60 rounded-xl border border-slate-800">
+                      <span className="text-[10px] font-bold text-amber-400 block mb-0.5">Horas Extras</span>
+                      <span className="text-sm font-black text-amber-400">{ltx.timeTrackerBanner.sampleExtra}</span>
+                    </div>
+                  </div>
+
+                  {/* Calculated Project Cost Footer */}
+                  <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between text-xs">
+                    <span className="text-slate-400 font-medium">{ltx.timeTrackerBanner.sampleCost}</span>
+                    <span className="text-emerald-400 font-black text-sm">100% Automático</span>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
         </div>
       </section>
 

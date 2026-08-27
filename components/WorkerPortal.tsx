@@ -19,6 +19,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Worker, WorkTimeLog, Company } from '../types';
+import { Locale } from '../translations';
+import { workerPortalTranslations } from './workTrackerTranslations';
 import { 
   fetchWorkerById, 
   fetchCompanyForVerification, 
@@ -30,16 +32,38 @@ import {
 interface WorkerPortalProps {
   initialWorkerId?: string;
   initialCompanyId?: string;
+  initialLocale?: Locale;
   onBackToHome?: () => void;
 }
 
 export const WorkerPortal: React.FC<WorkerPortalProps> = ({
   initialWorkerId,
   initialCompanyId,
+  initialLocale,
   onBackToHome
 }) => {
+  const [portalLocale, setPortalLocale] = useState<Locale>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = params.get('lang') || params.get('locale');
+      if (urlLang && workerPortalTranslations[urlLang as Locale]) {
+        return urlLang as Locale;
+      }
+    }
+    if (initialLocale && workerPortalTranslations[initialLocale]) {
+      return initialLocale;
+    }
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('atrios_locale') as Locale;
+      if (saved && workerPortalTranslations[saved]) return saved;
+    }
+    return 'pt-PT';
+  });
+
+  const wpt = workerPortalTranslations[portalLocale] || workerPortalTranslations['pt-PT'];
+
   // Obter IDs a partir de props ou parâmetros de URL
-  const [workerId, setWorkerId] = useState<string>(() => {
+  const [workerId] = useState<string>(() => {
     if (initialWorkerId) return initialWorkerId;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -48,7 +72,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
     return '';
   });
 
-  const [companyId, setCompanyId] = useState<string>(() => {
+  const [companyId] = useState<string>(() => {
     if (initialCompanyId) return initialCompanyId;
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
@@ -147,7 +171,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
         lunchDeduction = 30;
       } else if (lunchBreak.includes('1h30') || lunchBreak.includes('90m') || lunchBreak.includes('90 min')) {
         lunchDeduction = 90;
-      } else if (lunchBreak.includes('0m') || lunchBreak.includes('Sem pausa') || lunchBreak.includes('0 min')) {
+      } else if (lunchBreak.includes('0m') || lunchBreak.includes('Sem pausa') || lunchBreak.includes('0 min') || lunchBreak.includes('No break') || lunchBreak.includes('Sin pausa')) {
         lunchDeduction = 0;
       }
 
@@ -162,17 +186,17 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
   const handleSubmitLog = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!worker || !companyId) {
-      setErrorMessage('Dados do colaborador não identificados.');
+      setErrorMessage(wpt.errorUnidentifiedWorker);
       return;
     }
 
     if (!logDate || !startTime || !endTime) {
-      setErrorMessage('Por favor, preencha a data e os horários de entrada e saída.');
+      setErrorMessage(wpt.errorMissingFields);
       return;
     }
 
     if (!workLocation.trim()) {
-      setErrorMessage('Por favor, indique a localização ou nome da obra.');
+      setErrorMessage(wpt.errorMissingLocation);
       return;
     }
 
@@ -209,7 +233,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
       }, 4500);
     } catch (err) {
       console.error('Erro ao submeter horas:', err);
-      setErrorMessage('Não foi possível submeter o registo de horas. Tente novamente.');
+      setErrorMessage(wpt.errorSubmitFailed);
     } finally {
       setIsSubmitting(false);
     }
@@ -251,7 +275,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
       const wId = worker?.id || workerId;
       const cId = company?.id || companyId;
       
-      const customUrl = `${origin}/?portal=ponto&colaborador=${workerSlug}&nome=${workerFullName}&workerId=${encodeURIComponent(wId)}&companyId=${encodeURIComponent(cId)}`;
+      const customUrl = `${origin}/?portal=ponto&colaborador=${workerSlug}&nome=${workerFullName}&workerId=${encodeURIComponent(wId)}&companyId=${encodeURIComponent(cId)}&lang=${encodeURIComponent(portalLocale)}`;
       navigator.clipboard.writeText(customUrl);
       setCopiedLink(true);
       setTimeout(() => setCopiedLink(false), 2500);
@@ -264,8 +288,8 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
         <div className="w-12 h-12 bg-amber-500/20 text-amber-500 rounded-2xl flex items-center justify-center animate-bounce mb-3">
           <Clock size={24} />
         </div>
-        <p className="font-bold text-sm text-slate-200">A carregar portal de ponto...</p>
-        <p className="text-[11px] text-slate-500 mt-0.5">A sincronizar dados seguros...</p>
+        <p className="font-bold text-sm text-slate-200">{wpt.loadingPortal}</p>
+        <p className="text-[11px] text-slate-500 mt-0.5">{wpt.syncingSecureData}</p>
       </div>
     );
   }
@@ -276,16 +300,16 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
         <div className="w-14 h-14 bg-rose-500/20 text-rose-400 rounded-2xl flex items-center justify-center mb-3">
           <AlertCircle size={28} />
         </div>
-        <h2 className="text-lg font-bold text-white tracking-tight">Colaborador Não Encontrado</h2>
+        <h2 className="text-lg font-bold text-white tracking-tight">{wpt.workerNotFound}</h2>
         <p className="text-slate-400 text-xs max-w-xs mt-1.5 leading-relaxed">
-          O link de registo de ponto parece estar incompleto ou expirado. Verifique o link fornecido pela sua empresa.
+          {wpt.invalidWorkerLinkDesc}
         </p>
         {onBackToHome && (
           <button
             onClick={onBackToHome}
             className="mt-4 px-4 py-2 bg-amber-500 hover:bg-amber-600 text-slate-950 font-bold text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
           >
-            Voltar ao Início
+            {wpt.home}
           </button>
         )}
       </div>
@@ -295,34 +319,60 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
   return (
     <div className="min-h-screen w-full max-w-full bg-slate-950 text-slate-100 flex flex-col items-center py-4 px-3 sm:px-4 sm:py-6 relative overflow-y-auto overflow-x-hidden font-sans selection:bg-amber-500 selection:text-slate-950 box-border">
       
-      {/* Background Decorativo Seguro com Overflow Hidden */}
+      {/* Background Decorativo Seguro */}
       <div className="fixed inset-0 pointer-events-none opacity-20 overflow-hidden">
         <div className="absolute -top-32 -left-32 w-72 h-72 bg-amber-500 rounded-full blur-[100px]" />
         <div className="absolute top-1/2 -right-32 w-72 h-72 bg-blue-600 rounded-full blur-[120px]" />
       </div>
 
-      {/* Container Ajustado à Medida do Ecrã do Telemóvel/Tablet */}
+      {/* Container Principal */}
       <div className="w-full max-w-md mx-auto space-y-3.5 relative z-10 box-border pb-10">
         
-        {/* Top Header Bar */}
+        {/* Top Header Bar with Language Selector */}
         <div className="w-full flex items-center justify-between gap-2 min-w-0">
-          {onBackToHome ? (
-            <button
-              onClick={onBackToHome}
-              className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-800 transition-all cursor-pointer shrink-0"
+          <div className="flex items-center gap-1.5">
+            {onBackToHome && (
+              <button
+                onClick={onBackToHome}
+                className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 text-xs font-semibold flex items-center gap-1 border border-slate-800 transition-all cursor-pointer shrink-0"
+              >
+                <ArrowLeft size={13} />
+                <span>{wpt.home}</span>
+              </button>
+            )}
+
+            {/* Language Selector */}
+            <select
+              value={portalLocale}
+              onChange={(e) => {
+                const newLoc = e.target.value as Locale;
+                setPortalLocale(newLoc);
+                try {
+                  localStorage.setItem('atrios_locale', newLoc);
+                } catch {}
+              }}
+              className="bg-slate-900 border border-slate-800 text-slate-200 text-xs font-bold rounded-xl px-2 py-1.5 outline-none focus:border-amber-500 cursor-pointer"
+              title="Idioma / Language"
             >
-              <ArrowLeft size={13} />
-              <span>Início</span>
-            </button>
-          ) : <div className="shrink-0" />}
+              <option value="pt-PT">🇵🇹 PT</option>
+              <option value="pt-BR">🇧🇷 BR</option>
+              <option value="en-US">🇬🇧 EN</option>
+              <option value="es-ES">🇪🇸 ES</option>
+              <option value="fr-FR">🇫🇷 FR</option>
+              <option value="it-IT">🇮🇹 IT</option>
+              <option value="ru-RU">🇷🇺 RU</option>
+              <option value="hi-IN">🇮🇳 HI</option>
+              <option value="bn-BD">🇧🇩 BN</option>
+            </select>
+          </div>
 
           <button
             onClick={copyPortalLink}
             className="px-2.5 py-1.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-amber-400 text-xs font-bold uppercase tracking-wider flex items-center gap-1 border border-slate-800 transition-all cursor-pointer shrink-0"
-            title="Guardar o link deste portal no telemóvel"
+            title="Guardar link"
           >
             {copiedLink ? <Check size={13} className="text-emerald-400" /> : <Copy size={13} />}
-            <span>{copiedLink ? 'Copiado!' : 'Guardar Link'}</span>
+            <span>{copiedLink ? wpt.linkCopied : wpt.saveLink}</span>
           </button>
         </div>
 
@@ -336,15 +386,15 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="px-1.5 py-0.5 rounded bg-amber-500/15 text-amber-400 font-mono font-bold text-[8.5px] uppercase tracking-wider border border-amber-500/25">
-                    PONTO DIGITAL
+                    {wpt.digitalTimesheet}
                   </span>
                   {worker.active ? (
                     <span className="px-1.5 py-0.5 rounded bg-emerald-500/15 text-emerald-400 font-semibold text-[8.5px]">
-                      ● Ativo
+                      ● {wpt.active}
                     </span>
                   ) : (
                     <span className="px-1.5 py-0.5 rounded bg-rose-500/15 text-rose-400 font-semibold text-[8.5px]">
-                      Inativo
+                      {wpt.inactive}
                     </span>
                   )}
                 </div>
@@ -352,7 +402,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                   {worker.name}
                 </h1>
                 <p className="text-slate-400 text-[11px] font-medium truncate">
-                  {worker.role} • NIF: {worker.nif}
+                  {worker.role} {worker.nif ? `• ${worker.nif}` : ''}
                 </p>
               </div>
             </div>
@@ -360,7 +410,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             {company && (
               <div className="text-right shrink-0 max-w-[100px] sm:max-w-[130px]">
                 <span className="text-[8px] font-bold uppercase tracking-widest text-slate-500 block">
-                  Empresa
+                  {wpt.company}
                 </span>
                 <span className="text-[11px] font-bold text-slate-300 truncate block">
                   {company.name || company.companyName}
@@ -373,16 +423,16 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
           <div className="grid grid-cols-2 gap-2 mt-3 pt-3 border-t border-slate-800/70">
             <div className="bg-slate-950/70 rounded-xl p-2 border border-slate-800/80 min-w-0">
               <span className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 block truncate">
-                Dias no Mês
+                {wpt.monthDays}
               </span>
               <span className="text-sm font-bold text-white mt-0.5 block truncate">
-                {currentMonthStats.daysCount} <span className="text-[9px] font-normal text-slate-400">dias</span>
+                {currentMonthStats.daysCount} <span className="text-[9px] font-normal text-slate-400">{wpt.days}</span>
               </span>
             </div>
 
             <div className="bg-slate-950/70 rounded-xl p-2 border border-slate-800/80 min-w-0">
               <span className="text-[8.5px] font-bold uppercase tracking-wider text-slate-400 block truncate">
-                Horas Acumuladas
+                {wpt.accumulatedHours}
               </span>
               <span className="text-sm font-bold text-amber-400 mt-0.5 block font-mono truncate">
                 {currentMonthStats.totalHours} <span className="text-[9px] font-normal text-slate-400">h</span>
@@ -404,9 +454,9 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                 <CheckCircle2 size={16} />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-bold text-xs text-emerald-300">Ponto Registado com Sucesso!</p>
+                <p className="font-bold text-xs text-emerald-300">{wpt.successMessage}</p>
                 <p className="text-[10.5px] font-normal text-emerald-200/90 truncate">
-                  O registo ({calculatedTotalHours}h) foi gravado no sistema.
+                  ({calculatedTotalHours}h)
                 </p>
               </div>
             </motion.div>
@@ -419,17 +469,17 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             <div className="min-w-0">
               <h2 className="text-xs sm:text-sm font-bold text-white tracking-tight flex items-center gap-1.5">
                 <Clock className="text-amber-500 shrink-0" size={14} />
-                <span>Registar Horas de Hoje</span>
+                <span>{wpt.recordToday}</span>
               </h2>
               <p className="text-[10px] text-slate-400 font-medium truncate">
-                Preencha os horários e obra trabalhada.
+                {wpt.recordSubtitle}
               </p>
             </div>
 
             {/* Totalizador Flutuante de Horas */}
             <div className="text-right bg-amber-500/10 border border-amber-500/25 px-2 py-1 rounded-xl shrink-0">
               <span className="text-[7.5px] font-black uppercase tracking-widest text-amber-400 block">
-                Total Líquido
+                {wpt.netTotal}
               </span>
               <span className="text-sm font-black text-amber-400 font-mono">
                 {calculatedTotalHours}h
@@ -451,7 +501,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               <div className="flex items-center justify-between">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                   <Calendar size={11} className="text-amber-500" />
-                  <span>Data do Trabalho</span>
+                  <span>{wpt.workDate}</span>
                 </label>
                 <div className="flex items-center gap-1">
                   <button
@@ -459,7 +509,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                     onClick={() => setLogDate(new Date().toISOString().split('T')[0])}
                     className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[9px] font-semibold text-slate-300 transition-colors cursor-pointer"
                   >
-                    Hoje
+                    {wpt.today}
                   </button>
                   <button
                     type="button"
@@ -470,7 +520,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                     }}
                     className="px-1.5 py-0.5 rounded bg-slate-800 hover:bg-slate-700 text-[9px] font-semibold text-slate-300 transition-colors cursor-pointer"
                   >
-                    Ontem
+                    {wpt.yesterday}
                   </button>
                 </div>
               </div>
@@ -487,7 +537,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             <div className="space-y-1">
               <span className="text-[9.5px] font-bold uppercase tracking-wider text-slate-400 flex items-center gap-1">
                 <Zap size={10} className="text-amber-400" />
-                <span>Horários Comuns</span>
+                <span>{wpt.commonSchedules}</span>
               </span>
               <div className="grid grid-cols-3 gap-1.5">
                 <button
@@ -498,9 +548,9 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
-                  title="08:00 às 17:00 (8h)"
+                  title="08:00 - 17:00 (8h)"
                 >
-                  08h-17h (8h)
+                  {wpt.shift8h}
                 </button>
                 <button
                   type="button"
@@ -510,9 +560,9 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
-                  title="07:30 às 16:30 (8h)"
+                  title="07:30 - 16:30 (8h)"
                 >
-                  07h30-16h30
+                  {wpt.shiftEarly}
                 </button>
                 <button
                   type="button"
@@ -522,9 +572,9 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                       ? 'bg-amber-500/20 border-amber-500 text-amber-300'
                       : 'bg-slate-950 border-slate-800 text-slate-400 hover:border-slate-700'
                   }`}
-                  title="08:00 às 12:00 (4h)"
+                  title="08:00 - 12:00 (4h)"
                 >
-                  08h-12h (4h)
+                  {wpt.shiftHalf}
                 </button>
               </div>
             </div>
@@ -534,7 +584,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 truncate">
                   <Clock size={11} className="text-emerald-400 shrink-0" />
-                  <span>Entrada</span>
+                  <span>{wpt.entryTime}</span>
                 </label>
                 <input
                   type="time"
@@ -548,7 +598,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               <div className="space-y-1 min-w-0">
                 <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1 truncate">
                   <Clock size={11} className="text-rose-400 shrink-0" />
-                  <span>Saída</span>
+                  <span>{wpt.exitTime}</span>
                 </label>
                 <input
                   type="time"
@@ -563,15 +613,15 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             {/* Pausas: Café (Pequeno-almoço) e Almoço */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               
-              {/* Pausa Café / Pequeno-Almoço */}
+              {/* Pausa Café */}
               <div className="space-y-1 min-w-0">
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                     <Coffee size={11} className="text-amber-400 shrink-0" />
-                    <span>Pausa Café</span>
+                    <span>{wpt.coffeeBreak}</span>
                   </label>
                   <span className="text-[8.5px] text-emerald-400 font-bold">
-                    Paga (0m ded.)
+                    {wpt.paidBreak}
                   </span>
                 </div>
                 <input
@@ -588,10 +638,10 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                 <div className="flex items-center justify-between">
                   <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                     <Utensils size={11} className="text-blue-400 shrink-0" />
-                    <span>Pausa Almoço</span>
+                    <span>{wpt.lunchBreak}</span>
                   </label>
                   <span className="text-[8.5px] text-amber-400 font-bold">
-                    Deduz 1h
+                    {wpt.lunchDeduction}
                   </span>
                 </div>
                 <select
@@ -599,12 +649,12 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                   onChange={e => setLunchBreak(e.target.value)}
                   className="w-full box-border min-w-0 px-2 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-medium text-xs outline-none focus:border-amber-500 transition-all cursor-pointer"
                 >
-                  <option value="12:00 - 13:00 (1h)">12:00 - 13:00 (1h padrão)</option>
+                  <option value="12:00 - 13:00 (1h)">12:00 - 13:00 (1h)</option>
                   <option value="12:30 - 13:30 (1h)">12:30 - 13:30 (1h)</option>
                   <option value="13:00 - 14:00 (1h)">13:00 - 14:00 (1h)</option>
-                  <option value="30 min (30m)">30 min de almoço (30m)</option>
-                  <option value="1h30 (90m)">1h30 de almoço (90m)</option>
-                  <option value="Sem pausa (0m)">Sem pausa de almoço</option>
+                  <option value="30 min (30m)">30 min (30m)</option>
+                  <option value="1h30 (90m)">1h30 (90m)</option>
+                  <option value="Sem pausa (0m)">{wpt.noBreak}</option>
                 </select>
               </div>
             </div>
@@ -613,14 +663,14 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                 <MapPin size={11} className="text-rose-400 shrink-0" />
-                <span>Local da Obra / Morada *</span>
+                <span>{wpt.workLocation} *</span>
               </label>
               <input
                 type="text"
                 required
                 value={workLocation}
                 onChange={e => setWorkLocation(e.target.value)}
-                placeholder="Ex: Edifício Panorama - Av. da Liberdade"
+                placeholder={wpt.locationPlaceholder}
                 className="w-full box-border min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-medium text-xs sm:text-sm outline-none focus:border-amber-500 transition-all placeholder:text-slate-600"
               />
             </div>
@@ -629,13 +679,13 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
             <div className="space-y-1">
               <label className="text-[10px] font-bold uppercase tracking-wider text-slate-300 flex items-center gap-1">
                 <FileText size={11} className="text-slate-400 shrink-0" />
-                <span>Trabalhos Executados (Opcional)</span>
+                <span>{wpt.workDetails}</span>
               </label>
               <textarea
                 rows={2}
                 value={details}
                 onChange={e => setDetails(e.target.value)}
-                placeholder="Ex: Assentamento de pisos no 2º andar..."
+                placeholder={wpt.detailsPlaceholder}
                 className="w-full box-border min-w-0 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-white font-normal text-xs outline-none focus:border-amber-500 transition-all placeholder:text-slate-600 resize-none"
               />
             </div>
@@ -649,12 +699,12 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               {isSubmitting ? (
                 <>
                   <RefreshCw size={14} className="animate-spin" />
-                  <span>A submeter...</span>
+                  <span>{wpt.submitting}</span>
                 </>
               ) : (
                 <>
                   <Send size={14} />
-                  <span>Submeter Ponto ({calculatedTotalHours}h)</span>
+                  <span>{wpt.submit} ({calculatedTotalHours}h)</span>
                 </>
               )}
             </button>
@@ -666,7 +716,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
           <div className="flex items-center justify-between mb-2.5 pb-2 border-b border-slate-800">
             <h3 className="text-xs font-bold text-white flex items-center gap-1.5">
               <History size={13} className="text-slate-400" />
-              <span>Meus Registos Recentes</span>
+              <span>{wpt.myRecentLogs}</span>
             </h3>
             <button
               onClick={loadLogs}
@@ -674,15 +724,15 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
               className="text-[10px] font-semibold text-slate-400 hover:text-amber-400 flex items-center gap-1 transition-colors cursor-pointer"
             >
               <RefreshCw size={10} className={isLoadingLogs ? 'animate-spin text-amber-500' : ''} />
-              <span>Atualizar</span>
+              <span>{wpt.refresh}</span>
             </button>
           </div>
 
           {recentLogs.length === 0 ? (
             <div className="text-center py-4 text-slate-500">
               <Clock size={20} className="mx-auto mb-1 opacity-40" />
-              <p className="text-xs font-semibold">Nenhum registo de horas ainda.</p>
-              <p className="text-[9.5px] mt-0.5 text-slate-600">Submeta o seu dia no formulário acima.</p>
+              <p className="text-xs font-semibold">{wpt.noLogsYet}</p>
+              <p className="text-[9.5px] mt-0.5 text-slate-600">{wpt.submitFirstDayPrompt}</p>
             </div>
           ) : (
             <div className="space-y-1.5">
@@ -694,7 +744,7 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
                   <div className="space-y-0.5 min-w-0 flex-1">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="px-1.5 py-0.5 rounded bg-amber-500/10 text-amber-400 font-mono font-bold text-[9px]">
-                        {new Date(log.date).toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', weekday: 'short' })}
+                        {new Date(log.date).toLocaleDateString(portalLocale, { day: '2-digit', month: '2-digit', weekday: 'short' })}
                       </span>
                       <span className="text-[10px] font-semibold text-slate-300">
                         {log.startTime} - {log.endTime}
@@ -717,9 +767,9 @@ export const WorkerPortal: React.FC<WorkerPortalProps> = ({
           )}
         </div>
 
-        {/* Rodapé Seguro */}
+        {/* Rodapé */}
         <div className="text-center py-2 text-[9.5px] text-slate-500">
-          <p>Átrios Sistema de Gestão de Obras & Ponto Digital • Conexão Segura</p>
+          <p>{wpt.secureFooter}</p>
         </div>
 
       </div>

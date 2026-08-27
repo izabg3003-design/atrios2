@@ -178,6 +178,33 @@ export interface SyncResult {
       return await performUpsert(jobPayload);
     }
 
+    // Tratamento específico para intro_banners (Banners de apresentação tela cheia)
+    if (table === 'intro_banners') {
+      const bannerPayload: any = {
+        id: String(rawData.id),
+        tag: String(rawData.tag || 'DESTAQUE'),
+        tag_color: rawData.tag_color || rawData.tagColor || 'bg-orange-500/20 text-orange-400 border-orange-500/30',
+        title: String(rawData.title || '').trim(),
+        subtitle: rawData.subtitle ? String(rawData.subtitle) : '',
+        description: rawData.description ? String(rawData.description) : '',
+        image_url: rawData.image_url || rawData.imageUrl || rawData.image || '',
+        desktop_image_url: rawData.desktop_image_url || rawData.desktopImageUrl || rawData.desktop_image || '',
+        accent_color: rawData.accent_color || rawData.accentColor || '#ff5722',
+        highlights: Array.isArray(rawData.highlights) ? rawData.highlights : (typeof rawData.highlights === 'string' ? JSON.parse(rawData.highlights || '[]') : []),
+        mockup_badge: rawData.mockup_badge || rawData.mockupBadge || 'DESTAQUE',
+        mockup_headline: rawData.mockup_headline || rawData.mockupHeadline || rawData.title || '',
+        mockup_details: rawData.mockup_details || rawData.mockupDetails || [],
+        sort_order: typeof rawData.sort_order === 'number' ? rawData.sort_order : (typeof rawData.sortOrder === 'number' ? rawData.sortOrder : 0),
+        active: rawData.active !== undefined ? Boolean(rawData.active) : true,
+        is_active: rawData.active !== undefined ? Boolean(rawData.active) : true,
+        created_at: rawData.created_at || rawData.createdAt || new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      };
+
+      console.log(`syncToCloud: Sincronizando banner ${bannerPayload.id} no Supabase...`);
+      return await performUpsert(bannerPayload);
+    }
+
     if (table === 'candidates') {
       const formatTimestamp = (val: any) => {
         if (!val) return new Date().toISOString();

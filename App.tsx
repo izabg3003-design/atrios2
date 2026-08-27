@@ -98,6 +98,8 @@ import { CertificateModal } from './components/CertificateModal';
 import { supabase, safeFetch } from './services/supabase';
 import { FREE_PDF_LIMIT, FREE_BUDGET_LIMIT } from './constants';
 import { Locale, translations } from './translations';
+import { workTrackerTranslations } from './components/workTrackerTranslations';
+import { clientHubTranslations } from './components/clientHubTranslations';
 import Dashboard from './components/Dashboard';
 import BudgetForm from './components/BudgetForm';
 import PremiumBanner from './components/PremiumBanner';
@@ -211,6 +213,13 @@ const registerWebPushSubscription = async (
 const App: React.FC = () => {
   const session = useMemo(() => getSession(), []);
   const [locale, setLocale] = useState<Locale>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      const urlLang = (params.get('lang') || params.get('locale')) as Locale;
+      if (urlLang && translations[urlLang]) {
+        return urlLang;
+      }
+    }
     if (session?.companyId) {
       const companies = getStoredCompanies();
       const user = companies.find(c => c.id === session.companyId);
@@ -3084,6 +3093,7 @@ const App: React.FC = () => {
 
       {view === 'worker-portal' ? (
         <WorkerPortal
+          initialLocale={locale}
           onBackToHome={() => {
             if (typeof window !== 'undefined') {
               const url = new URL(window.location.href);
@@ -3097,6 +3107,7 @@ const App: React.FC = () => {
         <ClientPortal
           onBackToHome={() => setView('landing')}
           currencyCode={currencyCode}
+          initialLocale={locale}
         />
       ) : view === 'landing' ? (
         <LandingPage
@@ -3282,10 +3293,10 @@ const App: React.FC = () => {
                 {[
                   { id: 'dashboard', label: t.dashboard, icon: LayoutDashboard },
                   { id: 'budgets', label: t.budgets, icon: FileText },
-                  { id: 'client_requests', label: locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests', icon: Wrench, isNew: true },
-                  { id: 'work_hours', label: locale.startsWith('pt') ? 'Registo de Horas' : 'Time Tracking', icon: Clock, isNew: true },
+                  { id: 'client_requests', label: (clientHubTranslations[locale as Locale] || clientHubTranslations['pt-PT'])?.title || (locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests'), icon: Wrench, isNew: true },
+                  { id: 'work_hours', label: (workTrackerTranslations[locale as Locale] || workTrackerTranslations['pt-PT'])?.title || (locale.startsWith('pt') ? 'Registo de Horas' : 'Time Tracking'), icon: Clock, isNew: true },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
-                  { id: 'jobs', label: locale.startsWith('pt') ? 'Vagas de Trabalho' : 'Job Offers', icon: HardHat },
+                  { id: 'jobs', label: locale === 'es-ES' ? 'Ofertas de Empleo' : locale === 'fr-FR' ? "Offres d'Emploi" : locale === 'it-IT' ? 'Offerte di Lavoro' : locale === 'ru-RU' ? 'Вакансии' : locale === 'hi-IN' ? 'नौकरी के अवसर' : locale === 'bn-BD' ? 'কাজের সুযোগ' : locale.startsWith('pt') ? 'Vagas de Trabalho' : 'Job Offers', icon: HardHat },
                   { id: 'store', label: t.store, icon: ShoppingBag },
                   { id: 'plans', label: t.plans, icon: Crown },
                   { id: 'settings', label: t.settings, icon: Settings }
@@ -3293,6 +3304,7 @@ const App: React.FC = () => {
                   const isReportsLocked = item.id === 'reports' && currentUser?.plan === PlanType.FREE;
                   const isJobsCreationRestricted = item.id === 'jobs' && !isAtriosBuildUser;
                   const hasPendingUnlock = item.id === 'settings' && currentUser?.unlockRequested;
+                  const newBadgeLabel = locale === 'es-ES' ? 'Nuevo' : locale === 'fr-FR' ? 'Nouveau' : locale === 'it-IT' ? 'Nuovo' : locale === 'ru-RU' ? 'Новый' : locale === 'hi-IN' ? 'नया' : locale === 'bn-BD' ? 'নতুন' : locale.startsWith('pt') ? 'Novo' : 'New';
                   
                   return (
                     <button 
@@ -3318,7 +3330,7 @@ const App: React.FC = () => {
                       </div>
                       {(item as any).isNew && (
                         <span className="text-[9px] font-black uppercase px-1.5 py-0.5 rounded-md bg-amber-500 text-slate-950">
-                          Novo
+                          {newBadgeLabel}
                         </span>
                       )}
                     </button>
@@ -3519,6 +3531,7 @@ const App: React.FC = () => {
                   {activeTab === 'client_requests' && currentUser && (
                     <ClientRequestsHub
                       currentUser={currentUser}
+                      locale={locale}
                       onCreateBudgetForClient={(clientData) => {
                         if (!canCreateBudget) {
                           alert(t.budgetLimitReached);

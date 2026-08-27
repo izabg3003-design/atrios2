@@ -337,6 +337,7 @@ export interface IntroBannerItem {
   subtitle?: string;
   description: string;
   imageUrl?: string;
+  desktopImageUrl?: string;
   accentColor?: string;
   highlights: string[];
   mockupBadge?: string;

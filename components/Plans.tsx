@@ -3,6 +3,7 @@ import { Check, Star, Ticket, Sparkles, Shirt, Globe, Gift, FileText, X, ShieldA
 import { Locale, translations } from '../translations';
 import { PlanType, CurrencyCode, CURRENCIES } from '../types';
 import { getCoupons } from '../services/storage';
+import { plansTranslations } from './plansTranslations';
 
 interface PlansProps {
   currentPlan: PlanType;
@@ -27,6 +28,7 @@ type FeatureItem = string | {
 
 const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCode, isProcessing }) => {
   const t = translations[locale];
+  const pt = plansTranslations[locale] || plansTranslations['pt-PT'];
   const currencyInfo = CURRENCIES[currencyCode];
   const [couponCode, setCouponCode] = useState('');
   const [appliedDiscount, setAppliedDiscount] = useState<number>(0);
@@ -48,7 +50,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       setCouponError('');
     } else {
       setAppliedDiscount(0);
-      setCouponError(t.plansCouponInvalid);
+      setCouponError(pt.couponInvalid || t.plansCouponInvalid);
     }
   };
 
@@ -91,21 +93,21 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
   }> = [
     {
       id: PlanType.FREE,
-      name: t.planFree || 'Grátis',
+      name: pt.planFree,
       basePrice: basePrices.free,
       period: "",
       features: [
-        t.featItemsLimit || "3 Itens por Orçamento",
-        t.featExpenseLimit || "3 Registos de Despesas",
-        t.featPdfLimit || "3 Downloads de PDF",
-        t.featServiceLimit || "3 Serviços Incluídos",
-        { text: "Responder a Pedidos de Orçamentos de Clientes", notIncluded: true },
-        { text: t.featUnlimitedItems || "Orçamentos e Itens Ilimitados", notIncluded: true },
-        { text: t.featProfitReports || "Relatórios de Lucro e Gráficos", notIncluded: true },
-        { text: t.featUnlimitedPdf || "Exportação de PDFs Ilimitada", notIncluded: true },
-        { text: t.featCloudBackup || "Sincronização na Nuvem em Tempo Real", notIncluded: true },
-        { text: t.featHdLogo || "Logótipo HD Personalizado no PDF", notIncluded: true },
-        { text: "Oferta de Brindes e Vestuário Pro", notIncluded: true, boxed: true }
+        pt.featItemsLimit,
+        pt.featExpenseLimit,
+        pt.featPdfLimit,
+        pt.featServiceLimit,
+        { text: pt.featClientRequestsNotIncluded, notIncluded: true },
+        { text: pt.featUnlimitedItemsNotIncluded, notIncluded: true },
+        { text: pt.featProfitReportsNotIncluded, notIncluded: true },
+        { text: pt.featUnlimitedPdfNotIncluded, notIncluded: true },
+        { text: pt.featCloudBackupNotIncluded, notIncluded: true },
+        { text: pt.featHdLogoNotIncluded, notIncluded: true },
+        { text: pt.featGiftsNotIncluded, notIncluded: true, boxed: true }
       ],
       color: "bg-slate-100 border border-slate-200",
       textColor: "text-slate-900",
@@ -113,20 +115,20 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
     },
     {
       id: PlanType.PREMIUM_MONTHLY,
-      name: t.planMonthly || 'Mensal',
+      name: pt.planMonthly,
       basePrice: basePrices.monthly,
-      period: t.planPeriodMonth || '/mês',
+      period: pt.periodMonth,
       features: [
-        t.featUnlimitedItems || "Orçamentos e Itens Ilimitados",
-        "Responda a 2 Pedidos de Clientes da Plataforma / mês",
-        t.featExpenseLimit ? "Despesas Ilimitadas" : "Despesas Ilimitadas",
-        t.featUnlimitedPdf || "Downloads de PDF Ilimitados",
-        t.featCloudBackup || "Sincronização na Nuvem em Tempo Real",
-        t.featProfitReports || "Relatórios Financeiros e de Lucro",
-        t.featHdLogo || "Logótipo HD no Orçamento e PDF",
-        t.featPrioritySupport || "Suporte Prioritário",
-        { text: "Desconto Especial Anual (25% Poupança)", notIncluded: true },
-        { text: "Oferta de Brindes (Exclusivo Anual)", notIncluded: true, boxed: true }
+        pt.featUnlimitedItems,
+        pt.featClientRequestsMonthly,
+        pt.featUnlimitedExpenses,
+        pt.featUnlimitedPdf,
+        pt.featCloudBackup,
+        pt.featProfitReports,
+        pt.featHdLogo,
+        pt.featPrioritySupport,
+        { text: pt.featAnnualDiscountNotIncluded, notIncluded: true },
+        { text: pt.featGiftsMonthlyNotIncluded, notIncluded: true, boxed: true }
       ],
       color: "bg-slate-900 border border-slate-800",
       textColor: "text-white",
@@ -134,23 +136,23 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
     },
     {
       id: PlanType.PREMIUM_ANNUAL,
-      name: t.planAnnual || 'Anual',
+      name: pt.planAnnual,
       basePrice: basePrices.annual,
-      period: t.planPeriodYear || '/ano',
-      savings: t.planPromoAnnual || 'De 118,80€ por 89,90€',
+      period: pt.periodYear,
+      savings: pt.savingsAnnual,
       bestValue: true,
       features: [
-        t.featUnlimitedItems || "Orçamentos e Itens Ilimitados",
-        "Responda a Pedidos de Clientes ILIMITADOS da Plataforma",
-        "Despesas e Serviços Ilimitados",
-        t.featUnlimitedPdf || "Downloads de PDF Ilimitados",
-        t.featCloudBackup || "Sincronização na Nuvem em Tempo Real",
-        t.featProfitReports || "Relatórios Financeiros e de Lucro",
-        t.featHdLogo || "Logótipo HD no Orçamento e PDF",
-        t.featPrioritySupport || "Suporte VIP Prioritário",
-        t.planAnnualSavings || "Poupança de 25% face ao mensal",
+        pt.featUnlimitedItems,
+        pt.featClientRequestsAnnual,
+        pt.featUnlimitedExpenses,
+        pt.featUnlimitedPdf,
+        pt.featCloudBackup,
+        pt.featProfitReports,
+        pt.featHdLogo,
+        pt.featPrioritySupportVip,
+        pt.featAnnualSavingsText,
         {
-          text: "OFERTA EXCLUSIVA: 3 T-Shirts + 3 Coletes com o seu Logótipo",
+          text: pt.featGiftsAnnualExclusive,
           highlighted: true,
           icon: 'shirt'
         }
@@ -166,9 +168,9 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
   return (
     <div className="space-y-4 sm:space-y-8 lg:space-y-12 py-2 sm:py-4 lg:py-8 animate-in fade-in duration-700 max-w-full overflow-hidden box-border px-1 sm:px-2">
       <div className="text-center space-y-1.5 sm:space-y-2 lg:space-y-4 px-2">
-        <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight">{t.plans || 'Planos'}</h2>
+        <h2 className="text-2xl sm:text-3xl lg:text-5xl font-black text-slate-900 tracking-tight">{pt.title}</h2>
         <p className="text-slate-500 text-xs sm:text-base lg:text-xl max-w-2xl mx-auto font-medium px-2">
-          {t.planDescriptionSub || 'Transforme a sua gestão com o ÁTRIOS premium.'}
+          {pt.subtitle}
         </p>
       </div>
 
@@ -178,19 +180,19 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
           onClick={() => setSelectedPlanTab('all')} 
           className={`flex-1 py-2 rounded-xl transition-all text-center font-bold ${selectedPlanTab === 'all' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
         >
-          {locale === 'pt-PT' || locale === 'pt-BR' ? 'Todos' : (t.filterAll || 'All')}
+          {pt.filterAll}
         </button>
         <button 
           onClick={() => setSelectedPlanTab(PlanType.PREMIUM_ANNUAL)} 
           className={`flex-1 py-2 rounded-xl transition-all flex items-center justify-center gap-1 font-bold ${selectedPlanTab === PlanType.PREMIUM_ANNUAL ? 'bg-amber-500 text-slate-900 shadow-md font-black' : 'text-slate-600 hover:text-slate-900'}`}
         >
-          <Star size={11} className="fill-slate-900 text-slate-900" /> {t.planAnnual || 'Anual'}
+          <Star size={11} className="fill-slate-900 text-slate-900" /> {pt.planAnnual}
         </button>
         <button 
           onClick={() => setSelectedPlanTab(PlanType.PREMIUM_MONTHLY)} 
           className={`flex-1 py-2 rounded-xl transition-all text-center font-bold ${selectedPlanTab === PlanType.PREMIUM_MONTHLY ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:text-slate-900'}`}
         >
-          {t.planMonthly || 'Mensal'}
+          {pt.planMonthly}
         </button>
       </div>
 
@@ -203,17 +205,17 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
             type="text" 
             value={couponCode} 
             onChange={e => setCouponCode(e.target.value)} 
-            placeholder={t.plansCouponPlaceholder}
+            placeholder={pt.couponPlaceholder || t.plansCouponPlaceholder}
             className="w-full bg-transparent outline-none font-black text-slate-900 uppercase placeholder:normal-case text-xs sm:text-sm lg:text-base"
           />
           {couponError && <p className="text-[8px] sm:text-[10px] font-bold text-red-500">{couponError}</p>}
-          {appliedDiscount > 0 && <p className="text-[8px] sm:text-[10px] font-bold text-emerald-500">{t.plansCouponApplied} (-{appliedDiscount}%)</p>}
+          {appliedDiscount > 0 && <p className="text-[8px] sm:text-[10px] font-bold text-emerald-500">{pt.couponApplied} (-{appliedDiscount}%)</p>}
         </div>
         <button 
           onClick={handleApplyCoupon}
           className="px-3 sm:px-5 lg:px-6 py-2 sm:py-2.5 lg:py-3 bg-slate-900 text-white rounded-xl lg:rounded-2xl font-black text-[9px] sm:text-[10px] lg:text-xs uppercase tracking-wider hover:bg-slate-800 transition-all shrink-0"
         >
-          {t.plansCouponApply}
+          {pt.couponApply}
         </button>
       </div>
 
@@ -227,7 +229,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
             >
               {plan.bestValue && (
                 <div className="absolute -top-3.5 sm:-top-4 lg:-top-5 left-1/2 -translate-x-1/2 bg-slate-900 text-amber-400 px-3 sm:px-5 lg:px-6 py-1 sm:py-1.5 rounded-full text-[9px] sm:text-[10px] lg:text-xs font-black uppercase tracking-wider flex items-center gap-1 sm:gap-1.5 whitespace-nowrap z-10 shadow-lg border border-amber-400/30">
-                  <Star size={11} className="fill-amber-400 text-amber-400 sm:w-3 sm:h-3" /> {t.bestValue}
+                  <Star size={11} className="fill-amber-400 text-amber-400 sm:w-3 sm:h-3" /> {plan.bestValue ? pt.bestValue : t.bestValue}
                 </div>
               )}
 
@@ -274,7 +276,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
 
                         <div className="bg-slate-900 text-white p-3 rounded-xl flex flex-col items-center justify-center gap-2 shadow-inner border border-slate-800 text-center">
                           <span className="text-[10px] sm:text-[11px] font-black uppercase text-amber-300 tracking-tight flex items-center justify-center gap-1">
-                            <span className="animate-pulse">⚡</span> Oferta limitada para 250 assinaturas Premium
+                            <span className="animate-pulse">⚡</span> {pt.promoLimitedOffer}
                           </span>
                           <button
                             type="button"
@@ -282,9 +284,9 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                               e.stopPropagation();
                               setShowRegulationModal(true);
                             }}
-                            className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-900 bg-amber-400 hover:bg-amber-300 px-3 py-1.5 rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95"
+                            className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-slate-900 bg-amber-400 hover:bg-amber-300 px-3 py-1.5 rounded-lg transition-all shadow-sm flex items-center justify-center gap-1.5 active:scale-95 cursor-pointer"
                           >
-                            <FileText size={12} /> Consulte Regulamento
+                            <FileText size={12} /> {pt.viewRegulation}
                           </button>
                         </div>
                       </div>
@@ -351,7 +353,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                                         : 'bg-slate-300 text-slate-800 hover:bg-slate-400 border border-slate-400/50'
                                     }`}
                                   >
-                                    <FileText size={10} /> Consulte Regulamento
+                                    <FileText size={10} /> {pt.viewRegulation}
                                   </button>
                                 )}
                               </div>
@@ -390,7 +392,7 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 {isProcessing ? (
                   <div className="w-5 h-5 border-2 border-slate-900/20 border-t-slate-900 rounded-full animate-spin" />
                 ) : (
-                  isCurrentPlan(plan.id) ? (t.currentPlan || 'Plano Atual') : (t.selectPlan || 'Começar Agora')
+                  isCurrentPlan(plan.id) ? pt.currentPlan : pt.startNow
                 )}
               </button>
             </div>
@@ -409,14 +411,14 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                   <FileText size={20} />
                 </div>
                 <div>
-                  <h3 className="font-black text-base sm:text-lg uppercase tracking-tight text-white">Regulamento da Promoção</h3>
-                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">Plano Anual Premium</p>
+                  <h3 className="font-black text-base sm:text-lg uppercase tracking-tight text-white">{pt.regulationModalTitle}</h3>
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">{pt.regulationModalSubtitle}</p>
                 </div>
               </div>
               <button 
                 onClick={() => setShowRegulationModal(false)}
                 className="p-2 text-slate-400 hover:text-white bg-white/10 hover:bg-white/20 rounded-xl transition-all"
-                title="Fechar"
+                title={pt.closeModal}
               >
                 <X size={18} />
               </button>
@@ -427,9 +429,9 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
               <div className="bg-amber-50 border border-amber-200 p-4 rounded-2xl flex items-start gap-3 text-amber-950 shadow-sm">
                 <Sparkles size={20} className="text-amber-600 shrink-0 mt-0.5" />
                 <div>
-                  <h4 className="font-black text-xs uppercase tracking-wide text-amber-900 mb-0.5">OFERTA EXCLUSIVA PLANO PREMIUM — ATRIOSBUILD</h4>
+                  <h4 className="font-black text-xs uppercase tracking-wide text-amber-900 mb-0.5">{pt.regulationBannerTitle}</h4>
                   <p className="text-[11px] sm:text-xs text-amber-800 font-medium">
-                    A presente promoção é uma oferta exclusiva destinada aos clientes que subscreverem o <strong>Plano Premium do AtriosBuild</strong>.
+                    {pt.regulationBannerSubtitle}
                   </p>
                 </div>
               </div>
@@ -439,18 +441,18 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-2">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">1</span>
-                    OBJETO DA PROMOÇÃO
+                    {pt.regSec1Title}
                   </h4>
                   <p className="mb-2">
-                    A presente promoção é uma oferta exclusiva destinada aos clientes que subscreverem o <strong>Plano Premium do AtriosBuild</strong>.
+                    {pt.regSec1P1}
                   </p>
-                  <p className="mb-2">Como benefício promocional, o cliente elegível receberá:</p>
+                  <p className="mb-2">{pt.regSec1P2}</p>
                   <ul className="list-disc list-inside space-y-1 font-bold text-slate-900 pl-2 mb-2">
-                    <li>3 T-shirts personalizadas com o logótipo da sua empresa;</li>
-                    <li>3 coletes personalizados com o logótipo da sua empresa.</li>
+                    <li>{pt.regSec1Item1}</li>
+                    <li>{pt.regSec1Item2}</li>
                   </ul>
                   <p className="text-slate-600 text-[11px] italic">
-                    A oferta está limitada ao stock disponível, incluindo cores e tamanhos, e poderá ser encerrada quando o stock promocional se esgotar.
+                    {pt.regSec1StockNote}
                   </p>
                 </div>
 
@@ -458,16 +460,16 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">2</span>
-                    QUEM PODE PARTICIPAR
+                    {pt.regSec2Title}
                   </h4>
                   <p className="mb-2">
-                    A promoção é exclusiva para clientes que tenham uma <strong>subscrição ativa do Plano Premium do AtriosBuild</strong>, de acordo com as condições comerciais apresentadas no momento da adesão.
+                    {pt.regSec2P1}
                   </p>
                   <p className="mb-2">
-                    A oferta não é válida para os planos Gratuito, Básico ou outros planos que não sejam o Plano Premium.
+                    {pt.regSec2P2}
                   </p>
                   <p>
-                    A atribuição dos brindes está condicionada à confirmação da subscrição Premium e ao cumprimento de todas as condições previstas neste regulamento.
+                    {pt.regSec2P3}
                   </p>
                 </div>
 
@@ -475,22 +477,22 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">3</span>
-                    ENVIO DO LOGÓTIPO
+                    {pt.regSec3Title}
                   </h4>
                   <p className="mb-2">
-                    Para a personalização dos brindes, o cliente deverá enviar o logótipo que pretende utilizar.
+                    {pt.regSec3P1}
                   </p>
-                  <p className="mb-1 font-semibold text-slate-900">São aceites, preferencialmente, os seguintes formatos:</p>
+                  <p className="mb-1 font-semibold text-slate-900">{pt.regSec3P2}</p>
                   <ul className="list-disc list-inside space-y-1 font-medium text-slate-800 pl-2 mb-2">
-                    <li><strong>PDF aberto/editável;</strong></li>
-                    <li><strong>PNG</strong>, preferencialmente com boa resolução e fundo transparente;</li>
-                    <li><strong>CDR — CorelDRAW</strong>, preferencialmente em formato editável.</li>
+                    <li><strong>{pt.regSec3Format1}</strong></li>
+                    <li><strong>{pt.regSec3Format2}</strong></li>
+                    <li><strong>{pt.regSec3Format3}</strong></li>
                   </ul>
                   <p className="mb-2">
-                    O ficheiro enviado será submetido a uma <strong>avaliação técnica</strong> para verificar se apresenta condições adequadas para utilização na personalização das T-shirts e dos coletes.
+                    {pt.regSec3P3}
                   </p>
                   <p>
-                    A aceitação do ficheiro não depende apenas do formato. O logótipo deverá possuir qualidade, resolução, definição e características técnicas adequadas ao processo de personalização.
+                    {pt.regSec3P4}
                   </p>
                 </div>
 
@@ -498,33 +500,33 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">4</span>
-                    AVALIAÇÃO E EDIÇÃO DO LOGÓTIPO
+                    {pt.regSec4Title}
                   </h4>
                   <p className="mb-2">
-                    Após o envio, o ficheiro será analisado pela equipa responsável pela personalização.
+                    {pt.regSec4P1}
                   </p>
                   <p className="mb-2">
-                    Caso o logótipo esteja em condições adequadas, será utilizado na produção dos brindes.
+                    {pt.regSec4P2}
                   </p>
                   <p className="mb-2">
-                    Caso o ficheiro apresente problemas que impeçam ou dificultem a sua utilização, o cliente será informado sobre o resultado da avaliação e sobre as alterações necessárias.
+                    {pt.regSec4P3}
                   </p>
                   <div className="bg-slate-50 border border-slate-200 p-3 rounded-xl mb-2">
                     <p className="font-semibold text-slate-900">
-                      Caso o cliente pretenda que o AtriosBuild realize a preparação ou edição do logótipo para o tornar adequado à personalização, este serviço poderá ser realizado pelo valor de <strong>10,00 €</strong>.
+                      {pt.regSec4PaidServiceBox}
                     </p>
                   </div>
                   <p className="mb-2">
-                    A edição somente será realizada mediante autorização do cliente.
+                    {pt.regSec4P4}
                   </p>
                   <p className="mb-2">
-                    Após a conclusão e aprovação da edição, o ficheiro final do logótipo será enviado ao cliente através do <strong>e-mail ou WhatsApp</strong> informado pelo próprio cliente.
+                    {pt.regSec4P5}
                   </p>
                   <p className="mb-2">
-                    O ficheiro editado continuará a pertencer ao cliente, sendo disponibilizado para sua utilização.
+                    {pt.regSec4P6}
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    O pagamento do serviço de edição do logótipo <strong>não constitui requisito para participação na promoção</strong>, sendo aplicável apenas quando o cliente optar por contratar esse serviço.
+                    {pt.regSec4P7}
                   </p>
                 </div>
 
@@ -532,35 +534,35 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">5</span>
-                    T-SHIRTS PERSONALIZADAS
+                    {pt.regSec5Title}
                   </h4>
                   <p className="mb-3">
-                    Cada cliente elegível receberá <strong>3 T-shirts personalizadas</strong>.
+                    {pt.regSec5P1}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">Cores disponíveis:</span>
-                      <p className="text-slate-700 font-medium">Branco, Azul, Preto, Vermelho, Cinza escuro, Cinza claro, Rosa, Verde, Amarelo.</p>
+                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">{pt.regSec5ColorsTitle}</span>
+                      <p className="text-slate-700 font-medium">{pt.regSec5Colors}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">Tamanhos disponíveis:</span>
-                      <p className="text-slate-700 font-medium">XS, S, M, L, XL, XXL.</p>
+                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">{pt.regSec5SizesTitle}</span>
+                      <p className="text-slate-700 font-medium">{pt.regSec5Sizes}</p>
                     </div>
                   </div>
                   <p className="mb-2">
-                    A escolha de cores e tamanhos estará sujeita ao <strong>stock disponível no momento da confirmação da oferta</strong>.
+                    {pt.regSec5P2}
                   </p>
                   <p className="mb-2">
-                    A personalização das T-shirts será realizada com o logótipo fornecido e aprovado pelo cliente.
+                    {pt.regSec5P3}
                   </p>
-                  <p className="font-semibold text-slate-900 mb-1">Localização e dimensões máximas do logótipo:</p>
+                  <p className="font-semibold text-slate-900 mb-1">{pt.regSec5DimTitle}</p>
                   <ul className="list-disc list-inside space-y-1 font-medium text-slate-800 pl-2 mb-2">
-                    <li><strong>Frente:</strong> máximo de 10 cm × 10 cm;</li>
-                    <li><strong>Costas:</strong> máximo de 15 cm × 20 cm;</li>
-                    <li><strong>Mangas:</strong> a personalização das mangas <u>não está incluída na promoção</u>.</li>
+                    <li>{pt.regSec5DimFront}</li>
+                    <li>{pt.regSec5DimBack}</li>
+                    <li>{pt.regSec5DimSleeves}</li>
                   </ul>
                   <p className="text-slate-600 text-[11px]">
-                    A posição final da personalização poderá ser ajustada tecnicamente de acordo com o modelo da peça e com as características do logótipo.
+                    {pt.regSec5Note}
                   </p>
                 </div>
 
@@ -568,29 +570,29 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">6</span>
-                    COLETES PERSONALIZADOS
+                    {pt.regSec6Title}
                   </h4>
                   <p className="mb-3">
-                    Cada cliente elegível receberá <strong>3 coletes personalizados</strong>.
+                    {pt.regSec6P1}
                   </p>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-3">
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">Cores disponíveis:</span>
-                      <p className="text-slate-700 font-medium">Verde, Laranja.</p>
+                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">{pt.regSec6ColorsTitle}</span>
+                      <p className="text-slate-700 font-medium">{pt.regSec6Colors}</p>
                     </div>
                     <div className="bg-slate-50 p-3 rounded-xl border border-slate-200">
-                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">Tamanhos disponíveis:</span>
-                      <p className="text-slate-700 font-medium">M, L, XL, XXL.</p>
+                      <span className="font-bold text-slate-900 text-xs block uppercase mb-1">{pt.regSec6SizesTitle}</span>
+                      <p className="text-slate-700 font-medium">{pt.regSec6Sizes}</p>
                     </div>
                   </div>
                   <p className="mb-2">
-                    A escolha da cor e do tamanho estará condicionada ao <strong>stock disponível no momento da confirmação da oferta</strong>.
+                    {pt.regSec6P2}
                   </p>
                   <p className="mb-2">
-                    A personalização será realizada com o logótipo fornecido e aprovado pelo cliente.
+                    {pt.regSec6P3}
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    As dimensões e a posição da personalização poderão ser ajustadas tecnicamente de acordo com o modelo do colete e com as características do logótipo.
+                    {pt.regSec6Note}
                   </p>
                 </div>
 
@@ -598,22 +600,22 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">7</span>
-                    LIMITAÇÃO AO STOCK
+                    {pt.regSec7Title}
                   </h4>
                   <p className="mb-2">
-                    A promoção está <strong>limitada ao stock disponível</strong> de T-shirts e coletes, incluindo modelos, cores e tamanhos.
+                    {pt.regSec7P1}
                   </p>
                   <p className="mb-2">
-                    A existência da promoção não garante a disponibilidade de todas as combinações de cores e tamanhos.
+                    {pt.regSec7P2}
                   </p>
                   <p className="mb-2">
-                    Caso determinada cor ou tamanho escolhido pelo cliente esteja esgotado, o cliente poderá escolher outra opção disponível dentro das alternativas existentes em stock.
+                    {pt.regSec7P3}
                   </p>
                   <p className="mb-2">
-                    O AtriosBuild não será obrigado a disponibilizar uma cor ou tamanho que se encontre esgotado.
+                    {pt.regSec7P4}
                   </p>
                   <p className="font-semibold text-slate-900">
-                    A promoção poderá ser encerrada quando o stock destinado à campanha terminar.
+                    {pt.regSec7P5}
                   </p>
                 </div>
 
@@ -621,19 +623,19 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">8</span>
-                    APROVAÇÃO DA PERSONALIZAÇÃO
+                    {pt.regSec8Title}
                   </h4>
                   <p className="mb-2">
-                    Antes da produção, o cliente poderá ser solicitado a confirmar a arte final que será utilizada na personalização.
+                    {pt.regSec8P1}
                   </p>
                   <p className="mb-2">
-                    Após a aprovação da arte final pelo cliente, serão produzidos os brindes de acordo com a versão aprovada.
+                    {pt.regSec8P2}
                   </p>
                   <p className="mb-2">
-                    O cliente é responsável por garantir que possui os direitos de utilização do logótipo, símbolos, imagens, textos ou demais elementos enviados para personalização.
+                    {pt.regSec8P3}
                   </p>
                   <p className="text-slate-600 text-[11px]">
-                    O AtriosBuild não se responsabiliza por eventuais violações de direitos de terceiros decorrentes da utilização de materiais fornecidos pelo cliente.
+                    {pt.regSec8P4}
                   </p>
                 </div>
 
@@ -641,28 +643,28 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">9</span>
-                    PRAZO DE PRODUÇÃO E POSTAGEM
+                    {pt.regSec9Title}
                   </h4>
                   <p className="mb-2 font-semibold text-slate-900">
-                    Após a conclusão de todas as etapas necessárias para a produção, os brindes personalizados serão <strong>produzidos e estarão prontos para postagem no prazo máximo de 30 (trinta) dias corridos</strong>.
+                    {pt.regSec9P1}
                   </p>
                   <p className="mb-2 text-slate-700">
-                    O prazo de 30 dias corridos refere-se <strong>exclusivamente ao prazo para preparação, produção e postagem/expedição dos brindes pelo AtriosBuild</strong>, não correspondendo ao prazo de transporte ou entrega pela transportadora.
+                    {pt.regSec9P2}
                   </p>
                   <p className="mb-1 text-xs font-bold text-slate-800">
-                    O prazo de 30 dias corridos começa a contar somente após estarem reunidas todas as seguintes condições:
+                    {pt.regSec9P3}
                   </p>
                   <ol className="list-decimal list-inside space-y-1 font-medium text-slate-800 pl-2 mb-3">
-                    <li>confirmação da subscrição Premium;</li>
-                    <li>recebimento do logótipo pelo AtriosBuild;</li>
-                    <li>aprovação técnica do ficheiro;</li>
-                    <li>definição das cores e tamanhos dos brindes, de acordo com o stock disponível;</li>
-                    <li>aprovação da arte final pelo cliente, quando aplicável;</li>
-                    <li>confirmação dos dados necessários para o envio;</li>
-                    <li>confirmação do pagamento do respetivo custo de envio.</li>
+                    <li>{pt.regSec9Item1}</li>
+                    <li>{pt.regSec9Item2}</li>
+                    <li>{pt.regSec9Item3}</li>
+                    <li>{pt.regSec9Item4}</li>
+                    <li>{pt.regSec9Item5}</li>
+                    <li>{pt.regSec9Item6}</li>
+                    <li>{pt.regSec9Item7}</li>
                   </ol>
                   <p className="text-slate-600 text-[11px]">
-                    Eventuais atrasos decorrentes de informações incorretas ou incompletas fornecidas pelo cliente, demora no envio ou aprovação do logótipo/arte, alteração dos dados de envio, indisponibilidade temporária de determinados materiais ou situações de força maior poderão suspender ou alterar o prazo de produção e postagem.
+                    {pt.regSec9P4}
                   </p>
                 </div>
 
@@ -670,53 +672,53 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">10</span>
-                    CUSTOS E CONDIÇÕES DE ENVIO
+                    {pt.regSec10Title}
                   </h4>
                   <p className="mb-3 font-semibold text-slate-900">
-                    Os brindes da promoção são gratuitos, porém <strong>os custos de envio não estão incluídos na oferta</strong> e serão suportados pelo cliente.
+                    {pt.regSec10P1}
                   </p>
 
                   <div className="space-y-3 mb-3">
                     <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">Portugal Continental</h5>
+                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">{pt.regSec10PtTitle}</h5>
                       <p className="text-slate-700">
-                        Para entregas em <strong>Portugal Continental</strong>, será aplicado um custo de envio de: <strong className="text-amber-700 bg-amber-100 px-2 py-0.5 rounded">8,00 €</strong>
+                        {pt.regSec10PtText}
                       </p>
                     </div>
 
                     <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">Regiões Autónomas dos Açores e da Madeira</h5>
+                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">{pt.regSec10IslandsTitle}</h5>
                       <p className="text-slate-700 mb-1">
-                        Para envios destinados às <strong>Ilhas dos Açores ou da Madeira</strong>, o cliente deverá consultar previamente o AtriosBuild para obter:
+                        {pt.regSec10IslandsP1}
                       </p>
                       <ul className="list-disc list-inside text-xs pl-2 space-y-0.5 text-slate-800">
-                        <li>valor do transporte;</li>
-                        <li>prazo estimado de entrega;</li>
-                        <li>condições aplicáveis ao envio.</li>
+                        <li>{pt.regSec10IslandsItem1}</li>
+                        <li>{pt.regSec10IslandsItem2}</li>
+                        <li>{pt.regSec10IslandsItem3}</li>
                       </ul>
                       <p className="text-slate-600 text-[11px] mt-1 italic">
-                        O envio somente será realizado após a confirmação do respetivo valor pelo cliente.
+                        {pt.regSec10IslandsP2}
                       </p>
                     </div>
 
                     <div className="bg-slate-50 p-3.5 rounded-xl border border-slate-200">
-                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">Outros países da União Europeia</h5>
+                      <h5 className="font-bold text-slate-900 text-xs uppercase mb-1">{pt.regSec10EuTitle}</h5>
                       <p className="text-slate-700 mb-1">
-                        Para envios destinados a outros países da <strong>União Europeia</strong>, o cliente deverá consultar previamente o AtriosBuild para obter:
+                        {pt.regSec10EuP1}
                       </p>
                       <ul className="list-disc list-inside text-xs pl-2 space-y-0.5 text-slate-800">
-                        <li>valor do transporte;</li>
-                        <li>prazo estimado de entrega;</li>
-                        <li>condições aplicáveis ao envio.</li>
+                        <li>{pt.regSec10EuItem1}</li>
+                        <li>{pt.regSec10EuItem2}</li>
+                        <li>{pt.regSec10EuItem3}</li>
                       </ul>
                       <p className="text-slate-600 text-[11px] mt-1">
-                        O valor do transporte poderá variar de acordo com o país, código postal, peso, volume e condições da transportadora.
+                        {pt.regSec10EuP2}
                       </p>
                     </div>
                   </div>
 
                   <p className="text-slate-600 text-[11px] italic">
-                    O prazo de <strong>30 dias corridos indicado neste regulamento refere-se à postagem/expedição pelo AtriosBuild</strong>, não incluindo o tempo de transporte e entrega no destino.
+                    {pt.regSec10Note}
                   </p>
                 </div>
 
@@ -724,13 +726,13 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">11</span>
-                    CARÁTER PESSOAL DA OFERTA
+                    {pt.regSec11Title}
                   </h4>
                   <p className="mb-2">
-                    Os brindes são destinados ao titular da subscrição Premium e não poderão ser convertidos em dinheiro.
+                    {pt.regSec11P1}
                   </p>
                   <p>
-                    A oferta não poderá ser trocada por outro produto ou pelo seu equivalente monetário.
+                    {pt.regSec11P2}
                   </p>
                 </div>
 
@@ -738,16 +740,16 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">12</span>
-                    CANCELAMENTO OU INATIVAÇÃO DA SUBSCRIÇÃO
+                    {pt.regSec12Title}
                   </h4>
                   <p className="mb-2">
-                    A atribuição da oferta está vinculada à subscrição do Plano Premium.
+                    {pt.regSec12P1}
                   </p>
                   <p className="mb-2">
-                    Caso a subscrição seja cancelada antes da conclusão do processo de produção ou postagem dos brindes, o direito à oferta poderá ser cancelado, salvo quando a produção já tiver sido iniciada e as condições específicas da campanha determinarem o contrário.
+                    {pt.regSec12P2}
                   </p>
                   <p>
-                    A oferta não constitui saldo, crédito ou valor monetário na conta do cliente.
+                    {pt.regSec12P3}
                   </p>
                 </div>
 
@@ -755,13 +757,13 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">13</span>
-                    RESPONSABILIDADE PELOS DADOS FORNECIDOS
+                    {pt.regSec13Title}
                   </h4>
                   <p className="mb-2">
-                    O cliente é responsável pela correta indicação dos seus dados de contacto e de entrega.
+                    {pt.regSec13P1}
                   </p>
                   <p>
-                    O AtriosBuild não se responsabiliza por atrasos, devoluções ou impossibilidade de entrega decorrentes de informações incorretas, incompletas ou desatualizadas fornecidas pelo cliente.
+                    {pt.regSec13P2}
                   </p>
                 </div>
 
@@ -769,13 +771,13 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">14</span>
-                    ALTERAÇÃO OU ENCERRAMENTO DA PROMOÇÃO
+                    {pt.regSec14Title}
                   </h4>
                   <p className="mb-2">
-                    O AtriosBuild reserva-se o direito de alterar, suspender ou encerrar a promoção, nomeadamente em caso de esgotamento do stock ou por motivos de força maior.
+                    {pt.regSec14P1}
                   </p>
                   <p>
-                    Qualquer alteração relevante será comunicada através dos canais oficiais do AtriosBuild.
+                    {pt.regSec14P2}
                   </p>
                 </div>
 
@@ -783,18 +785,18 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
                 <div className="pt-4 pb-2">
                   <h4 className="font-black text-slate-900 uppercase text-xs sm:text-sm mb-2 flex items-center gap-2">
                     <span className="w-6 h-6 rounded-lg bg-slate-900 text-amber-400 flex items-center justify-center text-[10px] font-black shrink-0">15</span>
-                    ACEITAÇÃO DO REGULAMENTO
+                    {pt.regSec15Title}
                   </h4>
                   <p className="mb-2">
-                    A subscrição do Plano Premium e a participação na promoção pressupõem a leitura e aceitação integral deste regulamento.
+                    {pt.regSec15P1}
                   </p>
                   <p className="mb-4">
-                    Ao participar na promoção, o cliente declara ter compreendido e aceite todas as condições aqui estabelecidas.
+                    {pt.regSec15P2}
                   </p>
                   
                   <div className="bg-slate-900 text-white p-4 rounded-2xl border border-slate-800 text-center space-y-1 mt-4">
                     <p className="font-black text-amber-400 text-sm uppercase tracking-wider">AtriosBuild</p>
-                    <p className="text-xs text-slate-300 italic">Construímos ferramentas para quem constrói.</p>
+                    <p className="text-xs text-slate-300 italic">{pt.regTagline}</p>
                   </div>
                 </div>
               </div>
@@ -804,9 +806,9 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
             <div className="p-4 bg-slate-50 border-t border-slate-100 flex justify-end">
               <button
                 onClick={() => setShowRegulationModal(false)}
-                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-all shadow-md active:scale-95"
+                className="px-6 py-2.5 bg-slate-900 text-white rounded-xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-all shadow-md active:scale-95 cursor-pointer"
               >
-                {t.understood}
+                {pt.understood}
               </button>
             </div>
           </div>

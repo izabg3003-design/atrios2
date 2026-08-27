@@ -40,6 +40,8 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import { Company, Worker, WorkTimeLog } from '../types';
+import { Locale } from '../translations';
+import { workTrackerTranslations } from './workTrackerTranslations';
 import { generateQrCodeForUrl } from '../services/qrcode';
 import { 
   getWorkers, 
@@ -64,6 +66,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   locale,
   currencyCode = 'EUR'
 }) => {
+  const wt = workTrackerTranslations[locale as Locale] || workTrackerTranslations['pt-PT'];
+
   // Estado de Trabalhadores e Registos
   const [workers, setWorkers] = useState<Worker[]>([]);
   const [logs, setLogs] = useState<WorkTimeLog[]>([]);
@@ -96,91 +100,53 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   const [workerAddress, setWorkerAddress] = useState('');
   const [workerPhone, setWorkerPhone] = useState('');
   const [workerEmail, setWorkerEmail] = useState('');
-  const [workerHourlyRate, setWorkerHourlyRate] = useState<string>('');
+  const [workerHourlyRate, setWorkerHourlyRate] = useState('');
   const [workerAdmissionDate, setWorkerAdmissionDate] = useState('');
   const [workerActive, setWorkerActive] = useState(true);
 
-  // Form states - Registo de Ponto / Dia
-  const [logWorkerId, setLogWorkerId] = useState<string>('');
-  const [logDate, setLogDate] = useState<string>(new Date().toISOString().split('T')[0]);
+  // Form states - Registo de Ponto
+  const [logWorkerId, setLogWorkerId] = useState('');
+  const [logDate, setLogDate] = useState('');
   const [logStartTime, setLogStartTime] = useState('08:00');
-  const [logCoffeeBreak, setLogCoffeeBreak] = useState('15 min');
+  const [logCoffeeBreak, setLogCoffeeBreak] = useState('10:00 - 10:15 (15m)');
   const [logLunchBreak, setLogLunchBreak] = useState('12:00 - 13:00 (1h)');
   const [logEndTime, setLogEndTime] = useState('17:00');
   const [logWorkLocation, setLogWorkLocation] = useState('');
   const [logDetails, setLogDetails] = useState('');
 
-  // Carregamento de dados (Local + Supabase Cloud)
+  // Sincronização Inicial
   const loadData = async (forceCloud = false) => {
-    if (!company?.id) return;
-
-    // 1. Carrega local imediatamente para UI instantânea
-    const loadedWorkers = getWorkers(company.id);
-    const loadedLogs = getWorkTimeLogs(company.id);
-
-    if (loadedWorkers.length > 0) {
-      setWorkers(loadedWorkers);
-      setLogs(loadedLogs);
-      if (!selectedWorkerId) {
-        setSelectedWorkerId(loadedWorkers[0].id);
-      }
-    }
-
-    // 2. Busca dados atualizados da Nuvem (Supabase)
+    setIsSyncing(true);
     try {
-      setIsSyncing(true);
-      const [cloudWorkers, cloudLogs] = await Promise.all([
-        fetchWorkersFromCloud(company.id),
-        fetchWorkTimeLogsFromCloud(company.id)
-      ]);
-
-      if (cloudWorkers && cloudWorkers.length > 0) {
+      if (forceCloud) {
+        const [cloudWorkers, cloudLogs] = await Promise.all([
+          fetchWorkersFromCloud(company.id),
+          fetchWorkTimeLogsFromCloud(company.id)
+        ]);
         setWorkers(cloudWorkers);
-        setLogs(cloudLogs || []);
-        if (!selectedWorkerId || !cloudWorkers.some(w => w.id === selectedWorkerId)) {
+        setLogs(cloudLogs);
+        if (cloudWorkers.length > 0 && !selectedWorkerId) {
           setSelectedWorkerId(cloudWorkers[0].id);
         }
-      } else if (loadedWorkers.length === 0) {
-        // Se ainda não existir nenhum trabalhador nem no cloud nem localmente
-        const defaultWorker: Worker = {
-          id: generateShortId(),
-          companyId: company.id,
-          name: 'João Silva',
-          nif: '254896321',
-          role: 'Pedreiro de 1ª',
-          address: 'Rua das Flores, nº 14, Lisboa',
-          phone: '+351 912 345 678',
-          email: 'joao.silva@exemplo.com',
-          hourlyRate: 12.5,
-          admissionDate: new Date().toISOString().split('T')[0],
-          active: true,
-          createdAt: new Date().toISOString()
-        };
-        await saveWorker(defaultWorker);
+      } else {
+        const localWorkers = getWorkers(company.id);
+        const localLogs = getWorkTimeLogs(company.id);
+        setWorkers(localWorkers);
+        setLogs(localLogs);
+        if (localWorkers.length > 0 && !selectedWorkerId) {
+          setSelectedWorkerId(localWorkers[0].id);
+        }
 
-        const todayStr = new Date().toISOString().split('T')[0];
-        const defaultLog: WorkTimeLog = {
-          id: generateShortId(),
-          companyId: company.id,
-          workerId: defaultWorker.id,
-          date: todayStr,
-          startTime: '08:00',
-          coffeeBreak: '10:00 - 10:15 (15m)',
-          lunchBreak: '12:00 - 13:00 (1h)',
-          endTime: '17:00',
-          totalHours: 8.0,
-          workLocation: 'Edifício Panorama - Av. Principal, Lisboa',
-          details: 'Assentamento de blocos de alvenaria e preparação do piso da sala principal.',
-          createdAt: new Date().toISOString()
-        };
-        await saveWorkTimeLog(defaultLog);
-
-        setWorkers([defaultWorker]);
-        setLogs([defaultLog]);
-        setSelectedWorkerId(defaultWorker.id);
+        // Tenta sincronizar silenciosamente com o Supabase
+        fetchWorkersFromCloud(company.id).then(w => {
+          if (w && w.length > 0) setWorkers(w);
+        });
+        fetchWorkTimeLogsFromCloud(company.id).then(l => {
+          if (l && l.length > 0) setLogs(l);
+        });
       }
-    } catch (e) {
-      console.warn('[WorkTimeTracker] Erro ao sincronizar com Supabase:', e);
+    } catch (err) {
+      console.warn('Erro ao sincronizar dados de ponto:', err);
     } finally {
       setIsSyncing(false);
     }
@@ -188,16 +154,19 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   useEffect(() => {
     loadData();
-  }, [company?.id]);
+  }, [company.id]);
 
-  // Colaborador selecionado
+  // Seletor do Trabalhador Ativo
   const selectedWorker = useMemo(() => {
-    return workers.find(w => w.id === selectedWorkerId) || workers[0] || null;
+    if (!selectedWorkerId && workers.length > 0) {
+      return workers[0];
+    }
+    return workers.find(w => w.id === selectedWorkerId) || (workers.length > 0 ? workers[0] : null);
   }, [workers, selectedWorkerId]);
 
   // Formatação do Mês Selecionado (ex: "Agosto de 2026")
   const currentMonthYearLabel = useMemo(() => {
-    return selectedMonthDate.toLocaleDateString(locale.startsWith('pt') ? 'pt-PT' : 'en-US', {
+    return selectedMonthDate.toLocaleDateString(locale, {
       month: 'long',
       year: 'numeric'
     });
@@ -290,13 +259,13 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       let totalMinutes = (endH * 60 + endM) - (startH * 60 + startM);
       if (totalMinutes < 0) totalMinutes += 24 * 60; // caso vire a noite
 
-      // Deduz apenas a Pausa de Almoço (a pausa de café / pequeno-almoço de 15m é remunerada e NÃO é abatida, totalizando 8h completas)
+      // Deduz apenas a Pausa de Almoço (a pausa de café de 15m é remunerada e NÃO é abatida, totalizando 8h completas)
       let lunchDeductionMinutes = 60;
       if (lunchText.includes('30m') || lunchText.includes('30 min')) {
         lunchDeductionMinutes = 30;
-      } else if (lunchText.includes('1.5h') || lunchText.includes('90 min')) {
+      } else if (lunchText.includes('1.5h') || lunchText.includes('90 min') || lunchText.includes('1h30')) {
         lunchDeductionMinutes = 90;
-      } else if (lunchText.includes('0m') || lunchText.includes('Sem pausa') || lunchText.includes('0 min')) {
+      } else if (lunchText.includes('0m') || lunchText.includes('Sem pausa') || lunchText.includes('0 min') || lunchText.includes('No break') || lunchText.includes('Sin pausa')) {
         lunchDeductionMinutes = 0;
       }
 
@@ -337,7 +306,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     setIsWorkerModalOpen(true);
   };
 
-  // Gerar Link do Portal do Colaborador com o Nome do Próprio
+  // Gerar Link do Portal do Colaborador com o Nome do Próprio e o Idioma Selecionado
   const getWorkerPortalUrl = (worker: Worker) => {
     const origin = typeof window !== 'undefined' ? window.location.origin : 'https://atrios.app';
     const workerSlug = encodeURIComponent(
@@ -350,7 +319,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
         .replace(/^-+|-+$/g, '') || worker.name.trim().toLowerCase().replace(/\s+/g, '-')
     );
     const workerFullName = encodeURIComponent(worker.name.trim());
-    return `${origin}/?portal=ponto&colaborador=${workerSlug}&nome=${workerFullName}&workerId=${encodeURIComponent(worker.id)}&companyId=${encodeURIComponent(company.id)}`;
+    return `${origin}/?portal=ponto&colaborador=${workerSlug}&nome=${workerFullName}&workerId=${encodeURIComponent(worker.id)}&companyId=${encodeURIComponent(company.id)}&lang=${encodeURIComponent(locale)}`;
   };
 
   // Abrir Modal de Partilha de Link do Colaborador
@@ -372,12 +341,15 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     }
   };
 
-  // Partilhar por WhatsApp
+  // Partilhar por WhatsApp com Template Traduzido
   const handleOpenWhatsApp = (worker: Worker) => {
     const url = getWorkerPortalUrl(worker);
     const companyName = company.name || company.companyName || 'nossa empresa';
     const cleanPhone = (worker.phone || '').replace(/\D/g, '');
-    const message = `Olá ${worker.name}, este é o seu link exclusivo e direto para registar as suas horas de trabalho diárias no sistema da ${companyName}:\n\n${url}\n\nAbra o link no telemóvel para submeter o seu ponto todos os dias.`;
+    const message = wt.whatsappMessage
+      .replace('{workerName}', worker.name)
+      .replace('{companyName}', companyName)
+      .replace('{url}', url);
     const waUrl = cleanPhone && cleanPhone.length >= 8
       ? `https://wa.me/${cleanPhone}?text=${encodeURIComponent(message)}`
       : `https://wa.me/?text=${encodeURIComponent(message)}`;
@@ -422,7 +394,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   // Eliminar Colaborador
   const handleDeleteWorker = async (worker: Worker) => {
-    if (confirm(`Tem a certeza que deseja eliminar o colaborador ${worker.name}? Todos os registos de horas deste trabalhador também serão removidos.`)) {
+    const confirmText = wt.deleteWorkerConfirm.replace('{name}', worker.name);
+    if (confirm(confirmText)) {
       await deleteWorker(worker.id, company.id);
       await loadData();
       if (selectedWorkerId === worker.id) {
@@ -504,7 +477,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   // Eliminar Registo de Ponto
   const handleDeleteLog = async (logId: string) => {
-    if (confirm('Tem a certeza que deseja eliminar este registo de horas?')) {
+    if (confirm(wt.deleteLogConfirm)) {
       await deleteWorkTimeLog(logId, company.id);
       await loadData();
     }
@@ -513,7 +486,6 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   // Exportar Folha de Horas / Ponto em PDF com Logo ÁTRIOS
   const handleExportPDF = () => {
     if (!selectedWorker) {
-      alert('Selecione um colaborador para exportar a folha de ponto.');
       return;
     }
 
@@ -575,7 +547,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.setTextColor(255, 255, 255);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(13);
-      const companyNameClean = (company.name || 'EMPRESA').toUpperCase();
+      const companyNameClean = (company.name || company.companyName || 'EMPRESA').toUpperCase();
       doc.text(companyNameClean, companyStartX, 14.5);
 
       doc.setFont('helvetica', 'normal');
@@ -589,12 +561,12 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.setTextColor(15, 23, 42);
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(15);
-      doc.text('FOLHA DE REGISTO DE HORAS & PONTO', 14, 41);
+      doc.text(wt.pdfTitle, 14, 41);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(9);
       doc.setTextColor(100, 116, 139);
-      doc.text(`Período de Referência: ${currentMonthYearLabel.toUpperCase()}`, 14, 48);
+      doc.text(`${wt.referencePeriod} ${currentMonthYearLabel.toUpperCase()}`, 14, 48);
 
       // 4. Bloco de Dados do Colaborador
       doc.setFillColor(248, 250, 252);
@@ -604,21 +576,21 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
-      doc.text(`Colaborador: ${selectedWorker.name.toUpperCase()}`, 18, 61);
+      doc.text(`${wt.workerLabel} ${selectedWorker.name.toUpperCase()}`, 18, 61);
 
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(8.5);
       doc.setTextColor(71, 85, 105);
-      doc.text(`Função: ${selectedWorker.role}`, 18, 67);
-      doc.text(`NIF: ${selectedWorker.nif}`, 18, 73);
+      doc.text(`${wt.roleLabel} ${selectedWorker.role}`, 18, 67);
+      doc.text(`${wt.nifLabel} ${selectedWorker.nif}`, 18, 73);
 
-      doc.text(`Contacto: ${selectedWorker.phone || 'N/A'}`, 110, 67);
-      doc.text(`Morada: ${selectedWorker.address || 'N/A'}`, 110, 73);
+      doc.text(`${wt.contactLabel} ${selectedWorker.phone || 'N/A'}`, 110, 67);
+      doc.text(`${wt.addressLabel} ${selectedWorker.address || 'N/A'}`, 110, 73);
 
       // 5. Tabela com os Registos de Ponto
       const tableData = currentWorkerLogsForMonth.map(log => {
         const d = new Date(log.date);
-        const dayFormatted = d.toLocaleDateString('pt-PT', { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' });
+        const dayFormatted = d.toLocaleDateString(locale, { day: '2-digit', month: '2-digit', year: 'numeric', weekday: 'short' });
         return [
           dayFormatted,
           log.startTime || '--',
@@ -633,8 +605,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
       autoTable(doc, {
         startY: 84,
-        head: [['Data / Dia', 'Entrada', 'P. Café', 'P. Almoço', 'Saída', 'Total', 'Local Obra / Serviço', 'Detalhes / Atividades']],
-        body: tableData.length > 0 ? tableData : [['Nenhum registo', '--', '--', '--', '--', '0h', '--', '--']],
+        head: [[wt.dateCol, wt.entryCol, wt.coffeeCol, wt.lunchCol, wt.exitCol, wt.totalNetCol, wt.siteCol, wt.detailsCol]],
+        body: tableData.length > 0 ? tableData : [['--', '--', '--', '--', '--', '0h', '--', '--']],
         theme: 'striped',
         headStyles: {
           fillColor: [15, 23, 42],
@@ -670,8 +642,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.setFont('helvetica', 'bold');
       doc.setFontSize(9);
       doc.setTextColor(15, 23, 42);
-      doc.text(`TOTAL DE DIAS TRABALHADOS: ${stats.totalDays}`, 20, finalY + 10);
-      doc.text(`TOTAL DE HORAS LÍQUIDAS: ${stats.totalHours} Horas`, 110, finalY + 10);
+      doc.text(`${wt.totalDaysWorked} ${stats.totalDays}`, 20, finalY + 10);
+      doc.text(`${wt.totalNetHours} ${stats.totalHours} h`, 110, finalY + 10);
 
       // 7. Assinaturas
       const signY = finalY + 36;
@@ -684,13 +656,13 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
         doc.setFont('helvetica', 'normal');
         doc.setFontSize(8);
         doc.setTextColor(100, 116, 139);
-        doc.text('Assinatura do Colaborador', 55, signY + 5, { align: 'center' });
+        doc.text(wt.workerSignature, 55, signY + 5, { align: 'center' });
         doc.text(selectedWorker.name, 55, signY + 9, { align: 'center' });
 
         // Assinatura Empresa
         doc.line(pageWidth - 90, signY, pageWidth - 20, signY);
-        doc.text('Assinatura / Carimbo da Empresa', pageWidth - 55, signY + 5, { align: 'center' });
-        doc.text(company.name, pageWidth - 55, signY + 9, { align: 'center' });
+        doc.text(wt.companySignature, pageWidth - 55, signY + 5, { align: 'center' });
+        doc.text(company.name || company.companyName, pageWidth - 55, signY + 9, { align: 'center' });
       }
 
       // 8. Rodapé com Selo e Marca ÁTRIOS
@@ -704,13 +676,13 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       doc.setFont('helvetica', 'normal');
       doc.setFontSize(6.5);
       doc.setTextColor(148, 163, 184);
-      doc.text(`| Documento emitido por ${company.name} através do Átrios Software em ${new Date().toLocaleDateString('pt-PT')} às ${new Date().toLocaleTimeString('pt-PT')}`, 43, pageHeight - 9.5);
+      doc.text(`| ${wt.pdfGeneratedOn} ${new Date().toLocaleDateString(locale)} ${new Date().toLocaleTimeString(locale)}`, 43, pageHeight - 9.5);
 
-      const fileName = `Folha_Ponto_${selectedWorker.name.replace(/\s+/g, '_')}_${selectedMonthDate.getFullYear()}_${selectedMonthDate.getMonth() + 1}.pdf`;
+      const fileName = `Timesheet_${selectedWorker.name.replace(/\s+/g, '_')}_${selectedMonthDate.getFullYear()}_${selectedMonthDate.getMonth() + 1}.pdf`;
       doc.save(fileName);
     } catch (e) {
       console.error('Erro ao gerar PDF de folha de ponto:', e);
-      alert('Ocorreu um erro ao gerar o PDF. Por favor tente novamente.');
+      alert('Ocorreu um erro ao gerar o PDF.');
     }
   };
 
@@ -726,15 +698,15 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             </div>
             <div>
               <span className="text-[10px] font-black uppercase tracking-wider text-amber-600 px-2 py-0.5 rounded-full bg-amber-50 border border-amber-200">
-                Equipa & Obra
+                {wt.title}
               </span>
               <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-slate-900 tracking-tight">
-                Registo de Horas dos Colaboradores
+                {wt.title}
               </h1>
             </div>
           </div>
           <p className="text-xs sm:text-sm text-slate-500 font-medium max-w-2xl">
-            Registo diário de ponto, controlo de pausas de café e almoço, locais de serviço e tarefas executadas por cada trabalhador.
+            {wt.subtitle}
           </p>
         </div>
 
@@ -748,10 +720,10 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 ? 'bg-blue-50 text-blue-700 border-blue-200 animate-pulse' 
                 : 'bg-white hover:bg-slate-50 text-slate-700 border-slate-200 shadow-xs'
             }`}
-            title="Sincronizar dados com o Supabase"
+            title="Sincronizar dados com a nuvem"
           >
             <RefreshCw size={15} className={isSyncing ? 'animate-spin text-blue-600' : 'text-slate-500'} />
-            <span className="hidden sm:inline">{isSyncing ? 'Sincronizando...' : 'Nuvem Supabase'}</span>
+            <span className="hidden sm:inline">{isSyncing ? wt.syncing : wt.synced}</span>
           </button>
 
           <button
@@ -759,7 +731,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-xs cursor-pointer"
           >
             <UserPlus size={16} />
-            <span>Novo Colaborador</span>
+            <span>{wt.newWorker}</span>
           </button>
 
           <button
@@ -767,7 +739,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             className="px-5 py-3 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-md shadow-amber-500/20 cursor-pointer"
           >
             <Plus size={16} />
-            <span>Registar Dia / Ponto</span>
+            <span>{wt.recordWorkDay}</span>
           </button>
 
           {selectedWorker && (
@@ -777,7 +749,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
               title="Exportar Folha de Ponto em PDF"
             >
               <Download size={16} />
-              <span className="hidden sm:inline">Exportar PDF</span>
+              <span className="hidden sm:inline">{wt.exportPdfReport}</span>
             </button>
           )}
         </div>
@@ -790,8 +762,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <Users size={20} />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">Colaboradores</p>
-            <p className="text-lg sm:text-xl font-black text-slate-900">{globalStats.totalWorkers} <span className="text-xs font-bold text-slate-400">({globalStats.activeWorkers} ativos)</span></p>
+            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">{wt.activeWorkers}</p>
+            <p className="text-lg sm:text-xl font-black text-slate-900">{globalStats.totalWorkers} <span className="text-xs font-bold text-slate-400">({globalStats.activeWorkers})</span></p>
           </div>
         </div>
 
@@ -800,7 +772,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <Clock size={20} />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">Horas no Mês</p>
+            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">{wt.totalHoursWorked}</p>
             <p className="text-lg sm:text-xl font-black text-slate-900">{globalStats.totalCompanyHoursThisMonth}h</p>
           </div>
         </div>
@@ -810,8 +782,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <CheckCircle2 size={20} />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">Registos no Mês</p>
-            <p className="text-lg sm:text-xl font-black text-slate-900">{globalStats.totalLogsThisMonth} dias</p>
+            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">{wt.daysLogged}</p>
+            <p className="text-lg sm:text-xl font-black text-slate-900">{globalStats.totalLogsThisMonth}</p>
           </div>
         </div>
 
@@ -820,7 +792,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <CalendarDays size={20} />
           </div>
           <div>
-            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">Mês Atual</p>
+            <p className="text-[10px] sm:text-xs font-black text-slate-400 uppercase tracking-wider">{wt.date}</p>
             <p className="text-xs sm:text-sm font-black text-slate-900 capitalize truncate">{currentMonthYearLabel}</p>
           </div>
         </div>
@@ -835,7 +807,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <div className="flex items-center gap-2">
               <Users size={18} className="text-amber-500" />
               <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide">
-                Trabalhadores ({workers.length})
+                {wt.allWorkers} ({workers.length})
               </h2>
             </div>
             <button
@@ -852,7 +824,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              placeholder="Pesquisar por nome, função, NIF..."
+              placeholder={wt.searchWorkerPlaceholder}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               className="w-full pl-9 pr-4 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-xs font-bold outline-none focus:border-slate-900 transition-all"
@@ -864,12 +836,12 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
             {filteredWorkers.length === 0 ? (
               <div className="text-center py-8 px-4 bg-slate-50 rounded-2xl border border-dashed border-slate-200 space-y-2">
                 <Users size={28} className="text-slate-300 mx-auto" />
-                <p className="text-xs font-bold text-slate-500">Nenhum colaborador encontrado</p>
+                <p className="text-xs font-bold text-slate-500">{wt.noWorkersFound}</p>
                 <button
                   onClick={handleOpenNewWorkerModal}
                   className="text-xs font-black text-amber-600 hover:underline uppercase tracking-wider"
                 >
-                  + Adicionar Primeiro
+                  {wt.addFirst}
                 </button>
               </div>
             ) : (
@@ -923,8 +895,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                               e.stopPropagation();
                               handleOpenShareModal(worker);
                             }}
-                            className={`p-1 rounded-md hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-all`}
-                            title="Partilhar link exclusivo de ponto"
+                            className="p-1 rounded-md hover:bg-blue-500/20 text-blue-400 hover:text-blue-300 transition-all"
+                            title={wt.workerLink}
                           >
                             <Share2 size={12} />
                           </button>
@@ -934,7 +906,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                               handleOpenEditWorkerModal(worker);
                             }}
                             className={`p-1 rounded-md hover:bg-white/20 transition-all ${isSelected ? 'text-white' : 'text-slate-500'}`}
-                            title="Editar dados"
+                            title={wt.editWorker}
                           >
                             <Edit2 size={12} />
                           </button>
@@ -943,8 +915,8 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                               e.stopPropagation();
                               handleDeleteWorker(worker);
                             }}
-                            className={`p-1 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all`}
-                            title="Eliminar trabalhador"
+                            className="p-1 rounded-md hover:bg-red-500/20 text-red-400 hover:text-red-300 transition-all"
+                            title={wt.deleteWorker}
                           >
                             <Trash2 size={12} />
                           </button>
@@ -989,19 +961,19 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                         </span>
                         {selectedWorker.active ? (
                           <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 text-[9px] font-black uppercase tracking-wider border border-emerald-200">
-                            Ativo
+                            {wt.active}
                           </span>
                         ) : (
                           <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-500 text-[9px] font-black uppercase tracking-wider">
-                            Inativo
+                            {wt.inactive}
                           </span>
                         )}
                       </div>
                       <div className="flex flex-wrap items-center gap-y-1 gap-x-4 text-xs text-slate-500 font-bold">
                         <span><strong>NIF:</strong> {selectedWorker.nif}</span>
-                        <span><strong>Contacto:</strong> {selectedWorker.phone || 'N/A'}</span>
+                        <span><strong>{wt.contactLabel}</strong> {selectedWorker.phone || 'N/A'}</span>
                         {selectedWorker.address && (
-                          <span className="truncate max-w-xs"><strong>Morada:</strong> {selectedWorker.address}</span>
+                          <span className="truncate max-w-xs"><strong>{wt.addressLabel}</strong> {selectedWorker.address}</span>
                         )}
                       </div>
                     </div>
@@ -1012,25 +984,25 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     <button
                       onClick={() => handleOpenShareModal(selectedWorker)}
                       className="px-3.5 py-2.5 bg-blue-50 hover:bg-blue-100 text-blue-700 border border-blue-200/80 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
-                      title="Gerar Link e QR Code de Ponto para o Colaborador"
+                      title={wt.shareModalTitle}
                     >
                       <Share2 size={14} />
-                      <span>Link do Colaborador</span>
+                      <span>{wt.workerLink}</span>
                     </button>
                     <button
                       onClick={() => handleOpenEditWorkerModal(selectedWorker)}
-                      className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all"
-                      title="Editar Informações"
+                      className="p-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl font-bold text-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                      title={wt.editWorker}
                     >
                       <Edit2 size={14} />
-                      <span className="hidden sm:inline">Editar</span>
+                      <span className="hidden sm:inline">{wt.editWorker}</span>
                     </button>
                     <button
                       onClick={() => handleOpenNewLogModal(selectedWorker.id)}
                       className="px-4 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-xs cursor-pointer active:scale-95"
                     >
                       <Plus size={14} />
-                      <span>Registar Dia</span>
+                      <span>{wt.addDay}</span>
                     </button>
                   </div>
                 </div>
@@ -1041,7 +1013,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     <div className="flex items-center gap-2">
                       <Calendar size={16} className="text-amber-500" />
                       <span className="text-xs font-black text-slate-800 uppercase tracking-wide">
-                        Período:
+                        {wt.period}
                       </span>
                       <span className="text-sm font-black text-slate-900 capitalize">
                         {currentMonthYearLabel}
@@ -1051,21 +1023,21 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     <div className="flex items-center gap-1.5 self-end sm:self-auto">
                       <button
                         onClick={handlePrevMonth}
-                        className="p-2 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 transition-all"
-                        title="Mês Anterior"
+                        className="p-2 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 transition-all cursor-pointer"
+                        title={wt.prevMonth}
                       >
                         <ChevronLeft size={16} />
                       </button>
                       <button
                         onClick={handleCurrentMonth}
-                        className="px-3 py-1.5 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-xs font-black text-slate-800 transition-all"
+                        className="px-3 py-1.5 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-xs font-black text-slate-800 transition-all cursor-pointer"
                       >
-                        Mês Atual
+                        {wt.currentMonth}
                       </button>
                       <button
                         onClick={handleNextMonth}
-                        className="p-2 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 transition-all"
-                        title="Próximo Mês"
+                        className="p-2 bg-white hover:bg-slate-200 rounded-xl border border-slate-200 text-slate-700 transition-all cursor-pointer"
+                        title={wt.nextMonth}
                       >
                         <ChevronRight size={16} />
                       </button>
@@ -1075,20 +1047,20 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   {/* 4 Mini Estatísticas do Colaborador no Mês */}
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5 sm:gap-3">
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Total Horas</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{wt.totalHours}</p>
                       <p className="text-lg font-black text-slate-900 mt-0.5">{stats.totalHours}h</p>
                     </div>
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Dias Trabalhados</p>
-                      <p className="text-lg font-black text-slate-900 mt-0.5">{stats.totalDays} dias</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{wt.daysWorked}</p>
+                      <p className="text-lg font-black text-slate-900 mt-0.5">{stats.totalDays}</p>
                     </div>
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Média / Dia</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{wt.dailyAvg}</p>
                       <p className="text-lg font-black text-slate-900 mt-0.5">{stats.avgDailyHours}h</p>
                     </div>
                     <div className="bg-slate-50/80 p-3.5 rounded-2xl border border-slate-100">
-                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">Obras Distintas</p>
-                      <p className="text-lg font-black text-slate-900 mt-0.5">{stats.uniqueLocations} obras</p>
+                      <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider">{wt.distinctSites}</p>
+                      <p className="text-lg font-black text-slate-900 mt-0.5">{stats.uniqueLocations}</p>
                     </div>
                   </div>
                 </div>
@@ -1101,23 +1073,23 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   <div className="flex items-center gap-2">
                     <FileText size={18} className="text-amber-500" />
                     <h3 className="text-sm font-black text-slate-900 uppercase tracking-wider">
-                      Relação de Horas e Atividades ({currentWorkerLogsForMonth.length})
+                      {wt.timesheetAndTasks} ({currentWorkerLogsForMonth.length})
                     </h3>
                   </div>
                   <div className="flex items-center gap-2">
                     <button
                       onClick={handleExportPDF}
-                      className="px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-2xs"
+                      className="px-3.5 py-1.5 bg-white hover:bg-slate-100 border border-slate-200 text-slate-800 rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-2xs cursor-pointer"
                     >
                       <Printer size={13} />
-                      <span>Imprimir / PDF</span>
+                      <span>{wt.printPdf}</span>
                     </button>
                     <button
                       onClick={() => handleOpenNewLogModal(selectedWorker.id)}
-                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-xs"
+                      className="px-3.5 py-1.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl text-xs font-black flex items-center gap-1.5 transition-all shadow-xs cursor-pointer"
                     >
                       <Plus size={13} />
-                      <span>Adicionar Dia</span>
+                      <span>{wt.addDay}</span>
                     </button>
                   </div>
                 </div>
@@ -1126,17 +1098,17 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   <div className="text-center py-16 px-6 space-y-3">
                     <Clock size={36} className="text-slate-300 mx-auto" />
                     <h4 className="text-sm font-black text-slate-700">
-                      Nenhum registo de horas para {selectedWorker.name} em {currentMonthYearLabel}
+                      {wt.noLogsForWorker.replace('{name}', selectedWorker.name).replace('{period}', currentMonthYearLabel)}
                     </h4>
                     <p className="text-xs text-slate-400 font-medium max-w-sm mx-auto">
-                      Clique no botão abaixo para adicionar a primeira folha de ponto com horários de entrada, pausas, saída e local de obra.
+                      {wt.noLogsWorkerPrompt}
                     </p>
                     <button
                       onClick={() => handleOpenNewLogModal(selectedWorker.id)}
-                      className="mt-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-sm"
+                      className="mt-2 px-5 py-2.5 bg-amber-500 hover:bg-amber-600 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider inline-flex items-center gap-2 shadow-sm cursor-pointer"
                     >
                       <Plus size={15} />
-                      <span>Registar Dia de Trabalho</span>
+                      <span>{wt.recordWorkDay}</span>
                     </button>
                   </div>
                 ) : (
@@ -1144,21 +1116,21 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     <table className="w-full text-left border-collapse text-xs">
                       <thead>
                         <tr className="bg-slate-50 border-b border-slate-100 text-[10px] font-black text-slate-400 uppercase tracking-wider">
-                          <th className="py-3 px-4">Data / Dia</th>
-                          <th className="py-3 px-3 text-center">Entrada</th>
-                          <th className="py-3 px-3 text-center">Pausa Café</th>
-                          <th className="py-3 px-3 text-center">Pausa Almoço</th>
-                          <th className="py-3 px-3 text-center">Saída</th>
-                          <th className="py-3 px-3 text-center">Total Líquido</th>
-                          <th className="py-3 px-4">Local da Obra / Serviço</th>
-                          <th className="py-3 px-4">Detalhes do Dia</th>
-                          <th className="py-3 px-3 text-right">Ações</th>
+                          <th className="py-3 px-4">{wt.dateCol}</th>
+                          <th className="py-3 px-3 text-center">{wt.entryCol}</th>
+                          <th className="py-3 px-3 text-center">{wt.coffeeCol}</th>
+                          <th className="py-3 px-3 text-center">{wt.lunchCol}</th>
+                          <th className="py-3 px-3 text-center">{wt.exitCol}</th>
+                          <th className="py-3 px-3 text-center">{wt.totalNetCol}</th>
+                          <th className="py-3 px-4">{wt.siteCol}</th>
+                          <th className="py-3 px-4">{wt.detailsCol}</th>
+                          <th className="py-3 px-3 text-right">{wt.actionsCol}</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-100">
                         {currentWorkerLogsForMonth.map((log) => {
                           const logDateObj = new Date(log.date);
-                          const formattedDate = logDateObj.toLocaleDateString(locale.startsWith('pt') ? 'pt-PT' : 'en-US', {
+                          const formattedDate = logDateObj.toLocaleDateString(locale, {
                             day: '2-digit',
                             month: '2-digit',
                             weekday: 'short'
@@ -1212,14 +1184,14 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                               <td className="py-3.5 px-4 font-bold text-slate-800">
                                 <div className="flex items-center gap-1.5 max-w-[200px] truncate" title={log.workLocation}>
                                   <MapPin size={13} className="text-slate-400 shrink-0" />
-                                  <span className="truncate">{log.workLocation || 'Obra Geral'}</span>
+                                  <span className="truncate">{log.workLocation || 'Obra Principal'}</span>
                                 </div>
                               </td>
 
                               {/* Detalhes do Dia */}
                               <td className="py-3.5 px-4 font-medium text-slate-600 max-w-[250px]">
                                 <p className="line-clamp-2 text-[11px]" title={log.details}>
-                                  {log.details || <span className="text-slate-300 italic">Sem detalhes adicionais</span>}
+                                  {log.details || <span className="text-slate-300 italic">{wt.noExtraDetails}</span>}
                                 </p>
                               </td>
 
@@ -1228,14 +1200,14 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                                 <div className="flex items-center justify-end gap-1">
                                   <button
                                     onClick={() => handleOpenEditLogModal(log)}
-                                    className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all"
+                                    className="p-1.5 text-slate-500 hover:text-slate-900 hover:bg-slate-100 rounded-lg transition-all cursor-pointer"
                                     title="Editar registo"
                                   >
                                     <Edit2 size={13} />
                                   </button>
                                   <button
                                     onClick={() => handleDeleteLog(log.id)}
-                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all"
+                                    className="p-1.5 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
                                     title="Eliminar registo"
                                   >
                                     <Trash2 size={13} />
@@ -1259,16 +1231,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 <Users size={32} />
               </div>
               <h3 className="text-xl font-black text-slate-900">
-                Nenhum colaborador selecionado
+                {wt.noWorkerSelected}
               </h3>
               <p className="text-sm text-slate-500 max-w-md mx-auto font-medium">
-                Cadastre os seus trabalhadores para acompanhar as horas de entrada, pausas de café e almoço, locais de serviço e tarefas diárias.
+                {wt.noWorkerSelectedDesc}
               </p>
               <button
                 onClick={handleOpenNewWorkerModal}
                 className="px-6 py-3.5 bg-slate-900 text-white rounded-2xl font-black text-xs uppercase tracking-wider hover:bg-slate-800 transition-all shadow-md active:scale-95 cursor-pointer"
               >
-                + Adicionar Primeiro Colaborador
+                {wt.addFirstWorker}
               </button>
             </div>
           )}
@@ -1296,16 +1268,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   </div>
                   <div>
                     <h3 className="text-base sm:text-lg font-black text-slate-900">
-                      {editingWorker ? 'Editar Colaborador' : 'Novo Colaborador'}
+                      {editingWorker ? wt.workerModalTitleEdit : wt.workerModalTitleNew}
                     </h3>
                     <p className="text-xs text-slate-400 font-bold">
-                      Preencha os dados do trabalhador da sua empresa
+                      {wt.workerModalSubtitle}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsWorkerModalOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                  className="p-2 text-slate-400 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -1316,7 +1288,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 {/* Nome Completo */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Nome Completo *
+                    {wt.workerName}
                   </label>
                   <input
                     type="text"
@@ -1332,7 +1304,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      NIF / Documento *
+                      {wt.workerNif}
                     </label>
                     <input
                       type="text"
@@ -1346,7 +1318,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Função / Cargo *
+                      {wt.workerRole}
                     </label>
                     <input
                       type="text"
@@ -1363,7 +1335,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Contacto Telefónico *
+                      {wt.workerPhone}
                     </label>
                     <input
                       type="text"
@@ -1377,7 +1349,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      E-mail (Opcional)
+                      {wt.workerEmail}
                     </label>
                     <input
                       type="email"
@@ -1392,12 +1364,12 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 {/* Endereço / Morada */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Endereço / Morada *
+                    {wt.workerAddress}
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Rua das Flores nº 14, Lisboa"
+                    placeholder="Ex: Rua das Flores nº 14"
                     value={workerAddress}
                     onChange={(e) => setWorkerAddress(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all"
@@ -1408,7 +1380,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Valor/Hora (€) (Opcional)
+                      {wt.workerHourlyRateLabel}
                     </label>
                     <input
                       type="number"
@@ -1422,15 +1394,15 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Estado
+                      {wt.workerActiveStatus}
                     </label>
                     <select
                       value={workerActive ? 'true' : 'false'}
                       onChange={(e) => setWorkerActive(e.target.value === 'true')}
                       className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all cursor-pointer"
                     >
-                      <option value="true">Ativo</option>
-                      <option value="false">Inativo</option>
+                      <option value="true">{wt.active}</option>
+                      <option value="false">{wt.inactive}</option>
                     </select>
                   </div>
                 </div>
@@ -1440,16 +1412,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsWorkerModalOpen(false)}
-                    className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider"
+                    className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
                   >
-                    Cancelar
+                    {wt.cancel}
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2"
+                    className="px-6 py-3 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer"
                   >
                     <Save size={14} />
-                    <span>{editingWorker ? 'Guardar Alterações' : 'Criar Colaborador'}</span>
+                    <span>{editingWorker ? wt.saveWorkerEdit : wt.saveWorker}</span>
                   </button>
                 </div>
               </form>
@@ -1478,16 +1450,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   </div>
                   <div>
                     <h3 className="text-base sm:text-lg font-black text-slate-900">
-                      {editingLog ? 'Editar Registo de Ponto' : 'Registar Dia de Trabalho'}
+                      {editingLog ? wt.workerModalTitleEdit : wt.recordWorkDay}
                     </h3>
                     <p className="text-xs text-slate-400 font-bold">
-                      Preencha os horários, pausas, obra e tarefas do dia
+                      {wt.subtitle}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setIsLogModalOpen(false)}
-                  className="p-2 text-slate-400 hover:text-slate-900 rounded-xl transition-all"
+                  className="p-2 text-slate-400 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -1499,7 +1471,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Colaborador *
+                      {wt.workerLabel} *
                     </label>
                     <select
                       value={logWorkerId}
@@ -1517,7 +1489,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
                   <div>
                     <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                      Data do Dia *
+                      {wt.dateCol} *
                     </label>
                     <input
                       type="date"
@@ -1532,14 +1504,14 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 {/* Horários: Entrada, Pausa Café, Pausa Almoço, Saída (Grid 4 cols) */}
                 <div className="p-4 bg-slate-50 rounded-2xl border border-slate-100 space-y-3">
                   <span className="text-[10px] font-black text-slate-500 uppercase tracking-wider block">
-                    Horários & Pausas do Dia
+                    {wt.quickShifts}
                   </span>
 
                   <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                     {/* Entrada */}
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Entrada *
+                        {wt.entryCol} *
                       </label>
                       <input
                         type="time"
@@ -1553,7 +1525,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     {/* Pausa Café */}
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Pausa Café
+                        {wt.coffeeCol}
                       </label>
                       <input
                         type="text"
@@ -1567,7 +1539,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     {/* Pausa Almoço */}
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Pausa Almoço
+                        {wt.lunchCol}
                       </label>
                       <input
                         type="text"
@@ -1581,7 +1553,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     {/* Saída */}
                     <div>
                       <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">
-                        Saída *
+                        {wt.exitCol} *
                       </label>
                       <input
                         type="time"
@@ -1595,9 +1567,9 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
                   {/* Resumo do Cálculo em Tempo Real */}
                   <div className="pt-2 flex items-center justify-between text-xs font-bold text-slate-600">
-                    <span>Total Líquido Estimado:</span>
+                    <span>{wt.totalNetCol}:</span>
                     <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-black">
-                      {calculateTotalHours(logStartTime, logEndTime, logLunchBreak, logCoffeeBreak)} Horas
+                      {calculateTotalHours(logStartTime, logEndTime, logLunchBreak, logCoffeeBreak)} h
                     </span>
                   </div>
                 </div>
@@ -1605,12 +1577,12 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 {/* Local da Obra / Serviço */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Local da Obra / Serviço *
+                    {wt.workLocation} *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="Ex: Moradia Cascais, Edifício Panorama, etc."
+                    placeholder={wt.workLocationPlaceholder}
                     value={logWorkLocation}
                     onChange={(e) => setLogWorkLocation(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all"
@@ -1620,11 +1592,11 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 {/* Detalhes do Dia / Ocorrências */}
                 <div>
                   <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1.5">
-                    Detalhes do Dia / Tarefas Executadas
+                    {wt.tasksDone}
                   </label>
                   <textarea
                     rows={3}
-                    placeholder="Ex: Assentamento de cerâmica, reboco de paredes, verificação de tubagens..."
+                    placeholder={wt.tasksDonePlaceholder}
                     value={logDetails}
                     onChange={(e) => setLogDetails(e.target.value)}
                     className="w-full px-4 py-3 rounded-xl bg-slate-50 border-2 border-slate-100 outline-none font-bold text-sm focus:border-slate-900 transition-all resize-none"
@@ -1636,16 +1608,16 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsLogModalOpen(false)}
-                    className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider"
+                    className="px-5 py-3 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
                   >
-                    Cancelar
+                    {wt.cancel}
                   </button>
                   <button
                     type="submit"
-                    className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2"
+                    className="px-6 py-3 rounded-xl bg-amber-500 hover:bg-amber-600 text-slate-950 font-black text-xs uppercase tracking-wider shadow-md flex items-center gap-2 cursor-pointer"
                   >
                     <Save size={14} />
-                    <span>{editingLog ? 'Guardar Registo' : 'Salvar Registo'}</span>
+                    <span>{editingLog ? wt.saveLogEdit : wt.saveLog}</span>
                   </button>
                 </div>
               </form>
@@ -1672,7 +1644,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   </div>
                   <div>
                     <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
-                      Portal do Colaborador
+                      {wt.shareModalTitle}
                     </span>
                     <h3 className="text-lg font-black text-slate-900 mt-1">
                       {shareModalWorker.name}
@@ -1684,7 +1656,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                 </div>
                 <button
                   onClick={() => setShareModalWorker(null)}
-                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all"
+                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
@@ -1692,13 +1664,13 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
               {/* Explicação */}
               <p className="text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                Envie este link direto para <strong>{shareModalWorker.name}</strong>. Ele poderá abrir no telemóvel para submeter os seus horários diários de trabalho, intervalos e tarefas da obra. Os registos entram diretamente no sistema!
+                {wt.shareModalDesc.replace('{name}', shareModalWorker.name)}
               </p>
 
               {/* Caixa com o Link do Colaborador */}
               <div className="space-y-2">
                 <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  Link Direto de Submissão
+                  {wt.shareDirectLink}
                 </label>
                 <div className="flex items-center gap-2">
                   <input
@@ -1716,7 +1688,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                     }`}
                   >
                     {copiedPortalLink ? <Check size={16} /> : <Copy size={16} />}
-                    <span>{copiedPortalLink ? 'Copiado!' : 'Copiar'}</span>
+                    <span>{copiedPortalLink ? wt.copied : wt.copyLink}</span>
                   </button>
                 </div>
               </div>
@@ -1728,17 +1700,17 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
                 >
                   <MessageCircle size={16} />
-                  <span>Enviar via WhatsApp</span>
+                  <span>{wt.shareWhatsapp}</span>
                 </button>
 
                 <a
                   href={getWorkerPortalUrl(shareModalWorker)}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 text-center"
+                  className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 text-center cursor-pointer"
                 >
                   <ExternalLink size={16} />
-                  <span>Abrir Portal</span>
+                  <span>{wt.openWorkerPortal}</span>
                 </a>
               </div>
 
@@ -1746,7 +1718,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
               {shareQrCodeUrl && (
                 <div className="pt-3 border-t border-slate-100 flex flex-col items-center justify-center text-center space-y-3">
                   <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                    QR Code para Leitura na Obra
+                    {wt.qrCodeForSite}
                   </p>
                   <div className="p-3 bg-white border-2 border-slate-200 rounded-2xl shadow-xs">
                     <img
@@ -1758,10 +1730,10 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   <a
                     href={shareQrCodeUrl}
                     download={`qrcode-ponto-${shareModalWorker.name.toLowerCase().replace(/\s+/g, '-')}.png`}
-                    className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1"
+                    className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 cursor-pointer"
                   >
                     <Download size={14} />
-                    <span>Descarregar Imagem do QR Code</span>
+                    <span>{wt.downloadQrImage}</span>
                   </a>
                 </div>
               )}
@@ -1772,7 +1744,7 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
                   onClick={() => setShareModalWorker(null)}
                   className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
                 >
-                  Fechar
+                  {wt.close}
                 </button>
               </div>
             </motion.div>

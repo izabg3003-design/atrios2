@@ -1,10 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, Wrench, Paintbrush, Zap, Home, Hammer, Sparkles, Send, 
   MapPin, Phone, Mail, User, AlertCircle, CheckCircle2, ShieldCheck, 
   HelpCircle, Camera, Upload, Layers, Calendar, ChevronRight
 } from 'lucide-react';
 import { ClientServiceRequest, ServiceCategory } from '../types';
+import { Locale } from '../translations';
+import { clientPortalTranslations } from './clientPortalTranslations';
 import { saveClientServiceRequest } from '../services/storage';
 
 interface ClientRequestModalProps {
@@ -20,17 +22,30 @@ interface ClientRequestModalProps {
   isFromPortal?: boolean;
 }
 
-const CATEGORIES: { id: ServiceCategory; label: string; icon: React.FC<{ size?: number; className?: string }>; description: string }[] = [
-  { id: 'doors_windows', label: 'Portas & Janelas', icon: Home, description: 'Trocar portas, janelas, fechaduras, alumínios e estores' },
-  { id: 'painting', label: 'Pintura', icon: Paintbrush, description: 'Pintura de paredes interiores, tetos, fachadas ou portões' },
-  { id: 'electrical', label: 'Eletricidade & Fichas', icon: Zap, description: 'Troca de tomadas, fichas, disjuntores, iluminação e quadros' },
-  { id: 'plumbing', label: 'Canalização & Esgotos', icon: Wrench, description: 'Torneiras, fugas de água, loiças de casa de banho, tubagens' },
-  { id: 'plasterboard', label: 'Pladur & Tetos Falsos', icon: Layers, description: 'Divisórias em pladur, tetos falsos, sancas e isolamentos' },
-  { id: 'renovation', label: 'Remodelação Geral', icon: Sparkles, description: 'Cozinhas, casas de banho completas, remodelações totais' },
-  { id: 'construction', label: 'Construção do Zero', icon: Hammer, description: 'Construção de moradias, ampliações, muros e alvenaria' },
-  { id: 'roofing', label: 'Telhados & Coberturas', icon: Home, description: 'Reparação de telhados, caleiras, impermeabilizações' },
-  { id: 'flooring', label: 'Pisos & Revestimentos', icon: Layers, description: 'Cerâmica, mosaicos, flutuante, vinílico ou deck' },
-  { id: 'other', label: 'Outro Serviço', icon: HelpCircle, description: 'Qualquer outro tipo de reparação, manutenção ou obra' }
+const CATEGORY_ICONS: Record<string, React.FC<{ size?: number; className?: string }>> = {
+  doors_windows: Home,
+  painting: Paintbrush,
+  electrical: Zap,
+  plumbing: Wrench,
+  plasterboard: Layers,
+  renovation: Sparkles,
+  construction: Hammer,
+  roofing: Home,
+  flooring: Layers,
+  other: HelpCircle
+};
+
+const CATEGORY_KEYS: ServiceCategory[] = [
+  'doors_windows',
+  'painting',
+  'electrical',
+  'plumbing',
+  'plasterboard',
+  'renovation',
+  'construction',
+  'roofing',
+  'flooring',
+  'other'
 ];
 
 export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
@@ -45,6 +60,12 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   initialAccessCode,
   isFromPortal
 }) => {
+  const activeLocale = (locale && clientPortalTranslations[locale as Locale]) 
+    ? (locale as Locale) 
+    : 'pt-PT';
+  const tPortal = clientPortalTranslations[activeLocale] || clientPortalTranslations['pt-PT'];
+  const formT = tPortal.requestModalForm;
+
   const [step, setStep] = useState<1 | 2>(1);
   const [category, setCategory] = useState<ServiceCategory>('doors_windows');
   const [title, setTitle] = useState('');
@@ -61,7 +82,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [clientPhone, setClientPhone] = useState(initialClientPhone || '');
   const [clientEmail, setClientEmail] = useState(initialClientEmail || '');
 
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       if (initialClientPhone && !clientPhone) setClientPhone(initialClientPhone);
       if (initialClientName && !clientName) setClientName(initialClientName);
@@ -75,6 +96,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const [createdAccessCode, setCreatedAccessCode] = useState('');
 
   if (!isOpen) return null;
+
+  const categories = CATEGORY_KEYS.map(key => ({
+    id: key,
+    label: formT.categories?.[key]?.label || key,
+    description: formT.categories?.[key]?.description || '',
+    icon: CATEGORY_ICONS[key] || HelpCircle
+  }));
 
   const compressImage = (file: File): Promise<string> => {
     return new Promise((resolve) => {
@@ -120,7 +148,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     const fileList: File[] = Array.from(files);
     for (const file of fileList) {
       if (file.size > 10 * 1024 * 1024) {
-        alert('A fotografia não deve exceder 10MB.');
+        alert(formT.photoSizeAlert);
         continue;
       }
       try {
@@ -139,7 +167,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim() || !clientName.trim() || !clientPhone.trim() || !location.trim()) {
-      alert('Por favor preencha todos os campos obrigatórios (Nome, Telefone, Localidade e Título do Pedido).');
+      alert(formT.fillRequiredAlert);
       return;
     }
 
@@ -175,11 +203,11 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
         setIsSuccess(true);
         if (onSuccess) onSuccess(result.data);
       } else {
-        alert('Ocorreu um erro ao submeter o seu pedido. Por favor tente novamente.');
+        alert(formT.errorSubmit);
       }
     } catch (err) {
       console.error(err);
-      alert('Ocorreu um erro ao submeter o seu pedido.');
+      alert(formT.errorSubmit);
     } finally {
       setSubmitting(false);
     }
@@ -210,19 +238,20 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
           <div className="relative z-10 min-w-0 pr-2">
             <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-white/20 text-white text-[10px] font-black uppercase tracking-wider mb-1">
-              <Sparkles size={12} /> 100% Gratuito & Sem Compromisso
+              <Sparkles size={12} /> {formT.freeBadge}
             </div>
             <h2 className="text-lg sm:text-2xl font-black tracking-tight leading-tight">
-              Pedir Orçamento para Obra ou Reparação
+              {formT.formTitle}
             </h2>
             <p className="text-white/85 text-[11px] sm:text-sm font-medium mt-0.5 line-clamp-2">
-              Receba propostas detalhadas de profissionais qualificados do ÁTRIOS BUILD
+              {formT.formSubtitle}
             </p>
           </div>
 
           <button
             onClick={onClose}
-            className="p-1.5 sm:p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0"
+            aria-label={tPortal.close}
+            className="p-1.5 sm:p-2 text-white/80 hover:text-white hover:bg-white/20 rounded-full transition-colors relative z-10 shrink-0 cursor-pointer"
           >
             <X size={20} />
           </button>
@@ -236,34 +265,34 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                 <CheckCircle2 size={40} />
               </div>
               <div className="space-y-1.5">
-                <h3 className="text-xl sm:text-2xl font-black text-slate-900">Pedido Submetido com Sucesso!</h3>
+                <h3 className="text-xl sm:text-2xl font-black text-slate-900">{formT.successTitle}</h3>
                 <p className="text-slate-600 text-xs sm:text-sm max-w-md mx-auto leading-relaxed">
-                  O seu pedido <span className="font-mono font-bold text-amber-600">#{createdRequestId}</span> foi recebido e disponibilizado aos nossos profissionais.
+                  {formT.successDesc(createdRequestId)}
                 </p>
               </div>
 
               {createdAccessCode && (
                 <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-slate-50 border-2 border-amber-500/30 rounded-3xl p-4 sm:p-5 max-w-md mx-auto space-y-2 text-center shadow-sm">
                   <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-amber-500 text-slate-950 text-[10px] font-black uppercase tracking-wider shadow-sm">
-                    <ShieldCheck size={13} /> O Seu Código de Acesso Exclusivo
+                    <ShieldCheck size={13} /> {formT.exclusiveCodeBadge}
                   </div>
                   <div className="text-3xl sm:text-4xl font-mono font-black text-amber-600 tracking-widest py-1">
                     {createdAccessCode}
                   </div>
                   <p className="text-xs text-slate-600 leading-relaxed">
-                    Guarde este código! Ele permite aceder à <strong className="text-slate-900">Área do Cliente</strong> com o número <strong className="font-mono text-slate-900">{clientPhone}</strong> para consultar as propostas e orçamentos detalhados.
+                    {formT.exclusiveCodeHint(clientPhone)}
                   </p>
                 </div>
               )}
 
               <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 text-xs text-slate-700 text-left max-w-md mx-auto space-y-1.5">
                 <div className="flex items-center gap-2 font-bold text-slate-900">
-                  <Sparkles size={16} className="text-amber-600" /> Próximos passos
+                  <Sparkles size={16} className="text-amber-600" /> {formT.nextStepsTitle}
                 </div>
                 <ul className="list-disc list-inside space-y-1 text-slate-600">
-                  <li>Profissionais na zona de <strong>{location}</strong> verificarão os detalhes.</li>
-                  <li>Receberá orçamentos detalhados e oficiais em PDF.</li>
-                  <li>Pode entrar na Área do Cliente a qualquer momento com o seu telemóvel e este código.</li>
+                  <li>{formT.nextStep1(location || tPortal.notSpecified)}</li>
+                  <li>{formT.nextStep2}</li>
+                  <li>{formT.nextStep3}</li>
                 </ul>
               </div>
 
@@ -276,14 +305,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     }}
                     className="px-5 py-3.5 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                   >
-                    <Sparkles size={16} /> Acompanhar Orçamentos Recebidos
+                    <Sparkles size={16} /> {formT.trackProposalsBtn}
                   </button>
                 )}
                 <button
                   onClick={handleReset}
                   className="px-5 py-3.5 bg-slate-900 hover:bg-slate-800 text-white rounded-xl font-black text-xs sm:text-sm uppercase tracking-wider transition-all shadow-md active:scale-95 cursor-pointer"
                 >
-                  Concluir
+                  {formT.finishBtn}
                 </button>
               </div>
             </div>
@@ -296,14 +325,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   <span className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black ${step === 1 ? 'bg-amber-500 text-slate-950' : 'bg-emerald-500 text-white'}`}>
                     1
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">O que precisa?</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">{formT.step1Title}</span>
                 </div>
                 <div className="w-8 sm:w-12 h-[2px] bg-slate-200 shrink-0" />
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={`w-6 h-6 sm:w-7 sm:h-7 shrink-0 rounded-full flex items-center justify-center text-xs font-black ${step === 2 ? 'bg-amber-500 text-slate-950' : 'bg-slate-200 text-slate-500'}`}>
                     2
                   </span>
-                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">Local & Contacto</span>
+                  <span className="text-xs sm:text-sm font-bold text-slate-800 truncate">{formT.step2Title}</span>
                 </div>
               </div>
 
@@ -313,10 +342,10 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   {/* Category Selection */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-600 mb-2">
-                      1. Selecione o Tipo de Serviço *
+                      {formT.selectServiceLabel}
                     </label>
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 sm:gap-2.5">
-                      {CATEGORIES.map(cat => {
+                      {categories.map(cat => {
                         const Icon = cat.icon;
                         const isSelected = category === cat.id;
                         return (
@@ -324,7 +353,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                             type="button"
                             key={cat.id}
                             onClick={() => setCategory(cat.id)}
-                            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all flex flex-col justify-between ${
+                            className={`p-2.5 sm:p-3 rounded-2xl border text-left transition-all flex flex-col justify-between cursor-pointer ${
                               isSelected
                                 ? 'border-amber-500 bg-amber-50 text-amber-950 ring-2 ring-amber-500/20 shadow-sm'
                                 : 'border-slate-200 hover:border-slate-300 bg-slate-50/60 text-slate-700'
@@ -346,14 +375,14 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   {/* Title */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                      2. Resumo do Pedido *
+                      {formT.orderSummaryLabel}
                     </label>
                     <input
                       type="text"
                       required
                       value={title}
                       onChange={e => setTitle(e.target.value)}
-                      placeholder="Ex: Troca de 1 porta de entrada e reparação de tomada na cozinha"
+                      placeholder={formT.orderSummaryPlaceholder}
                       className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all"
                     />
                   </div>
@@ -361,13 +390,13 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   {/* Description */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                      3. Descrição Detalhada da Obra / Reparação
+                      {formT.descriptionLabel}
                     </label>
                     <textarea
                       rows={3}
                       value={description}
                       onChange={e => setDescription(e.target.value)}
-                      placeholder="Explique com mais detalhe o que precisa (medidas aproximadas, estado atual, se já comprou o material ou precisa com fornecimento incluído)..."
+                      placeholder={formT.descriptionPlaceholder}
                       className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 focus:ring-2 focus:ring-amber-500/20 outline-none transition-all resize-none"
                     />
                   </div>
@@ -375,16 +404,16 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   {/* Photo Upload (Optional) */}
                   <div>
                     <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                      4. Fotografias do Local (Opcional - Ajuda a orçamentar melhor)
+                      {formT.photosLabel}
                     </label>
                     <div className="flex flex-wrap items-center gap-2.5">
                       {photos.map((p, idx) => (
                         <div key={idx} className="relative w-16 h-16 sm:w-20 sm:h-20 rounded-xl overflow-hidden border border-slate-200 group">
-                          <img src={p} alt="Foto" className="w-full h-full object-cover" />
+                          <img src={p} alt={`Foto ${idx + 1}`} className="w-full h-full object-cover" />
                           <button
                             type="button"
                             onClick={() => removePhoto(idx)}
-                            className="absolute top-1 right-1 bg-rose-600 text-white p-1 rounded-full shadow-md hover:bg-rose-700"
+                            className="absolute top-1 right-1 bg-rose-600 text-white p-1 rounded-full shadow-md hover:bg-rose-700 cursor-pointer"
                           >
                             <X size={12} />
                           </button>
@@ -393,7 +422,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       {photos.length < 4 && (
                         <label className="w-16 h-16 sm:w-20 sm:h-20 rounded-xl border-2 border-dashed border-slate-300 hover:border-amber-500 bg-slate-50 flex flex-col items-center justify-center cursor-pointer text-slate-500 hover:text-amber-600 transition-colors">
                           <Camera size={18} />
-                          <span className="text-[9px] font-bold mt-0.5">+ Foto</span>
+                          <span className="text-[9px] font-bold mt-0.5">{formT.addPhoto}</span>
                           <input type="file" accept="image/*" multiple onChange={handlePhotoUpload} className="hidden" />
                         </label>
                       )}
@@ -405,9 +434,9 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                       type="button"
                       disabled={!title.trim()}
                       onClick={() => setStep(2)}
-                      className="w-full sm:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2"
+                      className="w-full sm:w-auto px-6 py-3 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
                     >
-                      Avançar para Contacto <ChevronRight size={16} />
+                      {formT.nextStep} <ChevronRight size={16} />
                     </button>
                   </div>
                 </div>
@@ -420,33 +449,33 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Tipo de Imóvel
+                        {formT.propertyTypeLabel}
                       </label>
                       <select
                         value={propertyType}
                         onChange={e => setPropertyType(e.target.value as any)}
-                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500 cursor-pointer"
                       >
-                        <option value="apartment">Apartamento</option>
-                        <option value="house">Moradia</option>
-                        <option value="commercial">Comércio / Escritório</option>
-                        <option value="land">Terreno</option>
-                        <option value="other">Outro</option>
+                        <option value="apartment">{formT.propApartment}</option>
+                        <option value="house">{formT.propHouse}</option>
+                        <option value="commercial">{formT.propCommercial}</option>
+                        <option value="land">{formT.propLand}</option>
+                        <option value="other">{formT.propOther}</option>
                       </select>
                     </div>
 
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Urgência do Serviço
+                        {formT.urgencyLabel}
                       </label>
                       <select
                         value={urgency}
                         onChange={e => setUrgency(e.target.value as any)}
-                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500"
+                        className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-bold text-slate-900 outline-none focus:border-amber-500 cursor-pointer"
                       >
-                        <option value="few_weeks">Nas próximas semanas</option>
-                        <option value="immediate">Urgente / O mais rápido possível</option>
-                        <option value="flexible">Apenas a consultar preços / Sem pressa</option>
+                        <option value="few_weeks">{formT.urgFewWeeks}</option>
+                        <option value="immediate">{formT.urgImmediate}</option>
+                        <option value="flexible">{formT.urgFlexible}</option>
                       </select>
                     </div>
                   </div>
@@ -455,7 +484,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Cidade / Concelho da Obra *
+                        {formT.cityLabel}
                       </label>
                       <div className="relative">
                         <MapPin size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -464,7 +493,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                           required
                           value={location}
                           onChange={e => setLocation(e.target.value)}
-                          placeholder="Ex: Lisboa, Porto, Sintra, Braga..."
+                          placeholder={formT.cityPlaceholder}
                           className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
@@ -472,43 +501,42 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-black uppercase tracking-wider text-slate-700 mb-1.5">
-                        Código Postal
+                        {formT.postalCodeLabel}
                       </label>
                       <input
                         type="text"
                         value={postalCode}
                         onChange={e => setPostalCode(e.target.value)}
-                        placeholder="Ex: 1000-001"
+                        placeholder={formT.postalCodePlaceholder}
                         className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
-                      >
-                      </input>
+                      />
                     </div>
                   </div>
 
                   {/* Contact details */}
                   <div className="border-t border-slate-100 pt-4 space-y-3 sm:space-y-4">
                     <h4 className="text-xs font-black uppercase tracking-wider text-slate-800 flex items-center gap-1.5">
-                      <User size={14} className="text-amber-600" /> Os seus dados de contacto para envio de orçamentos
+                      <User size={14} className="text-amber-600" /> {formT.contactSectionTitle}
                     </h4>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
-                          O seu Nome *
+                          {formT.yourNameLabel}
                         </label>
                         <input
                           type="text"
                           required
                           value={clientName}
                           onChange={e => setClientName(e.target.value)}
-                          placeholder="Nome e Sobrenome"
+                          placeholder={formT.yourNamePlaceholder}
                           className="w-full px-3.5 sm:px-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
 
                       <div>
                         <label className="block text-xs font-bold text-slate-700 mb-1">
-                          Telemóvel / WhatsApp *
+                          {formT.yourPhoneLabel}
                         </label>
                         <div className="relative">
                           <Phone size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -517,7 +545,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                             required
                             value={clientPhone}
                             onChange={e => setClientPhone(e.target.value)}
-                            placeholder="Ex: +351 912 345 678"
+                            placeholder={formT.yourPhonePlaceholder}
                             className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                           />
                         </div>
@@ -526,7 +554,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
 
                     <div>
                       <label className="block text-xs font-bold text-slate-700 mb-1">
-                        Email (Opcional - para receber cópia em PDF)
+                        {formT.yourEmailLabel}
                       </label>
                       <div className="relative">
                         <Mail size={16} className="absolute left-3.5 top-3.5 text-slate-400" />
@@ -534,7 +562,7 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                           type="email"
                           value={clientEmail}
                           onChange={e => setClientEmail(e.target.value)}
-                          placeholder="seuemail@exemplo.com"
+                          placeholder={formT.yourEmailPlaceholder}
                           className="w-full pl-10 pr-4 py-2.5 sm:py-3 bg-slate-50 border border-slate-200 rounded-xl text-xs sm:text-sm font-medium text-slate-900 focus:bg-white focus:border-amber-500 outline-none"
                         />
                       </div>
@@ -545,21 +573,21 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
                     <button
                       type="button"
                       onClick={() => setStep(1)}
-                      className="px-4 py-2.5 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors text-center"
+                      className="px-4 py-2.5 text-slate-600 hover:text-slate-900 font-bold text-xs uppercase tracking-wider transition-colors text-center cursor-pointer"
                     >
-                      Voltar
+                      {formT.backBtn}
                     </button>
 
                     <button
                       type="submit"
                       disabled={submitting || !clientName.trim() || !clientPhone.trim() || !location.trim()}
-                      className="px-6 sm:px-8 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center justify-center gap-2"
+                      className="px-6 sm:px-8 py-3.5 bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider transition-all shadow-lg shadow-amber-500/25 active:scale-95 flex items-center justify-center gap-2 cursor-pointer"
                     >
                       {submitting ? (
-                        'A enviar pedido...'
+                        formT.submittingBtn
                       ) : (
                         <>
-                          <Send size={16} /> Submeter Pedido de Orçamento
+                          <Send size={16} /> {formT.submitBtn}
                         </>
                       )}
                     </button>
@@ -574,4 +602,5 @@ export const ClientRequestModal: React.FC<ClientRequestModalProps> = ({
     </div>
   );
 };
+
 export default ClientRequestModal;
