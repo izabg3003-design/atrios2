@@ -2,7 +2,8 @@
   "name": "ÁTRIOS - Gestão de Construção",
   "description": "Plataforma completa para gestão de orçamentos, obras e controlo financeiro para profissionais da construção civil.",
   "requestFramePermissions": [
-    "camera"
+    "camera",
+    "microphone"
   ],
   "majorCapabilities": [
     "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"

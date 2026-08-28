@@ -32,7 +32,9 @@ import {
   Image as ImageIcon,
   Tag,
   X,
-  Globe
+  Globe,
+  Languages,
+  QrCode
 } from 'lucide-react';
 import { ClientServiceRequest, Budget, BudgetStatus, CURRENCIES, CurrencyCode } from '../types';
 import { Locale } from '../translations';
@@ -42,11 +44,13 @@ import {
   getStoredClientRequests, 
   fetchClientRequestsFromSupabase, 
   getStoredBudgets, 
-  fetchBudgetsFromSupabase 
+  fetchBudgetsFromSupabase,
+  getStoredCompanies
 } from '../services/storage';
 import { supabase } from '../services/supabase';
 import { registerPushSubscription } from '../services/pushService';
 import { ClientRequestModal } from './ClientRequestModal';
+import { ClientLiveChat } from './ClientLiveChat';
 
 interface ClientPortalProps {
   onBackToHome: () => void;
@@ -104,7 +108,7 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
   const [selectedRequest, setSelectedRequest] = useState<ClientServiceRequest | null>(null);
   const [selectedBudgetView, setSelectedBudgetView] = useState<Budget | null>(null);
   const [isLoadingData, setIsLoadingData] = useState(false);
-  const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests'>('all_budgets');
+  const [activePortalTab, setActivePortalTab] = useState<'all_budgets' | 'my_requests' | 'live_chat'>('all_budgets');
 
   // Modal para Nova Solicitação (Permite criar N solicitações com IDs distintos para o mesmo cliente)
   const [isNewRequestModalOpen, setIsNewRequestModalOpen] = useState(false);
@@ -560,6 +564,17 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 <Clock size={14} />
                 {t.tabRequests(myRequests.length)}
               </button>
+              <button
+                onClick={() => setActivePortalTab('live_chat')}
+                className={`px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-xl text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-2 cursor-pointer whitespace-nowrap shrink-0 ${
+                  activePortalTab === 'live_chat'
+                    ? 'bg-amber-500 text-slate-950 shadow-md shadow-amber-500/20'
+                    : 'bg-white/5 text-slate-400 hover:text-white'
+                }`}
+              >
+                <Languages size={14} />
+                <span>Tradutor & Chat Ao Vivo</span>
+              </button>
             </div>
 
             {/* Tab 1: Orçamentos Recebidos */}
@@ -757,6 +772,29 @@ export const ClientPortal: React.FC<ClientPortalProps> = ({
                 )}
               </div>
             )}
+
+            {/* Tab 3: Tradutor & Chat Ao Vivo com o Profissional */}
+            {activePortalTab === 'live_chat' && (() => {
+              const linkedCompanyId = myBudgets[0]?.companyId || myRequests[0]?.companyId || '';
+              const storedCompany = linkedCompanyId ? getStoredCompanies().find(c => c.id === linkedCompanyId) : null;
+              const linkedCompanyName = myBudgets[0]?.companyName || storedCompany?.name || 'Átrios Construtora & Profissionais';
+              const linkedCompanyPhone = myBudgets[0]?.companyPhone || storedCompany?.phone;
+              const linkedRoomId = linkedCompanyId 
+                ? `SAL_${linkedCompanyId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 10).toUpperCase()}`
+                : (authenticatedPhone ? `CLI_${authenticatedPhone.replace(/\D/g, '').substring(0, 8)}` : 'SALA_ATRIOS');
+
+              return (
+                <div className="bg-slate-900 border border-white/10 rounded-3xl p-4 sm:p-6 overflow-hidden">
+                  <ClientLiveChat
+                    roomId={linkedRoomId}
+                    companyId={linkedCompanyId}
+                    companyName={linkedCompanyName}
+                    companyPhone={linkedCompanyPhone}
+                    onClose={() => setActivePortalTab('all_budgets')}
+                  />
+                </div>
+              );
+            })()}
           </div>
         )}
       </main>

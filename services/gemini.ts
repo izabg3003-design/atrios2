@@ -1,36 +1,45 @@
-import { GoogleGenAI } from "@google/genai";
-
-const LANGUAGE_NAME_MAP: Record<string, string> = {
-  'pt-BR': 'Português do Brasil',
-  'pt-PT': 'Português de Portugal',
-  'en-US': 'Inglês',
-  'fr-FR': 'Francês',
-  'it-IT': 'Italiano',
-  'es-ES': 'Espanhol',
-  'ru-RU': 'Russo',
-  'hi-IN': 'Hindi',
-  'bn-BD': 'Bengali'
+const LANGUAGE_CODE_MAP: Record<string, string> = {
+  'pt-BR': 'pt',
+  'pt-PT': 'pt',
+  'en-US': 'en',
+  'fr-FR': 'fr',
+  'it-IT': 'it',
+  'es-ES': 'es',
+  'ru-RU': 'ru',
+  'uk-UA': 'uk',
+  'de-DE': 'de',
+  'ro-RO': 'ro',
+  'hi-IN': 'hi',
+  'bn-BD': 'bn'
 };
 
-export const translateMessage = async (text: string, targetLocale: string): Promise<string> => {
-  const targetLanguage = LANGUAGE_NAME_MAP[targetLocale] || 'Português de Portugal';
-  
-  const apiKey = process.env.GEMINI_API_KEY || process.env.API_KEY;
-  if (!apiKey) {
-    console.warn("Gemini API Key não configurada.");
-    return text;
-  }
+export const translateMessage = async (text: string, targetLocale: string, sourceLocale: string = 'auto'): Promise<string> => {
+  if (!text || !text.trim()) return text;
+
+  const targetShort = LANGUAGE_CODE_MAP[targetLocale] || targetLocale.split('-')[0] || 'pt';
+  const sourceShort = sourceLocale === 'auto' ? 'auto' : (LANGUAGE_CODE_MAP[sourceLocale] || sourceLocale.split('-')[0] || 'auto');
 
   try {
-    const ai = new GoogleGenAI({ apiKey });
-    const response = await ai.models.generateContent({
-      model: 'gemini-3-flash-preview',
-      contents: `Traduza o seguinte texto para ${targetLanguage}. Retorne APENAS o texto traduzido, sem explicações, sem aspas e sem comentários extras: "${text}"`,
+    const response = await fetch('/api/translate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        text: text.trim(),
+        sourceLang: sourceShort,
+        targetLang: targetShort,
+        context: 'construction'
+      })
     });
 
-    return response.text?.trim() || text;
+    if (response.ok) {
+      const data = await response.json();
+      if (data && data.translatedText) {
+        return data.translatedText;
+      }
+    }
   } catch (error) {
-    console.error("Erro na tradução Gemini:", error);
-    return text; // Fallback para o texto original em caso de erro
+    console.warn('[translateMessage Error] Falha ao traduzir via API, usando texto original:', error);
   }
+
+  return text;
 };

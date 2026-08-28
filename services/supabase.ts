@@ -229,6 +229,23 @@ export interface SyncResult {
       return await performUpsert(cPayload);
     }
 
+    if (table === 'translation_messages') {
+      const msgPayload: any = {
+        id: String(rawData.id || 'msg_' + Date.now()),
+        room_id: String(rawData.room_id || rawData.roomId || 'SALA_ATRIOS'),
+        company_id: rawData.company_id || rawData.companyId || null,
+        sender: String(rawData.sender || 'user'),
+        sender_name: String(rawData.sender_name || rawData.senderName || ''),
+        original_text: String(rawData.original_text || rawData.originalText || ''),
+        translated_text: String(rawData.translated_text || rawData.translatedText || rawData.original_text || rawData.originalText || ''),
+        source_lang: String(rawData.source_lang || rawData.sourceLang || 'pt'),
+        target_lang: String(rawData.target_lang || rawData.targetLang || 'en'),
+        audio_url: rawData.audio_url || rawData.audioUrl || null,
+        created_at: rawData.created_at || rawData.createdAt || rawData.timestamp || new Date().toISOString()
+      };
+      return await performUpsert(msgPayload);
+    }
+
     // 3. Mapeamento Automático: Mantém as chaves originais (camelCase) E adiciona versões snake_case e lowercase
     const toSnakeCase = (str: string) => str.replace(/[A-Z]/g, letter => `_${letter.toLowerCase()}`);
     
@@ -299,3 +316,43 @@ export interface SyncResult {
     return { success: false, error: err };
   }
 };
+
+// Funções dedicadas para histórico de tradução em tempo real
+export const saveTranslationMessage = async (msg: {
+  id: string;
+  roomId: string;
+  companyId?: string;
+  sender: 'user' | 'client';
+  senderName?: string;
+  originalText: string;
+  translatedText: string;
+  sourceLang: string;
+  targetLang: string;
+  audioUrl?: string;
+  timestamp?: string;
+}): Promise<SyncResult> => {
+  return await syncToCloud('translation_messages', msg);
+};
+
+export const fetchTranslationMessages = async (roomId: string): Promise<{ data: any[] | null; error: any }> => {
+  return await safeFetch<any[]>(
+    supabase
+      .from('translation_messages')
+      .select('*')
+      .eq('room_id', roomId)
+      .order('created_at', { ascending: true })
+      .limit(150)
+  );
+};
+
+export const clearTranslationMessages = async (roomId: string): Promise<SyncResult> => {
+  try {
+    const { error } = await safeFetch<any>(
+      supabase.from('translation_messages').delete().eq('room_id', roomId)
+    );
+    return { success: !error, error };
+  } catch (err) {
+    return { success: false, error: err };
+  }
+};
+

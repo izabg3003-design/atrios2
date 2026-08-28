@@ -7,6 +7,7 @@ import { ClientRequestsHub } from './components/ClientRequestsHub';
 import { WorkTimeTracker } from './components/WorkTimeTracker';
 import { ClientPortal } from './components/ClientPortal';
 import { WorkerPortal } from './components/WorkerPortal';
+import { ClientLiveChat } from './components/ClientLiveChat';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
 import { requestFcmToken, onMessageListener } from './services/firebase';
@@ -61,7 +62,9 @@ import {
   Gift,
   Volume2,
   VolumeX,
-  Wrench
+  Wrench,
+  Languages,
+  Mic
 } from 'lucide-react';
 import { Company, Budget, PlanType, BudgetStatus, CurrencyCode, CURRENCIES, GlobalNotification, SupportMessage, Transaction, PdfTemplate, StoreOrder } from './types';
 import { 
@@ -112,6 +115,7 @@ import SupportChat from './components/SupportChat';
 import WelcomeScreen from './components/WelcomeScreen';
 import LandingPage from './components/LandingPage';
 import FullscreenIntroBanner from './components/FullscreenIntroBanner';
+import VoiceTranslator from './components/VoiceTranslator';
 import { LOCALE_OPTIONS } from './components/landingExtendedTranslations';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
@@ -230,9 +234,12 @@ const App: React.FC = () => {
   const [currencyCode, setCurrencyCode] = useState<CurrencyCode>(session?.currencyCode as any || 'EUR');
   const t = translations[locale];
 
-  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master' | 'client-portal' | 'worker-portal'>(() => {
+  const [view, setView] = useState<'landing' | 'login' | 'signup' | 'verify' | 'forgot-password' | 'app' | 'master' | 'client-portal' | 'worker-portal' | 'client-live-chat'>(() => {
     if (typeof window !== 'undefined') {
       const params = new URLSearchParams(window.location.search);
+      if (params.get('portal') === 'chat' || params.get('room') || params.get('chat_room') || params.get('roomId') || params.get('r') || params.get('live_chat') || params.get('view') === 'client-live-chat') {
+        return 'client-live-chat';
+      }
       if (params.get('portal') === 'ponto' || params.get('colaborador') || params.get('workerId') || params.get('worker') || params.get('w') || params.get('view') === 'worker-portal') {
         return 'worker-portal';
       }
@@ -242,7 +249,23 @@ const App: React.FC = () => {
     }
     return (session?.view as any) || 'landing';
   });
-  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs' | 'client_requests' | 'work_hours'>(session?.activeTab as any || 'dashboard');
+
+  const [liveChatRoomId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('room') || params.get('chat_room') || params.get('roomId') || params.get('r') || '';
+    }
+    return '';
+  });
+
+  const [liveChatCompanyId] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      const params = new URLSearchParams(window.location.search);
+      return params.get('companyId') || params.get('company') || params.get('c') || '';
+    }
+    return '';
+  });
+  const [activeTab, setActiveTab] = useState<'dashboard' | 'budgets' | 'plans' | 'settings' | 'reports' | 'store' | 'jobs' | 'client_requests' | 'work_hours' | 'translator'>(session?.activeTab as any || 'dashboard');
 
   const [currentUser, setCurrentUser] = useState<Company | null>(() => {
     if (session?.companyId) {
@@ -3091,7 +3114,29 @@ const App: React.FC = () => {
         />
       )}
 
-      {view === 'worker-portal' ? (
+      {view === 'client-live-chat' ? (
+        <ClientLiveChat
+          roomId={liveChatRoomId || (currentUser?.id ? `SAL_${currentUser.id.replace(/[^a-zA-Z0-9]/g, '').substring(0, 8).toUpperCase()}` : 'SALA_ATRIOS')}
+          companyId={liveChatCompanyId || currentUser?.id}
+          companyName={
+            (liveChatCompanyId ? getStoredCompanies().find(c => c.id === liveChatCompanyId)?.name : null) ||
+            currentUser?.name ||
+            'Átrios Construtora'
+          }
+          companyPhone={
+            (liveChatCompanyId ? getStoredCompanies().find(c => c.id === liveChatCompanyId)?.phone : null) ||
+            currentUser?.phone
+          }
+          onClose={() => {
+            if (typeof window !== 'undefined') {
+              const url = new URL(window.location.href);
+              url.search = '';
+              window.history.replaceState({}, document.title, url.toString());
+            }
+            setView(currentUser ? 'app' : 'landing');
+          }}
+        />
+      ) : view === 'worker-portal' ? (
         <WorkerPortal
           initialLocale={locale}
           onBackToHome={() => {
@@ -3295,6 +3340,7 @@ const App: React.FC = () => {
                   { id: 'budgets', label: t.budgets, icon: FileText },
                   { id: 'client_requests', label: (clientHubTranslations[locale as Locale] || clientHubTranslations['pt-PT'])?.title || (locale.startsWith('pt') ? 'Obras & Clientes' : 'Client Requests'), icon: Wrench, isNew: true },
                   { id: 'work_hours', label: (workTrackerTranslations[locale as Locale] || workTrackerTranslations['pt-PT'])?.title || (locale.startsWith('pt') ? 'Registo de Horas' : 'Time Tracking'), icon: Clock, isNew: true },
+                  { id: 'translator', label: locale === 'es-ES' ? 'Traductor de Voz' : locale === 'fr-FR' ? 'Traducteur Vocal' : locale === 'it-IT' ? 'Traduttore Vocale' : locale === 'ru-RU' ? 'Голосовой переводчик' : locale === 'hi-IN' ? 'वॉइस ट्रांसलेटर' : locale === 'bn-BD' ? 'ভয়েস অনুবাদক' : locale.startsWith('pt') ? 'Tradutor de Voz' : 'Voice Translator', icon: Languages, isNew: true },
                   { id: 'reports', label: t.reports, icon: BarChart3 },
                   { id: 'jobs', label: locale === 'es-ES' ? 'Ofertas de Empleo' : locale === 'fr-FR' ? "Offres d'Emploi" : locale === 'it-IT' ? 'Offerte di Lavoro' : locale === 'ru-RU' ? 'Вакансии' : locale === 'hi-IN' ? 'नौकरी के अवसर' : locale === 'bn-BD' ? 'কাজের সুযোগ' : locale.startsWith('pt') ? 'Vagas de Trabalho' : 'Job Offers', icon: HardHat },
                   { id: 'store', label: t.store, icon: ShoppingBag },
@@ -3573,6 +3619,13 @@ const App: React.FC = () => {
                       company={currentUser} 
                       locale={locale} 
                       currencyCode={currencyCode} 
+                    />
+                  )}
+
+                  {activeTab === 'translator' && (
+                    <VoiceTranslator 
+                      currentLocale={locale} 
+                      currentUser={currentUser}
                     />
                   )}
 

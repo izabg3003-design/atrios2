@@ -20,6 +20,7 @@ import { fileURLToPath } from "url";
 import webPush from "web-push";
 import fs from "fs";
 import { sendFcmNotification } from "./services/firebase-admin.js";
+import { translateText } from "./services/geminiService.js";
 
 
 dotenv.config();
@@ -163,6 +164,72 @@ async function pruneOldSubscriptionsFromSupabase() {
   } catch (err: any) {
     console.error("[Supabase Prune Exception]", err.message || err);
   }
+}
+
+// Helper resiliente para salvar mensagem do Tradutor / Sala no Supabase
+async function saveTranslationMessageToSupabase(record: {
+  id: string;
+  roomId: string;
+  sender: string;
+  senderName?: string;
+  originalText: string;
+  translatedText: string;
+  sourceLang: string;
+  targetLang: string;
+  companyId?: string;
+  audioUrl?: string;
+  timestamp?: string;
+}) {
+  if (!process.env.SUPABASE_URL || !process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    return;
+  }
+
+  const payload: any = {
+    id: record.id,
+    room_id: record.roomId,
+    company_id: record.companyId || null,
+    sender: record.sender || 'user',
+    sender_name: record.senderName || null,
+    original_text: record.originalText || '',
+    translated_text: record.translatedText || '',
+    source_lang: record.sourceLang || 'pt',
+    target_lang: record.targetLang || 'en',
+    audio_url: record.audioUrl || null,
+    created_at: record.timestamp || new Date().toISOString()
+  };
+
+  const tryUpsert = async (data: any): Promise<any> => {
+    try {
+      const { error } = await supabase.from("translation_messages").upsert(data);
+      if (!error) {
+        console.log(`[Supabase Translation Sync] Mensagem ${record.id} salva no Supabase (sala: ${record.roomId})`);
+        return { success: true };
+      }
+      
+      // Se a tabela não existir, falhar silenciosamente sem quebrar a execução
+      if (error.code === 'PGRST116' || error.message?.includes("relation") || error.message?.includes("does not exist")) {
+        console.warn("[Supabase Translation Sync] Tabela 'translation_messages' ainda não existe no Supabase. Usando armazenamento em memória.");
+        return { success: false, noTable: true };
+      }
+
+      // Se der coluna não encontrada, tenta remover e reenviar
+      if (error.code === 'PGRST204' || error.message?.includes("column")) {
+        const match = error.message.match(/Could not find the '(.+)' column/) || error.message.match(/column "(.+)" of relation/);
+        const missingColumn = match ? match[1] : null;
+        if (missingColumn && data[missingColumn] !== undefined) {
+          const nextData = { ...data };
+          delete nextData[missingColumn];
+          return await tryUpsert(nextData);
+        }
+      }
+      return { success: false, error };
+    } catch (err: any) {
+      console.warn("[Supabase Translation Sync Exception]", err.message || err);
+      return { success: false, error: err };
+    }
+  };
+
+  await tryUpsert(payload);
 }
 
 // Cache em memória de subscrições para entregas ultrarrápidas (<50ms)
@@ -452,10 +519,306 @@ async function startServer() {
         hasAnnualPrice: !!process.env.STRIPE_ANNUAL_PRICE_ID,
         hasSupabaseUrl: !!process.env.SUPABASE_URL,
         hasSupabaseKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+        hasGeminiKey: !!process.env.GEMINI_API_KEY,
         appUrl: process.env.APP_URL,
         nodeEnv: process.env.NODE_ENV
       }
     });
+  });
+
+  // Tradutor de Voz & Texto Bidirecional (Modo Intérprete) com Gemini + Google Translate Fallback
+  app.post("/api/translate", async (req, res) => {
+    try {
+      const { text, sourceLang = "auto", targetLang = "en", context = "construction" } = req.body;
+      if (!text || typeof text !== "string" || !text.trim()) {
+        return res.status(400).json({ error: "O texto para tradução é obrigatório." });
+      }
+
+      const result = await translateText({
+        text,
+        sourceLang,
+        targetLang,
+        context
+      });
+
+      return res.json({
+        success: true,
+        translatedText: result.translatedText,
+        sourceLang: result.sourceLang,
+        targetLang: result.targetLang,
+        engine: result.engine
+      });
+    } catch (error: any) {
+      console.error("[API /api/translate Error]", error);
+      return res.status(500).json({ 
+        success: false, 
+        error: error.message || "Erro ao traduzir mensagem." 
+      });
+    }
+  });
+
+  // Streaming Text-to-Speech Endpoint de Alta Qualidade (Garante Áudio 100% Funcional em Qualquer Dispositivo/iOS/Android)
+  app.get("/api/tts", async (req, res) => {
+    try {
+      const text = (req.query.text as string || "").trim();
+      const rawLang = (req.query.lang as string || "pt").trim().toLowerCase();
+
+      if (!text) {
+        return res.status(400).send("Texto não fornecido.");
+      }
+
+      // Normalizar código de idioma para o motor de áudio
+      let tl = "pt";
+      if (rawLang.startsWith("pt")) tl = "pt";
+      else if (rawLang.startsWith("en")) tl = "en";
+      else if (rawLang.startsWith("fr")) tl = "fr";
+      else if (rawLang.startsWith("es")) tl = "es";
+      else if (rawLang.startsWith("de")) tl = "de";
+      else if (rawLang.startsWith("it")) tl = "it";
+      else if (rawLang.startsWith("ro")) tl = "ro";
+      else if (rawLang.startsWith("ru")) tl = "ru";
+      else if (rawLang.startsWith("uk")) tl = "uk";
+      else if (rawLang.startsWith("hi")) tl = "hi";
+      else if (rawLang.startsWith("bn")) tl = "bn";
+      else if (rawLang.startsWith("zh")) tl = "zh-CN";
+      else tl = rawLang.split("-")[0];
+
+      const ttsUrl = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(text.slice(0, 300))}&tl=${encodeURIComponent(tl)}&client=tw-ob`;
+
+      const ttsResponse = await fetch(ttsUrl, {
+        headers: {
+          "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+          "Referer": "https://translate.google.com/"
+        }
+      });
+
+      if (!ttsResponse.ok) {
+        return res.status(ttsResponse.status).send("Erro ao obter áudio TTS");
+      }
+
+      const arrayBuffer = await ttsResponse.arrayBuffer();
+      const buffer = Buffer.from(arrayBuffer);
+
+      res.set({
+        "Content-Type": "audio/mpeg",
+        "Content-Length": buffer.length.toString(),
+        "Cache-Control": "public, max-age=86400",
+        "Accept-Ranges": "bytes"
+      });
+
+      return res.send(buffer);
+    } catch (ttsErr: any) {
+      console.error("[TTS Endpoint Error]", ttsErr);
+      return res.status(500).send("Erro interno ao processar áudio.");
+    }
+  });
+
+  // Memória para Salas de Chat Ao Vivo (Live Room / Intérprete Conectado)
+  interface LiveChatRoom {
+    messages: any[];
+    clientLang?: string;
+    userLang?: string;
+    clientName?: string;
+    lastActive?: number;
+  }
+  const activeChatRooms: Record<string, LiveChatRoom> = {};
+
+  // Obter mensagens e estado da sala (incluindo idioma selecionado pelo cliente e persistência Supabase)
+  app.get("/api/chat-room/:roomId", async (req, res) => {
+    const { roomId } = req.params;
+    let room = activeChatRooms[roomId];
+    
+    // Se a sala não estiver em memória ou sem mensagens, buscar histórico no Supabase
+    if (!room || !room.messages || room.messages.length === 0) {
+      if (!activeChatRooms[roomId]) {
+        activeChatRooms[roomId] = { messages: [] };
+      }
+      room = activeChatRooms[roomId];
+
+      if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+        try {
+          const { data, error } = await supabase
+            .from("translation_messages")
+            .select("*")
+            .eq("room_id", roomId)
+            .order("created_at", { ascending: true })
+            .limit(100);
+
+          if (!error && data && data.length > 0) {
+            room.messages = data.map((d: any) => ({
+              id: d.id,
+              roomId: d.room_id || roomId,
+              sender: d.sender || 'user',
+              senderName: d.sender_name || (d.sender === 'user' ? 'Profissional' : 'Cliente'),
+              originalText: d.original_text || '',
+              translatedText: d.translated_text || d.original_text || '',
+              sourceLang: d.source_lang || 'pt',
+              targetLang: d.target_lang || 'en',
+              timestamp: d.created_at,
+              timeStr: new Date(d.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }));
+          }
+        } catch (dbErr) {
+          console.warn("[Supabase Chat Room Fetch Warning]", dbErr);
+        }
+      }
+    }
+
+    return res.json({ 
+      success: true, 
+      roomId, 
+      messages: room.messages || [],
+      clientLang: room.clientLang || null,
+      userLang: room.userLang || null,
+      clientName: room.clientName || null,
+      lastActive: room.lastActive || null
+    });
+  });
+
+  // Notificar presença ou alteração de idioma na sala em tempo real
+  app.post("/api/chat-room/:roomId/presence", (req, res) => {
+    const { roomId } = req.params;
+    const { clientLang, userLang, clientName, sender } = req.body;
+
+    if (!activeChatRooms[roomId]) {
+      activeChatRooms[roomId] = { messages: [] };
+    }
+
+    if (clientLang) activeChatRooms[roomId].clientLang = clientLang;
+    if (userLang) activeChatRooms[roomId].userLang = userLang;
+    if (clientName) activeChatRooms[roomId].clientName = clientName;
+    activeChatRooms[roomId].lastActive = Date.now();
+
+    return res.json({
+      success: true,
+      roomId,
+      clientLang: activeChatRooms[roomId].clientLang,
+      userLang: activeChatRooms[roomId].userLang,
+      clientName: activeChatRooms[roomId].clientName
+    });
+  });
+
+  // Enviar mensagem para a sala com tradução automática e sincronização Supabase
+  app.post("/api/chat-room/:roomId/message", async (req, res) => {
+    try {
+      const { roomId } = req.params;
+      const { 
+        sender = 'user', // 'user' | 'client'
+        senderName = '', 
+        text = '', 
+        sourceLang = 'pt', 
+        targetLang = 'en',
+        clientLang = '',
+        userLang = '',
+        companyId = '',
+        audioData = null
+      } = req.body;
+
+      if (!text || !text.trim()) {
+        return res.status(400).json({ error: "Texto da mensagem é obrigatório" });
+      }
+
+      if (!activeChatRooms[roomId]) {
+        activeChatRooms[roomId] = { messages: [] };
+      }
+
+      if (sender === 'client' && clientLang) {
+        activeChatRooms[roomId].clientLang = clientLang;
+      }
+      if (sender === 'user' && userLang) {
+        activeChatRooms[roomId].userLang = userLang;
+      }
+      if (senderName && sender === 'client') {
+        activeChatRooms[roomId].clientName = senderName;
+      }
+      activeChatRooms[roomId].lastActive = Date.now();
+
+      // Traduzir texto se os idiomas forem diferentes
+      let translatedText = text.trim();
+      const sl = sourceLang.split('-')[0].toLowerCase();
+      const tl = targetLang.split('-')[0].toLowerCase();
+
+      if (sl !== tl && sl !== 'auto') {
+        try {
+          const transResult = await translateText({
+            text: text.trim(),
+            sourceLang,
+            targetLang,
+            context: 'construction'
+          });
+          if (transResult.translatedText) {
+            translatedText = transResult.translatedText;
+          }
+        } catch (e) {
+          console.warn("[Chat Room Auto-Translate Warning]", e);
+        }
+      }
+
+      const msgObj = {
+        id: 'msg_' + Date.now() + '_' + Math.random().toString(36).substr(2, 6),
+        roomId,
+        sender,
+        senderName: senderName || (sender === 'user' ? 'Profissional' : 'Cliente'),
+        originalText: text.trim(),
+        translatedText,
+        sourceLang,
+        targetLang,
+        timestamp: new Date().toISOString(),
+        timeStr: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      };
+
+      activeChatRooms[roomId].messages.push(msgObj);
+      if (activeChatRooms[roomId].messages.length > 150) {
+        activeChatRooms[roomId].messages = activeChatRooms[roomId].messages.slice(-150);
+      }
+
+      // Sincronizar no Supabase em background
+      saveTranslationMessageToSupabase({
+        id: msgObj.id,
+        roomId,
+        sender: msgObj.sender,
+        senderName: msgObj.senderName,
+        originalText: msgObj.originalText,
+        translatedText: msgObj.translatedText,
+        sourceLang: msgObj.sourceLang,
+        targetLang: msgObj.targetLang,
+        companyId: companyId || undefined,
+        timestamp: msgObj.timestamp
+      }).catch((err) => console.warn("[Supabase Background Save Warning]", err));
+
+      // Se foi enviado pelo cliente, notificar o profissional por push se companyId foi fornecido
+      if (sender === 'client' && companyId) {
+        sendPushBroadcast(
+          `💬 Nova mensagem do Cliente na Sala!`,
+          `"${text.trim()}" (Traduzido: "${translatedText}")`,
+          companyId,
+          { url: `/?room=${roomId}` }
+        ).catch(() => {});
+      }
+
+      return res.json({ success: true, message: msgObj });
+    } catch (err: any) {
+      console.error("[Chat Room Message Error]", err);
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Limpar mensagens de uma sala (em memória e no Supabase)
+  app.post("/api/chat-room/:roomId/clear", async (req, res) => {
+    const { roomId } = req.params;
+    if (activeChatRooms[roomId]) {
+      activeChatRooms[roomId].messages = [];
+    } else {
+      activeChatRooms[roomId] = { messages: [] };
+    }
+
+    if (process.env.SUPABASE_URL && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        supabase.from("translation_messages").delete().eq("room_id", roomId).then(() => {}, () => {});
+      } catch (e) {}
+    }
+
+    return res.json({ success: true, message: "Histórico da sala limpo com sucesso." });
   });
 
   // 1. Obter chave pública VAPID do Átrios para subscrever no browser
@@ -853,11 +1216,27 @@ async function startServer() {
         });
         successCount++;
       } catch (err: any) {
-        console.error(`[PWA Push Send Error] ${sub.subscription?.endpoint}:`, err.message);
-        failureCount++;
-        if (err.statusCode === 410 || err.statusCode === 404) {
+        const isDead = 
+          err.statusCode === 410 || 
+          err.statusCode === 404 || 
+          err.statusCode === 400 || 
+          err.statusCode === 401 || 
+          err.statusCode === 403 ||
+          (err.message && (
+            err.message.includes('unexpected response code') ||
+            err.message.includes('expired') ||
+            err.message.includes('unregistered') ||
+            err.message.includes('NotRegistered') ||
+            err.message.includes('invalid')
+          ));
+
+        if (isDead) {
+          console.warn(`[PWA Push Cleanup] Subscrição Web Push expirada/inválida detetada (${sub.subscription?.endpoint?.substring(0, 45)}...). Marcada para remoção.`);
           deadWebEndpoints.push(sub.subscription.endpoint);
+        } else {
+          console.warn(`[PWA Push Send Notice] Falha no endpoint ${sub.subscription?.endpoint?.substring(0, 45)}...:`, err.message || err);
         }
+        failureCount++;
       }
     });
 
@@ -898,6 +1277,7 @@ async function startServer() {
           supabase.from("push_subscriptions").delete().eq("id", endpoint).then(() => {}, () => {});
         }
       }
+      invalidateSubCache();
     }
 
     // Pruning assíncrono de FCM Tokens inativos
@@ -915,6 +1295,7 @@ async function startServer() {
           supabase.from("push_subscriptions").delete().eq("id", token).then(() => {}, () => {});
         }
       }
+      invalidateSubCache();
     }
 
     console.log(`[PWA Push Done] ${successCount} entregas com sucesso, ${failureCount} falhas.`);
