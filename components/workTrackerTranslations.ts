@@ -113,6 +113,17 @@ export interface WorkTimeTrackerTranslation {
   workerSignature: string;
   companySignature: string;
   whatsappMessage: string;
+  workerLimitBadge: string;
+  workerLimitExceededTitle: string;
+  workerLimitExceededDesc: string;
+  workerLimitFreeNotice: string;
+  workerLimitMonthlyNotice: string;
+  workerLimitAnnualNotice: string;
+  upgradePlanNow: string;
+  workerLimitSlots: string;
+  workerLimitFreePlan: string;
+  workerLimitMonthlyPlan: string;
+  workerLimitAnnualPlan: string;
 }
 
 export interface WorkerPortalTranslation {
@@ -280,7 +291,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTAL DE HORAS LÍQUIDAS:",
     workerSignature: "Assinatura do Colaborador",
     companySignature: "Assinatura / Carimbo da Empresa",
-    whatsappMessage: "Olá {workerName}, este é o seu link exclusivo e direto para registar as suas horas de trabalho diárias no sistema da {companyName}:\n\n{url}\n\nAbra o link no telemóvel para submeter o seu ponto todos os dias."
+    whatsappMessage: "Olá {workerName}, este é o seu link exclusivo e direto para registar as suas horas de trabalho diárias no sistema da {companyName}:\n\n{url}\n\nAbra o link no telemóvel para submeter o seu ponto todos os dias.",
+    workerLimitBadge: "Limite de Registo: {current}/{max} Colaboradores",
+    workerLimitExceededTitle: "Limite de Colaboradores Atingido",
+    workerLimitExceededDesc: "A sua empresa atingiu o limite de {max} colaborador(es) registado(s) permitido no seu plano atual.",
+    workerLimitFreeNotice: "Plano Gratuito: Limite de 1 colaborador.",
+    workerLimitMonthlyNotice: "Plano Mensal: Registo de até 3 colaboradores.",
+    workerLimitAnnualNotice: "Plano Anual: Registo de até 15 colaboradores com suporte prioritário.",
+    upgradePlanNow: "Fazer Upgrade do Plano",
+    workerLimitSlots: "vagas ocupadas",
+    workerLimitFreePlan: "Plano Grátis (1 Colaborador)",
+    workerLimitMonthlyPlan: "Plano Mensal (Até 3 Colaboradores)",
+    workerLimitAnnualPlan: "Plano Anual (Até 15 Colaboradores)"
   },
   'pt-BR': {
     title: "Registro de Horas & Colaboradores",
@@ -394,7 +416,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTAL DE HORAS LÍQUIDAS:",
     workerSignature: "Assinatura do Colaborador",
     companySignature: "Assinatura / Carimbo da Empresa",
-    whatsappMessage: "Olá {workerName}, este é o seu link exclusivo e direto para registrar suas horas de trabalho diárias no sistema da {companyName}:\n\n{url}\n\nAbra o link no celular para enviar seu ponto todos os dias."
+    whatsappMessage: "Olá {workerName}, este é o seu link exclusivo e direto para registrar suas horas de trabalho diárias no sistema da {companyName}:\n\n{url}\n\nAbra o link no celular para enviar seu ponto todos os dias.",
+    workerLimitBadge: "Limite de Cadastro: {current}/{max} Colaboradores",
+    workerLimitExceededTitle: "Limite de Colaboradores Atingido",
+    workerLimitExceededDesc: "Sua empresa atingiu o limite de {max} colaborador(es) cadastrado(s) permitido no seu plano atual.",
+    workerLimitFreeNotice: "Plano Gratuito: Limite de 1 colaborador.",
+    workerLimitMonthlyNotice: "Plano Mensal: Cadastro de até 3 colaboradores.",
+    workerLimitAnnualNotice: "Plano Anual: Cadastro de até 15 colaboradores com suporte prioritário.",
+    upgradePlanNow: "Fazer Upgrade do Plano",
+    workerLimitSlots: "vagas ocupadas",
+    workerLimitFreePlan: "Plano Grátis (1 Colaborador)",
+    workerLimitMonthlyPlan: "Plano Mensal (Até 3 Colaboradores)",
+    workerLimitAnnualPlan: "Plano Anual (Até 15 Colaboradores)"
   },
   'en-US': {
     title: "Work Hours & Workers Tracker",
@@ -508,7 +541,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTAL NET HOURS:",
     workerSignature: "Worker Signature",
     companySignature: "Company Signature & Stamp",
-    whatsappMessage: "Hello {workerName}, here is your exclusive direct link to submit your daily work hours for {companyName}:\n\n{url}\n\nOpen this link on your smartphone to clock in every day."
+    whatsappMessage: "Hello {workerName}, here is your exclusive direct link to submit your daily work hours for {companyName}:\n\n{url}\n\nOpen this link on your smartphone to clock in every day.",
+    workerLimitBadge: "Registration Limit: {current}/{max} Workers",
+    workerLimitExceededTitle: "Worker Limit Reached",
+    workerLimitExceededDesc: "Your company has reached the maximum allowed limit of {max} registered worker(s) on your current plan.",
+    workerLimitFreeNotice: "Free Plan: Limit of 1 registered worker.",
+    workerLimitMonthlyNotice: "Monthly Plan: Register up to 3 workers.",
+    workerLimitAnnualNotice: "Annual Plan: Register up to 15 workers with VIP support.",
+    upgradePlanNow: "Upgrade Subscription Plan",
+    workerLimitSlots: "slots used",
+    workerLimitFreePlan: "Free Plan (1 Worker)",
+    workerLimitMonthlyPlan: "Monthly Plan (Up to 3 Workers)",
+    workerLimitAnnualPlan: "Annual Plan (Up to 15 Workers)"
   },
   'es-ES': {
     title: "Registro de Horas & Trabajadores",
@@ -622,7 +666,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTAL DE HORAS NETAS:",
     workerSignature: "Firma del Trabajador",
     companySignature: "Firma y Sello de la Empresa",
-    whatsappMessage: "Hola {workerName}, este es tu enlace directo y exclusivo para registrar tus horas de trabajo diarias en el sistema de {companyName}:\n\n{url}\n\nAbre el enlace en el móvil para fichar cada día."
+    whatsappMessage: "Hola {workerName}, este es tu enlace directo y exclusivo para registrar tus horas de trabajo diarias en el sistema de {companyName}:\n\n{url}\n\nAbre el enlace en el móvil para fichar cada día.",
+    workerLimitBadge: "Límite de Registro: {current}/{max} Trabajadores",
+    workerLimitExceededTitle: "Límite de Trabajadores Alcanzado",
+    workerLimitExceededDesc: "Su empresa ha alcanzado el límite de {max} trabajador(es) registrado(s) en su plan actual.",
+    workerLimitFreeNotice: "Plan Gratuito: Límite de 1 trabajador.",
+    workerLimitMonthlyNotice: "Plan Mensual: Registro de hasta 3 trabajadores.",
+    workerLimitAnnualNotice: "Plan Anual: Registro de hasta 15 trabajadores con soporte VIP.",
+    upgradePlanNow: "Mejorar Plan de Suscripción",
+    workerLimitSlots: "plazas ocupadas",
+    workerLimitFreePlan: "Plan Gratuito (1 Trabajador)",
+    workerLimitMonthlyPlan: "Plan Mensual (Hasta 3 Trabajadores)",
+    workerLimitAnnualPlan: "Plan Anual (Hasta 15 Trabajadores)"
   },
   'fr-FR': {
     title: "Relevé des Heures & Ouvriers",
@@ -736,7 +791,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTAL D'HEURES NETTES :",
     workerSignature: "Signature de l'Ouvrier",
     companySignature: "Signature et Cachet de l'Entreprise",
-    whatsappMessage: "Bonjour {workerName}, voici votre lien direct exclusif pour pointer vos heures quotidiennes de travail chez {companyName} :\n\n{url}\n\nOuvrez ce lien sur votre smartphone chaque jour."
+    whatsappMessage: "Bonjour {workerName}, voici votre lien direct exclusif pour pointer vos heures quotidiennes de travail chez {companyName} :\n\n{url}\n\nOuvrez ce lien sur votre smartphone chaque jour.",
+    workerLimitBadge: "Limite d'Enregistrement : {current}/{max} Salariés",
+    workerLimitExceededTitle: "Limite de Salariés Atteinte",
+    workerLimitExceededDesc: "Votre entreprise a atteint la limite de {max} salarié(s) enregistré(s) autorisée(s) sur votre forfait actuel.",
+    workerLimitFreeNotice: "Forfait Gratuit : Limite de 1 salarié.",
+    workerLimitMonthlyNotice: "Forfait Mensuel : Enregistrez jusqu'à 3 salariés.",
+    workerLimitAnnualNotice: "Forfait Annuel : Enregistrez jusqu'à 15 salariés avec support VIP.",
+    upgradePlanNow: "Changer de Forfait",
+    workerLimitSlots: "postes occupés",
+    workerLimitFreePlan: "Forfait Gratuit (1 Salarié)",
+    workerLimitMonthlyPlan: "Forfait Mensuel (Jusqu'à 3 Salariés)",
+    workerLimitAnnualPlan: "Forfait Annuel (Jusqu'à 15 Salariés)"
   },
   'it-IT': {
     title: "Registro Ore & Collaboratori",
@@ -850,7 +916,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "TOTALE ORE NETTE:",
     workerSignature: "Firma del Lavoratore",
     companySignature: "Firma e Timbro dell'Azienda",
-    whatsappMessage: "Ciao {workerName}, ecco il tuo link diretto ed esclusivo per registrare le ore di lavoro giornaliere nel sistema di {companyName}:\n\n{url}\n\nApri il link dallo smartphone per registrare la tua presenza ogni giorno."
+    whatsappMessage: "Ciao {workerName}, ecco il tuo link diretto ed esclusivo per registrare le ore di lavoro giornaliere nel sistema di {companyName}:\n\n{url}\n\nApri il link dallo smartphone per registrare la tua presenza ogni giorno.",
+    workerLimitBadge: "Limite di Registrazione: {current}/{max} Dipendenti",
+    workerLimitExceededTitle: "Limite Dipendenti Raggiunto",
+    workerLimitExceededDesc: "La tua azienda ha raggiunto il limite di {max} dipendente/i registrato/i previsto dal tuo piano attuale.",
+    workerLimitFreeNotice: "Piano Gratuito: Limite di 1 dipendente.",
+    workerLimitMonthlyNotice: "Piano Mensile: Registra fino a 3 dipendenti.",
+    workerLimitAnnualNotice: "Piano Annuale: Registra fino a 15 dipendenti con supporto VIP.",
+    upgradePlanNow: "Aggiorna il Piano",
+    workerLimitSlots: "posti occupati",
+    workerLimitFreePlan: "Piano Gratuito (1 Dipendente)",
+    workerLimitMonthlyPlan: "Piano Mensile (Fino a 3 Dipendenti)",
+    workerLimitAnnualPlan: "Piano Annuale (Fino a 15 Dipendenti)"
   },
   'ru-RU': {
     title: "Учет Часов & Сотрудники",
@@ -964,7 +1041,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "ВСЕГО ЧИСТЫХ ЧАСОВ:",
     workerSignature: "Подпись Сотрудника",
     companySignature: "Подпись и Печать Компании",
-    whatsappMessage: "Здравствуйте, {workerName}! Это ваша персональная ссылка для ежедневной отметки рабочих смен в системе {companyName}:\n\n{url}\n\nОткрывайте ее на смартфоне каждый рабочий день."
+    whatsappMessage: "Здравствуйте, {workerName}! Это ваша персональная ссылка для ежедневной отметки рабочих смен в системе {companyName}:\n\n{url}\n\nОткрывайте ее на смартфоне каждый рабочий день.",
+    workerLimitBadge: "Лимит регистрации: {current}/{max} сотрудников",
+    workerLimitExceededTitle: "Достигнут лимит сотрудников",
+    workerLimitExceededDesc: "Ваша компания достигла лимита в {max} зарегистрированных сотрудников на текущем тарифе.",
+    workerLimitFreeNotice: "Бесплатный план: Лимит 1 сотрудник.",
+    workerLimitMonthlyNotice: "Месячный план: Регистрация до 3 сотрудников.",
+    workerLimitAnnualNotice: "Годовой план: Регистрация до 15 сотрудников с VIP поддержкой.",
+    upgradePlanNow: "Перейти на более высокий тариф",
+    workerLimitSlots: "мест занято",
+    workerLimitFreePlan: "Бесплатный план (1 сотрудник)",
+    workerLimitMonthlyPlan: "Месячный план (до 3 сотрудников)",
+    workerLimitAnnualPlan: "Годовой план (до 15 сотрудников)"
   },
   'hi-IN': {
     title: "कार्य घंटे और श्रमिक प्रबंधन",
@@ -1078,7 +1166,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "कुल शुद्ध घंटे:",
     workerSignature: "श्रमिक के हस्ताक्षर",
     companySignature: "कंपनी के हस्ताक्षर एवं मुहर",
-    whatsappMessage: "नमस्ते {workerName}, {companyName} के सिस्टम में अपने दैनिक कार्य घंटे दर्ज करने के लिए यह आपका व्यक्तिगत लिंक है:\n\n{url}\n\nप्रतिदिन हाजिरी दर्ज करने के लिए इसे अपने मोबाइल पर खोलें।"
+    whatsappMessage: "नमस्ते {workerName}, {companyName} के सिस्टम में अपने दैनिक कार्य घंटे दर्ज करने के लिए यह आपका व्यक्तिगत लिंक है:\n\n{url}\n\nप्रतिदिन हाजिरी दर्ज करने के लिए इसे अपने मोबाइल पर खोलें।",
+    workerLimitBadge: "पंजीकरण सीमा: {current}/{max} कर्मचारी",
+    workerLimitExceededTitle: "कर्मचारी सीमा समाप्त",
+    workerLimitExceededDesc: "आपकी कंपनी ने अपनी वर्तमान योजना में {max} पंजीकृत कर्मचारियों की सीमा पार कर ली है।",
+    workerLimitFreeNotice: "निःशुल्क योजना: 1 कर्मचारी की सीमा।",
+    workerLimitMonthlyNotice: "मासिक योजना: 3 कर्मचारियों तक पंजीकरण।",
+    workerLimitAnnualNotice: "वार्षिक योजना: वीआईपी सहायता के साथ 15 कर्मचारियों तक पंजीकरण।",
+    upgradePlanNow: "योजना अपग्रेड करें",
+    workerLimitSlots: "स्थान भरे हुए",
+    workerLimitFreePlan: "निःशुल्क योजना (1 कर्मचारी)",
+    workerLimitMonthlyPlan: "मासिक योजना (3 कर्मचारियों तक)",
+    workerLimitAnnualPlan: "वार्षिक योजना (15 कर्मचारियों तक)"
   },
   'bn-BD': {
     title: "কাজের সময় ও কর্মী ট্র্যাকার",
@@ -1192,7 +1291,18 @@ export const workTrackerTranslations: Record<Locale, WorkTimeTrackerTranslation>
     totalNetHours: "মোট নিট কাজের সময়:",
     workerSignature: "কর্মীর স্বাক্ষর",
     companySignature: "কোম্পানির স্বাক্ষর ও সিল",
-    whatsappMessage: "হ্যালো {workerName}, {companyName}-এ আপনার প্রতিদিনের কাজের সময় সাবমিট করার জন্য এটি আপনার ব্যক্তিগত লিংক:\n\n{url}\n\nপ্রতিদিন মোবাইল থেকে লিংকটি খুলে হাজিরা দিন।"
+    whatsappMessage: "হ্যালো {workerName}, {companyName}-এ আপনার প্রতিদিনের কাজের সময় সাবমিট করার জন্য এটি আপনার ব্যক্তিগত লিংক:\n\n{url}\n\nপ্রতিদিন মোবাইল থেকে লিংকটি খুলে হাজিরা দিন।",
+    workerLimitBadge: "নিবন্ধন সীমা: {current}/{max} জন কর্মী",
+    workerLimitExceededTitle: "কর্মী নিবন্ধন সীমা পূর্ণ",
+    workerLimitExceededDesc: "আপনার কোম্পানি বর্তমান প্ল্যানে সর্বোচ্চ {max} জন কর্মী নিবন্ধনের সীমায় পৌঁছেছে।",
+    workerLimitFreeNotice: "ফ্রি প্ল্যান: ১ জন কর্মীর সীমা।",
+    workerLimitMonthlyNotice: "মাসিক প্ল্যান: ৩ জন কর্মী পর্যন্ত নিবন্ধন।",
+    workerLimitAnnualNotice: "বার্ষিক প্ল্যান: ভিআইপি সাপোর্ট সহ ১৫ জন কর্মী পর্যন্ত নিবন্ধন।",
+    upgradePlanNow: "প্ল্যান আপগ্রেড করুন",
+    workerLimitSlots: "স্লট ব্যবহৃত",
+    workerLimitFreePlan: "ফ্রি প্ল্যান (১ জন কর্মী)",
+    workerLimitMonthlyPlan: "মাসিক প্ল্যান (৩ জন কর্মী পর্যন্ত)",
+    workerLimitAnnualPlan: "বার্ষিক প্ল্যান (১৫ জন কর্মী পর্যন্ত)"
   }
 };
 

@@ -702,28 +702,28 @@ export const ClientLiveChat: React.FC<ClientLiveChatProps> = ({
 
       {/* Modal de Compartilhamento / QR Code */}
       {showShareModal && (
-        <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl sm:rounded-3xl p-5 max-w-sm w-full max-h-[92vh] overflow-y-auto space-y-4 shadow-2xl animate-in zoom-in-95 duration-200 no-scrollbar">
-            <div className="text-center space-y-1">
-              <h3 className="text-base sm:text-lg font-bold text-white">QR Code & Link da Sala</h3>
-              <p className="text-xs text-slate-400">
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 max-w-xs sm:max-w-sm w-full max-h-[88vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 my-auto">
+            <div className="text-center space-y-1 pb-1">
+              <h3 className="text-base sm:text-lg font-black text-white">QR Code & Link da Sala</h3>
+              <p className="text-[11px] sm:text-xs text-slate-400">
                 Aponte a câmara do telemóvel para aceder a esta conversa
               </p>
             </div>
 
             {/* Imagem do QR Code */}
-            <div className="bg-white p-3 rounded-2xl flex items-center justify-center shadow-inner mx-auto w-fit">
+            <div className="bg-white p-2.5 rounded-xl flex items-center justify-center shadow-inner mx-auto my-2 w-fit">
               {qrCodeDataUrl ? (
-                <img src={qrCodeDataUrl} alt="QR Code da Sala" className="w-36 h-36 sm:w-40 sm:h-40 object-contain" />
+                <img src={qrCodeDataUrl} alt="QR Code da Sala" className="w-32 h-32 sm:w-36 sm:h-36 max-w-[45vw] max-h-[45vw] object-contain rounded-md" />
               ) : (
-                <div className="w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center text-slate-400 text-xs">
+                <div className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center text-slate-400 text-xs">
                   A gerar QR Code...
                 </div>
               )}
             </div>
 
-            <div className="space-y-2">
-              <div className="flex items-center gap-2 bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono truncate">
+            <div className="space-y-2 mt-auto">
+              <div className="flex items-center gap-1.5 bg-slate-950 p-2 rounded-xl border border-slate-800 text-xs text-slate-300 font-mono truncate">
                 <span className="truncate flex-1">{shareableUrl}</span>
                 <button
                   onClick={() => {
@@ -744,14 +744,14 @@ export const ClientLiveChat: React.FC<ClientLiveChatProps> = ({
                     const text = encodeURIComponent(`Olá! Aceda à nossa sala de conversa ao vivo e tradução simultânea pelo link: ${shareableUrl}`);
                     window.open(`https://api.whatsapp.com/send?text=${text}`, '_blank');
                   }}
-                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                  className="w-full py-2 bg-emerald-600 hover:bg-emerald-500 text-white font-bold rounded-xl text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer shadow-sm active:scale-95"
                 >
                   WhatsApp
                 </button>
 
                 <button
                   onClick={() => setShowShareModal(false)}
-                  className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer"
+                  className="w-full py-2 bg-slate-800 hover:bg-slate-700 text-white font-bold rounded-xl text-xs transition-all cursor-pointer active:scale-95"
                 >
                   Fechar
                 </button>

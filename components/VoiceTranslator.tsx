@@ -28,10 +28,18 @@ import {
   RefreshCw,
   Users,
   ChevronDown,
-  Info
+  Info,
+  UserCheck,
+  UserPlus,
+  Crown,
+  Lock,
+  Edit2,
+  Plus,
+  TrendingUp,
+  Award
 } from 'lucide-react';
 import { Locale } from '../translations';
-import { Company } from '../types';
+import { Company, PlanType } from '../types';
 import { generateQrCodeForUrl } from '../services/qrcode';
 import { saveTranslationMessage } from '../services/supabase';
 import { playTTSAudio, stopAllAudio } from '../services/ttsAudio';
@@ -47,6 +55,17 @@ export interface TranslationMessage {
   targetLang: string;
   timestamp: string;
   audioPlayed?: boolean;
+}
+
+// Tipagem para Clientes Atendidos no Tradutor de Voz
+export interface AttendedClient {
+  id: string;
+  name: string;
+  language: string;
+  firstAttendedAt: string;
+  lastMessageAt: string;
+  messagesCount: number;
+  roomId: string;
 }
 
 // Lista rica de idiomas suportados com voz e transcrição
@@ -113,11 +132,13 @@ const QUICK_CONSTRUCTION_PHRASES = [
 interface VoiceTranslatorProps {
   currentLocale?: Locale;
   currentUser?: Company | null;
+  onUpgrade?: () => void;
 }
 
 export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({ 
   currentLocale = 'pt-PT',
-  currentUser 
+  currentUser,
+  onUpgrade
 }) => {
   // Identificador do utilizador logado para isolamento estrito de histórico e sala
   const userId = currentUser?.id || currentUser?.email || 'guest';
@@ -125,6 +146,46 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
   const userRoomKey = `atrios_active_room_${userId}`;
   const userLangAKey = `atrios_langA_${userId}`;
   const userLangBKey = `atrios_langB_${userId}`;
+  const userClientsKey = `atrios_voice_clients_${userId}`;
+
+  // Plan verification & limits (Gratuito: 5 Clientes Atendidos, Mensal/Anual: Ilimitado)
+  const isPremium = currentUser?.plan === PlanType.PREMIUM_MONTHLY || 
+                    currentUser?.plan === 'premium_monthly' || 
+                    currentUser?.plan === PlanType.PREMIUM_ANNUAL || 
+                    currentUser?.plan === 'premium_annual' || 
+                    currentUser?.plan === PlanType.PREMIUM || 
+                    currentUser?.plan === 'premium';
+  const isAnnualPlan = currentUser?.plan === PlanType.PREMIUM_ANNUAL || currentUser?.plan === 'premium_annual';
+  const isFreePlan = !isPremium;
+  const FREE_CLIENTS_LIMIT = 5;
+
+  // Clientes Atendidos com persistência por utilizador
+  const [attendedClients, setAttendedClients] = useState<AttendedClient[]>(() => {
+    try {
+      const saved = localStorage.getItem(userClientsKey);
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed)) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+
+  const [activeClientId, setActiveClientId] = useState<string | null>(() => {
+    try {
+      const saved = localStorage.getItem(userClientsKey);
+      if (saved) {
+        const parsed: AttendedClient[] = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed[0].id;
+      }
+    } catch (e) {}
+    return null;
+  });
+
+  const [showClientsModal, setShowClientsModal] = useState<boolean>(false);
+  const [showLimitReachedModal, setShowLimitReachedModal] = useState<boolean>(false);
+  const [editingClientId, setEditingClientId] = useState<string | null>(null);
+  const [editingClientName, setEditingClientName] = useState<string>('');
 
   // ID padrão exclusivo do utilizador baseado no ID da conta
   const defaultRoomId = currentUser?.id 
@@ -269,6 +330,132 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
   const selectedLangA = getLangDetails(langA);
   const selectedLangB = getLangDetails(langB);
 
+  // Sincronizar persistência de clientes atendidos no LocalStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem(userClientsKey, JSON.stringify(attendedClients));
+    } catch (e) {}
+  }, [attendedClients, userClientsKey]);
+
+  // Se não houver clientes registados ainda, criar o primeiro cliente automaticamente
+  useEffect(() => {
+    if (attendedClients.length === 0 && activeRoomId) {
+      const initialClient: AttendedClient = {
+        id: `cli_${Date.now()}_init`,
+        name: remoteClientName || 'Cliente #1',
+        language: langB,
+        firstAttendedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        messagesCount: messages.length,
+        roomId: activeRoomId
+      };
+      setAttendedClients([initialClient]);
+      setActiveClientId(initialClient.id);
+    }
+  }, [userId, activeRoomId]);
+
+  // Registar ou atualizar cliente atendido após mensagens
+  const registerOrUpdateClient = (msgCountDelta: number = 1, forceName?: string): boolean => {
+    let matchedIndex = -1;
+    if (activeClientId) {
+      matchedIndex = attendedClients.findIndex(c => c.id === activeClientId);
+    }
+    if (matchedIndex === -1 && activeRoomId) {
+      matchedIndex = attendedClients.findIndex(c => c.roomId === activeRoomId);
+    }
+
+    if (matchedIndex >= 0) {
+      setAttendedClients(prev => {
+        const next = [...prev];
+        const current = next[matchedIndex];
+        next[matchedIndex] = {
+          ...current,
+          name: forceName || (remoteClientName ? remoteClientName : current.name),
+          language: langB,
+          lastMessageAt: new Date().toISOString(),
+          messagesCount: (current.messagesCount || 0) + msgCountDelta,
+          roomId: activeRoomId
+        };
+        return next;
+      });
+      return true;
+    } else {
+      if (isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT) {
+        setShowLimitReachedModal(true);
+        return false;
+      }
+      const newClient: AttendedClient = {
+        id: `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+        name: forceName || remoteClientName || `Cliente #${attendedClients.length + 1}`,
+        language: langB,
+        firstAttendedAt: new Date().toISOString(),
+        lastMessageAt: new Date().toISOString(),
+        messagesCount: msgCountDelta,
+        roomId: activeRoomId
+      };
+      setAttendedClients(prev => [...prev, newClient]);
+      setActiveClientId(newClient.id);
+      return true;
+    }
+  };
+
+  // Iniciar uma nova sessão de atendimento para um novo cliente
+  const handleStartNewClientSession = () => {
+    if (isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT) {
+      setShowLimitReachedModal(true);
+      return;
+    }
+
+    const clientNumber = attendedClients.length + 1;
+    const cleanUserSub = userId.replace(/[^a-zA-Z0-9]/g, '').substring(0, 5).toUpperCase();
+    const newRoom = `SAL_${cleanUserSub || 'CLI'}_C${clientNumber}`;
+
+    const newClient: AttendedClient = {
+      id: `cli_${Date.now()}_${Math.random().toString(36).substring(2, 6)}`,
+      name: `Cliente #${clientNumber}`,
+      language: langB,
+      firstAttendedAt: new Date().toISOString(),
+      lastMessageAt: new Date().toISOString(),
+      messagesCount: 0,
+      roomId: newRoom
+    };
+
+    setAttendedClients(prev => [...prev, newClient]);
+    setActiveClientId(newClient.id);
+    setActiveRoomId(newRoom);
+    setCustomRoomInput(newRoom);
+    setMessages([]);
+    setRemoteClientName('');
+    setClientConnected(false);
+    
+    try {
+      localStorage.setItem(userRoomKey, newRoom);
+      localStorage.setItem(userHistoryKey, JSON.stringify([]));
+    } catch (e) {}
+
+    setShowClientsModal(false);
+  };
+
+  // Alternar para atendimento de um cliente existente
+  const handleSwitchClient = (client: AttendedClient) => {
+    setActiveClientId(client.id);
+    setActiveRoomId(client.roomId);
+    setCustomRoomInput(client.roomId);
+    if (client.language) setLangB(client.language);
+    try {
+      localStorage.setItem(userRoomKey, client.roomId);
+    } catch (e) {}
+    setShowClientsModal(false);
+  };
+
+  // Salvar novo nome para um cliente atendido
+  const handleSaveClientName = (clientId: string, newName: string) => {
+    if (!newName.trim()) return;
+    setAttendedClients(prev => prev.map(c => c.id === clientId ? { ...c, name: newName.trim() } : c));
+    setEditingClientId(null);
+    setEditingClientName('');
+  };
+
   // Inverter idiomas de conversa (A ⇄ B)
   const handleSwapLanguages = () => {
     const prevA = langA;
@@ -401,6 +588,13 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
   ) => {
     if (!textToTranslate.trim() || isTranslating) return;
 
+    // Verificar se atingiu o limite de 5 clientes do plano gratuito
+    const isExistingClient = attendedClients.some(c => c.id === activeClientId || c.roomId === activeRoomId);
+    if (isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT && !isExistingClient) {
+      setShowLimitReachedModal(true);
+      return;
+    }
+
     setIsTranslating(true);
     setMicPermissionError(null);
 
@@ -439,6 +633,7 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
 
             knownMsgIdsRef.current.add(newMsg.id);
             setMessages(prev => [...prev.filter(m => m.id !== newMsg.id), newMsg]);
+            registerOrUpdateClient(1);
 
             if (autoSpeakEnabled && newMsg.translatedText) {
               const voiceLang = sender === 'user' ? tgtLangObj.ttsVoiceLang : srcLangObj.ttsVoiceLang;
@@ -482,6 +677,7 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
 
       knownMsgIdsRef.current.add(newMsg.id);
       setMessages(prev => [...prev, newMsg]);
+      registerOrUpdateClient(1);
 
       // Sincronizar no Supabase
       saveTranslationMessage({
@@ -515,6 +711,12 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
 
   // Iniciar captura de áudio com SpeechRecognition
   const startRecording = (side: 'A' | 'B') => {
+    const isExistingClient = attendedClients.some(c => c.id === activeClientId || c.roomId === activeRoomId);
+    if (isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT && !isExistingClient) {
+      setShowLimitReachedModal(true);
+      return;
+    }
+
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
     if (!SpeechRecognition) {
@@ -656,127 +858,467 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
   return (
     <div className="w-full max-w-6xl mx-auto space-y-5 animate-in fade-in duration-300 pb-12">
       
+      {/* MODAL 1: LIMITE DE CLIENTES ATINGIDO (PLANO GRATUITO) */}
+      {showLimitReachedModal && (
+        <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-900 border border-amber-500/30 rounded-3xl p-5 sm:p-7 max-w-lg w-full flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative text-slate-100 my-auto">
+            
+            {/* Fechar */}
+            <button
+              onClick={() => setShowLimitReachedModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer z-10"
+              title="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Cabeçalho do Modal */}
+            <div className="text-center space-y-2 pt-1 pb-4">
+              <div className="inline-flex w-14 h-14 rounded-2xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 items-center justify-center shadow-lg shadow-amber-500/20 mb-1">
+                <Crown size={28} className="animate-bounce" />
+              </div>
+              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+                Limite de Clientes Atingido
+              </h2>
+              <p className="text-xs sm:text-sm text-slate-300 font-medium max-w-md mx-auto leading-relaxed">
+                O <strong className="text-amber-400">Plano Gratuito</strong> permite o atendimento de até <strong>5 clientes</strong> no Tradutor de Voz & Intérprete Ao Vivo.
+              </p>
+            </div>
+
+            {/* Barra de Progresso do Limite */}
+            <div className="bg-slate-950 border border-white/10 rounded-2xl p-4 space-y-2.5 shadow-inner">
+              <div className="flex items-center justify-between text-xs font-bold">
+                <span className="text-slate-400 flex items-center gap-1.5">
+                  <Users size={14} className="text-amber-400" />
+                  <span>Utilização do Tradutor:</span>
+                </span>
+                <span className="text-amber-400 font-mono font-black">
+                  {attendedClients.length} / {FREE_CLIENTS_LIMIT} Clientes (100%)
+                </span>
+              </div>
+              <div className="w-full h-3 bg-slate-800 rounded-full overflow-hidden p-0.5 border border-white/5">
+                <div 
+                  className="h-full bg-gradient-to-r from-amber-500 to-rose-500 rounded-full transition-all duration-500" 
+                  style={{ width: `${Math.min(100, (attendedClients.length / FREE_CLIENTS_LIMIT) * 100)}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-400">
+                Pode continuar a conversar com os 5 clientes já registados ou fazer upgrade para atender clientes sem limites.
+              </p>
+            </div>
+
+            {/* Comparativo de Planos */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 my-4">
+              <div className="p-3.5 rounded-xl bg-slate-950/60 border border-white/10 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-slate-400">Plano Mensal</span>
+                  <span className="text-xs font-black text-amber-400">9,90€/mês</span>
+                </div>
+                <ul className="text-[11px] space-y-1 text-slate-300">
+                  <li className="flex items-center gap-1.5 text-emerald-400 font-semibold">
+                    <Check size={13} className="shrink-0" />
+                    <span><strong>Clientes Ilimitados</strong> no Tradutor</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-slate-300">
+                    <Check size={13} className="shrink-0 text-emerald-400" />
+                    <span>3 Colaboradores no Ponto</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-slate-300">
+                    <Check size={13} className="shrink-0 text-emerald-400" />
+                    <span>Orçamentos e Faturas Ilimitados</span>
+                  </li>
+                </ul>
+              </div>
+
+              <div className="p-3.5 rounded-xl bg-gradient-to-b from-amber-500/10 to-transparent border border-amber-500/40 space-y-2 relative overflow-hidden">
+                <div className="absolute top-0 right-0 bg-amber-500 text-slate-950 text-[9px] font-black uppercase px-2 py-0.5 rounded-bl-lg">
+                  Mais Popular
+                </div>
+                <div className="flex items-center justify-between">
+                  <span className="text-xs font-black uppercase tracking-wider text-amber-300">Plano Anual</span>
+                  <span className="text-xs font-black text-amber-400">89,90€/ano</span>
+                </div>
+                <ul className="text-[11px] space-y-1 text-slate-200">
+                  <li className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <Check size={13} className="shrink-0" />
+                    <span><strong>Clientes Ilimitados</strong> no Tradutor</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-emerald-400 font-bold">
+                    <Check size={13} className="shrink-0" />
+                    <span><strong>15 Colaboradores</strong> no Ponto</span>
+                  </li>
+                  <li className="flex items-center gap-1.5 text-amber-300 font-semibold">
+                    <Award size={13} className="shrink-0 text-amber-400" />
+                    <span>Oferta de 3 T-Shirts + 3 Coletes</span>
+                  </li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Ações do Modal */}
+            <div className="space-y-2 pt-2 border-t border-white/10">
+              <button
+                onClick={() => {
+                  setShowLimitReachedModal(false);
+                  if (onUpgrade) onUpgrade();
+                }}
+                className="w-full py-3.5 px-4 bg-gradient-to-r from-amber-500 to-amber-400 hover:from-amber-400 hover:to-amber-300 text-slate-950 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/20 active:scale-98 transition-all cursor-pointer"
+              >
+                <Crown size={16} />
+                <span>Fazer Upgrade para Clientes Ilimitados</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  onClick={() => {
+                    setShowLimitReachedModal(false);
+                    setShowClientsModal(true);
+                  }}
+                  className="py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Users size={14} />
+                  <span>Ver Meus 5 Clientes</span>
+                </button>
+
+                <button
+                  onClick={() => setShowLimitReachedModal(false)}
+                  className="py-2.5 px-3 bg-slate-950 hover:bg-slate-800 text-slate-400 hover:text-white border border-white/10 rounded-xl font-bold text-xs flex items-center justify-center transition-all cursor-pointer"
+                >
+                  Continuar no Gratuito
+                </button>
+              </div>
+            </div>
+
+          </div>
+        </div>
+      )}
+
+      {/* MODAL 2: GESTÃO DE CLIENTES ATENDIDOS */}
+      {showClientsModal && (
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-3xl p-5 sm:p-6 max-w-xl w-full max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative text-slate-100 my-auto">
+            
+            {/* Fechar */}
+            <button
+              onClick={() => setShowClientsModal(false)}
+              className="absolute top-4 right-4 p-2 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer z-10"
+              title="Fechar"
+            >
+              <X size={20} />
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="flex items-center gap-3 pb-4 border-b border-white/10">
+              <div className="w-11 h-11 rounded-2xl bg-amber-500/15 border border-amber-500/30 text-amber-400 flex items-center justify-center shrink-0">
+                <Users size={22} />
+              </div>
+              <div>
+                <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
+                  Clientes Atendidos no Tradutor
+                </h2>
+                <p className="text-xs text-slate-400">
+                  {isFreePlan 
+                    ? `Plano Gratuito: ${attendedClients.length} de ${FREE_CLIENTS_LIMIT} clientes registados` 
+                    : `Plano Premium: ${attendedClients.length} clientes atendidos (Ilimitado)`}
+                </p>
+              </div>
+            </div>
+
+            {/* Barra de Status do Plano */}
+            <div className="mt-3 p-3 rounded-xl bg-slate-950 border border-white/10 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2 text-xs font-bold">
+                  <span className="text-slate-300">Limite de Clientes:</span>
+                  <span className={`px-2 py-0.5 rounded-md text-[10px] font-black uppercase ${
+                    isFreePlan 
+                      ? (attendedClients.length >= FREE_CLIENTS_LIMIT ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' : 'bg-amber-500/20 text-amber-300 border border-amber-500/30')
+                      : 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
+                  }`}>
+                    {isFreePlan ? `${attendedClients.length}/${FREE_CLIENTS_LIMIT} Clientes` : 'Ilimitado (Premium)'}
+                  </span>
+                </div>
+                {isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT && (
+                  <p className="text-[11px] text-amber-400 font-medium">
+                    Atingiu o limite de 5 clientes. Faça upgrade para atender novos clientes sem limites.
+                  </p>
+                )}
+              </div>
+
+              {isFreePlan && (
+                <button
+                  onClick={() => {
+                    setShowClientsModal(false);
+                    if (onUpgrade) onUpgrade();
+                  }}
+                  className="px-3 py-1.5 bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-[11px] uppercase tracking-wider rounded-lg flex items-center gap-1.5 shrink-0 shadow-sm cursor-pointer"
+                >
+                  <Crown size={13} />
+                  <span>Upgrade</span>
+                </button>
+              )}
+            </div>
+
+            {/* Botão para Iniciar Novo Atendimento */}
+            <div className="mt-4">
+              <button
+                onClick={handleStartNewClientSession}
+                className="w-full py-2.5 px-4 bg-slate-800 hover:bg-slate-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 border border-white/10 transition-all cursor-pointer shadow-xs"
+              >
+                <Plus size={16} className="text-amber-400" />
+                <span>+ Iniciar Novo Atendimento / Cliente</span>
+              </button>
+            </div>
+
+            {/* Lista de Clientes Atendidos */}
+            <div className="mt-4 overflow-y-auto max-h-72 space-y-2.5 pr-1 no-scrollbar">
+              {attendedClients.length === 0 ? (
+                <div className="p-8 text-center text-slate-500 text-xs">
+                  Ainda não há clientes atendidos registados.
+                </div>
+              ) : (
+                attendedClients.map((client, idx) => {
+                  const langObj = getLangDetails(client.language || 'en-US');
+                  const isCurrent = client.id === activeClientId || client.roomId === activeRoomId;
+
+                  return (
+                    <div
+                      key={client.id}
+                      className={`p-3.5 rounded-2xl border transition-all ${
+                        isCurrent
+                          ? 'bg-amber-500/10 border-amber-500/40 shadow-sm'
+                          : 'bg-slate-950/70 border-white/10 hover:border-slate-700'
+                      }`}
+                    >
+                      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5">
+                        
+                        {/* Info do Cliente */}
+                        <div className="space-y-1">
+                          <div className="flex items-center gap-2">
+                            <span className="text-base">{langObj.flag}</span>
+                            
+                            {editingClientId === client.id ? (
+                              <div className="flex items-center gap-1.5">
+                                <input
+                                  type="text"
+                                  value={editingClientName}
+                                  onChange={e => setEditingClientName(e.target.value)}
+                                  className="px-2 py-0.5 bg-slate-900 border border-amber-500 rounded text-xs font-bold text-white outline-none"
+                                  autoFocus
+                                />
+                                <button
+                                  onClick={() => handleSaveClientName(client.id, editingClientName)}
+                                  className="p-1 bg-amber-500 text-slate-950 rounded text-xs font-bold cursor-pointer"
+                                >
+                                  <Check size={12} />
+                                </button>
+                                <button
+                                  onClick={() => setEditingClientId(null)}
+                                  className="p-1 bg-slate-800 text-slate-400 rounded text-xs cursor-pointer"
+                                >
+                                  <X size={12} />
+                                </button>
+                              </div>
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="font-black text-sm text-white">{client.name || `Cliente #${idx + 1}`}</span>
+                                <button
+                                  onClick={() => {
+                                    setEditingClientId(client.id);
+                                    setEditingClientName(client.name || `Cliente #${idx + 1}`);
+                                  }}
+                                  className="text-slate-500 hover:text-amber-400 p-0.5 cursor-pointer"
+                                  title="Editar nome"
+                                >
+                                  <Edit2 size={12} />
+                                </button>
+                              </div>
+                            )}
+
+                            {isCurrent && (
+                              <span className="px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+                                Conversa Ativa
+                              </span>
+                            )}
+                          </div>
+
+                          <div className="flex flex-wrap items-center gap-3 text-[11px] text-slate-400">
+                            <span>Idioma: <strong className="text-slate-200">{langObj.name.split('(')[0]}</strong></span>
+                            <span>Sala: <strong className="font-mono text-amber-400">{client.roomId}</strong></span>
+                            {client.messagesCount !== undefined && (
+                              <span>Mensagens: <strong className="text-slate-200">{client.messagesCount}</strong></span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Ações do Card de Cliente */}
+                        <div className="flex items-center gap-2 self-end sm:self-center shrink-0">
+                          {isCurrent ? (
+                            <button
+                              onClick={() => {
+                                setShowClientsModal(false);
+                                setShowConnectModal(true);
+                              }}
+                              className="px-3 py-1.5 bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 rounded-xl text-xs font-bold flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <QrCode size={13} />
+                              <span>QR Code</span>
+                            </button>
+                          ) : (
+                            <button
+                              onClick={() => handleSwitchClient(client)}
+                              className="px-3.5 py-1.5 bg-slate-800 hover:bg-amber-500 hover:text-slate-950 text-slate-200 rounded-xl text-xs font-bold transition-all cursor-pointer"
+                            >
+                              Continuar Conversa
+                            </button>
+                          )}
+                        </div>
+
+                      </div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            {/* Rodapé do Modal */}
+            <div className="pt-4 mt-3 border-t border-white/10 flex justify-end">
+              <button
+                onClick={() => setShowClientsModal(false)}
+                className="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-white rounded-xl text-xs font-bold cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+
+          </div>
+        </div>
+      )}
+
       {/* MODAL DE CONEXÃO COM CLIENTE (LINK & QR CODE) */}
       {showConnectModal && (
-        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200">
-          <div className="bg-slate-900 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-6 max-w-md w-full max-h-[92vh] overflow-y-auto shadow-2xl space-y-4 animate-in zoom-in-95 duration-200 relative text-slate-100 no-scrollbar">
+        <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/85 backdrop-blur-md p-3 sm:p-4 animate-in fade-in duration-200 overflow-y-auto">
+          <div className="bg-slate-900 border border-white/10 rounded-2xl sm:rounded-3xl p-4 sm:p-5 max-w-sm sm:max-w-md w-full max-h-[88vh] sm:max-h-[90vh] flex flex-col shadow-2xl animate-in zoom-in-95 duration-200 relative text-slate-100 my-auto">
             
             {/* Fechar */}
             <button
               onClick={() => setShowConnectModal(false)}
-              className="absolute top-4 right-4 p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer"
+              className="absolute top-3.5 right-3.5 p-1.5 text-slate-400 hover:text-white rounded-xl hover:bg-slate-800 transition-colors cursor-pointer z-10"
+              title="Fechar"
             >
               <X size={18} />
             </button>
 
             {/* Cabeçalho do Modal */}
-            <div className="text-center space-y-1.5 pt-0.5">
-              <div className="inline-flex w-11 h-11 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 items-center justify-center shadow-md shadow-amber-500/20 mb-0.5">
-                <QrCode size={22} />
+            <div className="text-center space-y-1 pt-0.5 pb-2 shrink-0 pr-6">
+              <div className="inline-flex w-10 h-10 rounded-xl bg-gradient-to-tr from-amber-500 to-amber-400 text-slate-950 items-center justify-center shadow-md shadow-amber-500/20 mb-0.5">
+                <QrCode size={20} />
               </div>
-              <h2 className="text-xl sm:text-2xl font-black text-white tracking-tight">
+              <h2 className="text-lg sm:text-xl font-black text-white tracking-tight">
                 Conectar com o Cliente
               </h2>
-              <p className="text-xs text-slate-400 font-medium max-w-xs mx-auto leading-relaxed">
+              <p className="text-[11px] sm:text-xs text-slate-400 font-medium max-w-xs mx-auto leading-relaxed">
                 Aponte a câmara do telemóvel para aceder à conversa com tradução em tempo real.
               </p>
             </div>
 
-            {/* QR CODE DISPLAY */}
-            <div className="bg-slate-950/80 border border-white/10 rounded-xl sm:rounded-2xl p-4 flex flex-col items-center justify-center space-y-3 shadow-inner">
-              {qrCodeDataUrl ? (
-                <div className="bg-white p-3 rounded-xl shadow-lg flex flex-col items-center">
-                  <img
-                    src={qrCodeDataUrl}
-                    alt="QR Code da Sala de Chat"
-                    className="w-36 h-36 sm:w-40 sm:h-40 object-contain rounded-md"
+            {/* Conteúdo Scrollável */}
+            <div className="overflow-y-auto space-y-3 pr-0.5 no-scrollbar">
+              {/* QR CODE DISPLAY */}
+              <div className="bg-slate-950/80 border border-white/10 rounded-xl p-3 flex flex-col items-center justify-center space-y-2 shadow-inner">
+                {qrCodeDataUrl ? (
+                  <div className="bg-white p-2.5 rounded-xl shadow-lg flex flex-col items-center">
+                    <img
+                      src={qrCodeDataUrl}
+                      alt="QR Code da Sala de Chat"
+                      className="w-32 h-32 sm:w-36 sm:h-36 max-w-[45vw] max-h-[45vw] object-contain rounded-md"
+                    />
+                    <span className="text-[9px] sm:text-[10px] font-black text-slate-800 mt-1 uppercase tracking-wider flex items-center gap-1">
+                      <Smartphone size={10} className="text-amber-500" />
+                      Aponte a câmara do telemóvel
+                    </span>
+                  </div>
+                ) : (
+                  <div className="w-32 h-32 sm:w-36 sm:h-36 flex items-center justify-center text-slate-400">
+                    <RefreshCw size={20} className="animate-spin text-amber-400" />
+                  </div>
+                )}
+
+                {/* Informação da Sala */}
+                <div className="flex items-center gap-2 text-[11px] font-bold text-slate-300 bg-slate-900 px-3 py-1 rounded-full border border-white/10 shadow-xs">
+                  <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+                  <span>Sala Ativa: <strong className="font-mono text-amber-400">{activeRoomId}</strong></span>
+                </div>
+              </div>
+
+              {/* LINK COMPARTILHÁVEL & BOTÕES DE AÇÃO */}
+              <div className="space-y-2">
+                <div className="flex items-center gap-1.5 p-1.5 bg-slate-950 border border-white/10 rounded-xl">
+                  <input
+                    type="text"
+                    readOnly
+                    value={clientChatUrl}
+                    className="bg-transparent text-[11px] font-mono text-slate-300 flex-1 px-2 outline-none select-all truncate"
                   />
-                  <span className="text-[10px] font-black text-slate-800 mt-1.5 uppercase tracking-wider flex items-center gap-1.5">
-                    <Smartphone size={11} className="text-amber-500" />
-                    Aponte a câmara do telemóvel
-                  </span>
+                  <button
+                    onClick={copyClientLink}
+                    className={`px-2.5 py-1.5 rounded-lg text-[11px] font-black uppercase tracking-wider transition-all flex items-center gap-1 shrink-0 cursor-pointer ${
+                      copiedShareLink
+                        ? 'bg-emerald-500 text-slate-950 font-bold'
+                        : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
+                    }`}
+                  >
+                    {copiedShareLink ? <Check size={12} /> : <Copy size={12} />}
+                    <span>{copiedShareLink ? 'Copiado!' : 'Copiar'}</span>
+                  </button>
                 </div>
-              ) : (
-                <div className="w-36 h-36 sm:w-40 sm:h-40 flex items-center justify-center text-slate-400">
-                  <RefreshCw size={22} className="animate-spin text-amber-400" />
+
+                {/* Botão de Envio WhatsApp & Abrir Nova Aba */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={shareRoomViaWhatsApp}
+                    className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <Share2 size={14} />
+                    <span>WhatsApp</span>
+                  </button>
+
+                  <a
+                    href={clientChatUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all text-center cursor-pointer"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Abrir Chat</span>
+                  </a>
                 </div>
-              )}
-
-              {/* Informação da Sala */}
-              <div className="flex items-center gap-2 text-xs font-bold text-slate-300 bg-slate-900 px-3 py-1 rounded-full border border-white/10 shadow-xs">
-                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-                <span>Sala Ativa: <strong className="font-mono text-amber-400">{activeRoomId}</strong></span>
               </div>
-            </div>
 
-            {/* LINK COMPARTILHÁVEL & BOTÕES DE AÇÃO */}
-            <div className="space-y-2.5">
-              <div className="flex items-center gap-2 p-1.5 bg-slate-950 border border-white/10 rounded-xl">
-                <input
-                  type="text"
-                  readOnly
-                  value={clientChatUrl}
-                  className="bg-transparent text-[11px] sm:text-xs font-mono text-slate-300 flex-1 px-2 outline-none select-all truncate"
-                />
+              {/* Opção para Personalizar Código da Sala */}
+              <div className="pt-2.5 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
+                <div className="flex items-center gap-1.5">
+                  <span className="text-[11px]">Sala:</span>
+                  <input
+                    type="text"
+                    value={customRoomInput}
+                    onChange={e => setCustomRoomInput(e.target.value)}
+                    placeholder="ex: SALA_1"
+                    className="px-2 py-1 bg-slate-950 border border-slate-700 rounded-lg text-xs font-mono font-bold text-amber-300 uppercase outline-none focus:border-amber-500 w-24"
+                  />
+                  <button
+                    onClick={() => handleUpdateRoom(customRoomInput)}
+                    className="px-2 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-[10px] uppercase hover:bg-amber-400 cursor-pointer"
+                  >
+                    Mudar
+                  </button>
+                </div>
                 <button
-                  onClick={copyClientLink}
-                  className={`px-3 py-2 rounded-lg text-[11px] sm:text-xs font-black uppercase tracking-wider transition-all flex items-center gap-1.5 shrink-0 cursor-pointer ${
-                    copiedShareLink
-                      ? 'bg-emerald-500 text-slate-950 font-bold'
-                      : 'bg-amber-500 hover:bg-amber-400 text-slate-950'
-                  }`}
+                  onClick={() => setShowConnectModal(false)}
+                  className="px-3 py-1 bg-slate-800 hover:bg-slate-700 text-white rounded-lg font-bold text-xs cursor-pointer ml-auto"
                 >
-                  {copiedShareLink ? <Check size={13} /> : <Copy size={13} />}
-                  <span>{copiedShareLink ? 'Copiado!' : 'Copiar'}</span>
+                  Concluir
                 </button>
               </div>
-
-              {/* Botão de Envio WhatsApp & Abrir Nova Aba */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <button
-                  onClick={shareRoomViaWhatsApp}
-                  className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
-                >
-                  <Share2 size={15} />
-                  <span>WhatsApp</span>
-                </button>
-
-                <a
-                  href={clientChatUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-2.5 px-3 bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white border border-white/10 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all text-center cursor-pointer"
-                >
-                  <ExternalLink size={15} />
-                  <span>Abrir Tela Cliente</span>
-                </a>
-              </div>
-            </div>
-
-            {/* Opção para Personalizar Código da Sala */}
-            <div className="pt-2 border-t border-white/10 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-400">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[11px]">Sala:</span>
-                <input
-                  type="text"
-                  value={customRoomInput}
-                  onChange={e => setCustomRoomInput(e.target.value)}
-                  placeholder="ex: SALA_1"
-                  className="px-2 py-1 bg-slate-950 border border-slate-700 rounded-lg text-xs font-mono font-bold text-amber-300 uppercase outline-none focus:border-amber-500 w-24"
-                />
-                <button
-                  onClick={() => handleUpdateRoom(customRoomInput)}
-                  className="px-2 py-1 bg-amber-500 text-slate-950 font-black rounded-lg text-[10px] uppercase hover:bg-amber-400 cursor-pointer"
-                >
-                  Mudar
-                </button>
-              </div>
-              <button
-                onClick={() => setShowConnectModal(false)}
-                className="text-slate-400 font-bold hover:text-white text-xs cursor-pointer ml-auto"
-              >
-                Concluir
-              </button>
             </div>
 
           </div>
@@ -800,6 +1342,31 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
                 <span>Intérprete Simultâneo AI</span>
               </div>
 
+              {/* Badge de Clientes Atendidos com indicador de limite */}
+              <button
+                onClick={() => setShowClientsModal(true)}
+                className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold transition-all cursor-pointer border ${
+                  isFreePlan
+                    ? (attendedClients.length >= FREE_CLIENTS_LIMIT
+                        ? 'bg-rose-500/20 text-rose-300 border-rose-500/40 hover:bg-rose-500/30'
+                        : 'bg-amber-500/15 text-amber-300 border-amber-500/30 hover:bg-amber-500/25')
+                    : 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30 hover:bg-emerald-500/25'
+                }`}
+                title="Ver Gestão de Clientes Atendidos"
+              >
+                <Users size={13} className={isFreePlan ? (attendedClients.length >= FREE_CLIENTS_LIMIT ? 'text-rose-400' : 'text-amber-400') : 'text-emerald-400'} />
+                <span>
+                  {isFreePlan 
+                    ? `Clientes: ${attendedClients.length}/${FREE_CLIENTS_LIMIT}` 
+                    : `Clientes: ${attendedClients.length} (Ilimitado)`}
+                </span>
+                {isFreePlan && attendedClients.length >= FREE_CLIENTS_LIMIT && (
+                  <span className="px-1.5 py-0.2 bg-rose-500 text-slate-950 font-black text-[9px] rounded-full uppercase tracking-wider">
+                    Limite 5
+                  </span>
+                )}
+              </button>
+
               <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-500/15 text-emerald-300 border border-emerald-500/30 text-xs font-bold font-mono">
                 <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
                 <span>Sala: {activeRoomId}</span>
@@ -814,22 +1381,42 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
             </div>
 
             {/* Quick Actions Header */}
-            <div className="flex items-center gap-2 shrink-0">
+            <div className="flex flex-wrap items-center gap-2 shrink-0">
               
+              {/* Botão Novo Cliente */}
+              <button
+                onClick={handleStartNewClientSession}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer"
+                title="Iniciar Novo Cliente / Nova Sala"
+              >
+                <UserPlus size={14} className="text-amber-400" />
+                <span className="hidden sm:inline">Novo Cliente</span>
+              </button>
+
+              {/* Botão Gestão de Clientes */}
+              <button
+                onClick={() => setShowClientsModal(true)}
+                className="px-3 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 hover:text-white font-bold text-xs flex items-center gap-1.5 transition-all border border-white/10 cursor-pointer"
+                title="Abrir Lista de Clientes Atendidos"
+              >
+                <Users size={14} />
+                <span className="hidden sm:inline">Clientes ({attendedClients.length}{isFreePlan ? `/${FREE_CLIENTS_LIMIT}` : ''})</span>
+              </button>
+
               {/* Botão de Conectar Cliente */}
               <button
                 onClick={() => setShowConnectModal(true)}
-                className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
+                className="px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
                 title="Abrir Link e QR Code da Sala para o Cliente"
               >
-                <QrCode size={16} />
-                <span>Link & QR Code</span>
+                <QrCode size={15} />
+                <span>Link & QR</span>
               </button>
 
               {/* Botão de Áudio Automático */}
               <button
                 onClick={() => setAutoSpeakEnabled(!autoSpeakEnabled)}
-                className={`p-2.5 rounded-xl border transition-all cursor-pointer ${
+                className={`p-2 rounded-xl border transition-all cursor-pointer ${
                   autoSpeakEnabled 
                     ? 'bg-amber-500/20 text-amber-300 border-amber-500/40 hover:bg-amber-500/30' 
                     : 'bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700'
@@ -843,7 +1430,7 @@ export const VoiceTranslator: React.FC<VoiceTranslatorProps> = ({
               {messages.length > 0 && (
                 <button
                   onClick={clearHistory}
-                  className="p-2.5 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 transition-all cursor-pointer"
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-rose-500/20 text-slate-400 hover:text-rose-300 border border-slate-700 hover:border-rose-500/30 transition-all cursor-pointer"
                   title="Limpar histórico da conversa"
                 >
                   <Trash2 size={16} />

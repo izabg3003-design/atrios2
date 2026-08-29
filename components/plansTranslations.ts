@@ -20,6 +20,8 @@ export interface PlansTranslation {
   
   // Free Features
   featItemsLimit: string;
+  featWorkersFree: string;
+  featVoiceTranslatorFree: string;
   featExpenseLimit: string;
   featPdfLimit: string;
   featServiceLimit: string;
@@ -33,6 +35,8 @@ export interface PlansTranslation {
 
   // Monthly Features
   featUnlimitedItems: string;
+  featWorkersMonthly: string;
+  featVoiceTranslatorMonthly: string;
   featClientRequestsMonthly: string;
   featUnlimitedExpenses: string;
   featUnlimitedPdf: string;
@@ -44,6 +48,8 @@ export interface PlansTranslation {
   featGiftsMonthlyNotIncluded: string;
 
   // Annual Features
+  featWorkersAnnual: string;
+  featVoiceTranslatorAnnual: string;
   featClientRequestsAnnual: string;
   featPrioritySupportVip: string;
   featAnnualSavingsText: string;
@@ -203,6 +209,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Cupão inválido ou expirado",
 
     featItemsLimit: "3 Itens por Orçamento",
+    featWorkersFree: "1 Colaborador no Controlo de Ponto",
+    featVoiceTranslatorFree: "Tradutor de Voz: Até 5 Clientes Atendidos",
     featExpenseLimit: "3 Registos de Despesas",
     featPdfLimit: "3 Downloads de PDF",
     featServiceLimit: "3 Serviços Incluídos",
@@ -215,6 +223,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Oferta de Brindes e Vestuário Pro",
 
     featUnlimitedItems: "Orçamentos e Itens Ilimitados",
+    featWorkersMonthly: "Até 3 Colaboradores no Controlo de Ponto",
+    featVoiceTranslatorMonthly: "Tradutor de Voz & Chat Ao Vivo Ilimitado",
     featClientRequestsMonthly: "Responda a 2 Pedidos de Clientes da Plataforma / mês",
     featUnlimitedExpenses: "Despesas e Serviços Ilimitados",
     featUnlimitedPdf: "Downloads de PDF Ilimitados",
@@ -225,6 +235,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Desconto Especial Anual (25% Poupança)",
     featGiftsMonthlyNotIncluded: "Oferta de Brindes (Exclusivo Anual)",
 
+    featWorkersAnnual: "Até 15 Colaboradores no Controlo de Ponto",
+    featVoiceTranslatorAnnual: "Tradutor de Voz & Chat Ao Vivo Ilimitado",
     featClientRequestsAnnual: "Responda a Pedidos de Clientes ILIMITADOS da Plataforma",
     featPrioritySupportVip: "Suporte VIP Prioritário",
     featAnnualSavingsText: "Poupança de 25% face ao mensal",
@@ -381,6 +393,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Cupom inválido ou expirado",
 
     featItemsLimit: "3 Itens por Orçamento",
+    featWorkersFree: "1 Colaborador no Controle de Ponto",
+    featVoiceTranslatorFree: "Tradutor de Voz: Até 5 Clientes Atendidos",
     featExpenseLimit: "3 Registros de Despesas",
     featPdfLimit: "3 Downloads de PDF",
     featServiceLimit: "3 Serviços Incluídos",
@@ -393,6 +407,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Oferta de Brindes e Uniformes Pro",
 
     featUnlimitedItems: "Orçamentos e Itens Ilimitados",
+    featWorkersMonthly: "Até 3 Colaboradores no Controle de Ponto",
+    featVoiceTranslatorMonthly: "Tradutor de Voz & Chat Ao Vivo Ilimitado",
     featClientRequestsMonthly: "Responda a 2 Pedidos de Clientes da Plataforma / mês",
     featUnlimitedExpenses: "Despesas e Serviços Ilimitados",
     featUnlimitedPdf: "Downloads de PDF Ilimitados",
@@ -403,6 +419,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Desconto Especial Anual (25% Economia)",
     featGiftsMonthlyNotIncluded: "Oferta de Brindes (Exclusivo Anual)",
 
+    featWorkersAnnual: "Até 15 Colaboradores no Controle de Ponto",
+    featVoiceTranslatorAnnual: "Tradutor de Voz & Chat Ao Vivo Ilimitado",
     featClientRequestsAnnual: "Responda a Pedidos de Clientes ILIMITADOS da Plataforma",
     featPrioritySupportVip: "Suporte VIP Prioritário",
     featAnnualSavingsText: "Economia de 25% em relação ao mensal",
@@ -559,6 +577,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Invalid or expired coupon",
 
     featItemsLimit: "3 Items per Estimate",
+    featWorkersFree: "1 Worker in Time Tracking",
+    featVoiceTranslatorFree: "AI Voice Translator: Up to 5 Attended Clients",
     featExpenseLimit: "3 Expense Records",
     featPdfLimit: "3 PDF Downloads",
     featServiceLimit: "3 Included Services",
@@ -571,6 +591,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Free Branded Gifts & Pro Apparel",
 
     featUnlimitedItems: "Unlimited Estimates & Items",
+    featWorkersMonthly: "Up to 3 Workers in Time Tracking",
+    featVoiceTranslatorMonthly: "Unlimited AI Voice Translator & Live Chat",
     featClientRequestsMonthly: "Respond to 2 Platform Client Requests / month",
     featUnlimitedExpenses: "Unlimited Expenses & Services",
     featUnlimitedPdf: "Unlimited PDF Downloads",
@@ -581,6 +603,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Special Annual Discount (25% Savings)",
     featGiftsMonthlyNotIncluded: "Gift Package (Annual Plan Exclusive)",
 
+    featWorkersAnnual: "Up to 15 Workers in Time Tracking",
+    featVoiceTranslatorAnnual: "Unlimited AI Voice Translator & Live Chat",
     featClientRequestsAnnual: "Respond to UNLIMITED Platform Client Requests",
     featPrioritySupportVip: "VIP Priority Support",
     featAnnualSavingsText: "25% savings compared to monthly",
@@ -737,6 +761,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Cupón inválido o caducado",
 
     featItemsLimit: "3 Artículos por Presupuesto",
+    featWorkersFree: "1 Trabajador en Control Horario",
+    featVoiceTranslatorFree: "Traductor de Voz: Hasta 5 Clientes Atendidos",
     featExpenseLimit: "3 Registros de Gastos",
     featPdfLimit: "3 Descargas de PDF",
     featServiceLimit: "3 Servicios Incluidos",
@@ -749,8 +775,10 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Regalo de Merchandising y Ropa Pro",
 
     featUnlimitedItems: "Presupuestos y Artículos Ilimitados",
+    featWorkersMonthly: "Hasta 3 Trabajadores en Control Horario",
+    featVoiceTranslatorMonthly: "Traductor de Voz y Chat en Vivo Ilimitado",
     featClientRequestsMonthly: "Responda a 2 Solicitudes de Clientes / mes",
-    featUnlimitedExpenses: "Gastos y Servicios Ilimitados",
+    featUnlimitedExpenses: "Gastos y Serviços Ilimitados",
     featUnlimitedPdf: "Descargas de PDF Ilimitadas",
     featCloudBackup: "Sincronización en la Nube en Tiempo Real",
     featProfitReports: "Informes Financieros y de Rentabilidad",
@@ -759,6 +787,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Descuento Especial Anual (25% Ahorro)",
     featGiftsMonthlyNotIncluded: "Regalo de Ropa (Exclusivo Anual)",
 
+    featWorkersAnnual: "Hasta 15 Trabajadores en Control Horario",
+    featVoiceTranslatorAnnual: "Traductor de Voz y Chat en Vivo Ilimitado",
     featClientRequestsAnnual: "Responda a Solicitudes de Clientes ILIMITADAS",
     featPrioritySupportVip: "Soporte VIP Prioritario",
     featAnnualSavingsText: "Ahorro del 25% respecto al mensual",
@@ -915,6 +945,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Coupon invalide ou expiré",
 
     featItemsLimit: "3 Articles par Devis",
+    featWorkersFree: "1 Salarié dans le Suivi des Heures",
+    featVoiceTranslatorFree: "Traducteur Vocal : Jusqu'à 5 Clients Traités",
     featExpenseLimit: "3 Enregistrements de Dépenses",
     featPdfLimit: "3 Téléchargements de PDF",
     featServiceLimit: "3 Services Inclus",
@@ -927,6 +959,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Pack Cadeaux & Vêtements Pro",
 
     featUnlimitedItems: "Devis & Articles Illimités",
+    featWorkersMonthly: "Jusqu'à 3 Salariés dans le Suivi des Heures",
+    featVoiceTranslatorMonthly: "Traducteur Vocal & Chat en Direct Illimités",
     featClientRequestsMonthly: "Répondez à 2 Demandes Clients de la Plateforme / mois",
     featUnlimitedExpenses: "Dépenses & Services Illimités",
     featUnlimitedPdf: "Téléchargements de PDF Illimités",
@@ -937,6 +971,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Remise Annuelle Spéciale (25% d'Économie)",
     featGiftsMonthlyNotIncluded: "Pack Cadeaux (Exclusivité Annuelle)",
 
+    featWorkersAnnual: "Jusqu'à 15 Salariés dans le Suivi des Heures",
+    featVoiceTranslatorAnnual: "Traducteur Vocal & Chat en Direct Illimités",
     featClientRequestsAnnual: "Répondez à des Demandes Clients ILLIMITÉES",
     featPrioritySupportVip: "Support VIP Prioritaire",
     featAnnualSavingsText: "25% d'économie par rapport au mensuel",
@@ -1093,6 +1129,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Coupon non valido o scaduto",
 
     featItemsLimit: "3 Voci per Preventivo",
+    featWorkersFree: "1 Dipendente nel Controllo Presenze",
+    featVoiceTranslatorFree: "Traduttore Vocale: Fino a 5 Clienti Serviti",
     featExpenseLimit: "3 Registrazioni Spese",
     featPdfLimit: "3 Download PDF",
     featServiceLimit: "3 Servizi Inclusi",
@@ -1105,6 +1143,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Omaggio Gadget & Abbigliamento Pro",
 
     featUnlimitedItems: "Preventivi & Voci Illimitati",
+    featWorkersMonthly: "Fino a 3 Dipendenti nel Controllo Presenze",
+    featVoiceTranslatorMonthly: "Traduttore Vocale e Chat dal Vivo Illimitati",
     featClientRequestsMonthly: "Rispondi a 2 Richieste Clienti della Piattaforma / mese",
     featUnlimitedExpenses: "Spese & Servizi Illimitati",
     featUnlimitedPdf: "Download PDF Illimitati",
@@ -1115,6 +1155,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Sconto Speciale Annuale (25% di Risparmio)",
     featGiftsMonthlyNotIncluded: "Omaggio Abbigliamento (Esclusivo Annuale)",
 
+    featWorkersAnnual: "Fino a 15 Dipendenti nel Controllo Presenze",
+    featVoiceTranslatorAnnual: "Traduttore Vocale e Chat dal Vivo Illimitati",
     featClientRequestsAnnual: "Rispondi a Richieste Clienti ILLIMITATE",
     featPrioritySupportVip: "Supporto VIP Prioritario",
     featAnnualSavingsText: "Risparmio del 25% rispetto al mensile",
@@ -1271,6 +1313,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "Неверный или просроченный купон",
 
     featItemsLimit: "3 позиции в смете",
+    featWorkersFree: "1 сотрудник в учете времени",
+    featVoiceTranslatorFree: "Голосовой переводчик: до 5 обслуженных клиентов",
     featExpenseLimit: "3 записи расходов",
     featPdfLimit: "3 загрузки PDF",
     featServiceLimit: "3 включенные услуги",
@@ -1283,6 +1327,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "Фирменная спецодежда и подарки",
 
     featUnlimitedItems: "Неограниченные сметы и позиции",
+    featWorkersMonthly: "До 3 сотрудников в учете времени",
+    featVoiceTranslatorMonthly: "Безлимитный голосовой переводчик и онлайн-чат",
     featClientRequestsMonthly: "Ответы на 2 заявки клиентов / месяц",
     featUnlimitedExpenses: "Неограниченные расходы и услуги",
     featUnlimitedPdf: "Неограниченная загрузка PDF",
@@ -1293,6 +1339,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "Специальная годовая скидка (25% экономии)",
     featGiftsMonthlyNotIncluded: "Подарочный набор (только для годового плана)",
 
+    featWorkersAnnual: "До 15 сотрудников в учете времени",
+    featVoiceTranslatorAnnual: "Безлимитный голосовой переводчик и онлайн-чат",
     featClientRequestsAnnual: "НЕОГРАНИЧЕННЫЕ ответы на заявки клиентов",
     featPrioritySupportVip: "VIP приоритетная поддержка",
     featAnnualSavingsText: "Экономия 25% по сравнению с помесячной оплатой",
@@ -1449,6 +1497,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "अमान्य या समाप्त कूपन",
 
     featItemsLimit: "प्रति कोटेशन 3 आइटम",
+    featWorkersFree: "टाइम ट्रैकिंग में 1 कर्मचारी",
+    featVoiceTranslatorFree: "वॉयस ट्रांसलेटर: 5 सेवित ग्राहकों तक",
     featExpenseLimit: "3 व्यय रिकॉर्ड",
     featPdfLimit: "3 पीडीएफ डाउनलोड",
     featServiceLimit: "3 शामिल सेवाएं",
@@ -1461,6 +1511,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "मुफ्त ब्रांडेड उपहार और परिधान",
 
     featUnlimitedItems: "असीमित कोटेशन और आइटम",
+    featWorkersMonthly: "टाइम ट्रैकिंग में 3 कर्मचारियों तक",
+    featVoiceTranslatorMonthly: "असीमित वॉयस ट्रांसलेटर और लाइव चैट",
     featClientRequestsMonthly: "प्रति माह 2 ग्राहक अनुरोधों का उत्तर दें",
     featUnlimitedExpenses: "असीमित व्यय और सेवाएं",
     featUnlimitedPdf: "असीमित पीडीएफ डाउनलोड",
@@ -1471,6 +1523,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "विशेष वार्षिक छूट (25% बचत)",
     featGiftsMonthlyNotIncluded: "उपहार पैकेज (केवल वार्षिक योजना)",
 
+    featWorkersAnnual: "टाइम ट्रैकिंग में 15 कर्मचारियों तक",
+    featVoiceTranslatorAnnual: "असीमित वॉयस ट्रांसलेटर और लाइव चैट",
     featClientRequestsAnnual: "असीमित ग्राहक अनुरोधों का उत्तर दें",
     featPrioritySupportVip: "वीआईपी प्राथमिकता सहायता",
     featAnnualSavingsText: "मासिक की तुलना में 25% की बचत",
@@ -1627,6 +1681,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     couponInvalid: "মেয়াদোত্তীর্ণ বা ভুল কুপন",
 
     featItemsLimit: "প্রতি কোটেশনে ৩টি আইটেম",
+    featWorkersFree: "টাইম ট্র্যাকিংয়ে ১ জন কর্মী",
+    featVoiceTranslatorFree: "ভয়েস অনুবাদক: সর্বোচ্চ ৫ জন গ্রাহক সেবা",
     featExpenseLimit: "৩টি খরচ এন্ট্রি",
     featPdfLimit: "৩টি পিডিএফ ডাউনলোড",
     featServiceLimit: "৩টি অন্তর্ভুক্ত সেবা",
@@ -1639,6 +1695,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featGiftsNotIncluded: "বিনামূল্যে ব্র্যান্ডেড উপহার ও পোশাক",
 
     featUnlimitedItems: "আনলিমিটেড কোটেশন ও আইটেম",
+    featWorkersMonthly: "টাইম ট্র্যাকিংয়ে ৩ জন কর্মী পর্যন্ত",
+    featVoiceTranslatorMonthly: "আনলিমিটেড ভয়েস অনুবাদক ও লাইভ চ্যাট",
     featClientRequestsMonthly: "মাসে ২টি গ্রাহক অনুরোধের উত্তর দিন",
     featUnlimitedExpenses: "আনলিমিটেড খরচ ও সেবা",
     featUnlimitedPdf: "আনলিমিটেড পিডিএফ ডাউনলোড",
@@ -1649,6 +1707,8 @@ export const plansTranslations: Record<Locale, PlansTranslation> = {
     featAnnualDiscountNotIncluded: "বিশেষ বার্ষিক ছাড় (২৫% সাশ্রয়)",
     featGiftsMonthlyNotIncluded: "উপহার প্যাকেজ (শুধুমাত্র বার্ষিক প্ল্যানে)",
 
+    featWorkersAnnual: "টাইম ট্র্যাকিংয়ে ১৫ জন কর্মী পর্যন্ত",
+    featVoiceTranslatorAnnual: "আনলিমিটেড ভয়েস অনুবাদক ও লাইভ চ্যাট",
     featClientRequestsAnnual: "প্ল্যাটফর্মের আনলিমিটেড গ্রাহক অনুরোধে সাড়া দিন",
     featPrioritySupportVip: "ভিআইপি অগ্রাধিকার সহায়তা",
     featAnnualSavingsText: "মাসিকের তুলনায় ২৫% সাশ্রয়",

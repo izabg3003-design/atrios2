@@ -34,12 +34,16 @@ import {
   QrCode,
   ExternalLink,
   Copy,
-  MessageCircle
+  MessageCircle,
+  Sparkles,
+  Crown,
+  ShieldAlert,
+  ArrowRight
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { Company, Worker, WorkTimeLog } from '../types';
+import { Company, Worker, WorkTimeLog, PlanType } from '../types';
 import { Locale } from '../translations';
 import { workTrackerTranslations } from './workTrackerTranslations';
 import { generateQrCodeForUrl } from '../services/qrcode';
@@ -59,12 +63,14 @@ interface WorkTimeTrackerProps {
   company: Company;
   locale: string;
   currencyCode?: string;
+  onUpgrade?: () => void;
 }
 
 export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
   company,
   locale,
-  currencyCode = 'EUR'
+  currencyCode = 'EUR',
+  onUpgrade
 }) => {
   const wt = workTrackerTranslations[locale as Locale] || workTrackerTranslations['pt-PT'];
 
@@ -83,7 +89,29 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   // Modais
   const [isWorkerModalOpen, setIsWorkerModalOpen] = useState(false);
+  const [isLimitModalOpen, setIsLimitModalOpen] = useState(false);
   const [editingWorker, setEditingWorker] = useState<Worker | null>(null);
+
+  // Limite de Colaboradores por Plano:
+  // Plano Gratuito: 1 Colaborador
+  // Plano Mensal: 3 Colaboradores
+  // Plano Anual: 15 Colaboradores
+  const maxWorkersAllowed = useMemo(() => {
+    const plan = company.plan;
+    if (plan === PlanType.PREMIUM_ANNUAL || plan === 'premium_annual' || plan === PlanType.PREMIUM || plan === 'premium') {
+      return 15;
+    }
+    if (plan === PlanType.PREMIUM_MONTHLY || plan === 'premium_monthly') {
+      return 3;
+    }
+    return 1; // Free Plan default
+  }, [company.plan]);
+
+  const currentWorkersCount = workers.length;
+  const isLimitReached = currentWorkersCount >= maxWorkersAllowed;
+  const isAnnualPlan = company.plan === PlanType.PREMIUM_ANNUAL || company.plan === 'premium_annual';
+  const isMonthlyPlan = company.plan === PlanType.PREMIUM_MONTHLY || company.plan === 'premium_monthly';
+  const isFreePlan = !isAnnualPlan && !isMonthlyPlan;
 
   const [isLogModalOpen, setIsLogModalOpen] = useState(false);
   const [editingLog, setEditingLog] = useState<WorkTimeLog | null>(null);
@@ -278,6 +306,10 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
   // Abrir Modal de Novo Colaborador
   const handleOpenNewWorkerModal = () => {
+    if (isLimitReached) {
+      setIsLimitModalOpen(true);
+      return;
+    }
     setEditingWorker(null);
     setWorkerName('');
     setWorkerNif('');
@@ -361,6 +393,12 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
     e.preventDefault();
     if (!workerName.trim() || !workerNif.trim() || !workerRole.trim()) {
       alert('Por favor, preencha o Nome, NIF e Função do colaborador.');
+      return;
+    }
+
+    if (!editingWorker && isLimitReached) {
+      setIsWorkerModalOpen(false);
+      setIsLimitModalOpen(true);
       return;
     }
 
@@ -712,6 +750,49 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
         {/* Botões de Ação Topo */}
         <div className="flex flex-wrap items-center gap-2.5">
+          {/* Badge de Limite do Plano */}
+          <div 
+            onClick={() => isLimitReached && setIsLimitModalOpen(true)}
+            className={`px-3.5 py-2.5 rounded-2xl border flex items-center gap-2.5 transition-all text-xs font-bold ${
+              isLimitReached 
+                ? 'bg-amber-50/90 border-amber-300 text-amber-900 cursor-pointer hover:bg-amber-100' 
+                : 'bg-slate-50 border-slate-200 text-slate-700'
+            }`}
+            title={`Limite do Plano: ${currentWorkersCount}/${maxWorkersAllowed} colaboradores`}
+          >
+            <div className="flex items-center gap-1.5">
+              {isAnnualPlan ? (
+                <Crown size={14} className="text-amber-500 shrink-0" />
+              ) : isMonthlyPlan ? (
+                <Sparkles size={14} className="text-blue-500 shrink-0" />
+              ) : (
+                <Users size={14} className="text-slate-500 shrink-0" />
+              )}
+              <span className="font-extrabold">
+                {isAnnualPlan ? wt.workerLimitAnnualPlan : isMonthlyPlan ? wt.workerLimitMonthlyPlan : wt.workerLimitFreePlan}:
+              </span>
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-black ${
+                isLimitReached 
+                  ? 'bg-amber-500 text-slate-950 shadow-xs' 
+                  : 'bg-slate-200 text-slate-800'
+              }`}>
+                {currentWorkersCount}/{maxWorkersAllowed}
+              </span>
+            </div>
+            {isLimitReached && onUpgrade && !isAnnualPlan && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onUpgrade();
+                }}
+                className="text-[10px] font-black text-amber-700 hover:text-amber-900 underline uppercase tracking-wider cursor-pointer flex items-center gap-0.5"
+              >
+                Upgrade <ArrowRight size={10} />
+              </button>
+            )}
+          </div>
+
           <button
             onClick={() => loadData(true)}
             disabled={isSyncing}
@@ -728,7 +809,11 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
 
           <button
             onClick={handleOpenNewWorkerModal}
-            className="px-4 py-3 bg-slate-100 hover:bg-slate-200 text-slate-900 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-xs cursor-pointer"
+            className={`px-4 py-3 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center gap-2 transition-all active:scale-95 shadow-xs cursor-pointer ${
+              isLimitReached 
+                ? 'bg-amber-50 text-amber-800 border border-amber-200 hover:bg-amber-100' 
+                : 'bg-slate-100 hover:bg-slate-200 text-slate-900'
+            }`}
           >
             <UserPlus size={16} />
             <span>{wt.newWorker}</span>
@@ -803,20 +888,53 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
         
         {/* Painel Esquerdo: Lista de Trabalhadores (4 colunas) */}
         <div className="lg:col-span-4 bg-white rounded-[2rem] border border-slate-100 shadow-sm p-4 sm:p-5 space-y-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <Users size={18} className="text-amber-500" />
-              <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide">
-                {wt.allWorkers} ({workers.length})
-              </h2>
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Users size={18} className="text-amber-500" />
+                <h2 className="text-sm sm:text-base font-black text-slate-900 uppercase tracking-wide">
+                  {wt.allWorkers} ({currentWorkersCount}/{maxWorkersAllowed})
+                </h2>
+              </div>
+              <button
+                onClick={handleOpenNewWorkerModal}
+                className={`p-2 rounded-xl transition-all cursor-pointer ${
+                  isLimitReached 
+                    ? 'text-amber-600 bg-amber-50 hover:bg-amber-100' 
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100'
+                }`}
+                title={isLimitReached ? wt.workerLimitExceededTitle : "Adicionar Colaborador"}
+              >
+                <Plus size={16} />
+              </button>
             </div>
-            <button
-              onClick={handleOpenNewWorkerModal}
-              className="p-2 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-all"
-              title="Adicionar Colaborador"
-            >
-              <Plus size={16} />
-            </button>
+
+            {/* Barra de Progresso de Capacidade */}
+            <div className="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+              <div 
+                className={`h-full transition-all duration-500 rounded-full ${
+                  isLimitReached ? 'bg-amber-500' : 'bg-slate-900'
+                }`}
+                style={{ width: `${Math.min(100, (currentWorkersCount / maxWorkersAllowed) * 100)}%` }}
+              />
+            </div>
+
+            {isLimitReached && (
+              <div className="flex items-center justify-between text-[11px] font-bold text-amber-800 bg-amber-50 px-2.5 py-1.5 rounded-xl border border-amber-200">
+                <span className="flex items-center gap-1">
+                  <AlertCircle size={12} className="text-amber-600 shrink-0" />
+                  <span>{currentWorkersCount}/{maxWorkersAllowed} {wt.workerLimitSlots}</span>
+                </span>
+                {onUpgrade && !isAnnualPlan && (
+                  <button 
+                    onClick={() => onUpgrade()}
+                    className="font-black text-slate-950 hover:underline flex items-center gap-0.5 cursor-pointer uppercase text-[10px]"
+                  >
+                    {wt.upgradePlanNow} <ArrowRight size={10} />
+                  </button>
+                )}
+              </div>
+            )}
           </div>
 
           {/* Campo de Busca */}
@@ -1629,120 +1747,264 @@ export const WorkTimeTracker: React.FC<WorkTimeTrackerProps> = ({
       {/* Modal de Partilha de Link / QR Code do Colaborador */}
       <AnimatePresence>
         {shareModalWorker && (
-          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-slate-950/80 backdrop-blur-sm">
+          <div className="fixed inset-0 z-[9999] flex items-center justify-center p-3 sm:p-4 bg-slate-950/80 backdrop-blur-sm overflow-y-auto">
             <motion.div
               initial={{ opacity: 0, scale: 0.95, y: 10 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 10 }}
-              className="bg-white rounded-[2rem] max-w-lg w-full p-6 sm:p-8 shadow-2xl border border-slate-100 space-y-6 max-h-[90vh] overflow-y-auto relative"
+              className="bg-white rounded-2xl sm:rounded-[2rem] max-w-sm sm:max-w-md w-full p-4 sm:p-6 shadow-2xl border border-slate-100 space-y-4 max-h-[88vh] sm:max-h-[90vh] flex flex-col my-auto relative"
             >
               {/* Topo do Modal */}
-              <div className="flex items-start justify-between gap-3 border-b border-slate-100 pb-4">
-                <div className="flex items-center gap-3">
-                  <div className="w-12 h-12 rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
-                    <Share2 size={24} />
+              <div className="flex items-start justify-between gap-2.5 border-b border-slate-100 pb-3 shrink-0">
+                <div className="flex items-center gap-2.5">
+                  <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center shrink-0">
+                    <Share2 size={20} />
                   </div>
                   <div>
-                    <span className="text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
+                    <span className="text-[9px] sm:text-[10px] font-black uppercase tracking-wider text-blue-600 bg-blue-50 px-2 py-0.5 rounded-md">
                       {wt.shareModalTitle}
                     </span>
-                    <h3 className="text-lg font-black text-slate-900 mt-1">
+                    <h3 className="text-base sm:text-lg font-black text-slate-900 mt-0.5">
                       {shareModalWorker.name}
                     </h3>
-                    <p className="text-xs text-slate-500 font-bold">
+                    <p className="text-[11px] sm:text-xs text-slate-500 font-bold">
                       {shareModalWorker.role} • NIF: {shareModalWorker.nif}
                     </p>
                   </div>
                 </div>
                 <button
                   onClick={() => setShareModalWorker(null)}
-                  className="p-2 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                  className="p-1.5 text-slate-400 hover:text-slate-900 hover:bg-slate-100 rounded-full transition-all cursor-pointer"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+
+              {/* Corpo com Scroll seguro */}
+              <div className="overflow-y-auto space-y-3.5 pr-0.5 no-scrollbar">
+                {/* Explicação */}
+                <p className="text-[11px] sm:text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-100">
+                  {wt.shareModalDesc.replace('{name}', shareModalWorker.name)}
+                </p>
+
+                {/* Caixa com o Link do Colaborador */}
+                <div className="space-y-1.5">
+                  <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
+                    {wt.shareDirectLink}
+                  </label>
+                  <div className="flex items-center gap-1.5">
+                    <input
+                      type="text"
+                      readOnly
+                      value={getWorkerPortalUrl(shareModalWorker)}
+                      className="flex-1 px-3 py-2 rounded-xl bg-slate-50 border-2 border-slate-200 text-[11px] sm:text-xs font-mono font-bold text-slate-800 select-all outline-none truncate"
+                    />
+                    <button
+                      onClick={() => handleCopyPortalLink(shareModalWorker)}
+                      className={`px-3 py-2 rounded-xl font-black text-[11px] sm:text-xs uppercase tracking-wider flex items-center gap-1 transition-all shrink-0 cursor-pointer shadow-xs ${
+                        copiedPortalLink
+                          ? 'bg-emerald-600 text-white'
+                          : 'bg-slate-900 hover:bg-slate-800 text-white'
+                      }`}
+                    >
+                      {copiedPortalLink ? <Check size={14} /> : <Copy size={14} />}
+                      <span>{copiedPortalLink ? wt.copied : wt.copyLink}</span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Botões de Ação Rápida: WhatsApp e Navegador */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <button
+                    onClick={() => handleOpenWhatsApp(shareModalWorker)}
+                    className="w-full py-2.5 px-3 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all shadow-md active:scale-95 cursor-pointer"
+                  >
+                    <MessageCircle size={15} />
+                    <span>{wt.shareWhatsapp}</span>
+                  </button>
+
+                  <a
+                    href={getWorkerPortalUrl(shareModalWorker)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 transition-all active:scale-95 text-center cursor-pointer"
+                  >
+                    <ExternalLink size={15} />
+                    <span>{wt.openWorkerPortal}</span>
+                  </a>
+                </div>
+
+                {/* Secção QR Code */}
+                {shareQrCodeUrl && (
+                  <div className="pt-2 border-t border-slate-100 flex flex-col items-center justify-center text-center space-y-2">
+                    <p className="text-[10px] font-black uppercase tracking-wider text-slate-400">
+                      {wt.qrCodeForSite}
+                    </p>
+                    <div className="p-2.5 bg-white border-2 border-slate-200 rounded-xl shadow-xs">
+                      <img
+                        src={shareQrCodeUrl}
+                        alt={`QR Code de ${shareModalWorker.name}`}
+                        className="w-32 h-32 sm:w-36 sm:h-36 max-w-[45vw] max-h-[45vw] object-contain rounded-lg"
+                      />
+                    </div>
+                    <a
+                      href={shareQrCodeUrl}
+                      download={`qrcode-ponto-${shareModalWorker.name.toLowerCase().replace(/\s+/g, '-')}.png`}
+                      className="text-[11px] font-bold text-amber-600 hover:underline flex items-center gap-1 cursor-pointer"
+                    >
+                      <Download size={13} />
+                      <span>{wt.downloadQrImage}</span>
+                    </a>
+                  </div>
+                )}
+              </div>
+
+              {/* Rodapé do Modal */}
+              <div className="pt-2 border-t border-slate-100 flex justify-end shrink-0">
+                <button
+                  onClick={() => setShareModalWorker(null)}
+                  className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
+                >
+                  {wt.close}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* ========================================================================= */}
+      {/* MODAL 4: LIMITE DE COLABORADORES ATINGIDO (UPGRADE)                       */}
+      {/* ========================================================================= */}
+      <AnimatePresence>
+        {isLimitModalOpen && (
+          <div className="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white w-full max-w-lg rounded-[2.5rem] p-6 sm:p-8 shadow-2xl border border-slate-100 flex flex-col space-y-5"
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 bg-amber-500/10 text-amber-600 rounded-2xl">
+                    <ShieldAlert size={24} />
+                  </div>
+                  <div>
+                    <h3 className="text-base sm:text-lg font-black text-slate-900">
+                      {wt.workerLimitExceededTitle}
+                    </h3>
+                    <p className="text-xs text-amber-700 font-bold">
+                      {currentWorkersCount} / {maxWorkersAllowed} {wt.workerLimitSlots}
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setIsLimitModalOpen(false)}
+                  className="p-2 text-slate-400 hover:text-slate-900 rounded-xl transition-all cursor-pointer"
                 >
                   <X size={20} />
                 </button>
               </div>
 
-              {/* Explicação */}
-              <p className="text-xs font-medium text-slate-600 leading-relaxed bg-slate-50 p-3.5 rounded-2xl border border-slate-100">
-                {wt.shareModalDesc.replace('{name}', shareModalWorker.name)}
+              {/* Descrição */}
+              <p className="text-xs sm:text-sm text-slate-600 font-medium leading-relaxed">
+                {wt.workerLimitExceededDesc.replace('{max}', String(maxWorkersAllowed))}
               </p>
 
-              {/* Caixa com o Link do Colaborador */}
-              <div className="space-y-2">
-                <label className="block text-[10px] font-black text-slate-400 uppercase tracking-widest">
-                  {wt.shareDirectLink}
-                </label>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="text"
-                    readOnly
-                    value={getWorkerPortalUrl(shareModalWorker)}
-                    className="flex-1 px-3.5 py-3 rounded-xl bg-slate-50 border-2 border-slate-200 text-xs font-mono font-bold text-slate-800 select-all outline-none"
-                  />
-                  <button
-                    onClick={() => handleCopyPortalLink(shareModalWorker)}
-                    className={`px-4 py-3 rounded-xl font-black text-xs uppercase tracking-wider flex items-center gap-1.5 transition-all shrink-0 cursor-pointer shadow-xs ${
-                      copiedPortalLink
-                        ? 'bg-emerald-600 text-white'
-                        : 'bg-slate-900 hover:bg-slate-800 text-white'
-                    }`}
-                  >
-                    {copiedPortalLink ? <Check size={16} /> : <Copy size={16} />}
-                    <span>{copiedPortalLink ? wt.copied : wt.copyLink}</span>
-                  </button>
-                </div>
-              </div>
-
-              {/* Botões de Ação Rápida: WhatsApp e Navegador */}
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <button
-                  onClick={() => handleOpenWhatsApp(shareModalWorker)}
-                  className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all shadow-md active:scale-95 cursor-pointer"
-                >
-                  <MessageCircle size={16} />
-                  <span>{wt.shareWhatsapp}</span>
-                </button>
-
-                <a
-                  href={getWorkerPortalUrl(shareModalWorker)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="w-full py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-800 rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all active:scale-95 text-center cursor-pointer"
-                >
-                  <ExternalLink size={16} />
-                  <span>{wt.openWorkerPortal}</span>
-                </a>
-              </div>
-
-              {/* Secção QR Code */}
-              {shareQrCodeUrl && (
-                <div className="pt-3 border-t border-slate-100 flex flex-col items-center justify-center text-center space-y-3">
-                  <p className="text-[11px] font-black uppercase tracking-wider text-slate-400">
-                    {wt.qrCodeForSite}
-                  </p>
-                  <div className="p-3 bg-white border-2 border-slate-200 rounded-2xl shadow-xs">
-                    <img
-                      src={shareQrCodeUrl}
-                      alt={`QR Code de ${shareModalWorker.name}`}
-                      className="w-40 h-40 object-contain rounded-lg"
-                    />
+              {/* Tabela Comparativa de Planos */}
+              <div className="space-y-2.5 bg-slate-50 p-3 sm:p-4 rounded-2xl border border-slate-200/80">
+                {/* Plano Gratuito */}
+                <div className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                  isFreePlan ? 'bg-white border-amber-300 shadow-xs' : 'bg-slate-100/60 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Users size={16} className={isFreePlan ? 'text-amber-600' : 'text-slate-400'} />
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block">
+                        {wt.workerLimitFreePlan}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-bold">
+                        {wt.workerLimitFreeNotice}
+                      </span>
+                    </div>
                   </div>
-                  <a
-                    href={shareQrCodeUrl}
-                    download={`qrcode-ponto-${shareModalWorker.name.toLowerCase().replace(/\s+/g, '-')}.png`}
-                    className="text-xs font-bold text-amber-600 hover:underline flex items-center gap-1 cursor-pointer"
-                  >
-                    <Download size={14} />
-                    <span>{wt.downloadQrImage}</span>
-                  </a>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    isFreePlan ? 'bg-amber-100 text-amber-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    1 Colaborador
+                  </span>
                 </div>
-              )}
 
-              {/* Rodapé do Modal */}
-              <div className="pt-3 border-t border-slate-100 flex justify-end">
+                {/* Plano Mensal */}
+                <div className={`p-3 rounded-xl border flex items-center justify-between transition-all ${
+                  isMonthlyPlan ? 'bg-white border-amber-300 shadow-xs' : 'bg-slate-100/60 border-slate-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Sparkles size={16} className={isMonthlyPlan ? 'text-amber-600' : 'text-blue-500'} />
+                    <div>
+                      <span className="text-xs font-black text-slate-900 block">
+                        {wt.workerLimitMonthlyPlan}
+                      </span>
+                      <span className="text-[10px] text-slate-500 font-bold">
+                        {wt.workerLimitMonthlyNotice}
+                      </span>
+                    </div>
+                  </div>
+                  <span className={`text-[10px] font-black uppercase px-2 py-0.5 rounded-full ${
+                    isMonthlyPlan ? 'bg-blue-100 text-blue-800' : 'bg-slate-200 text-slate-600'
+                  }`}>
+                    3 Colaboradores
+                  </span>
+                </div>
+
+                {/* Plano Anual */}
+                <div className={`p-3 rounded-xl border-2 flex items-center justify-between transition-all ${
+                  isAnnualPlan ? 'bg-amber-500/10 border-amber-500' : 'bg-amber-50 border-amber-200'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Crown size={16} className="text-amber-600 shrink-0" />
+                    <div>
+                      <div className="flex items-center gap-1.5">
+                        <span className="text-xs font-black text-slate-900 block">
+                          {wt.workerLimitAnnualPlan}
+                        </span>
+                        <span className="text-[9px] font-black bg-amber-500 text-slate-950 px-1.5 py-0.2 rounded-md uppercase">
+                          VIP
+                        </span>
+                      </div>
+                      <span className="text-[10px] text-slate-500 font-bold">
+                        {wt.workerLimitAnnualNotice}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-black uppercase px-2 py-0.5 rounded-full bg-slate-900 text-amber-400">
+                    15 Colaboradores
+                  </span>
+                </div>
+              </div>
+
+              {/* Botões de Ação */}
+              <div className="pt-2 flex flex-col sm:flex-row items-center gap-2.5">
+                {onUpgrade && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsLimitModalOpen(false);
+                      onUpgrade();
+                    }}
+                    className="w-full sm:flex-1 py-3.5 px-4 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-2xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-amber-500/25 active:scale-95 transition-all cursor-pointer"
+                  >
+                    <Crown size={16} />
+                    <span>{wt.upgradePlanNow}</span>
+                    <ArrowRight size={14} />
+                  </button>
+                )}
                 <button
-                  onClick={() => setShareModalWorker(null)}
-                  className="px-6 py-2.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider cursor-pointer"
+                  type="button"
+                  onClick={() => setIsLimitModalOpen(false)}
+                  className="w-full sm:w-auto px-5 py-3.5 rounded-2xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold text-xs uppercase tracking-wider transition-all cursor-pointer"
                 >
                   {wt.close}
                 </button>

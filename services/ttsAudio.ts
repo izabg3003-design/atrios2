@@ -6,15 +6,20 @@
 
 let currentHtmlAudio: HTMLAudioElement | null = null;
 let currentUtterance: SpeechSynthesisUtterance | null = null;
+let voicesLoaded = false;
 
 // Pré-aquecer vozes do navegador
 if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
   try {
-    window.speechSynthesis.getVoices();
+    const loadVoices = () => {
+      const v = window.speechSynthesis.getVoices();
+      if (v && v.length > 0) {
+        voicesLoaded = true;
+      }
+    };
+    loadVoices();
     if (window.speechSynthesis.onvoiceschanged !== undefined) {
-      window.speechSynthesis.onvoiceschanged = () => {
-        window.speechSynthesis.getVoices();
-      };
+      window.speechSynthesis.onvoiceschanged = loadVoices;
     }
   } catch (e) {}
 }
@@ -52,7 +57,7 @@ export function playTTSAudio(
   const cleanText = (text || '').trim();
   if (!cleanText) return () => {};
 
-  // Parar áudio em reprodução
+  // Parar áudio anterior
   stopAllAudio();
 
   const onStart = options?.onStart;
@@ -67,12 +72,14 @@ export function playTTSAudio(
     }
   };
 
-  // Método 1: Fallback direto via /api/tts (Super confiável e natural)
+  // Método 1: Streaming via /api/tts
   const playViaServerAudio = () => {
     try {
       if (onStart) onStart();
       const audioUrl = `/api/tts?text=${encodeURIComponent(cleanText)}&lang=${encodeURIComponent(langCode)}&t=${Date.now()}`;
-      const audio = new Audio(audioUrl);
+      const audio = new Audio();
+      audio.src = audioUrl;
+      audio.preload = 'auto';
       currentHtmlAudio = audio;
 
       audio.onended = () => {
@@ -90,6 +97,17 @@ export function playTTSAudio(
       if (playPromise !== undefined) {
         playPromise.catch((err) => {
           console.warn('[TTS Audio Play Error]', err);
+          // Se o áudio do servidor falhou por autoplay, tentar Web Speech API como último recurso
+          if ('speechSynthesis' in window) {
+            try {
+              const utt = new SpeechSynthesisUtterance(cleanText);
+              utt.lang = langCode;
+              utt.onend = triggerEnd;
+              utt.onerror = triggerEnd;
+              window.speechSynthesis.speak(utt);
+              return;
+            } catch (e) {}
+          }
           triggerEnd();
           if (onError) onError(err);
         });
@@ -106,25 +124,23 @@ export function playTTSAudio(
     return () => stopAllAudio();
   }
 
-  // Método 2: Tentar Web Speech Synthesis primeiro
+  // Método 2: Web Speech Synthesis Nativo (Se disponível no navegador)
   if ('speechSynthesis' in window) {
     try {
-      // Destravar speech synthesis caso esteja pausado no Chrome/Safari
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
-
       window.speechSynthesis.cancel();
 
       const utterance = new SpeechSynthesisUtterance(cleanText);
       currentUtterance = utterance;
       utterance.lang = langCode;
-      utterance.rate = 0.95;
+      utterance.rate = 1.0;
       utterance.pitch = 1.0;
 
       const voices = window.speechSynthesis.getVoices();
       const prefix = langCode.split('-')[0].toLowerCase();
-      const matchedVoice = voices.find(v => v.lang.toLowerCase().startsWith(prefix));
+      const matchedVoice = voices.find(v => v.lang.toLowerCase().startsWith(prefix) || v.lang.toLowerCase().includes(prefix));
       if (matchedVoice) {
         utterance.voice = matchedVoice;
       }
@@ -147,24 +163,22 @@ export function playTTSAudio(
       utterance.onerror = (event) => {
         if (timeoutId) clearTimeout(timeoutId);
         currentUtterance = null;
-        console.warn('[Web Speech API Warning] Falha na síntese nativa, usando streaming /api/tts:', event);
-        // Fallback imediato para o áudio do servidor
+        console.warn('[Web Speech API] Fallback para áudio do servidor:', event);
         playViaServerAudio();
       };
 
-      // Se após 450ms a síntese de voz nativa não tiver iniciado (muito comum em mobile/iOS bloqueado), usar fallback
+      // Timeout de segurança estendido para 1500ms
       timeoutId = setTimeout(() => {
         if (!started) {
-          console.log('[Web Speech API Timeout] Síntese nativa demorou, comutando para streaming /api/tts...');
+          console.log('[Web Speech API Timeout] Usando áudio do servidor');
           try {
             window.speechSynthesis.cancel();
           } catch (e) {}
           playViaServerAudio();
         }
-      }, 450);
+      }, 1500);
 
       window.speechSynthesis.speak(utterance);
-      // Forçar resume após falar para evitar bug do Chrome
       if (window.speechSynthesis.paused) {
         window.speechSynthesis.resume();
       }
@@ -176,7 +190,6 @@ export function playTTSAudio(
       return () => stopAllAudio();
     }
   } else {
-    // Se o browser não suporta Web Speech API
     playViaServerAudio();
     return () => stopAllAudio();
   }

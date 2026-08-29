@@ -3619,6 +3619,7 @@ const App: React.FC = () => {
                       company={currentUser} 
                       locale={locale} 
                       currencyCode={currencyCode} 
+                      onUpgrade={() => setActiveTab('plans')}
                     />
                   )}
 
@@ -3626,6 +3627,7 @@ const App: React.FC = () => {
                     <VoiceTranslator 
                       currentLocale={locale} 
                       currentUser={currentUser}
+                      onUpgrade={() => setActiveTab('plans')}
                     />
                   )}
 

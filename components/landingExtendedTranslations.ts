@@ -123,14 +123,37 @@ export interface LandingExtended {
     sampleCost: string;
     cta: string;
   };
+  translatorBanner: {
+    badge: string;
+    title: string;
+    sub: string;
+    bullets: string[];
+    sampleSourceLang: string;
+    sampleSourceText: string;
+    sampleTargetLang: string;
+    sampleTargetText: string;
+    liveInterpreterLabel: string;
+    qrConnectLabel: string;
+    voiceAudioLabel: string;
+    cta: string;
+  };
   features10: {
     eyebrow: string;
     title: string;
+    categories?: {
+      all: string;
+      commercial: string;
+      site: string;
+      aiTranslator: string;
+      finance: string;
+    };
     items: {
       title: string;
       desc: string;
+      category?: 'commercial' | 'site' | 'aiTranslator' | 'finance';
       isNew?: boolean;
       isHighlighted?: boolean;
+      tag?: string;
     }[];
   };
   comparison: {
@@ -308,21 +331,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Custo Mão de Obra Calculado',
       cta: 'COMEÇAR A GERIR EQUIPA'
     },
+    translatorBanner: {
+      badge: 'INTELIGÊNCIA ARTIFICIAL & TRADUÇÃO SIMULTÂNEA',
+      title: 'Tradução em Tempo Real para Clientes e Obras Internacionais',
+      sub: 'Converse, envie mensagens e faça reuniões com clientes e parceiros de qualquer país. O Atrios Build traduz instantaneamente voz e texto sem barreiras de idiomas.',
+      bullets: [
+        'Tradução bidirecional instantânea em mais de 15 idiomas com IA',
+        'Acesso imediato para o cliente via QR Code ou link do WhatsApp (sem instalar nada)',
+        'Síntese de voz natural (Áudio / TTS) e transcrição de fala em tempo real',
+        'Histórico das conversas e orçamentos traduzidos guardado na ficha da obra'
+      ],
+      sampleSourceLang: 'Português',
+      sampleSourceText: 'Olá! Analisámos a sua obra e a proposta detalhada já está pronta.',
+      sampleTargetLang: 'Inglês (English)',
+      sampleTargetText: 'Hello! We analyzed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultâneo IA Ativo',
+      qrConnectLabel: 'QR Code de Ligação Rápida',
+      voiceAudioLabel: 'Áudio & Transcrição ao Vivo',
+      cta: 'EXPERIMENTAR TRADUÇÃO AO VIVO'
+    },
     features10: {
       eyebrow: 'TUDO O QUE PRECISA PARA GERIR O SEU NEGÓCIO',
       title: 'Funcionalidades completas para o dia a dia',
+      categories: {
+        all: 'Todas as Funcionalidades',
+        commercial: 'Comercial & Clientes',
+        site: 'Obras & Equipa',
+        aiTranslator: 'Tradução IA & Voz',
+        finance: 'Finanças & Gestão'
+      },
       items: [
-        { title: 'Orçamentos', desc: 'Crie orçamentos e propostas profissionais em minutos.' },
-        { title: 'Obras', desc: 'Acompanhe o progresso de cada obra em tempo real.' },
-        { title: 'Clientes', desc: 'Organize clientes e fornecedores num só lugar.', isHighlighted: true },
-        { title: 'Controlo de Horas', desc: 'Registe ponto, horas normais e extras dos colaboradores por obra.', isNew: true },
-        { title: 'Serviços', desc: 'Gerencie serviços, materiais e mão de obra.' },
-        { title: 'Pagamentos', desc: 'Controle recebimentos e pagamentos.' },
-        { title: 'Relatórios', desc: 'Relatórios e indicadores para melhores decisões.' },
-        { title: 'Pedidos de orçamento', desc: 'Receba solicitações de clientes diretamente na plataforma.', isNew: true },
-        { title: 'Propostas', desc: 'Envie propostas e acompanhe o interesse do cliente.', isNew: true },
-        { title: 'Documentos', desc: 'Guarde e acesse documentos da obra com segurança.' },
-        { title: 'App mobile', desc: 'Acesse de qualquer lugar pelo telemóvel.' }
+        { title: 'Orçamentos & Propostas', desc: 'Crie orçamentos e propostas profissionais em minutos.', category: 'commercial', tag: 'ESSENCIAL' },
+        { title: 'Pedidos de Orçamento', desc: 'Receba solicitações de clientes diretamente na plataforma.', category: 'commercial', isNew: true, tag: 'NOVO' },
+        { title: 'Portal do Cliente', desc: 'Acesso exclusivo para clientes consultarem e aprovarem propostas.', category: 'commercial', isHighlighted: true, tag: 'DESTAQUE' },
+        { title: 'Tradução em Tempo Real', desc: 'Comunique com clientes estrangeiros por voz e chat com tradução por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat & QR Code Multilíngue', desc: 'O cliente acede pelo telemóvel via QR Code para falar no idioma dele.', category: 'aiTranslator', isNew: true, tag: 'INOVAÇÃO' },
+        { title: 'Gestão de Obras', desc: 'Acompanhe etapas, materiais e o progresso de cada obra em tempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Controlo de Horas & Ponto', desc: 'Registe ponto, horas normais e extras dos colaboradores por obra com QR Code.', category: 'site', isNew: true, tag: 'NOVO' },
+        { title: 'Clientes & Fornecedores', desc: 'Organize contactos, históricos e documentos num só lugar centralizado.', category: 'commercial' },
+        { title: 'Controlo de Pagamentos', desc: 'Controle recebimentos, faturas, prazos e fluxo de caixa.', category: 'finance' },
+        { title: 'Relatórios & Lucro Real', desc: 'Indicadores financeiros e margens de lucro por projeto em tempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Arquivo de Documentos', desc: 'Guarde e aceda a fotos, contratos e ficheiros com segurança na cloud.', category: 'finance' },
+        { title: 'App Mobile & Web', desc: 'Aceda de qualquer lugar pelo telemóvel, tablet ou computador.', category: 'site' }
       ]
     },
     comparison: {
@@ -513,21 +563,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Custo de Mão de Obra Calculado',
       cta: 'COMEÇAR A GERENCIAR EQUIPE'
     },
+    translatorBanner: {
+      badge: 'INTELIGÊNCIA ARTIFICIAL & TRADUÇÃO SIMULTÂNEA',
+      title: 'Tradução em Tempo Real para Clientes e Obras Internacionais',
+      sub: 'Converse, envie mensagens e faça reuniões com clientes e parceiros de qualquer país. O Atrios Build traduz instantaneamente voz e texto sem barreiras de idiomas.',
+      bullets: [
+        'Tradução bidirecional instantânea em mais de 15 idiomas com IA',
+        'Acesso imediato para o cliente via QR Code ou link de WhatsApp (sem instalar nada)',
+        'Síntese de voz natural (Áudio / TTS) e transcrição de fala em tempo real',
+        'Histórico das conversas e orçamentos traduzidos salvo na ficha da obra'
+      ],
+      sampleSourceLang: 'Português',
+      sampleSourceText: 'Olá! Analisamos a sua obra e a proposta detalhada já está pronta.',
+      sampleTargetLang: 'Inglês (English)',
+      sampleTargetText: 'Hello! We analyzed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultâneo IA Ativo',
+      qrConnectLabel: 'QR Code de Conexão Rápida',
+      voiceAudioLabel: 'Áudio & Transcrição ao Vivo',
+      cta: 'EXPERIMENTAR TRADUÇÃO AO VIVO'
+    },
     features10: {
       eyebrow: 'TUDO O QUE VOCÊ PRECISA PARA GERENCIAR SEU NEGÓCIO',
       title: 'Funcionalidades completas para o dia a dia',
+      categories: {
+        all: 'Todas as Funcionalidades',
+        commercial: 'Comercial & Clientes',
+        site: 'Obras & Equipe',
+        aiTranslator: 'Tradução IA & Voz',
+        finance: 'Finanças & Gestão'
+      },
       items: [
-        { title: 'Orçamentos', desc: 'Crie orçamentos e propostas profissionais em minutos.' },
-        { title: 'Obras', desc: 'Acompanhe o andamento de cada obra em tempo real.' },
-        { title: 'Clientes', desc: 'Organize clientes e fornecedores em um só lugar.', isHighlighted: true },
-        { title: 'Controle de Horas', desc: 'Registre ponto, horas normais e extras dos colaboradores por obra.', isNew: true },
-        { title: 'Serviços', desc: 'Gerencie serviços, materiais e mão de obra.' },
-        { title: 'Pagamentos', desc: 'Controle recebimentos e pagamentos.' },
-        { title: 'Relatórios', desc: 'Relatórios e indicadores para melhores decisões.' },
-        { title: 'Pedidos de orçamento', desc: 'Receba solicitações de clientes direto na plataforma.', isNew: true },
-        { title: 'Propostas', desc: 'Envie propostas e acompanhe o interesse do cliente.', isNew: true },
-        { title: 'Documentos', desc: 'Guarde e acesse fotos e documentos da obra com segurança.' },
-        { title: 'App celular', desc: 'Acesse de qualquer lugar pelo celular ou tablet.' }
+        { title: 'Orçamentos & Propostas', desc: 'Crie orçamentos e propostas profissionais em minutos.', category: 'commercial', tag: 'ESSENCIAL' },
+        { title: 'Pedidos de Orçamento', desc: 'Receba solicitações de clientes direto na plataforma.', category: 'commercial', isNew: true, tag: 'NOVO' },
+        { title: 'Portal do Cliente', desc: 'Acesso exclusivo para clientes consultarem e aprovarem propostas.', category: 'commercial', isHighlighted: true, tag: 'DESTAQUE' },
+        { title: 'Tradução em Tempo Real', desc: 'Comunique-se com clientes estrangeiros por voz e chat com tradução por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat & QR Code Multilíngue', desc: 'O cliente acessa pelo celular via QR Code para falar no idioma dele.', category: 'aiTranslator', isNew: true, tag: 'INOVAÇÃO' },
+        { title: 'Gestão de Obras', desc: 'Acompanhe etapas, materiais e o andamento de cada obra em tempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Controle de Horas & Ponto', desc: 'Registre ponto, horas normais e extras dos colaboradores por obra com QR Code.', category: 'site', isNew: true, tag: 'NOVO' },
+        { title: 'Clientes & Fornecedores', desc: 'Organize contatos, históricos e documentos em um só lugar centralizado.', category: 'commercial' },
+        { title: 'Controle de Pagamentos', desc: 'Controle recebimentos, faturas, prazos e fluxo de caixa.', category: 'finance' },
+        { title: 'Relatórios & Lucro Real', desc: 'Indicadores financeiros e margens de lucro por projeto em tempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Arquivo de Documentos', desc: 'Guarde e acesse fotos, contratos e arquivos com segurança na nuvem.', category: 'finance' },
+        { title: 'App Celular & Web', desc: 'Acesse de qualquer lugar pelo celular, tablet ou computador.', category: 'site' }
       ]
     },
     comparison: {
@@ -718,21 +795,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Calculated Labor Cost',
       cta: 'START TRACKING CREW TIME'
     },
+    translatorBanner: {
+      badge: 'ARTIFICIAL INTELLIGENCE & REAL-TIME TRANSLATION',
+      title: 'Real-Time Live Translation for International Clients & Sites',
+      sub: 'Speak, chat, and meet with clients and partners from any country. Atrios Build instantly translates voice and text with zero language friction.',
+      bullets: [
+        'Instant two-way translation across 15+ languages powered by AI',
+        'Instant client access via QR Code or WhatsApp link (no app download needed)',
+        'Natural Voice Synthesis (Audio / TTS) and real-time speech transcription',
+        'Translation and chat history automatically archived to the job site profile'
+      ],
+      sampleSourceLang: 'English',
+      sampleSourceText: 'Hello! We reviewed your renovation specs and the estimate is ready.',
+      sampleTargetLang: 'Spanish (Español)',
+      sampleTargetText: '¡Hola! Hemos revisado las especificaciones y el presupuesto está listo.',
+      liveInterpreterLabel: 'Active AI Live Interpreter',
+      qrConnectLabel: 'Quick Connect QR Code',
+      voiceAudioLabel: 'Live Audio & Speech-to-Text',
+      cta: 'TRY REAL-TIME TRANSLATOR'
+    },
     features10: {
       eyebrow: 'EVERYTHING YOU NEED TO RUN YOUR BUSINESS',
       title: 'Complete features for your daily operations',
+      categories: {
+        all: 'All Features',
+        commercial: 'Sales & Clients',
+        site: 'Job Site & Crew',
+        aiTranslator: 'AI Translation & Voice',
+        finance: 'Finance & Growth'
+      },
       items: [
-        { title: 'Estimates & Quotes', desc: 'Create accurate, professional bids in minutes.' },
-        { title: 'Project Tracking', desc: 'Monitor job site progress and milestones in real-time.' },
-        { title: 'Client Directory', desc: 'Organize customers, suppliers, and contacts.', isHighlighted: true },
-        { title: 'Employee Time Clock', desc: 'Track crew hours, regular vs overtime, and site labor costs.', isNew: true },
-        { title: 'Labor & Materials', desc: 'Track trade hours, unit rates, and inventory costs.' },
-        { title: 'Invoicing & Payments', desc: 'Control incoming payments and project receivables.' },
-        { title: 'Profit Reports', desc: 'Real-time financial analytics and margin calculation.' },
-        { title: 'Quote Requests', desc: 'Receive inquiries directly from homeowners in your area.', isNew: true },
-        { title: 'PDF Proposals', desc: 'Generate high-converting PDF proposals with legal terms.', isNew: true },
-        { title: 'Document Vault', desc: 'Safely store contracts, photos, and job receipts.' },
-        { title: 'Mobile App', desc: 'Full-featured access from your phone or tablet.' }
+        { title: 'Estimates & Quotes', desc: 'Create accurate, professional bids in minutes.', category: 'commercial', tag: 'ESSENTIAL' },
+        { title: 'Quote Requests', desc: 'Receive inquiries directly from homeowners in your area.', category: 'commercial', isNew: true, tag: 'NEW' },
+        { title: 'Client Portal', desc: 'Dedicated portal for clients to review and approve proposals.', category: 'commercial', isHighlighted: true, tag: 'POPULAR' },
+        { title: 'Real-Time Translation', desc: 'Communicate with foreign clients via AI voice and real-time chat.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'AI EXCLUSIVE' },
+        { title: 'Multilingual Chat & QR', desc: 'Clients scan a QR code to chat and hear audio in their native language.', category: 'aiTranslator', isNew: true, tag: 'INNOVATION' },
+        { title: 'Project Tracking', desc: 'Monitor job site progress, tasks, and milestones in real-time.', category: 'site', tag: 'CORE' },
+        { title: 'Employee Time Clock', desc: 'Track crew hours, regular vs overtime, and site labor costs with QR.', category: 'site', isNew: true, tag: 'NEW' },
+        { title: 'Client Directory', desc: 'Organize customers, suppliers, and contractor contacts in one hub.', category: 'commercial' },
+        { title: 'Invoicing & Payments', desc: 'Control incoming payments, deposits, and cash flow milestones.', category: 'finance' },
+        { title: 'Profit Reports', desc: 'Real-time financial analytics and true margin calculation.', category: 'finance', tag: 'METRICS' },
+        { title: 'Document Vault', desc: 'Safely store contracts, photos, and job receipts in the cloud.', category: 'finance' },
+        { title: 'Mobile & Web App', desc: 'Full-featured access from your smartphone, tablet, or PC.', category: 'site' }
       ]
     },
     comparison: {
@@ -923,21 +1027,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Coste de Mano de Obra Calculado',
       cta: 'COMENZAR A GESTIONAR EQUIPO'
     },
+    translatorBanner: {
+      badge: 'INTELIGENCIA ARTIFICIAL & TRADUCCIÓN SIMULTÁNEA',
+      title: 'Traducción en Tiempo Real para Clientes y Obras Internacionales',
+      sub: 'Hable, envíe mensajes y haga reuniones con clientes y socios de cualquier país. Atrios Build traduce al instante voz y texto sin barreras de idioma.',
+      bullets: [
+        'Traducción bidireccional instantánea en más de 15 idiomas con IA',
+        'Acceso inmediato para el cliente mediante código QR o enlace (sin instalar nada)',
+        'Síntesis de voz natural (Audio / TTS) y transcripción de voz en tiempo real',
+        'Historial de conversaciones y presupuestos guardado en la ficha del proyecto'
+      ],
+      sampleSourceLang: 'Español',
+      sampleSourceText: '¡Hola! Hemos revisado su proyecto y la propuesta detallada ya está lista.',
+      sampleTargetLang: 'Inglés (English)',
+      sampleTargetText: 'Hello! We reviewed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultáneo IA Activo',
+      qrConnectLabel: 'Código QR de Conexión Rápida',
+      voiceAudioLabel: 'Audio y Transcripción en Vivo',
+      cta: 'PROBAR TRADUCCIÓN EN VIVO'
+    },
     features10: {
       eyebrow: 'TODO LO QUE NECESITA PARA GESTIONAR SU NEGOCIO',
       title: 'Funcionalidades completas para el día a día',
+      categories: {
+        all: 'Todas las Funciones',
+        commercial: 'Comercial y Clientes',
+        site: 'Obras y Equipos',
+        aiTranslator: 'Traducción IA y Voz',
+        finance: 'Finanzas y Gestión'
+      },
       items: [
-        { title: 'Presupuestos', desc: 'Cree presupuestos y propuestas profesionales en minutos.' },
-        { title: 'Obras', desc: 'Siga el progreso de cada obra en tiempo real.' },
-        { title: 'Clientes', desc: 'Organice clientes y proveedores en un solo lugar.', isHighlighted: true },
-        { title: 'Control de Horas', desc: 'Registre fichaje, horas ordinarias y extras de empleados por obra.', isNew: true },
-        { title: 'Servicios', desc: 'Gestione servicios, materiales y mano de obra.' },
-        { title: 'Pagos', desc: 'Controle cobros y pagos de cada proyecto.' },
-        { title: 'Informes', desc: 'Informes y métricas para tomar mejores decisiones.' },
-        { title: 'Solicitudes de obra', desc: 'Reciba solicitudes de clientes directamente en la plataforma.', isNew: true },
-        { title: 'Propuestas', desc: 'Envíe propuestas y conozca el interés del cliente.', isNew: true },
-        { title: 'Documentos', desc: 'Guarde y acceda a documentos y fotos con total seguridad.' },
-        { title: 'App móvil', desc: 'Acceda desde cualquier lugar con su móvil o tablet.' }
+        { title: 'Presupuestos y Propuestas', desc: 'Cree presupuestos y propuestas profesionales en minutos.', category: 'commercial', tag: 'ESENCIAL' },
+        { title: 'Solicitudes de Obra', desc: 'Reciba solicitudes de clientes directamente en la plataforma.', category: 'commercial', isNew: true, tag: 'NUEVO' },
+        { title: 'Portal del Cliente', desc: 'Acceso exclusivo para que los clientes consulten y aprueben presupuestos.', category: 'commercial', isHighlighted: true, tag: 'DESTACADO' },
+        { title: 'Traducción en Tiempo Real', desc: 'Comuníquese con clientes extranjeros por voz y chat con traducción por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat y QR Multilingüe', desc: 'El cliente escanea el QR desde su móvil para hablar en su idioma.', category: 'aiTranslator', isNew: true, tag: 'INNOVACIÓN' },
+        { title: 'Gestión de Obras', desc: 'Siga el progreso, materiales y fases de cada obra en tiempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Control de Horas y Fichaje', desc: 'Registre fichaje, horas ordinarias y extras de empleados por obra con QR.', category: 'site', isNew: true, tag: 'NUEVO' },
+        { title: 'Clientes y Proveedores', desc: 'Organice clientes, proveedores y contactos en un solo lugar.', category: 'commercial' },
+        { title: 'Control de Pagos', desc: 'Controle cobros, facturas, plazos y flujo de caja.', category: 'finance' },
+        { title: 'Informes y Beneficio Real', desc: 'Informes financieros y cálculo de margen neto por obra en tiempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Archivo de Documentos', desc: 'Guarde y acceda a documentos y fotos con total seguridad en la nube.', category: 'finance' },
+        { title: 'App Móvil y Web', desc: 'Acceda desde cualquier lugar con su móvil, tablet u ordenador.', category: 'site' }
       ]
     },
     comparison: {
@@ -1128,21 +1259,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Coût Main-d’œuvre Calculé',
       cta: 'DÉMARRER LE SUIVI D’ÉQUIPE'
     },
+    translatorBanner: {
+      badge: 'INTELLIGENCE ARTIFICIELLE & TRADUCTION SIMULTANÉE',
+      title: 'Traduction en Temps Réel pour Clients & Chantiers Internationaux',
+      sub: 'Échangez, négociez et tenez vos réunions de chantier avec des clients et partenaires de toutes nationalités. Atrios Build traduit instantanément voix et texte sans barrière linguistique.',
+      bullets: [
+        'Traduction bidirectionnelle instantanée en plus de 15 langues avec IA',
+        'Accès direct pour le client via QR Code ou lien WhatsApp (aucune application à installer)',
+        'Synthèse vocale naturelle (Audio / TTS) et transcription de la parole en direct',
+        'Historique des échanges et devis traduits automatiquement rattaché au dossier chantier'
+      ],
+      sampleSourceLang: 'Français',
+      sampleSourceText: 'Bonjour ! Nous avons finalisé l’étude de vos travaux et le devis est prêt.',
+      sampleTargetLang: 'Anglais (English)',
+      sampleTargetText: 'Hello! We finalized your project study and the estimate is ready.',
+      liveInterpreterLabel: 'Interprète IA en Direct Actif',
+      qrConnectLabel: 'QR Code de Connexion Rapide',
+      voiceAudioLabel: 'Audio & Transcription en Direct',
+      cta: 'TESTER LA TRADUCTION EN DIRECT'
+    },
     features10: {
       eyebrow: 'TOUT POUR PILOTER VOTRE ACTIVITÉ',
       title: 'Des fonctionnalités complètes pour le quotidien',
+      categories: {
+        all: 'Toutes les Fonctions',
+        commercial: 'Commercial & Clients',
+        site: 'Chantiers & Équipes',
+        aiTranslator: 'Traduction IA & Voix',
+        finance: 'Finances & Gestion'
+      },
       items: [
-        { title: 'Devis & Chiffrage', desc: 'Créez des devis et propositions professionnels en quelques minutes.' },
-        { title: 'Gestion de Chantiers', desc: 'Suivez l’avancement de chaque chantier en temps réel.' },
-        { title: 'Répertoire Clients', desc: 'Centralisez clients, sous-traitants et fournisseurs.', isHighlighted: true },
-        { title: 'Pointage & Heures', desc: 'Suivez les heures d’équipe, pointages et coûts de main-d’œuvre.', isNew: true },
-        { title: 'Main-d’œuvre & Matériaux', desc: 'Gérez vos taux horaires, fournitures et coûts d’achat.' },
-        { title: 'Suivi des Règlements', desc: 'Gardez le contrôle sur les acomptes et factures payées.' },
-        { title: 'Tableaux de Bord', desc: 'Indicateurs de rentabilité et suivi des marges en direct.' },
-        { title: 'Demandes de Travaux', desc: 'Recevez des demandes de particuliers directement sur votre compte.', isNew: true },
-        { title: 'Propositions PDF', desc: 'Envoyez des propositions claires et suivez l’intérêt du client.', isNew: true },
-        { title: 'Coffre-fort Documents', desc: 'Stockez plans, photos et justificatifs en toute sécurité.' },
-        { title: 'Application Mobile', desc: 'Accédez à toutes vos données depuis votre smartphone ou tablette.' }
+        { title: 'Devis & Chiffrage', desc: 'Créez des devis et propositions professionnels en quelques minutes.', category: 'commercial', tag: 'ESSENTIEL' },
+        { title: 'Demandes de Travaux', desc: 'Recevez des demandes de particuliers directement sur votre compte.', category: 'commercial', isNew: true, tag: 'NOUVEAU' },
+        { title: 'Portail Client', desc: 'Espace dédié permettant aux clients de consulter et valider leurs devis.', category: 'commercial', isHighlighted: true, tag: 'VEDETTE' },
+        { title: 'Traduction en Temps Réel', desc: 'Communiquez avec vos clients étrangers par voix et chat traduit par IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVE' },
+        { title: 'Chat & QR Code Multilingue', desc: 'Le client scanne le QR code sur son smartphone pour dialoguer dans sa langue.', category: 'aiTranslator', isNew: true, tag: 'INNOVATION' },
+        { title: 'Gestion de Chantiers', desc: 'Suivez l’avancement de chaque chantier, tâches et approvisionnements en temps réel.', category: 'site', tag: 'POPULAIRE' },
+        { title: 'Pointage & Heures Équipe', desc: 'Suivez les heures d’équipe, pointages et coûts de main-d’œuvre avec QR Code.', category: 'site', isNew: true, tag: 'NOUVEAU' },
+        { title: 'Répertoire Clients', desc: 'Centralisez clients, sous-traitants et fournisseurs au même endroit.', category: 'commercial' },
+        { title: 'Suivi des Règlements', desc: 'Gardez le contrôle sur les acomptes, factures et trésorerie.', category: 'finance' },
+        { title: 'Tableaux de Bord & Marges', desc: 'Indicateurs de rentabilité et suivi des marges nettes par chantier en direct.', category: 'finance', tag: 'MÉTRIQUES' },
+        { title: 'Coffre-fort Documents', desc: 'Stockez plans, photos et justificatifs en toute sécurité dans le cloud.', category: 'finance' },
+        { title: 'Application Mobile & Web', desc: 'Accédez à toutes vos données depuis votre smartphone, tablette ou ordinateur.', category: 'site' }
       ]
     },
     comparison: {
@@ -1333,21 +1491,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Costo Manodopera Calcolato',
       cta: 'INIZIA A GESTIRE LA SQUADRA'
     },
+    translatorBanner: {
+      badge: 'INTELLIGENZA ARTIFICIALE & TRADUZIONE SIMULTANEA',
+      title: 'Traduzione in Tempo Reale per Clienti e Cantieri Internazionali',
+      sub: 'Parla, chatta e conduci riunioni con clienti e partner esteri. Atrios Build traduce all’istante audio e testo senza barriere linguistiche.',
+      bullets: [
+        'Traduzione bidirezionale istantanea in oltre 15 lingue tramite IA',
+        'Accesso immediato per il cliente via QR Code o link (nessuna app da installare)',
+        'Sintesi vocale naturale (Audio / TTS) e trascrizione del parlato in tempo reale',
+        'Storico chat e preventivi tradotti salvati direttamente nella scheda del cantiere'
+      ],
+      sampleSourceLang: 'Italiano',
+      sampleSourceText: 'Buongiorno! Abbiamo completato il computo e il preventivo è pronto.',
+      sampleTargetLang: 'Inglese (English)',
+      sampleTargetText: 'Hello! We completed the survey and the estimate is ready.',
+      liveInterpreterLabel: 'Interprete IA Simultaneo Attivo',
+      qrConnectLabel: 'QR Code di Connessione Rapida',
+      voiceAudioLabel: 'Audio & Trascrizione dal Vivo',
+      cta: 'PROVA LA TRADUZIONE DAL VIVO'
+    },
     features10: {
       eyebrow: 'TUTTO IL NECESSARIO PER IL TUO LAVORO',
       title: 'Funzionalità complete per la gestione quotidiana',
+      categories: {
+        all: 'Tutte le Funzionalità',
+        commercial: 'Commerciale & Clienti',
+        site: 'Cantieri & Squadra',
+        aiTranslator: 'Traduzione IA & Voce',
+        finance: 'Finanza & Controllo'
+      },
       items: [
-        { title: 'Preventivi & Computi', desc: 'Crea preventivi professionali in PDF in pochi minuti.' },
-        { title: 'Gestione Cantieri', desc: 'Monitora l’avanzamento di ogni opera in tempo reale.' },
-        { title: 'Anagrafica Clienti', desc: 'Organizza clienti, fornitori e collaboratori.', isHighlighted: true },
-        { title: 'Controllo Ore & Punti', desc: 'Traccia presenze, ore ordinarie e straordinari della squadra.', isNew: true },
-        { title: 'Materiali e Manodopera', desc: 'Gestisci tariffe orarie, forniture e costi.' },
-        { title: 'Controllo Pagamenti', desc: 'Traccia acconti, fatture emesse e saldi da incassare.' },
-        { title: 'Report e Margini', desc: 'Statistiche e analisi finanziaria del margine effettivo.' },
-        { title: 'Richieste di Lavoro', desc: 'Ricevi richieste di preventivo da clienti della tua zona.', isNew: true },
-        { title: 'Proposte PDF', desc: 'Invia preventivi eleganti e monitora l’approvazione del cliente.', isNew: true },
-        { title: 'Archivio Documenti', desc: 'Salva in sicurezza foto, contratti e certificazioni.' },
-        { title: 'App Mobile', desc: 'Accedi da ovunque con il tuo smartphone o tablet.' }
+        { title: 'Preventivi & Computi', desc: 'Crea preventivi professionali in PDF in pochi minuti.', category: 'commercial', tag: 'ESSENZIALE' },
+        { title: 'Richieste di Lavoro', desc: 'Ricevi richieste di preventivo da clienti della tua zona.', category: 'commercial', isNew: true, tag: 'NUOVO' },
+        { title: 'Portale Clienti', desc: 'Accesso dedicato per i clienti per consultare e approvare le proposte.', category: 'commercial', isHighlighted: true, tag: 'IN EVIDENZA' },
+        { title: 'Traduzione in Tempo Reale', desc: 'Comunica con clienti esteri via voce e chat tradotta dall’IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA ESCLUSIVA' },
+        { title: 'Chat & QR Code Multilingua', desc: 'Il cliente scansiona il QR Code dal telefono per parlare nella sua lingua.', category: 'aiTranslator', isNew: true, tag: 'INNOVAZIONE' },
+        { title: 'Gestione Cantieri', desc: 'Monitora l’avanzamento di ogni opera, materiali e fasi in tempo reale.', category: 'site', tag: 'POPOLARE' },
+        { title: 'Controllo Ore & Timbratura', desc: 'Traccia presenze, ore ordinarie e straordinari della squadra con QR Code.', category: 'site', isNew: true, tag: 'NUOVO' },
+        { title: 'Anagrafica Clienti', desc: 'Organizza clienti, fornitori e collaboratori in un unico hub.', category: 'commercial' },
+        { title: 'Controllo Pagamenti', desc: 'Traccia acconti, fatture emesse e saldi da incassare.', category: 'finance' },
+        { title: 'Report & Margine Reale', desc: 'Statistiche e analisi finanziaria del margine effettivo per cantiere.', category: 'finance', tag: 'METRICHE' },
+        { title: 'Archivio Documenti', desc: 'Salva in sicurezza foto, contratti e certificazioni sul cloud.', category: 'finance' },
+        { title: 'App Mobile & Web', desc: 'Accedi da ovunque con smartphone, tablet o computer.', category: 'site' }
       ]
     },
     comparison: {
@@ -1538,21 +1723,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'Расчет стоимости работ',
       cta: 'НАЧАТЬ УЧЕТ ВРЕМЕНИ БРИГАД'
     },
+    translatorBanner: {
+      badge: 'ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ И СИНХРОННЫЙ ПЕРЕВОД',
+      title: 'Синхронный Перевод Речи и Чата в Реальном Времени',
+      sub: 'Ведите переговоры, принимайте объекты и общайтесь с иностранными заказчиками и мастерами. Atrios Build мгновенно переводит голос и текст без языкового барьера.',
+      bullets: [
+        'Мгновенный двусторонний перевод на 15+ языков с помощью ИИ',
+        'Быстрый вход для клиента по QR-коду или ссылке (без установки приложений)',
+        'Озвучивание естественным голосом (Audio / TTS) и распознавание речи',
+        'История переговоров и переведенные сметы сохраняются в карточке объекта'
+      ],
+      sampleSourceLang: 'Русский',
+      sampleSourceText: 'Здравствуйте! Мы завершили расчет, подробная смета готова.',
+      sampleTargetLang: 'Английский (English)',
+      sampleTargetText: 'Hello! We finalized the calculations and the detailed estimate is ready.',
+      liveInterpreterLabel: 'ИИ-переводчик в реальном времени',
+      qrConnectLabel: 'QR-код для быстрого подключения',
+      voiceAudioLabel: 'Голос и транскрипция в эфире',
+      cta: 'ПОПРОБОВАТЬ ПЕРЕВОДЧИК ОНЛАЙН'
+    },
     features10: {
       eyebrow: 'ВСЁ ДЛЯ УПРАВЛЕНИЯ ВАШИМ СТРОИТЕЛЬНЫМ БИЗНЕСОМ',
       title: 'Полный набор инструментов на каждый день',
+      categories: {
+        all: 'Все возможности',
+        commercial: 'Продажи и клиенты',
+        site: 'Объекты и бригады',
+        aiTranslator: 'ИИ-перевод и голос',
+        finance: 'Финансы и аналитика'
+      },
       items: [
-        { title: 'Сметы и расчеты', desc: 'Создание профессиональных смет и расчетов за пару минут.' },
-        { title: 'Учет объектов', desc: 'Отслеживайте ход выполнения работ на каждом объекте.' },
-        { title: 'База клиентов', desc: 'Удобное хранение контактов клиентов и поставщиков.', isHighlighted: true },
-        { title: 'Учет времени и табель', desc: 'Табель смен, учет часов и расчет затрат на рабочих по объектам.', isNew: true },
-        { title: 'Работы и материалы', desc: 'Учет расценок за работу, нормы расхода и стоимость материалов.' },
-        { title: 'Платежи и финансы', desc: 'Контроль поступления оплат от заказчиков и расходов.' },
-        { title: 'Отчеты и маржа', desc: 'Финансовая аналитика и расчет реальной чистой прибыли.' },
-        { title: 'Биржа заявок', desc: 'Получайте прямые заказы от клиентов вашего города.', isNew: true },
-        { title: 'PDF предложения', desc: 'Отправляйте стильные КП и следите за решением клиента.', isNew: true },
-        { title: 'Хранилище файлов', desc: 'Надежное хранение договоров, чеков и фотоотчетов.' },
-        { title: 'Мобильное приложение', desc: 'Работайте со смартфона прямо со строительной площадки.' }
+        { title: 'Сметы и расчеты', desc: 'Создание профессиональных смет и расчетов за пару минут.', category: 'commercial', tag: 'БАЗОВЫЙ' },
+        { title: 'Биржа заявок', desc: 'Получайте прямые заказы от клиентов вашего города.', category: 'commercial', isNew: true, tag: 'НОВОЕ' },
+        { title: 'Портал заказчика', desc: 'Личный кабинет для клиента для просмотра и согласования смет.', category: 'commercial', isHighlighted: true, tag: 'ПОПУЛЯРНО' },
+        { title: 'Синхронный перевод ИИ', desc: 'Общение с иностранными клиентами голосом и в чате с переводом.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'ИИ ЭКСКЛЮЗИВ' },
+        { title: 'Чат по QR-коду', desc: 'Клиент сканирует QR-код телефоном и общается на родном языке.', category: 'aiTranslator', isNew: true, tag: 'ИННОВАЦИЯ' },
+        { title: 'Учет объектов', desc: 'Отслеживайте ход выполнения работ, этапы и материалы в реальном времени.', category: 'site', tag: 'ОСНОВА' },
+        { title: 'Учет времени и табель', desc: 'Табель смен, учет часов и расчет затрат на рабочих по QR-коду.', category: 'site', isNew: true, tag: 'НОВОЕ' },
+        { title: 'База клиентов', desc: 'Удобное хранение контактов клиентов, мастеров и поставщиков.', category: 'commercial' },
+        { title: 'Платежи и финансы', desc: 'Контроль поступления оплат от заказчиков, авансов и расходов.', category: 'finance' },
+        { title: 'Отчеты и чистая прибыль', desc: 'Финансовая аналитика и расчет реальной чистой прибыли по каждому объекту.', category: 'finance', tag: 'МЕТРИКИ' },
+        { title: 'Хранилище файлов', desc: 'Надежное облачное хранение договоров, чеков и фотоотчетов.', category: 'finance' },
+        { title: 'Мобильное приложение', desc: 'Работайте со смартфона или планшета прямо со стройплощадки.', category: 'site' }
       ]
     },
     comparison: {
@@ -1743,21 +1955,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'मजदूरी लागत की गणना',
       cta: 'टीम हाजिरी प्रबंधन शुरू करें'
     },
+    translatorBanner: {
+      badge: 'आर्टिफिशियल इंटेलिजेंस और रियल-टाइम अनुवाद',
+      title: 'विदेशी ग्राहकों और बहुभाषी प्रोजेक्ट्स के लिए रीयल-टाइम अनुवाद',
+      sub: 'किसी भी देश या भाषा के ग्राहक के साथ आसानी से बातचीत करें। Atrios Build तुरंत आवाज और टेक्स्ट का सटीक अनुवाद करता है।',
+      bullets: [
+        'AI द्वारा 15+ भाषाओं में तत्काल दोतरफा अनुवाद',
+        'QR कोड या लिंक से ग्राहक तुरंत जुड़ें (कोई ऐप इंस्टॉल करने की जरूरत नहीं)',
+        'प्राकृतिक आवाज में उच्चारण (Audio / TTS) और रियल-टाइम स्पीच ट्रांसक्रिप्शन',
+        'सभी बातचीत और कोटेशन का इतिहास सीधे प्रोजेक्ट फाइल में सुरक्षित'
+      ],
+      sampleSourceLang: 'हिन्दी',
+      sampleSourceText: 'नमस्ते! हमने आपके प्रोजेक्ट का विवरण देखा है और कोटेशन तैयार है।',
+      sampleTargetLang: 'अंग्रेजी (English)',
+      sampleTargetText: 'Hello! We reviewed your project details and the quotation is ready.',
+      liveInterpreterLabel: 'सक्रिय AI दुभाषिया',
+      qrConnectLabel: 'त्वरित कनेक्ट QR कोड',
+      voiceAudioLabel: 'लाइव ऑडियो और टेक्स्ट',
+      cta: 'लाइव अनुवाद का अनुभव करें'
+    },
     features10: {
       eyebrow: 'आपके व्यवसाय प्रबंधन के लिए आवश्यक सब कुछ',
       title: 'दैनिक कार्यों के लिए संपूर्ण सुविधाएं',
+      categories: {
+        all: 'सभी सुविधाएं',
+        commercial: 'व्यापार और ग्राहक',
+        site: 'साइट और मजदूर',
+        aiTranslator: 'AI अनुवाद व आवाज',
+        finance: 'वित्त और लाभ'
+      },
       items: [
-        { title: 'कोटेशन और एस्टीमेट', desc: 'मिनटों में पेशेवर निर्माण कोटेशन बनाएं।' },
-        { title: 'प्रोजेक्ट ट्रैकिंग', desc: 'साइट की प्रगति और कार्यों की रियल-टाइम निगरानी।' },
-        { title: 'ग्राहक डायरेक्टरी', desc: 'ग्राहकों और सप्लायर्स की जानकारी एक जगह रखें।', isHighlighted: true },
-        { title: 'मजदूरों की हाजिरी और समय', desc: 'मजदूरों के घंटे, सामान्य व ओवरटाइम और साइट मजदूरी लागत।', isNew: true },
-        { title: 'मजदूरी और सामग्री', desc: 'मजदूरों के घंटे और निर्माण सामग्री की लागत का हिसाब।' },
-        { title: 'भुगतान नियंत्रण', desc: 'आए हुए भुगतान और बकाया राशि का ट्रैक रखें।' },
-        { title: 'लाभ और रिपोर्ट्स', desc: 'वास्तविक मुनाफे और मार्जिन का सटीक वित्तीय विश्लेषण।' },
-        { title: 'काम के नए अनुरोध', desc: 'सीधे अपने इलाके के ग्राहकों से काम की मांग पाएं।', isNew: true },
-        { title: 'PDF प्रपोजल', desc: 'आकर्षक PDF प्रस्ताव भेजें और ग्राहक की मंजूरी देखें।', isNew: true },
-        { title: 'दस्तावेज़ वॉल्ट', desc: 'कागजात, बिल और साइट की तस्वीरें सुरक्षित रखें।' },
-        { title: 'मोबाइल ऐप', desc: 'अपने फोन से साइट पर रहते हुए भी सब कुछ संचालित करें।' }
+        { title: 'कोटेशन और एस्टीमेट', desc: 'मिनटों में पेशेवर निर्माण कोटेशन बनाएं।', category: 'commercial', tag: 'प्रमुख' },
+        { title: 'काम के नए अनुरोध', desc: 'सीधे अपने इलाके के ग्राहकों से काम की मांग पाएं।', category: 'commercial', isNew: true, tag: 'नया' },
+        { title: 'ग्राहक पोर्टल', desc: 'ग्राहकों के लिए कोटेशन देखने और स्वीकृत करने का विशेष पोर्टल।', category: 'commercial', isHighlighted: true, tag: 'लोकप्रिय' },
+        { title: 'रीयल-टाइम AI अनुवाद', desc: 'विदेशी ग्राहकों से आवाज और चैट में तुरंत अनुवाद के साथ बात करें।', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'विशेष AI' },
+        { title: 'मल्टीलिंगुअल QR चैट', desc: 'ग्राहक अपने मोबाइल से QR कोड स्कैन कर अपनी भाषा में बात करें।', category: 'aiTranslator', isNew: true, tag: 'नवाचार' },
+        { title: 'प्रोजेक्ट ट्रैकिंग', desc: 'साइट की प्रगति, कार्यों और सामान की रियल-टाइम निगरानी।', category: 'site', tag: 'कोर' },
+        { title: 'मजदूरों की हाजिरी और समय', desc: 'मजदूरों के घंटे, सामान्य व ओवरटाइम और साइट मजदूरी लागत।', category: 'site', isNew: true, tag: 'नया' },
+        { title: 'ग्राहक डायरेक्टरी', desc: 'ग्राहकों और सप्लायर्स की जानकारी एक जगह रखें।', category: 'commercial' },
+        { title: 'भुगतान नियंत्रण', desc: 'आए हुए भुगतान, अग्रिम और बकाया राशि का ट्रैक रखें।', category: 'finance' },
+        { title: 'लाभ और रिपोर्ट्स', desc: 'वास्तविक मुनाफे और मार्जिन का सटीक वित्तीय विश्लेषण।', category: 'finance', tag: 'रिपोर्ट्स' },
+        { title: 'दस्तावेज़ वॉल्ट', desc: 'कागजात, बिल और साइट की तस्वीरें सुरक्षित रखें।', category: 'finance' },
+        { title: 'मोबाइल ऐप व वेब', desc: 'अपने फोन, टैबलेट या कंप्यूटर से कहीं भी इस्तेमाल करें।', category: 'site' }
       ]
     },
     comparison: {
@@ -1948,21 +2187,48 @@ export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
       sampleCost: 'হিসাবকৃত মোট মজুরি',
       cta: 'টিম হাজিরা পরিচালনা শুরু করুন'
     },
+    translatorBanner: {
+      badge: 'কৃত্রিম বুদ্ধিমত্তা ও রিয়েল-টাইম অনুবাদ',
+      title: 'বিদেশি ক্লায়েন্ট ও বহুমাত্রিক প্রজেক্টের জন্য লাইভ অনুবাদ',
+      sub: 'যেকোনো দেশের ক্লায়েন্টের সাথে নিজের ভাষায় কথা বলুন ও চ্যাট করুন। Atrios Build সরাসরি ভয়েস ও টেক্সট অনুবাদ করে সব ভাষার বাধা দূর করে।',
+      bullets: [
+        'AI এর মাধ্যমে ১৫টিরও বেশি ভাষায় তাৎক্ষণিক দ্বি-মুখী অনুবাদ',
+        'QR কোড বা লিঙ্কের মাধ্যমে ক্লায়েন্টের তাৎক্ষণিক প্রবেশ (কোনো অ্যাপ ডাউনলোড ছাড়াই)',
+        'স্বাভাবিক কণ্ঠে অডিও উচ্চারণ (Audio / TTS) এবং সরাসরি ভয়েস টাইপিং',
+        'অনূদিত সমস্ত বার্তা ও কোটেশনের ইতিহাস সরাসরি প্রজেক্ট ফাইলে সংরক্ষিত'
+      ],
+      sampleSourceLang: 'বাংলা',
+      sampleSourceText: 'হ্যালো! আমরা আপনার কাজের বিবরণ পর্যালোচনা করেছি এবং কোটেশন প্রস্তুত।',
+      sampleTargetLang: 'ইংরেজি (English)',
+      sampleTargetText: 'Hello! We reviewed your project details and the quotation is ready.',
+      liveInterpreterLabel: 'সক্রিয় AI লাইভ ইন্টারপ্রেটার',
+      qrConnectLabel: 'দ্রুত সংযোগ QR কোড',
+      voiceAudioLabel: 'লাইভ অডিও ও টেক্সট',
+      cta: 'লাইভ অনুবাদের ডেমো দেখুন'
+    },
     features10: {
       eyebrow: 'ব্যবসা পরিচালনার সব টুলস এক সাথে',
       title: 'দৈনন্দিন কাজের জন্য পূর্ণাঙ্গ সমাধান',
+      categories: {
+        all: 'সকল সুবিধা',
+        commercial: 'বাণিজ্য ও ক্লায়েন্ট',
+        site: 'সাইট ও কর্মীদল',
+        aiTranslator: 'AI অনুবাদ ও ভয়েস',
+        finance: 'অর্থায়ন ও হিসাব'
+      },
       items: [
-        { title: 'কোটেশন ও এস্টিমেট', desc: 'মিনিটের মধ্যে পেশাদার নির্মাণ কোটেশন তৈরি করুন।' },
-        { title: 'প্রজেক্ট ট্র্যাকিং', desc: 'সাইটের কাজের অগ্রগতি সরাসরি রিয়েল-টাইমে দেখুন।' },
-        { title: 'ক্লায়েন্ট ডিরেক্টরি', desc: 'গ্রাহক ও সাপ্লায়ারদের তথ্য সুন্দরভাবে সাজিয়ে রাখুন।', isHighlighted: true },
-        { title: 'কর্মীদের হাজিরা ও সময়', desc: 'শ্রমিকদের কাজের সময়, সাধারণ ও ওভারটাইম এবং সাইট মজুরি খরচ।', isNew: true },
-        { title: 'শ্রমিক ও মালামাল', desc: 'শ্রমিকদের মজুরি ও কাঁচামালের সঠিক হিসাব রাখুন।' },
-        { title: 'পেমেন্ট ট্র্যাকিং', desc: 'আদায় ও খরচের পূর্ণ হিসাব রাখুন।' },
-        { title: 'লাভ ও রিপোর্ট', desc: 'প্রকৃত লাভ এবং আর্থিক অগ্রগতির স্পষ্ট চিত্র।' },
-        { title: 'কাজের সুযোগ', desc: 'আপনার এলাকার গ্রাহকদের থেকে সরাসরি কাজের অনুরোধ পান।', isNew: true },
-        { title: 'PDF প্রস্তাবনা', desc: 'আকর্ষণীয় PDF কোটেশন পাঠান এবং ক্লায়েন্টের মতামত জানুন।', isNew: true },
-        { title: 'ডকুমেন্ট ভল্ট', desc: 'চুক্তিপত্র, রসিদ ও কাজের ছবি নিরাপদে সংরক্ষণ করুন।' },
-        { title: 'মোবাইল অ্যাপ', desc: 'ফোন থেকেই সাইটে বসে পুরো প্রজেক্ট পরিচালনা করুন।' }
+        { title: 'কোটেশন ও এস্টিমেট', desc: 'মিনিটের মধ্যে পেশাদার নির্মাণ কোটেশন তৈরি করুন।', category: 'commercial', tag: 'প্রয়োজনীয়' },
+        { title: 'কাজের সুযোগ ও অনুসন্ধান', desc: 'আপনার এলাকার গ্রাহকদের থেকে সরাসরি কাজের অনুরোধ পান।', category: 'commercial', isNew: true, tag: 'নতুন' },
+        { title: 'ক্লায়েন্ট পোর্টাল', desc: 'ক্লায়েন্টদের কোটেশন দেখা ও অনুমোদনের বিশেষ অনলাইন পোর্টাল।', category: 'commercial', isHighlighted: true, tag: 'জনপ্রিয়' },
+        { title: 'রিয়েল-টাইম AI অনুবাদ', desc: 'বিদেশি ক্লায়েন্টদের সাথে ভয়েস ও চ্যাটে তাৎক্ষণিক অনুবাদে কথা বলুন।', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'বিশেষ AI' },
+        { title: 'বহুভাষিক QR চ্যাট', desc: 'ক্লায়েন্ট ফোনে QR কোড স্ক্যান করে নিজের মাতৃভাষায় কথা বলতে পারেন।', category: 'aiTranslator', isNew: true, tag: 'উদ্ভাবন' },
+        { title: 'প্রজেক্ট ট্র্যাকিং', desc: 'সাইটের কাজের অগ্রগতি ও ধাপসমূহ সরাসরি রিয়েল-টাইমে দেখুন।', category: 'site', tag: 'কোর' },
+        { title: 'কর্মীদের হাজিরা ও সময়', desc: 'শ্রমিকদের কাজের সময়, সাধারণ ও ওভারটাইম এবং সাইট মজুরি খরচ।', category: 'site', isNew: true, tag: 'নতুন' },
+        { title: 'ক্লায়েন্ট ডিরেক্টরি', desc: 'গ্রাহক ও সাপ্লায়ারদের তথ্য সুন্দরভাবে সাজিয়ে রাখুন।', category: 'commercial' },
+        { title: 'পেমেন্ট ট্র্যাকিং', desc: 'আদায়, বিল এবং খরচের পূর্ণ হিসাব রাখুন।', category: 'finance' },
+        { title: 'লাভ ও আর্থিক রিপোর্ট', desc: 'প্রকৃত লাভ এবং আর্থিক অগ্রগতির স্পষ্ট চিত্র।', category: 'finance', tag: 'অ্যানালিটিক্স' },
+        { title: 'ডকুমেন্ট ভল্ট', desc: 'চুক্তিপত্র, রসিদ ও কাজের ছবি নিরাপদে ক্লাউডে সংরক্ষণ করুন।', category: 'finance' },
+        { title: 'মোবাইল অ্যাপ ও ওয়েব', desc: 'ফোন, ট্যাবলেট বা কম্পিউটার থেকেই সাইটে বসে পুরো প্রজেক্ট চালান।', category: 'site' }
       ]
     },
     comparison: {

@@ -44,7 +44,14 @@ import {
   Lock,
   Clock,
   QrCode,
-  Timer
+  Timer,
+  Languages,
+  Mic,
+  Volume2,
+  MessageSquare,
+  Bot,
+  Radio,
+  SlidersHorizontal
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
@@ -52,6 +59,7 @@ import { landingTranslations } from './landingTranslations';
 import { LOCALE_OPTIONS, getLandingExtended } from './landingExtendedTranslations';
 import { getStoredHeroVideoConfig, getStoredActionVideoConfig, extractYouTubeId, fetchCloudAppSettings } from '../services/storage';
 import { ClientRequestModal } from './ClientRequestModal';
+import { playTTSAudio, stopAllAudio } from '../services/ttsAudio';
 
 interface LandingPageProps {
   t: Translation;
@@ -98,7 +106,37 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const [actionVideo, setActionVideo] = useState<ActionVideoConfig>(getStoredActionVideoConfig);
   const [demoModalMode, setDemoModalMode] = useState<'interactive' | 'video'>('video');
   const [activeHeroTab, setActiveHeroTab] = useState<'video' | 'live'>('video');
+  const [selectedFeatureCategory, setSelectedFeatureCategory] = useState<'all' | 'commercial' | 'site' | 'aiTranslator' | 'finance'>('all');
+  const [isPlayingTranslatorAudio, setIsPlayingTranslatorAudio] = useState(false);
+  const [speakingSampleIdx, setSpeakingSampleIdx] = useState<number | null>(null);
   const heroVideoElementRef = useRef<HTMLVideoElement>(null);
+
+  const handleTestAudioSample = async (text: string, langCode: string, sampleIdx: number) => {
+    if (isPlayingTranslatorAudio && speakingSampleIdx === sampleIdx) {
+      stopAllAudio();
+      setIsPlayingTranslatorAudio(false);
+      setSpeakingSampleIdx(null);
+      return;
+    }
+    stopAllAudio();
+    setIsPlayingTranslatorAudio(true);
+    setSpeakingSampleIdx(sampleIdx);
+    try {
+      await playTTSAudio(text, langCode, {
+        onEnd: () => {
+          setIsPlayingTranslatorAudio(false);
+          setSpeakingSampleIdx(null);
+        },
+        onError: () => {
+          setIsPlayingTranslatorAudio(false);
+          setSpeakingSampleIdx(null);
+        }
+      });
+    } catch {
+      setIsPlayingTranslatorAudio(false);
+      setSpeakingSampleIdx(null);
+    }
+  };
 
   // Load cloud settings on mount to ensure newest video from database is fetched
   useEffect(() => {
@@ -291,10 +329,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const currencySymbol = CURRENCIES[currencyCode]?.symbol || '€';
 
   const scrollToSection = (id: string) => {
-    const el = document.getElementById(id);
-    if (el) {
-      el.scrollIntoView({ behavior: 'smooth' });
-    }
+    // Fechar menu mobile se estiver aberto
+    setMobileMenuOpen(false);
+
+    const performScroll = () => {
+      const el = document.getElementById(id);
+      if (el) {
+        const navHeader = document.querySelector('header');
+        const headerHeight = navHeader ? navHeader.getBoundingClientRect().height : 70;
+        const elementRect = el.getBoundingClientRect();
+        const absoluteElementTop = elementRect.top + window.pageYOffset;
+        const targetScrollTop = Math.max(0, absoluteElementTop - headerHeight - 16);
+
+        window.scrollTo({
+          top: targetScrollTop,
+          behavior: 'smooth'
+        });
+      }
+    };
+
+    // Pequeno intervalo para permitir o fecho do drawer no mobile sem abortar a animação de scroll
+    setTimeout(performScroll, 120);
   };
 
   return (
@@ -417,26 +472,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
 
                 <button
-                  onClick={() => { scrollToSection('funcionalidades'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => scrollToSection('funcionalidades')}
+                  className="w-full text-left py-2.5 px-3.5 rounded-xl text-slate-800 hover:bg-orange-50 hover:text-[#ff5722] active:bg-orange-100 transition-all font-bold cursor-pointer"
                 >
                   {ltx.nav.features}
                 </button>
                 <button
-                  onClick={() => { scrollToSection('como-funciona'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => scrollToSection('como-funciona')}
+                  className="w-full text-left py-2.5 px-3.5 rounded-xl text-slate-800 hover:bg-orange-50 hover:text-[#ff5722] active:bg-orange-100 transition-all font-bold cursor-pointer"
                 >
                   {ltx.nav.howItWorks}
                 </button>
                 <button
-                  onClick={() => { scrollToSection('para-clientes'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => scrollToSection('para-clientes')}
+                  className="w-full text-left py-2.5 px-3.5 rounded-xl text-slate-800 hover:bg-orange-50 hover:text-[#ff5722] active:bg-orange-100 transition-all font-bold cursor-pointer"
                 >
                   {ltx.nav.forClients}
                 </button>
                 <button
-                  onClick={() => { scrollToSection('para-profissionais'); setMobileMenuOpen(false); }}
-                  className="text-left py-2 px-3 rounded-xl hover:bg-orange-50 hover:text-[#ff5722] transition-colors cursor-pointer"
+                  type="button"
+                  onClick={() => scrollToSection('para-profissionais')}
+                  className="w-full text-left py-2.5 px-3.5 rounded-xl text-slate-800 hover:bg-orange-50 hover:text-[#ff5722] active:bg-orange-100 transition-all font-bold cursor-pointer"
                 >
                   {ltx.nav.forPros}
                 </button>
@@ -712,7 +771,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* 3. SECTION "COMO FUNCIONA PARA TODOS" (7 PASSOS) */}
-      <section id="como-funciona" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden">
+      <section id="como-funciona" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden scroll-mt-20 sm:scroll-mt-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full max-w-full">
           
           <span className="text-[#ff5722] font-black text-xs uppercase tracking-[0.25em] block mb-2.5">
@@ -759,7 +818,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 sm:gap-8 items-stretch w-full max-w-full">
             
             {/* Left Card: PARA CLIENTES */}
-            <div id="para-clientes" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-orange-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full">
+            <div id="para-clientes" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-orange-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full scroll-mt-20 sm:scroll-mt-28">
               
               <div>
                 {/* Tag */}
@@ -844,7 +903,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </div>
 
             {/* Right Card: PARA PROFISSIONAIS */}
-            <div id="para-profissionais" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-blue-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full">
+            <div id="para-profissionais" className="bg-white rounded-2xl sm:rounded-3xl p-5 sm:p-8 lg:p-10 border border-blue-100/90 shadow-sm flex flex-col justify-between text-left relative min-w-0 w-full scroll-mt-20 sm:scroll-mt-28">
               
               <div>
                 {/* Tag */}
@@ -923,7 +982,174 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* 4.5. SECTION "CONTROLO DE HORAS DOS COLABORADORES POR OBRA" */}
+      {/* 4.5. SECTION "TRADUÇÃO EM TEMPO REAL & CHAT BILÍNGUE COM CLIENTES" */}
+      <section id="tradutor" className="py-12 sm:py-20 bg-gradient-to-b from-slate-900 via-slate-950 to-slate-900 text-white border-t border-white/10 w-full max-w-full overflow-hidden relative">
+        {/* Glow ambient decoration */}
+        <div className="absolute top-0 right-1/4 w-96 h-96 bg-amber-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-0 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full relative z-10">
+          <div className="bg-gradient-to-br from-slate-900/95 via-slate-900 to-slate-950 rounded-3xl p-6 sm:p-10 lg:p-14 shadow-2xl border border-white/10 relative overflow-hidden">
+            
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 lg:gap-12 items-center">
+              
+              {/* Left Column: Copy, Bullets & Call-To-Action */}
+              <div className="lg:col-span-7 text-left space-y-4 sm:space-y-6">
+                <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-amber-500/15 border border-amber-500/30 text-amber-400 text-[11px] font-black uppercase tracking-wider shadow-sm">
+                  <Languages size={14} className="shrink-0" />
+                  <span>{ltx.translatorBanner.badge}</span>
+                </div>
+
+                <h2 className="text-2xl sm:text-4xl lg:text-[42px] font-black tracking-tight text-white leading-tight break-words">
+                  {ltx.translatorBanner.title}
+                </h2>
+
+                <p className="text-slate-300 text-sm sm:text-base font-normal leading-relaxed break-words">
+                  {ltx.translatorBanner.sub}
+                </p>
+
+                {/* Lista de Vantagens */}
+                <ul className="space-y-3 pt-2">
+                  {ltx.translatorBanner.bullets.map((bullet, idx) => (
+                    <li key={idx} className="flex items-start gap-3 text-slate-200 text-xs sm:text-sm font-semibold">
+                      <div className="w-5 h-5 rounded-full bg-amber-500/20 text-amber-400 border border-amber-500/40 flex items-center justify-center shrink-0 mt-0.5">
+                        <Check size={12} strokeWidth={3} />
+                      </div>
+                      <span className="break-words">{bullet}</span>
+                    </li>
+                  ))}
+                </ul>
+
+                {/* Botões de Ação */}
+                <div className="pt-3 sm:pt-4 flex items-center">
+                  <button
+                    onClick={onStartFree}
+                    className="w-full sm:w-auto px-6 sm:px-8 py-3.5 sm:py-4 bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 rounded-2xl font-black text-xs sm:text-sm uppercase tracking-wider shadow-lg shadow-amber-500/25 active:scale-98 transition-all flex items-center justify-center gap-2 cursor-pointer"
+                  >
+                    <span>{ltx.translatorBanner.cta}</span>
+                    <ArrowRight size={16} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Interactive Bilingual Live Chat Demo */}
+              <div className="lg:col-span-5 w-full">
+                <div className="bg-slate-950/90 rounded-2xl sm:rounded-3xl p-4 sm:p-6 border border-white/10 shadow-2xl backdrop-blur-md space-y-4">
+                  
+                  {/* Demo Card Header */}
+                  <div className="flex items-center justify-between pb-3 border-b border-white/10">
+                    <div className="flex items-center gap-2.5">
+                      <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center font-black">
+                        <Languages size={18} />
+                      </div>
+                      <div>
+                        <div className="text-xs font-black text-white flex items-center gap-1.5">
+                          <span>{ltx.translatorBanner.liveInterpreterLabel || 'Sala de Tradução'}</span>
+                          <span className="w-2 h-2 rounded-full bg-emerald-400 animate-pulse" />
+                        </div>
+                        <div className="text-[10px] text-slate-400 font-medium">
+                          Tradução Ativa • FR 🇫🇷 ➔ PT 🇵🇹
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="px-2.5 py-1 rounded-lg bg-emerald-500/15 border border-emerald-500/30 text-emerald-400 text-[10px] font-black uppercase tracking-wider flex items-center gap-1">
+                      <Radio size={12} className="animate-pulse" />
+                      <span>{ltx.translatorBanner.liveInterpreterLabel}</span>
+                    </div>
+                  </div>
+
+                  {/* Simulated Chat Dialogue with Real TTS Sound Playback */}
+                  <div className="space-y-3 py-1">
+                    
+                    {/* Client Speech Bubble (French / Native) */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                        <span className="font-bold text-amber-300">Cliente Internacional (França)</span>
+                        <span>10:42</span>
+                      </div>
+                      <div className="p-3 bg-slate-900 border border-amber-500/30 rounded-2xl rounded-tl-sm text-xs text-slate-200 space-y-2">
+                        <p className="font-medium italic leading-relaxed text-white">
+                          "{ltx.translatorBanner.sampleSourceText}"
+                        </p>
+                        
+                        <div className="flex items-center justify-between pt-1 border-t border-white/5">
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            🗣 {ltx.translatorBanner.sampleSourceLang}
+                          </span>
+                          <button
+                            onClick={() => handleTestAudioSample(ltx.translatorBanner.sampleSourceText, 'fr-FR', 1)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isPlayingTranslatorAudio && speakingSampleIdx === 1
+                                ? 'bg-amber-400 text-slate-950 animate-pulse'
+                                : 'bg-slate-800 hover:bg-slate-700 text-amber-400 border border-amber-500/30'
+                            }`}
+                            title="Ouvir voz do cliente"
+                          >
+                            <Volume2 size={12} />
+                            <span>{isPlayingTranslatorAudio && speakingSampleIdx === 1 ? 'A falar...' : ltx.translatorBanner.voiceAudioLabel}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Contractor Instant Reply Bubble (Portuguese Translated) */}
+                    <div className="space-y-1">
+                      <div className="flex items-center justify-between text-[10px] text-slate-400 px-1">
+                        <span className="font-bold text-emerald-400">Empreiteiro / Construtor (Você)</span>
+                        <span>10:42</span>
+                      </div>
+                      <div className="p-3 bg-emerald-950/40 border border-emerald-500/30 rounded-2xl rounded-tr-sm text-xs text-slate-200 space-y-2 ml-4">
+                        <p className="font-semibold text-emerald-100 leading-relaxed">
+                          "{ltx.translatorBanner.sampleTargetText}"
+                        </p>
+                        
+                        <div className="flex items-center justify-between pt-1 border-t border-emerald-500/20">
+                          <span className="text-[10px] text-emerald-300 font-mono">
+                            🌐 {ltx.translatorBanner.sampleTargetLang}
+                          </span>
+                          <button
+                            onClick={() => handleTestAudioSample(ltx.translatorBanner.sampleTargetText, 'pt-PT', 2)}
+                            className={`px-2.5 py-1 rounded-lg text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer ${
+                              isPlayingTranslatorAudio && speakingSampleIdx === 2
+                                ? 'bg-emerald-400 text-slate-950 animate-pulse'
+                                : 'bg-emerald-900/60 hover:bg-emerald-900 text-emerald-300 border border-emerald-500/40'
+                            }`}
+                            title="Ouvir resposta traduzida"
+                          >
+                            <Volume2 size={12} />
+                            <span>{isPlayingTranslatorAudio && speakingSampleIdx === 2 ? 'A falar...' : ltx.translatorBanner.voiceAudioLabel}</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+
+                  </div>
+
+                  {/* QR Code Quick Join Bar */}
+                  <div className="bg-slate-900/80 rounded-xl p-2.5 border border-white/10 flex items-center justify-between gap-3 text-xs">
+                    <div className="flex items-center gap-2 text-slate-300">
+                      <div className="p-1.5 rounded-lg bg-amber-500/20 text-amber-400 shrink-0">
+                        <QrCode size={16} />
+                      </div>
+                      <span className="text-[11px] font-semibold text-slate-300">
+                        Cliente conecta com a câmara do telemóvel sem instalar nada
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black text-amber-400 bg-amber-500/15 px-2 py-1 rounded-md shrink-0 uppercase">
+                      Instantâneo
+                    </span>
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* 4.6. SECTION "CONTROLO DE HORAS DOS COLABORADORES POR OBRA" */}
       <section className="py-12 sm:py-20 bg-gradient-to-b from-slate-50/80 via-white to-slate-50/80 border-t border-slate-200/80 w-full max-w-full overflow-hidden">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full max-w-full">
           <div className="bg-slate-900 rounded-3xl p-6 sm:p-10 lg:p-14 text-white shadow-xl border border-slate-800 relative overflow-hidden">
@@ -1035,48 +1261,127 @@ export const LandingPage: React.FC<LandingPageProps> = ({
         </div>
       </section>
 
-      {/* 5. SECTION "FUNCIONALIDADES COMPLETAS PARA O DIA A DIA" */}
-      <section id="funcionalidades" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden">
+      {/* 5. SECTION "FUNCIONALIDADES COMPLETAS PARA O DIA A DIA" (ORGANIZADAS POR CATEGORIA) */}
+      <section id="funcionalidades" className="py-14 sm:py-28 bg-white border-t border-slate-100 w-full max-w-full overflow-hidden scroll-mt-20 sm:scroll-mt-28">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center w-full max-w-full">
           
-          <span className="text-slate-400 font-black text-xs uppercase tracking-[0.25em] block mb-2.5">
-            {ltx.features10.eyebrow}
-          </span>
-          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-8 sm:mb-14 break-words">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-orange-500/10 text-orange-600 border border-orange-500/20 text-xs font-black uppercase tracking-wider mb-3">
+            <Sparkles size={13} />
+            <span>{ltx.features10.eyebrow}</span>
+          </div>
+
+          <h2 className="text-2xl sm:text-4xl lg:text-5xl font-black tracking-tight text-slate-950 mb-4 break-words">
             {ltx.features10.title}
           </h2>
 
-          {/* 10 Feature Cards Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 items-stretch text-left w-full max-w-full">
-            {ltx.features10.items.map((feat, idx) => {
-              const FeatIcon = FEATURE_ICONS[idx] || FileText;
-              const isHighlight = feat.isHighlighted || idx === 2;
-              const isNew = feat.isNew || idx === 6 || idx === 7;
+          <p className="text-sm sm:text-base text-slate-500 max-w-2xl mx-auto font-medium mb-8 sm:mb-10">
+            Tudo o que a sua empresa de construção civil precisa para operar com excelência, eliminar erros e vender mais.
+          </p>
 
-              return (
-                <div 
-                  key={idx} 
-                  className={`bg-white p-4 sm:p-6 rounded-2xl sm:rounded-3xl ${isHighlight ? 'border-2 border-orange-400 shadow-sm' : 'border border-slate-200/80 shadow-xs'} hover:shadow-md hover:border-orange-300 transition-all flex flex-col justify-between relative min-w-0`}
-                >
-                  {isNew && (
-                    <span className="absolute top-3 sm:top-4 right-3 sm:right-4 px-2 py-0.5 rounded-full bg-[#ff5722] text-white text-[9px] font-black uppercase">
-                      NOVO
+          {/* Filtros por Categoria das Funcionalidades */}
+          {ltx.features10.categories && (
+            <div className="flex flex-wrap items-center justify-center gap-2 mb-8 sm:mb-12">
+              {[
+                { key: 'all' as const, label: ltx.features10.categories.all, icon: SlidersHorizontal },
+                { key: 'commercial' as const, label: ltx.features10.categories.commercial, icon: FileText },
+                { key: 'site' as const, label: ltx.features10.categories.site, icon: Hammer },
+                { key: 'aiTranslator' as const, label: ltx.features10.categories.aiTranslator, icon: Languages },
+                { key: 'finance' as const, label: ltx.features10.categories.finance, icon: BarChart3 },
+              ].map(cat => {
+                const isSelected = selectedFeatureCategory === cat.key;
+                const IconComponent = cat.icon;
+                const count = cat.key === 'all' 
+                  ? ltx.features10.items.length 
+                  : ltx.features10.items.filter(item => item.category === cat.key).length;
+
+                return (
+                  <button
+                    key={cat.key}
+                    onClick={() => setSelectedFeatureCategory(cat.key)}
+                    className={`px-4 py-2 sm:py-2.5 rounded-full text-xs font-black tracking-wide flex items-center gap-2 transition-all cursor-pointer ${
+                      isSelected
+                        ? 'bg-slate-950 text-white shadow-md scale-102'
+                        : 'bg-slate-100 hover:bg-slate-200 text-slate-700'
+                    }`}
+                  >
+                    <IconComponent size={14} className={isSelected ? 'text-orange-400' : 'text-slate-500'} />
+                    <span>{cat.label}</span>
+                    <span className={`px-1.5 py-0.2 rounded-full text-[10px] font-mono ${
+                      isSelected ? 'bg-orange-500 text-slate-950 font-bold' : 'bg-slate-200 text-slate-600'
+                    }`}>
+                      {count}
                     </span>
-                  )}
-                  <div>
-                    <div className={`w-10 h-10 rounded-2xl ${isHighlight ? 'bg-emerald-50 text-emerald-600' : idx === 4 || idx === 7 ? 'bg-orange-50 text-orange-600' : idx === 5 ? 'bg-purple-50 text-purple-600' : idx === 6 ? 'bg-rose-50 text-rose-600' : idx === 9 ? 'bg-amber-50 text-amber-600' : 'bg-blue-50 text-blue-600'} flex items-center justify-center mb-3 sm:mb-4`}>
-                      <FeatIcon size={20} />
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
+          {/* 10 Feature Cards Grid com animação e categorização organizada */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3.5 sm:gap-4 items-stretch text-left w-full max-w-full">
+            {ltx.features10.items
+              .filter(feat => selectedFeatureCategory === 'all' || feat.category === selectedFeatureCategory)
+              .map((feat, idx) => {
+                const FeatIcon = FEATURE_ICONS[idx % FEATURE_ICONS.length] || FileText;
+                const isHighlight = feat.isHighlighted;
+                const isNew = feat.isNew;
+                const tagLabel = feat.tag || (isNew ? 'NOVO' : isHighlight ? 'DESTAQUE' : undefined);
+
+                return (
+                  <div 
+                    key={feat.title} 
+                    className={`bg-white p-5 sm:p-6 rounded-2xl sm:rounded-3xl ${
+                      isHighlight 
+                        ? 'border-2 border-orange-400 shadow-md ring-2 ring-orange-400/10' 
+                        : 'border border-slate-200/80 shadow-xs'
+                    } hover:shadow-lg hover:border-orange-300 transition-all flex flex-col justify-between relative min-w-0 group`}
+                  >
+                    {tagLabel && (
+                      <span className={`absolute top-3.5 right-3.5 px-2 py-0.5 rounded-full text-[9px] font-black uppercase tracking-wider ${
+                        isNew 
+                          ? 'bg-[#ff5722] text-white shadow-xs' 
+                          : isHighlight 
+                            ? 'bg-amber-400 text-slate-950' 
+                            : 'bg-slate-900 text-white'
+                      }`}>
+                        {tagLabel}
+                      </span>
+                    )}
+
+                    <div>
+                      <div className={`w-11 h-11 rounded-2xl ${
+                        feat.category === 'aiTranslator'
+                          ? 'bg-amber-50 text-amber-600 border border-amber-200/60'
+                          : feat.category === 'site'
+                            ? 'bg-blue-50 text-blue-600 border border-blue-200/60'
+                            : feat.category === 'finance'
+                              ? 'bg-purple-50 text-purple-600 border border-purple-200/60'
+                              : 'bg-orange-50 text-orange-600 border border-orange-200/60'
+                      } flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform`}>
+                        <FeatIcon size={22} />
+                      </div>
+
+                      <h3 className={`text-sm font-black ${isHighlight ? 'text-[#ff5722]' : 'text-slate-900'} mb-2 break-words`}>
+                        {feat.title}
+                      </h3>
+
+                      <p className="text-xs text-slate-600 font-medium leading-relaxed break-words">
+                        {feat.desc}
+                      </p>
                     </div>
-                    <h3 className={`text-sm font-black ${isHighlight ? 'text-[#ff5722]' : 'text-slate-900'} mb-1.5 break-words`}>
-                      {feat.title}
-                    </h3>
-                    <p className="text-xs text-slate-500 font-medium leading-relaxed break-words">
-                      {feat.desc}
-                    </p>
+
+                    <div className="pt-3 mt-3 border-t border-slate-100 flex items-center justify-between text-[10px] text-slate-400 font-bold uppercase tracking-wider">
+                      <span>{
+                        feat.category === 'commercial' ? 'Comercial' :
+                        feat.category === 'site' ? 'Obras & Campo' :
+                        feat.category === 'aiTranslator' ? 'IA & Tradução' :
+                        feat.category === 'finance' ? 'Financeiro' : 'Módulo'
+                      }</span>
+                      <ChevronRight size={12} className="text-slate-300 group-hover:text-orange-500 group-hover:translate-x-0.5 transition-all" />
+                    </div>
                   </div>
-                </div>
-              );
-            })}
+                );
+              })}
           </div>
 
         </div>

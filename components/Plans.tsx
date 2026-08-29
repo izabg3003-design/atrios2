@@ -98,6 +98,8 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       period: "",
       features: [
         pt.featItemsLimit,
+        pt.featWorkersFree,
+        pt.featVoiceTranslatorFree,
         pt.featExpenseLimit,
         pt.featPdfLimit,
         pt.featServiceLimit,
@@ -120,6 +122,8 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       period: pt.periodMonth,
       features: [
         pt.featUnlimitedItems,
+        pt.featWorkersMonthly,
+        pt.featVoiceTranslatorMonthly,
         pt.featClientRequestsMonthly,
         pt.featUnlimitedExpenses,
         pt.featUnlimitedPdf,
@@ -143,6 +147,8 @@ const Plans: React.FC<PlansProps> = ({ currentPlan, onSelect, locale, currencyCo
       bestValue: true,
       features: [
         pt.featUnlimitedItems,
+        pt.featWorkersAnnual,
+        pt.featVoiceTranslatorAnnual,
         pt.featClientRequestsAnnual,
         pt.featUnlimitedExpenses,
         pt.featUnlimitedPdf,
