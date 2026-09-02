@@ -10,6 +10,8 @@ import { WorkerPortal } from './components/WorkerPortal';
 import { ClientLiveChat } from './components/ClientLiveChat';
 import { InstallPWA } from './components/InstallPWA';
 import { InAppPushBalloonContainer } from './components/InAppPushBalloon';
+import { PdfExportModal } from './components/PdfExportModal';
+import { generateBudgetPDF, generateServiceOrderPDF, normalizeForPdf } from './services/pdfExportService';
 import { requestFcmToken, onMessageListener } from './services/firebase';
 import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from './services/pushService';
 import { 
@@ -94,7 +96,8 @@ import {
   fetchCompanyForVerification,
   fetchResilient,
   saveMessage,
-  fetchCloudAppSettings
+  fetchCloudAppSettings,
+  checkHybridAuth
 } from './services/storage';
 import { generateCompanyQrCode } from './services/qrcode';
 import { CertificateModal } from './components/CertificateModal';
@@ -117,25 +120,6 @@ import LandingPage from './components/LandingPage';
 import FullscreenIntroBanner from './components/FullscreenIntroBanner';
 import VoiceTranslator from './components/VoiceTranslator';
 import { LOCALE_OPTIONS } from './components/landingExtendedTranslations';
-import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
-
-const getPdfColors = (template: string = 'default') => {
-  switch (template) {
-    case 'blue_modern':
-      return { primary: [37, 99, 235], secondary: [248, 250, 252], accent: [37, 99, 235] };
-    case 'green_professional':
-      return { primary: [22, 163, 74], secondary: [240, 253, 244], accent: [22, 163, 74] };
-    case 'light_blue_clean':
-      return { primary: [14, 165, 233], secondary: [240, 249, 255], accent: [14, 165, 233] };
-    case 'dark_elegant':
-      return { primary: [15, 23, 42], secondary: [248, 250, 252], accent: [71, 85, 105] };
-    case 'modern_v2':
-      return { primary: [79, 70, 229], secondary: [249, 250, 251], accent: [99, 102, 241] }; // Indigo
-    default:
-      return { primary: [245, 158, 11], secondary: [248, 250, 252], accent: [245, 158, 11] };
-  }
-};
 
 function urlBase64ToUint8Array(base64String: string) {
   const padding = '='.repeat((4 - base64String.length % 4) % 4);
@@ -682,6 +666,7 @@ const App: React.FC = () => {
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
   const [showExpenseManager, setShowExpenseManager] = useState(false);
+  const [pdfExportModalBudget, setPdfExportModalBudget] = useState<{ budget: Budget; docType: 'budget' | 'service_order' } | null>(null);
   const [budgetFilter, setBudgetFilter] = useState<BudgetStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
   
@@ -1545,30 +1530,18 @@ const App: React.FC = () => {
       .then(() => {}, e => console.warn("Direct update for unlock_requested:", e));
   };
 
-  const normalizeForPdf = (text: string | undefined): string => {
-    if (!text) return "";
-    // Fix: Corrected duplicated keys and missing uppercase characters in Cyrillic transliteration map
-    const ruMap: Record<string, string> = {
-      'а':'a','б':'b','в':'v','г':'g','д':'d','е':'e','ё':'yo','ж':'zh','з':'z','и':'i','й':'y','к':'k','л':'l','м':'m','н':'n','о':'o','п':'p','р':'r','с':'s','т':'t','у':'u','ф':'f','х':'kh','ц':'ts','ч':'ch','ш':'sh','щ':'shch','ъ':'','ы':'y','ь':'','э':'e','ю':'yu','я':'ya',
-      'А':'A','Б':'B','В':'V','Г':'G','Д':'D','Е':'E','Ё':'Yo','Ж':'Zh','З':'Z','И':'I','Й':'Y','К':'K','Л':'L','М':'M','Н':'N','О':'O','П':'P','Р':'R','С':'S','Т':'T','У':'U','Ф':'F','Х':'KH','Ц':'TS','Ч':'CH','Ш':'SH','Щ':'SHCH','Ъ':'','Ы':'Y','Ь':'','Э':'E','Ю':'YU','Я':'YA'
-    };
-    let result = text;
-    result = result.split('').map(char => ruMap[char] || char).join('');
-    result = result.normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-    result = result.replace(/[^\x20-\x7E]/g, "");
-    return result;
+  const openPdfExportModal = (budget: Budget, docType: 'budget' | 'service_order' = 'budget') => {
+    setPdfExportModalBudget({ budget, docType });
   };
 
-  const exportToPDF = async (budget: Budget) => {
+  const exportToPDF = async (budget: Budget, targetLocale?: Locale, autoTranslate?: boolean) => {
     const company = currentUser;
     if (!company) return;
-    const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
-    const pdfT = isNonLatin ? translations['en-US'] : translations[locale];
-    
+
     if (company.plan === PlanType.FREE) {
       const count = getPdfDownloadCount(company.id);
       if (count >= FREE_PDF_LIMIT) {
-        alert(pdfT.pdfLimitReached);
+        alert(t.pdfLimitReached || 'Limite de PDFs atingido no plano Gratuito.');
         setActiveTab('plans');
         return;
       }
@@ -1585,375 +1558,30 @@ const App: React.FC = () => {
       }
     }
 
-    const doc = new jsPDF();
-    const colors = getPdfColors(company.pdfTemplate);
-    const currencyInfo = CURRENCIES[currencyCode];
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    const usableWidth = pageWidth - (margin * 2);
-
-    // Dynamic Footer on Every Page
-    const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      // Bottom Right QR Code placed higher above the footer line
-      if (activeQrCode && activeQrCode.length > 50) {
-        try {
-          const qrFormat = activeQrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          const qrSize = 14;
-          const qrX = pageWidth - margin - qrSize;
-          const qrY = pageHeight - 28;
-          doc.addImage(activeQrCode, qrFormat, qrX, qrY, qrSize, qrSize, undefined, 'FAST');
-
-          doc.setFont('helvetica', 'bold').setFontSize(5.8).setTextColor(71, 85, 105);
-          doc.text(normalizeForPdf('CERTIFICADO ÁTRIOS'), qrX - 2.5, qrY + 5.5, { align: 'right' });
-          doc.setFont('helvetica', 'normal').setFontSize(5.2).setTextColor(148, 163, 184);
-          doc.text(normalizeForPdf(pdfT.scanMe || 'ESCANEAR PARA VERIFICAR'), qrX - 2.5, qrY + 9.5, { align: 'right' });
-        } catch (err) {}
-      }
-
-      doc.setFontSize(7).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
-      const footerText = `Documento processado na nuvem via ÁTRIOS - Segurança e Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 6, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
-    };
-
-    // 1. TOP BRAND ACCENT BAR
-    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.rect(0, 0, pageWidth, 4.5, 'F');
-
-    // 2. HEADER: COMPANY IDENTITY (LEFT)
-    let companyX = margin;
-    if (company.logo && company.logo.length > 50) {
-      try {
-        const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 8, 45, 35, undefined, 'FAST');
-        companyX = margin + 48;
-      } catch (err) {}
-    }
-
-    doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(15, 23, 42);
-    const companyNameClean = normalizeForPdf(company.name.toUpperCase());
-    doc.text(companyNameClean, companyX, 16);
-
-    doc.setFont('helvetica', 'normal').setFontSize(10.5).setTextColor(100, 116, 139);
-    let companyY = 22.5;
-    if (company.nif) {
-      doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
-      companyY += 5.0;
-    }
-    doc.text(normalizeForPdf(company.email), companyX, companyY);
-    companyY += 5.0;
-    if (company.phone) {
-      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
-      companyY += 5.0;
-    }
-    if (company.address) {
-      const maxAddrWidth = Math.max(50, 132 - companyX);
-      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), maxAddrWidth);
-      doc.text(splitAddr, companyX, companyY);
-      companyY += (Array.isArray(splitAddr) ? splitAddr.length : 1) * 5.0;
-    }
-    if (company.website) {
-      companyY += 1.5;
-      const formattedWeb = company.website.toLowerCase().startsWith('http') || company.website.toLowerCase().startsWith('site') || company.website.toLowerCase().startsWith('www') 
-        ? company.website 
-        : `${pdfT.websiteLabel || 'Site'}: ${company.website}`;
-      doc.text(normalizeForPdf(formattedWeb), companyX, companyY);
-      companyY += 5.0;
-    }
-
-    // 3. HEADER: BUDGET INFO CARD (RIGHT)
-    const cardX = 135;
-    const cardW = 60;
-    const cardH = 40;
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
-    doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
-    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'S');
-
-    // Left thick vertical indicator
-    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.rect(cardX, 12, 1.5, cardH, 'F');
-
-    // Box content
-    doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    const pdfDocTitle = (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED)
-      ? pdfT.orderSingle
-      : pdfT.budgetSingle;
-    doc.text(normalizeForPdf(pdfDocTitle.toUpperCase()), cardX + 5, 18);
-
-    doc.setFont('text', 'bold').setFontSize(11).setTextColor(15, 23, 42);
-    doc.text(`#${budget.id.toUpperCase()}`, cardX + 5, 24.5);
-
-    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date(budget.createdAt).toLocaleDateString(locale)}`, cardX + 5, 31);
-    if (budget.validity) {
-      doc.text(`${normalizeForPdf(pdfT.estimateValidity)}: ${normalizeForPdf(budget.validity)}`, cardX + 5, 36.5);
-    }
-
-    // Status Field
-    const statusY = budget.validity ? 42 : 36.5;
-    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.statusLabel)}:`, cardX + 5, statusY);
-    
-    const statusText = normalizeForPdf(getTranslatedStatus(budget.status));
-    if (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED) {
-      doc.setFont('helvetica', 'bold').setTextColor(16, 185, 129);
-    } else if (budget.status === BudgetStatus.REJECTED) {
-      doc.setFont('helvetica', 'bold').setTextColor(239, 68, 68);
-    } else {
-      doc.setFont('helvetica', 'bold').setTextColor(245, 158, 11);
-    }
-    doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
-    doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-
-    // 4. SIDE-BY-SIDE PANELS (CLIENTS & PROJECT DETAILS)
-    const panelY = 54;
-    const panelW = 87;
-    const panelH = 46;
-
-    // --- LEFT CARD: CLIENT SPECIFICATIONS ---
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'F');
-    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
-    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'S');
-
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(pdfT.clientIdentification.toUpperCase()), margin + 5, panelY + 6);
-    doc.setDrawColor(226, 232, 240).line(margin + 5, panelY + 8, margin + panelW - 5, panelY + 8);
-
-    doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(budget.clientName), margin + 5, panelY + 14);
-
-    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(71, 85, 105);
-    let clientRowY = panelY + 20;
-    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin + 5, clientRowY);
-    clientRowY += 4.5;
-    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin + 5, clientRowY);
-    clientRowY += 4.5;
-    if (budget.clientNif) {
-      doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin + 5, clientRowY);
-    }
-
-    // --- RIGHT CARD: PROJECT DETAILS & SERVICES ---
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'F');
-    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
-    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'S');
-
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(pdfT.workLocation.toUpperCase()), 113, panelY + 6);
-    doc.setDrawColor(226, 232, 240).line(113, panelY + 8, 108 + panelW - 5, panelY + 8);
-
-    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(15, 23, 42);
-    const workLocAddress = `${normalizeForPdf(budget.workLocation)}, ${normalizeForPdf(budget.workNumber)}`;
-    const splitWorkLoc = doc.splitTextToSize(workLocAddress, 77);
-    doc.text(splitWorkLoc, 113, panelY + 14);
-
-    let siteRowY = panelY + 14 + (splitWorkLoc.length * 4);
-    doc.setFontSize(8).setTextColor(71, 85, 105).text(normalizeForPdf(budget.workPostalCode), 113, siteRowY);
-
-    // Beautiful Responsive Pill Badges for Services
-    if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-      doc.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(100, 116, 139);
-      doc.text(normalizeForPdf(pdfT.servicesToPerform || 'Serviços a realizar:'), 113, siteRowY + 5);
-
-      let pillX = 113;
-      let pillY = siteRowY + 10.5;
-      doc.setFont('helvetica', 'bold').setFontSize(6.5);
-      
-      budget.servicesSelected.forEach((serviceId) => {
-        const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
-        const textWidth = doc.getTextWidth(label);
-        const pillW = textWidth + 6;
-        
-        // Wrap inline pills if they exceed card width
-        if (pillX + pillW > 108 + panelW - 4) {
-          pillX = 113;
-          pillY += 5.5;
-        }
-        
-        if (pillY < panelY + panelH - 2) {
-          doc.setFillColor(241, 245, 249);
-          doc.roundedRect(pillX, pillY - 4.2, pillW, 5.5, 1, 1, 'F');
-          
-          doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          doc.text(label, pillX + 3, pillY - 0.4);
-          
-          pillX += pillW + 2.5;
-        }
-      });
-    }
-
-    // 5. ITEMIZED SERVICES TABLE
-    autoTable(doc, {
-      startY: panelY + panelH + 7,
-      head: [[
-        normalizeForPdf(pdfT.description), 
-        normalizeForPdf(pdfT.quantity), 
-        normalizeForPdf(pdfT.unitPrice), 
-        normalizeForPdf(pdfT.unit), 
-        normalizeForPdf(pdfT.total)
-      ]],
-      body: budget.items.map(i => [
-        normalizeForPdf(i.description), 
-        i.quantity, 
-        `${(i.pricePerUnit * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 
-        normalizeForPdf(i.unit), 
-        `${(i.total * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`
-      ]),
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        font: 'helvetica',
-        cellPadding: 3.5,
-      },
-      headStyles: { 
-        fillColor: colors.primary as any, 
-        textColor: [255, 255, 255],
-        fontStyle: 'bold', 
-        fontSize: 8.5, 
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: { 
-        textColor: [71, 85, 105],
-        lineColor: [241, 245, 249],
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252],
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto', halign: 'left' },
-        1: { halign: 'center', cellWidth: 15 },
-        2: { halign: 'right', cellWidth: 25 },
-        3: { halign: 'center', cellWidth: 15 },
-        4: { halign: 'right', cellWidth: 25 }
-      },
-      margin: { left: margin, right: margin }
+    await generateBudgetPDF(budget, {
+      targetLocale: targetLocale || locale,
+      currencyCode: currencyCode,
+      company: company,
+      activeQrCode: activeQrCode,
+      autoTranslateContent: autoTranslate ?? false
     });
-
-    // 6. TOTALS & LOWER MEMORANDUM SECTION
-    const finalY = (doc as any).lastAutoTable.finalY || 120;
-    let sumY = finalY + 12;
-    // Safe multi-page checks before writing the final aggregated boxes
-    if (sumY + 45 > pageHeight) { 
-      doc.addPage(); 
-      sumY = 25; 
-    }
-
-    const subTotal = budget.items.reduce((s, i) => s + i.total, 0);
-    const ivaVal = budget.includeIva ? (subTotal * budget.ivaPercentage) / 100 : 0;
-    const grandTotal = subTotal + ivaVal;
-
-    // --- LEFT COLUMN: ADMINISTRATIVE SPECS & REMARKS (x=15, width=110) ---
-    let leftY = sumY;
-
-    if (budget.observations) {
-      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), 101);
-      const obsHeight = (obsLines.length * 4.5) + 10;
-      
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, leftY - 4, 110, obsHeight, 1.5, 1.5, 'F');
-      
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(15, leftY - 4, 1.2, obsHeight, 'F');
-      
-      doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 19, leftY);
-      
-      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(100, 116, 139);
-      doc.text(obsLines, 19, leftY + 4.5);
-    }
-
-    // --- RIGHT COLUMN: CONCISE TOTALS (x=135, width=60) ---
-    let rightY = sumY;
-
-    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(pdfT.subtotal), 135, rightY);
-    doc.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(15, 23, 42);
-    doc.text(`${(subTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 195, rightY, { align: 'right' });
-    
-    rightY += 5.5;
-
-    if (budget.includeIva) {
-      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
-      doc.text(`${normalizeForPdf(pdfT.ivaValue)} (${budget.ivaPercentage}%):`, 135, rightY);
-      doc.setFont('helvetica', 'bold').setFontSize(8.5).setTextColor(15, 23, 42);
-      doc.text(`${(ivaVal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 195, rightY, { align: 'right' });
-      rightY += 5.5;
-    }
-
-    // Massive Executive Total Badge
-    doc.setFillColor(15, 23, 42); // Black/Slate-900 Elegant Badge
-    doc.roundedRect(135, rightY, 60, 14, 1.5, 1.5, 'F');
-    
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(255, 255, 255);
-    doc.text(normalizeForPdf(pdfT.total.toUpperCase()), 141, rightY + 5.5);
-    
-    doc.setFont('helvetica', 'bold').setFontSize(12.5).setTextColor(255, 255, 255);
-    doc.text(`${(grandTotal * currencyInfo.rate).toFixed(2)} ${currencyInfo.code}`, 189, rightY + 9.2, { align: 'right' });
-
-    rightY += 14;
-
-    if (budget.paymentMethod) {
-      const pmLines = doc.splitTextToSize(normalizeForPdf(budget.paymentMethod), 52);
-      const pmHeight = (pmLines.length * 4.5) + 10;
-      const pmY = rightY + 6;
-      
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(135, pmY - 4, 60, pmHeight, 1.5, 1.5, 'F');
-      
-      doc.setFillColor(100, 116, 139);
-      doc.rect(135, pmY - 4, 1.2, pmHeight, 'F');
-      
-      doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(15, 23, 42);
-      doc.text(normalizeForPdf(pdfT.paymentMethodLabel.toUpperCase()), 139, pmY);
-      
-      doc.setFont('helvetica', 'normal').setFontSize(7.5).setTextColor(71, 85, 105);
-      doc.text(pmLines, 139, pmY + 4.5);
-    }
-
-    // 7. DRAW FOOTER WITH QR CODE ON ALL PAGES
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, i, totalPages);
-    }
-
-    // 8. SAVE THE CORRESPONDING DOCUMENT
-    const isApproved = budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED;
-    const fileNamePrefix = isApproved ? 'Atrios_Pedido' : 'Atrios_Orcamento';
-    doc.save(`${fileNamePrefix}_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
-    
-    // Tracking Event Context
-    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
-      ReactGA.event({
-        category: 'Export',
-        action: 'Download Budget PDF',
-        label: budget.clientName
-      });
-    }
 
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
 
-  const exportServiceOrderToPDF = async (budget: Budget) => {
+  const exportServiceOrderToPDF = async (budget: Budget, targetLocale?: Locale, autoTranslate?: boolean) => {
     const company = currentUser;
     if (!company) return;
-    const isNonLatin = ['ru-RU', 'hi-IN', 'bn-BD'].includes(locale);
-    const pdfT = isNonLatin ? translations['en-US'] : translations[locale];
 
     if (company.plan === PlanType.FREE) {
       const count = getPdfDownloadCount(company.id);
       if (count >= FREE_PDF_LIMIT) {
-        alert(pdfT.pdfLimitReached);
+        alert(t.pdfLimitReached || 'Limite de PDFs atingido no plano Gratuito.');
         setActiveTab('plans');
         return;
       }
     }
 
-    // Ensure company has a valid QR code pointing to Átrios Certificate
     let activeQrCode = company.qrCode;
     if (!activeQrCode || activeQrCode.length < 50) {
       activeQrCode = await generateCompanyQrCode(company.id, window.location.origin);
@@ -1964,302 +1592,13 @@ const App: React.FC = () => {
       }
     }
 
-    const doc = new jsPDF();
-    const colors = getPdfColors(company.pdfTemplate);
-    const pageHeight = doc.internal.pageSize.getHeight();
-    const pageWidth = doc.internal.pageSize.getWidth();
-    const margin = 15;
-    const usableWidth = pageWidth - (margin * 2);
-
-    const addFooter = (doc: any, pageNumber: number, totalPages: number) => {
-      // Bottom Right QR Code placed higher above the footer line
-      if (activeQrCode && activeQrCode.length > 50) {
-        try {
-          const qrFormat = activeQrCode.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-          const qrSize = 14;
-          const qrX = pageWidth - margin - qrSize;
-          const qrY = pageHeight - 28;
-          doc.addImage(activeQrCode, qrFormat, qrX, qrY, qrSize, qrSize, undefined, 'FAST');
-
-          doc.setFont('helvetica', 'bold').setFontSize(5.8).setTextColor(71, 85, 105);
-          doc.text(normalizeForPdf('CERTIFICADO ÁTRIOS'), qrX - 2.5, qrY + 5.5, { align: 'right' });
-          doc.setFont('helvetica', 'normal').setFontSize(5.2).setTextColor(148, 163, 184);
-          doc.text(normalizeForPdf(pdfT.scanMe || 'ESCANEAR PARA VERIFICAR'), qrX - 2.5, qrY + 9.5, { align: 'right' });
-        } catch (err) {}
-      }
-
-      doc.setFontSize(7).setFont('helvetica', 'italic').setTextColor(148, 163, 184);
-      const footerText = `Ordem de Serviço - ÁTRIOS | Segurança & Transparência | Gerado em ${new Date().toLocaleString(locale)}`;
-      doc.text(footerText, pageWidth / 2, pageHeight - 6, { align: 'center' });
-      doc.text(`${pageNumber} / ${totalPages}`, pageWidth - margin, pageHeight - 6, { align: 'right' });
-    };
-
-    // 1. TOP ACCENT BAR
-    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]); 
-    doc.rect(0, 0, pageWidth, 4.5, 'F');
-
-    // 2. HEADER: COMPANY IDENTITY (LEFT)
-    let companyX = margin;
-    if (company.logo && company.logo.length > 50) {
-      try {
-        const format = company.logo.toLowerCase().includes('image/png') ? 'PNG' : 'JPEG';
-        doc.addImage(company.logo, format, margin, 8, 45, 35, undefined, 'FAST');
-        companyX = margin + 48;
-      } catch (err) {}
-    }
-
-    doc.setFont('helvetica', 'bold').setFontSize(20).setTextColor(15, 23, 42);
-    const companyNameClean = normalizeForPdf(company.name.toUpperCase());
-    doc.text(companyNameClean, companyX, 16);
-
-    doc.setFont('helvetica', 'normal').setFontSize(10.5).setTextColor(100, 116, 139);
-    let companyY = 22.5;
-    if (company.nif) {
-      doc.text(`NIF: ${normalizeForPdf(company.nif)}`, companyX, companyY);
-      companyY += 5.0;
-    }
-    doc.text(normalizeForPdf(company.email), companyX, companyY);
-    companyY += 5.0;
-    if (company.phone) {
-      doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(company.phone)}`, companyX, companyY);
-      companyY += 5.0;
-    }
-    if (company.address) {
-      const maxAddrWidth = Math.max(50, 132 - companyX);
-      const splitAddr = doc.splitTextToSize(normalizeForPdf(company.address), maxAddrWidth);
-      doc.text(splitAddr, companyX, companyY);
-      companyY += (Array.isArray(splitAddr) ? splitAddr.length : 1) * 5.0;
-    }
-    if (company.website) {
-      companyY += 1.5;
-      const formattedWeb = company.website.toLowerCase().startsWith('http') || company.website.toLowerCase().startsWith('site') || company.website.toLowerCase().startsWith('www') 
-        ? company.website 
-        : `${pdfT.websiteLabel || 'Site'}: ${company.website}`;
-      doc.text(normalizeForPdf(formattedWeb), companyX, companyY);
-      companyY += 5.0;
-    }
-
-    // 3. HEADER: OS DETAILS CARD (RIGHT)
-    const cardX = 135;
-    const cardW = 60;
-    const cardH = 40;
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'F');
-    doc.setDrawColor(226, 232, 240).setLineWidth(0.3);
-    doc.roundedRect(cardX, 12, cardW, cardH, 2, 2, 'S');
-
-    // Left thick vertical indicator
-    doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.rect(cardX, 12, 1.5, cardH, 'F');
-
-    // Box content
-    doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-    doc.text(normalizeForPdf(pdfT.serviceOrderTitle.toUpperCase()), cardX + 5, 18);
-
-    doc.setFont('text', 'bold').setFontSize(11).setTextColor(15, 23, 42);
-    doc.text(`#OS-${budget.id.toUpperCase()}`, cardX + 5, 24.5);
-
-    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.date)}: ${new Date().toLocaleDateString(locale)}`, cardX + 5, 31);
-
-    // Status Field
-    const statusY = 36.5;
-    doc.setFont('helvetica', 'normal').setFontSize(7.2).setTextColor(100, 116, 139);
-    doc.text(`${normalizeForPdf(pdfT.statusLabel)}:`, cardX + 5, statusY);
-    
-    const statusText = normalizeForPdf(getTranslatedStatus(budget.status));
-    if (budget.status === BudgetStatus.APPROVED || budget.status === BudgetStatus.COMPLETED) {
-      doc.setFont('helvetica', 'bold').setTextColor(16, 185, 129);
-    } else if (budget.status === BudgetStatus.REJECTED) {
-      doc.setFont('helvetica', 'bold').setTextColor(239, 68, 68);
-    } else {
-      doc.setFont('helvetica', 'bold').setTextColor(245, 158, 11);
-    }
-    doc.text(statusText, cardX + 5 + doc.getTextWidth(`${normalizeForPdf(pdfT.statusLabel)}: `), statusY);
-    doc.setFont('helvetica', 'normal').setTextColor(100, 116, 139);
-
-    // 4. SIDE-BY-SIDE PANELS (CLIENT CONTACT & SITE LOCATION)
-    const panelY = 54;
-    const panelW = 87;
-    const panelH = 46;
-
-    // --- LEFT CARD: CLIENT SPECS ---
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'F');
-    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
-    doc.roundedRect(margin, panelY, panelW, panelH, 2, 2, 'S');
-
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(pdfT.contactInfoLabel.toUpperCase()), margin + 5, panelY + 6);
-    doc.setDrawColor(226, 232, 240).line(margin + 5, panelY + 8, margin + panelW - 5, panelY + 8);
-
-    doc.setFont('helvetica', 'bold').setFontSize(9.5).setTextColor(15, 23, 42);
-    doc.text(normalizeForPdf(budget.clientName), margin + 5, panelY + 14);
-
-    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(71, 85, 105);
-    let clientRowY = panelY + 20;
-    doc.text(`${normalizeForPdf(pdfT.contactName)}: ${normalizeForPdf(budget.contactName)}`, margin + 5, clientRowY);
-    clientRowY += 4.5;
-    doc.text(`${normalizeForPdf(pdfT.phone)}: ${normalizeForPdf(budget.contactPhone)}`, margin + 5, clientRowY);
-    clientRowY += 4.5;
-    if (budget.clientNif) {
-      doc.text(`${normalizeForPdf(pdfT.clientNif)}: ${normalizeForPdf(budget.clientNif)}`, margin + 5, clientRowY);
-    }
-
-    // --- RIGHT CARD: WORK SITE SPECIFICATIONS ---
-    doc.setFillColor(248, 250, 252);
-    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'F');
-    doc.setDrawColor(241, 245, 249).setLineWidth(0.2);
-    doc.roundedRect(108, panelY, panelW, panelH, 2, 2, 'S');
-
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
-    doc.text(normalizeForPdf(pdfT.workLocation.toUpperCase()), 113, panelY + 6);
-    doc.setDrawColor(226, 232, 240).line(113, panelY + 8, 108 + panelW - 5, panelY + 8);
-
-    doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(15, 23, 42);
-    const workLocAddress = `${normalizeForPdf(budget.workLocation)}, ${normalizeForPdf(budget.workNumber)}`;
-    const splitWorkLoc = doc.splitTextToSize(workLocAddress, 77);
-    doc.text(splitWorkLoc, 113, panelY + 14);
-
-    let siteRowY = panelY + 14 + (splitWorkLoc.length * 4);
-    doc.setFontSize(8).setTextColor(71, 85, 105).text(normalizeForPdf(budget.workPostalCode), 113, siteRowY);
-
-    // Elegant inline services pill badges
-    if (budget.servicesSelected && budget.servicesSelected.length > 0) {
-      doc.setFont('helvetica', 'bold').setFontSize(6.5).setTextColor(100, 116, 139);
-      doc.text(normalizeForPdf(pdfT.servicesToPerform || 'Serviços a realizar:'), 113, siteRowY + 5);
-
-      let pillX = 113;
-      let pillY = siteRowY + 10.5;
-      doc.setFont('helvetica', 'bold').setFontSize(6.5);
-      
-      budget.servicesSelected.forEach((serviceId) => {
-        const label = normalizeForPdf(pdfT[`service_${serviceId}` as keyof typeof pdfT] || serviceId);
-        const textWidth = doc.getTextWidth(label);
-        const pillW = textWidth + 6;
-        
-        if (pillX + pillW > 108 + panelW - 4) {
-          pillX = 113;
-          pillY += 5.5;
-        }
-        
-        if (pillY < panelY + panelH - 2) {
-          doc.setFillColor(241, 245, 249);
-          doc.roundedRect(pillX, pillY - 4.2, pillW, 5.5, 1, 1, 'F');
-          
-          doc.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          doc.text(label, pillX + 3, pillY - 0.4);
-          
-          pillX += pillW + 2.5;
-        }
-      });
-    }
-
-    // 5. MATERIALS/TASKS DETAILED LIST TABLE
-    autoTable(doc, {
-      startY: panelY + panelH + 7,
-      head: [[
-        normalizeForPdf(pdfT.description), 
-        normalizeForPdf(pdfT.quantity), 
-        normalizeForPdf(pdfT.unit)
-      ]],
-      body: budget.items.map(i => [
-        normalizeForPdf(i.description), 
-        i.quantity, 
-        normalizeForPdf(i.unit)
-      ]),
-      theme: 'grid',
-      styles: {
-        fontSize: 8,
-        font: 'helvetica',
-        cellPadding: 3.5,
-      },
-      headStyles: { 
-        fillColor: colors.primary as any, 
-        textColor: [255, 255, 255],
-        fontStyle: 'bold', 
-        fontSize: 8.5, 
-        halign: 'center',
-        valign: 'middle'
-      },
-      bodyStyles: { 
-        textColor: [71, 85, 105],
-        lineColor: [241, 245, 249],
-      },
-      alternateRowStyles: {
-        fillColor: [248, 250, 252],
-      },
-      columnStyles: {
-        0: { cellWidth: 'auto', halign: 'left' },
-        1: { halign: 'center', cellWidth: 20 },
-        2: { halign: 'center', cellWidth: 25 }
-      },
-      margin: { left: margin, right: margin }
+    await generateServiceOrderPDF(budget, {
+      targetLocale: targetLocale || locale,
+      currencyCode: currencyCode,
+      company: company,
+      activeQrCode: activeQrCode,
+      autoTranslateContent: autoTranslate ?? false
     });
-
-    // 6. TECHNICAL OBSERVATIONS & REMARKS
-    const finalY = (doc as any).lastAutoTable.finalY || 120;
-    let obsY = finalY + 12;
-
-    if (budget.observations) {
-      const obsLines = doc.splitTextToSize(normalizeForPdf(budget.observations), usableWidth - 10);
-      const obsHeight = (obsLines.length * 4.5) + 10;
-      
-      if (obsY + obsHeight + 6 > pageHeight) {
-        doc.addPage();
-        obsY = 25;
-      }
-      doc.setFillColor(248, 250, 252);
-      doc.roundedRect(15, obsY - 4, usableWidth, obsHeight, 1.5, 1.5, 'F');
-      
-      doc.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.rect(15, obsY - 4, 1.2, obsHeight, 'F');
-      
-      doc.setFont('helvetica', 'bold').setFontSize(7.5).setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-      doc.text(normalizeForPdf(pdfT.observationsLabel.toUpperCase()), 20, obsY);
-      
-      doc.setFont('helvetica', 'normal').setFontSize(8).setTextColor(100, 116, 139);
-      doc.text(obsLines, 20, obsY + 5);
-      
-      obsY += obsHeight + 6;
-    }
-
-    // 7. SIGNATURE FIELD (Ultra-Elegant Bottom Side-By-Side Divider Cards)
-    let sigY = obsY + 14;
-    if (sigY + 36 > pageHeight) { 
-      doc.addPage(); 
-      sigY = 35; 
-    }
-    
-    doc.setDrawColor(226, 232, 240).setLineWidth(0.4);
-    doc.line(margin + 5, sigY, margin + 70, sigY);
-    doc.line(pageWidth - margin - 70, sigY, pageWidth - margin - 5, sigY);
-    
-    doc.setFont('helvetica', 'bold').setFontSize(7).setTextColor(100, 116, 139);
-    doc.text("ASSINATURA DO TÉCNICO", margin + 37.5, sigY + 5, { align: 'center' });
-    doc.text("ASSINATURA DO CLIENTE", pageWidth - margin - 37.5, sigY + 5, { align: 'center' });
-
-    doc.setFont('helvetica', 'normal').setFontSize(6).setTextColor(148, 163, 184);
-    doc.text("Declaro a realização conforme os padrões técnicos", margin + 37.5, sigY + 8.5, { align: 'center' });
-    doc.text("Declaro a conformidade e recebimento dos serviços", pageWidth - margin - 37.5, sigY + 8.5, { align: 'center' });
-
-    // 8. DRAW FOOTER WITH QR CODE ON ALL PAGES
-    const totalPages = (doc as any).internal.getNumberOfPages();
-    for (let i = 1; i <= totalPages; i++) {
-      doc.setPage(i);
-      addFooter(doc, i, totalPages);
-    }
-
-    doc.save(`OS_${normalizeForPdf(budget.clientName).replace(/\s/g, '_')}_${budget.id}.pdf`);
-    
-    // Track OS export event
-    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
-      ReactGA.event({
-        category: 'Export',
-        action: 'Download OS PDF',
-        label: budget.clientName
-      });
-    }
 
     if (company.plan === PlanType.FREE) incrementPdfDownloadCount(company.id);
   };
@@ -2289,42 +1628,74 @@ const App: React.FC = () => {
       return;
     }
     
-    // 1. SEMPRE buscar no Supabase para garantir que a conta ainda existe e não está bloqueada
-    let { data: companyData, error: loginError } = await safeFetch<any>(supabase
-      .from('companies')
-      .select('*')
-      .eq('email', cleanEmail)
-      .eq('password', password)
-      .single());
+    // 1. Verificar se a conta existe no armazenamento local previamente
+    const localCompanies = getStoredCompanies();
+    const localUser = localCompanies.find(c => c.email?.toLowerCase().trim() === cleanEmail);
 
-    if (loginError || !companyData) {
-      if (loginError?.isFetchError) {
-        alert("Erro de conexão com o servidor. Por favor, verifique a sua internet ou tente novamente mais tarde.");
-        return;
-      }
+    let companyData: any = null;
+    let loginError: any = null;
 
-      // Tentar buscar por e-mail no Supabase para ver se a conta existe mas a senha estava nula na nuvem
-      const { data: userByEmail } = await safeFetch<any>(supabase
+    // 2. Tentar buscar no Supabase
+    try {
+      const fetchRes = await safeFetch<any>(supabase
         .from('companies')
         .select('*')
         .eq('email', cleanEmail)
+        .eq('password', password)
         .single());
+      companyData = fetchRes.data;
+      loginError = fetchRes.error;
+    } catch (err: any) {
+      loginError = err;
+    }
 
-      if (userByEmail && (!userByEmail.password || userByEmail.password === password || userByEmail.password === cleanPass)) {
-        companyData = userByEmail;
-        companyData.password = password;
-        await supabase.from('companies').update({ password }).eq('id', userByEmail.id);
-      } else {
-        // Se não encontrou no Supabase, mas existe localmente, removemos o local pois foi excluído na nuvem
-        const localCompanies = getStoredCompanies();
-        const existsLocally = localCompanies.some(c => c.email?.toLowerCase().trim() === cleanEmail);
-        if (existsLocally) {
-          const filtered = localCompanies.filter(c => c.email?.toLowerCase().trim() !== cleanEmail);
-          safeSetItem('atrios_companies', JSON.stringify(filtered));
+    // 3. Mecanismo de contingência híbrido (quando Supabase excede cota, dá erro 402/429 ou falha de rede)
+    if (!companyData) {
+      // 3.1 Se o usuário existe localmente no dispositivo, validar a senha local
+      if (localUser) {
+        const localPass = (localUser.password || '').trim();
+        const passMatches = !localPass || localPass === cleanPass || localPass === password;
+        if (passMatches) {
+          console.log("[Auth Híbrido] Login autenticado com sucesso via armazenamento local seguro.");
+          companyData = localUser;
         }
-        alert(t.invalidCredentials);
-        return;
       }
+
+      // 3.2 Se não encontrou no dispositivo, consultar a camada do servidor híbrido
+      if (!companyData) {
+        try {
+          const hybridUser = await checkHybridAuth(cleanEmail, cleanPass);
+          if (hybridUser) {
+            console.log("[Auth Híbrido] Login autenticado com sucesso via servidor de contingência.");
+            companyData = hybridUser;
+            saveCompany(hybridUser);
+          }
+        } catch (e) {
+          console.warn("[Auth Híbrido] Falha ao verificar no servidor:", e);
+        }
+      }
+
+      // 3.3 Se o Supabase falhou apenas por senha nula mas a conta existe na nuvem
+      if (!companyData && !loginError?.isFetchError && loginError?.code !== '429' && loginError?.status !== 402) {
+        try {
+          const { data: userByEmail } = await safeFetch<any>(supabase
+            .from('companies')
+            .select('*')
+            .eq('email', cleanEmail)
+            .single());
+          if (userByEmail && (!userByEmail.password || userByEmail.password === password || userByEmail.password === cleanPass)) {
+            companyData = userByEmail;
+            companyData.password = password;
+            safeFetch(supabase.from('companies').update({ password }).eq('id', userByEmail.id)).catch(() => {});
+          }
+        } catch (e) {}
+      }
+    }
+
+    // 4. Se nem na nuvem, nem no local storage e nem no servidor híbrido as credenciais conferiram
+    if (!companyData) {
+      alert(t.invalidCredentials);
+      return;
     }
 
     const nowIso = new Date().toISOString();
@@ -2357,48 +1728,49 @@ const App: React.FC = () => {
       }
     } catch (e) {}
 
-    saveCompany(company); // Atualiza/Salva no local storage
+    saveCompany(company); // Atualiza/Salva no local storage e no servidor híbrido
 
-    if (company) {
-      if (company.isBlocked) {
-        alert(t.masterAccountBlocked);
-        return;
-      }
-      if (!company.verified) {
-        setView('verify');
-        return;
-      }
-      
-      // Hidratar dados do Supabase ao logar com sucesso
-      await hydrateLocalData(company.id);
-      
-      // Update budgets state after hydration
-      setBudgets(getStoredBudgets(company.id));
-      
-      if (!company.firstLoginAt) {
-        company.firstLoginAt = new Date().toISOString();
-        saveCompany(company);
-      }
-      setCurrentUser(company);
-      currentUserRef.current = company;
-      
-      // Track login event
-      if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
-        ReactGA.event({
-          category: 'User',
-          action: 'Login',
-          label: company.email
-        });
-      }
-
-      setShowWelcome(true);
-      setTimeout(() => {
-        setShowWelcome(false);
-        setView('app');
-      }, 3500);
-    } else {
-      alert(t.invalidCredentials);
+    if (company.isBlocked) {
+      alert(t.masterAccountBlocked);
+      return;
     }
+    if (!company.verified) {
+      setView('verify');
+      return;
+    }
+    
+    // Hidratar dados ao logar com sucesso (preservando 100% dos dados locais caso a nuvem falhe)
+    try {
+      await hydrateLocalData(company.id);
+    } catch (e) {
+      console.warn("[Auth] Erro ao sincronizar nuvem, mantendo dados locais:", e);
+    }
+    
+    // Atualizar orçamentos do estado após sincronização
+    setBudgets(getStoredBudgets(company.id));
+    
+    if (!company.firstLoginAt) {
+      company.firstLoginAt = new Date().toISOString();
+      saveCompany(company);
+    }
+    setCurrentUser(company);
+    currentUserRef.current = company;
+    saveSession(company.id, 'app', activeTab, currencyCode);
+    
+    // Track login event
+    if (import.meta.env.VITE_GA_MEASUREMENT_ID || 'G-L75RSF4D1Y') {
+      ReactGA.event({
+        category: 'User',
+        action: 'Login',
+        label: company.email
+      });
+    }
+
+    setShowWelcome(true);
+    setTimeout(() => {
+      setShowWelcome(false);
+      setView('app');
+    }, 3500);
   };
 
   const handleResetPassword = async (e: React.FormEvent) => {
@@ -2463,18 +1835,30 @@ const App: React.FC = () => {
     const cleanEmail = email.toLowerCase().trim();
     const cleanCompanyName = companyName.trim();
     
-    // Verificar se e-mail já existe no Supabase
-    const { data: existingEmail } = await supabase.from('companies').select('id').eq('email', cleanEmail).single();
-    if (existingEmail) {
-       alert("Este e-mail já está em uso.");
-       return;
+    // 1. Checar primeiro no armazenamento local se já existe conta com este e-mail
+    const localCompanies = getStoredCompanies();
+    const existingLocal = localCompanies.find(c => c.email?.toLowerCase().trim() === cleanEmail);
+    if (existingLocal) {
+      alert("Este e-mail já está cadastrado. Por favor, clique em Entrar para aceder com a sua palavra-passe.");
+      setView('login');
+      return;
     }
 
-    // Verificar se nome da empresa já existe no Supabase
-    const { data: existingName } = await supabase.from('companies').select('id').eq('name', cleanCompanyName).single();
-    if (existingName) {
-       alert("Este nome de empresa já está em uso.");
-       return;
+    // 2. Verificar no Supabase (se a nuvem estiver acessível com cota)
+    try {
+      const { data: existingEmail } = await safeFetch<any>(supabase.from('companies').select('id').eq('email', cleanEmail).single());
+      if (existingEmail) {
+        alert("Este e-mail já está em uso.");
+        return;
+      }
+
+      const { data: existingName } = await safeFetch<any>(supabase.from('companies').select('id').eq('name', cleanCompanyName).single());
+      if (existingName) {
+        alert("Este nome de empresa já está em uso.");
+        return;
+      }
+    } catch (e) {
+      console.warn("[Signup] Checagem na nuvem ignorada (modo híbrido):", e);
     }
 
     const nowIso = new Date().toISOString();
@@ -2511,6 +1895,9 @@ const App: React.FC = () => {
     } catch (e) {}
 
     await saveCompany(newCompany);
+
+    // Salva a sessão imediatamente
+    saveSession(newCompany.id, 'app', activeTab, currencyCode);
 
     // Disparar balão informativo in-app
     triggerPushNotificationSubmit(
@@ -3526,7 +2913,7 @@ const App: React.FC = () => {
                         budgets={budgets} 
                         locale={locale} 
                         currencyCode={currencyCode} 
-                        onExportPdf={exportToPDF} 
+                        onExportPdf={(b) => openPdfExportModal(b, 'budget')} 
                         onSaveBudget={handleSaveBudget}
                         plan={currentUser?.plan || PlanType.FREE}
                         onUpgrade={() => setActiveTab('plans')}
@@ -3783,19 +3170,19 @@ const App: React.FC = () => {
                                     <Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
                                   <button 
-                                    onClick={(e) => { e.stopPropagation(); exportToPDF(budget); }} 
+                                    onClick={(e) => { e.stopPropagation(); openPdfExportModal(budget, 'budget'); }} 
                                     className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
-                                    title={t.downloadPdfLabel}
+                                    title={t.downloadPdfLabel || 'Exportar PDF Multilíngue'}
                                   >
                                     <Download size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
                                    <button 
                                      onClick={(e) => { 
                                        e.stopPropagation();
-                                       exportServiceOrderToPDF(budget);
+                                       openPdfExportModal(budget, 'service_order');
                                      }} 
                                      className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-amber-50 text-amber-600 rounded-xl lg:rounded-2xl hover:bg-amber-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
-                                     title={t.serviceOrderLabel}
+                                     title={t.serviceOrderLabel || 'Ordem de Serviço (OS)'}
                                    >
                                      <FileText size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                    </button>
@@ -3963,6 +3350,7 @@ const App: React.FC = () => {
                                     </button>
                                   </div>
                                 </div>
+
                               </div>
                             )}
                          </div>
@@ -4021,6 +3409,29 @@ const App: React.FC = () => {
           </main>
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowExpenseManager(false)} />}
+          {pdfExportModalBudget && currentUser && (
+            <PdfExportModal
+              isOpen={!!pdfExportModalBudget}
+              onClose={() => setPdfExportModalBudget(null)}
+              budget={pdfExportModalBudget.budget}
+              company={currentUser}
+              currentLocale={locale}
+              currencyCode={currencyCode}
+              initialDocumentType={pdfExportModalBudget.docType}
+              onPdfGenerated={() => {
+                if (currentUser.plan === PlanType.FREE) {
+                  incrementPdfDownloadCount(currentUser.id);
+                }
+              }}
+              onUpgrade={() => {
+                setPdfExportModalBudget(null);
+                setActiveTab('plans');
+              }}
+              freePdfLimitReached={
+                currentUser.plan === PlanType.FREE && getPdfDownloadCount(currentUser.id) >= FREE_PDF_LIMIT
+              }
+            />
+          )}
           <button onClick={() => { if (currentUser) { setShowSupportChat(true); setUnreadCount(0); markMessagesAsRead(currentUser.id, 'user'); setMessages(getMessages(currentUser.id)); } }} className="fixed bottom-8 right-8 w-16 h-16 bg-slate-900 text-white rounded-full shadow-2xl flex items-center justify-center hover:scale-110 transition-all z-[40]"><div className="relative"><Headphones size={28} />{unreadCount > 0 && <span className="absolute -top-4 -right-4 bg-red-500 text-white text-[10px] font-black w-6 h-6 rounded-full flex items-center justify-center border-4 border-slate-50">{unreadCount}</span>}</div></button>
           {showSupportChat && currentUser && (
             <SupportChat 

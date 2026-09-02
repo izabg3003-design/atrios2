@@ -288,8 +288,39 @@ export const saveCompany = async (company: Company) => {
   }
   safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(companies));
   
-  // Sincroniza plano e dados sensíveis com Supabase
-  return await syncToCloud('companies', updatedCompany);
+  // Sincroniza em background com o servidor Express híbrido (para contingência quando o Supabase excede a cota)
+  try {
+    fetch('/api/hybrid/sync-company', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ company: updatedCompany })
+    }).catch(err => console.warn('[Hybrid] Erro ao sincronizar com servidor híbrido:', err));
+  } catch (e) {}
+
+  // Sincroniza plano e dados sensíveis com Supabase (se a cota permitir)
+  try {
+    return await syncToCloud('companies', updatedCompany);
+  } catch (cloudErr) {
+    console.warn('[Storage] Falha ao enviar para Supabase (cota ou rede), dados preservados localmente:', cloudErr);
+    return { success: false, error: cloudErr };
+  }
+};
+
+export const checkHybridAuth = async (email: string, password: string): Promise<Company | null> => {
+  try {
+    const res = await fetch('/api/hybrid/auth-check', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, password })
+    });
+    const data = await res.json();
+    if (data && data.success && data.company) {
+      return mapCompanyFromSupabase(data.company);
+    }
+  } catch (err) {
+    console.warn('[Hybrid Engine] checkHybridAuth error:', err);
+  }
+  return null;
 };
 
 export const saveCustomServiceToCloud = async (companyId: string, service: { id: string; name: string; description?: string }) => {
@@ -1085,12 +1116,16 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       }
     }
     
-    if (!companyData || (companyError && (companyError.code === 'PGRST116' || companyError.code === 'PGRST204'))) {
-      console.warn(`[Hydrate] Empresa ${companyId} não encontrada no Supabase. Removendo localmente.`);
-      const companies = getStoredCompanies();
-      const filtered = companies.filter(c => String(c.id) !== String(companyId));
-      safeSetItem(STORAGE_KEY_COMPANIES, JSON.stringify(filtered));
-      return { budgets: [], orders: [], messages: [], customOrders: [], jobOffers: [] }; 
+    if (!companyData || companyError) {
+      console.warn(`[Hydrate] Supabase offline, sem cota ou empresa ${companyId} indisponível na nuvem. Preservando 100% dos dados locais em Modo Híbrido.`);
+      // NUNCA apagar os dados locais por falha na nuvem
+      return { 
+        budgets: fetchedBudgets, 
+        orders: fetchedOrders, 
+        messages: fetchedMessages, 
+        customOrders: fetchedCustomOrders, 
+        jobOffers: getStoredJobOffers(companyId) 
+      }; 
     }
 
     let mappedCompany: Company | null = null;
@@ -1151,14 +1186,9 @@ export const hydrateLocalData = async (companyId: string): Promise<{ budgets: Bu
       
       currentCompanyLocalBudgets.forEach(lb => {
         if (!mergedBudgets.some(mb => mb.id === lb.id)) {
-          // Se não está no Supabase, mas é local, só mantemos se for "novo" (possivelmente ainda não sincronizado)
-          const isNew = lb.createdAt && lb.createdAt > oneMinuteAgo;
-          if (isNew) {
-            console.log(`[Hydrate] Mantendo orçamento local não sincronizado: ${lb.id}`);
-            mergedBudgets.push(lb);
-          } else {
-            console.log(`[Hydrate] Removendo orçamento local que não existe mais no Supabase: ${lb.id}`);
-          }
+          // Preservar orçamentos locais que foram criados offline ou enquanto o Supabase estava com cota excedida
+          console.log(`[Hydrate] Preservando orçamento local em modo híbrido: ${lb.id}`);
+          mergedBudgets.push(lb);
         }
       });
       

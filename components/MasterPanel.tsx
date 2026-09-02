@@ -57,7 +57,8 @@ import {
   Wrench,
   Hammer,
   Sparkles,
-  Layers
+  Layers,
+  Database
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -121,6 +122,7 @@ import { Locale, translations } from '../translations';
 import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
 import { MasterIntroBannersSettings } from './MasterIntroBannersSettings';
+import { MasterBackupManager } from './MasterBackupManager';
 import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from '../services/pushService';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -156,7 +158,7 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'banners' | 'client_requests'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'banners' | 'client_requests' | 'backup'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -2568,6 +2570,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
               { id: 'push', label: locale.startsWith('pt') ? 'Disparar Push' : 'Send Push', icon: Smartphone },
+              { id: 'backup', label: locale.startsWith('pt') ? 'Backup Base de Dados' : 'Database Backup', icon: Database },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
                 <tab.icon size={16} /> {tab.label}
@@ -4866,6 +4869,19 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               </div>
             </div>
           </div>
+        )}
+
+        {/* TAB: Backup & Restauro Global da Base de Dados (Exclusivo Master) */}
+        {activeTab === 'backup' && (
+          <MasterBackupManager 
+            locale={locale} 
+            onDataRefreshed={() => {
+              setCompanies(getStoredCompanies());
+              setClientRequestsList(getStoredClientRequests());
+              setJobOffers(getStoredJobOffers());
+              setCandidatesList(getStoredCandidates());
+            }}
+          />
         )}
 
         {/* Modal for Master Feedback / Rejection reason */}

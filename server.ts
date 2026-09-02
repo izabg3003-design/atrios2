@@ -509,6 +509,134 @@ async function startServer() {
     return res.json({ success: true, lastSeenMap: userOnlineMap });
   });
 
+  // =========================================================================
+  // SISTEMA HÍBRIDO DE CONTINGÊNCIA (Fallback quando Supabase excede cota)
+  // =========================================================================
+  const hybridCompaniesFilePath = path.join(process.cwd(), "companies_hybrid.json");
+
+  const getHybridCompanies = (): any[] => {
+    try {
+      if (fs.existsSync(hybridCompaniesFilePath)) {
+        const raw = fs.readFileSync(hybridCompaniesFilePath, "utf8");
+        return JSON.parse(raw) || [];
+      }
+    } catch (e) {
+      console.warn("[Hybrid Engine] Error reading companies_hybrid.json:", e);
+    }
+    return [];
+  };
+
+  const saveHybridCompanies = (companies: any[]) => {
+    try {
+      fs.writeFileSync(hybridCompaniesFilePath, JSON.stringify(companies, null, 2), "utf8");
+    } catch (e) {
+      console.error("[Hybrid Engine] Error writing companies_hybrid.json:", e);
+    }
+  };
+
+  // Sincronizar empresa para armazenamento de contingência local do servidor
+  app.post("/api/hybrid/sync-company", (req, res) => {
+    try {
+      const company = req.body?.company;
+      if (!company || !company.id) {
+        return res.status(400).json({ error: "Invalid company payload" });
+      }
+
+      const companies = getHybridCompanies();
+      const normEmail = company.email ? String(company.email).toLowerCase().trim() : "";
+      const idx = companies.findIndex(c => 
+        String(c.id) === String(company.id) || 
+        (normEmail && c.email && String(c.email).toLowerCase().trim() === normEmail)
+      );
+
+      if (idx > -1) {
+        companies[idx] = { ...companies[idx], ...company, updatedAt: new Date().toISOString() };
+      } else {
+        companies.push({ ...company, updatedAt: new Date().toISOString() });
+      }
+
+      saveHybridCompanies(companies);
+      return res.json({ success: true, count: companies.length });
+    } catch (err: any) {
+      console.error("[Hybrid Engine] Error in sync-company:", err);
+      return res.status(500).json({ error: err.message || "Internal server error" });
+    }
+  });
+
+  // Autenticação de contingência contra o servidor (caso o Supabase esteja sem cota)
+  app.post("/api/hybrid/auth-check", (req, res) => {
+    try {
+      const email = req.body?.email ? String(req.body.email).toLowerCase().trim() : "";
+      const password = req.body?.password ? String(req.body.password).trim() : "";
+
+      if (!email || !password) {
+        return res.status(400).json({ success: false, error: "Email and password required" });
+      }
+
+      const companies = getHybridCompanies();
+      const found = companies.find(c => String(c.email).toLowerCase().trim() === email);
+
+      if (found) {
+        // Verificar se a senha confere ou se estava sem senha registrada
+        const passMatches = !found.password || found.password === password;
+        if (passMatches) {
+          return res.json({ 
+            success: true, 
+            company: found, 
+            source: "hybrid_server" 
+          });
+        }
+      }
+
+      return res.json({ success: false, error: "User not found or password incorrect" });
+    } catch (err: any) {
+      console.error("[Hybrid Engine] Error in auth-check:", err);
+      return res.status(500).json({ success: false, error: err.message });
+    }
+  });
+
+  // Lista de empresas do servidor híbrido (para sincronização)
+  app.get("/api/hybrid/companies", (req, res) => {
+    try {
+      const companies = getHybridCompanies();
+      return res.json({ success: true, companies, count: companies.length });
+    } catch (err: any) {
+      return res.status(500).json({ error: err.message });
+    }
+  });
+
+  // Status de saúde do modo híbrido
+  app.get("/api/hybrid/status", async (req, res) => {
+    let supabaseStatus = "operational";
+    let supabaseError: any = null;
+
+    try {
+      const { error } = await supabase.from("companies").select("id").limit(1);
+      if (error) {
+        supabaseError = error;
+        const msg = String(error.message || "").toLowerCase();
+        if (error.code === "429" || msg.includes("quota") || msg.includes("limit") || msg.includes("paused") || msg.includes("payment")) {
+          supabaseStatus = "quota_exceeded";
+        } else {
+          supabaseStatus = "degraded";
+        }
+      }
+    } catch (e: any) {
+      supabaseStatus = "offline";
+      supabaseError = e.message;
+    }
+
+    const hybridCount = getHybridCompanies().length;
+
+    return res.json({
+      success: true,
+      supabaseStatus,
+      supabaseError,
+      hybridCompaniesSaved: hybridCount,
+      hybridStorageActive: true
+    });
+  });
+
   // API routes
   app.get("/api/health", (req, res) => {
     res.json({ 
