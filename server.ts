@@ -425,17 +425,23 @@ async function startServer() {
           const subscriptionId = invoice.subscription as string;
           
           if (subscriptionId) {
-            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-            const companyId = subscription.metadata.companyId;
-            const planType = subscription.metadata.planType;
+            const subscription: any = await stripe.subscriptions.retrieve(subscriptionId);
+            const companyId = subscription?.metadata?.companyId;
+            const planType = subscription?.metadata?.planType;
 
             if (companyId && planType) {
+              const isAnn = planType === 'premium_annual' || planType === 'annual';
+              const expiryDate = subscription?.current_period_end 
+                ? new Date(subscription.current_period_end * 1000).toISOString()
+                : (isAnn ? new Date(Date.now() + 365 * 86400000).toISOString() : new Date(Date.now() + 30 * 86400000).toISOString());
+
               const { error } = await supabase
                 .from("companies")
                 .update({ 
                   plan: planType,
                   stripe_customer_id: invoice.customer as string,
-                  stripe_subscription_id: subscriptionId
+                  stripe_subscription_id: subscriptionId,
+                  subscription_expires_at: expiryDate
                 })
                 .eq("id", companyId);
               
@@ -1830,6 +1836,12 @@ async function startServer() {
         metadata: {
           planType: planType,
           companyId: companyId
+        },
+        subscription_data: {
+          metadata: {
+            planType: planType,
+            companyId: companyId
+          }
         },
         billing_address_collection: 'auto'
       };
