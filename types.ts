@@ -68,6 +68,16 @@ export interface ExpenseRecord {
   date: string;
 }
 
+export interface SupplyItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  estimatedPrice?: number;
+  purchased: boolean;
+  notes?: string;
+}
+
 export interface Budget {
   id: string;
   companyId: string;
@@ -81,6 +91,7 @@ export interface Budget {
   servicesSelected: string[];
   items: ServiceItem[];
   expenses: ExpenseRecord[];
+  supplies?: SupplyItem[];
   totalAmount: number;
   projectFiles?: { name: string; url: string; id: string }[];
   status: BudgetStatus;

@@ -25,7 +25,9 @@ import {
   Layers,
   Sparkles,
   Server,
-  Key
+  Key,
+  Code,
+  Terminal
 } from 'lucide-react';
 import { Locale, translations } from '../translations';
 import {
@@ -47,7 +49,7 @@ import {
   getStoredIntroBanners,
   getCoupons
 } from '../services/storage';
-import { supabase } from '../services/supabase';
+import { supabase, processPendingSyncQueue, getPendingSyncQueue, syncToCloud } from '../services/supabase';
 
 interface MasterBackupManagerProps {
   locale: Locale;
@@ -91,8 +93,70 @@ export const MasterBackupManager: React.FC<MasterBackupManagerProps> = ({
   const [hybridStatus, setHybridStatus] = useState<{ supabaseStatus?: string; hybridCompaniesSaved?: number; hybridStorageActive?: boolean } | null>(null);
   const [isSyncingHybrid, setIsSyncingHybrid] = useState(false);
   const [syncHybridSuccess, setSyncHybridSuccess] = useState<string | null>(null);
+  const [pendingQueueCount, setPendingQueueCount] = useState<number>(0);
+  const [isProcessingQueueState, setIsProcessingQueueState] = useState(false);
+  const [showSqlModal, setShowSqlModal] = useState(false);
+  const [sqlCopied, setSqlCopied] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  React.useEffect(() => {
+    setPendingQueueCount(getPendingSyncQueue().length);
+    fetch('/api/hybrid/status')
+      .then(r => r.json())
+      .then(d => setHybridStatus(d))
+      .catch(() => {});
+  }, []);
+
+  const SQL_MIGRATION_QUERY = `-- ADICIONA A COLUNA 'supplies' NA TABELA 'budgets'
+ALTER TABLE public.budgets ADD COLUMN IF NOT EXISTS supplies JSONB DEFAULT '[]'::jsonb;`;
+
+  // Forçar Sincronização de todos os dados locais e fila para o Supabase
+  const handleForceSyncToSupabase = async () => {
+    setIsProcessingQueueState(true);
+    setSyncHybridSuccess(null);
+    try {
+      let totalSynced = 0;
+
+      // 1. Processar a fila de contingência
+      const qRes = await processPendingSyncQueue();
+      totalSynced += qRes.synced;
+
+      // 2. Sincronizar todas as empresas
+      for (const comp of companies) {
+        const res = await syncToCloud('companies', comp);
+        if (res.success) totalSynced++;
+      }
+
+      // 3. Sincronizar todos os orçamentos
+      for (const b of budgets) {
+        const res = await syncToCloud('budgets', b);
+        if (res.success) totalSynced++;
+      }
+
+      setPendingQueueCount(getPendingSyncQueue().length);
+      if (totalSynced > 0) {
+        setSyncHybridSuccess(`Sincronização concluída! ${totalSynced} registros enviados ao Supabase.`);
+      } else {
+        setCloudTestMessage('O Supabase ainda está com a cota restrita. Os dados permanecem protegidos na fila local e serão sincronizados automaticamente.');
+      }
+    } catch (e: any) {
+      alert('Erro na sincronização: ' + e.message);
+    } finally {
+      setIsProcessingQueueState(false);
+      setPendingQueueCount(getPendingSyncQueue().length);
+    }
+  };
+
+  const handleCopySql = async () => {
+    try {
+      await navigator.clipboard.writeText(SQL_MIGRATION_QUERY);
+      setSqlCopied(true);
+      setTimeout(() => setSqlCopied(false), 2500);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   // Exportar Backup Global
   const handleDownloadBackup = async () => {
@@ -492,6 +556,12 @@ export const MasterBackupManager: React.FC<MasterBackupManagerProps> = ({
                   <span>Contas salvas no Servidor:</span>
                   <span className="font-bold text-amber-300">{hybridStatus.hybridCompaniesSaved}</span>
                 </div>
+                <div className="flex justify-between items-center text-slate-300 pt-1 border-t border-white/5">
+                  <span>Fila de envio pendente:</span>
+                  <span className={`font-bold ${pendingQueueCount > 0 ? 'text-amber-400' : 'text-slate-400'}`}>
+                    {pendingQueueCount} {pendingQueueCount === 1 ? 'registro' : 'registros'}
+                  </span>
+                </div>
               </div>
             )}
 
@@ -520,6 +590,23 @@ export const MasterBackupManager: React.FC<MasterBackupManagerProps> = ({
               </button>
 
               <button
+                onClick={handleForceSyncToSupabase}
+                disabled={isProcessingQueueState}
+                className="w-full py-3 px-4 rounded-xl bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 border border-emerald-500/30 active:scale-95 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
+              >
+                {isProcessingQueueState ? <Loader2 size={14} className="animate-spin text-emerald-400" /> : <RefreshCw size={14} />}
+                <span>Sincronizar Fila Agora com o Supabase</span>
+              </button>
+
+              <button
+                onClick={() => setShowSqlModal(true)}
+                className="w-full py-3 px-4 rounded-xl bg-blue-500/20 hover:bg-blue-500/30 text-blue-300 border border-blue-500/30 active:scale-95 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <Code size={14} />
+                <span>Ver Query SQL para Supabase (Ficheiro do App)</span>
+              </button>
+
+              <button
                 onClick={handleSyncAllToHybrid}
                 disabled={isSyncingHybrid}
                 className="w-full py-3 px-4 rounded-xl bg-amber-500/20 hover:bg-amber-500/30 text-amber-300 border border-amber-500/30 active:scale-95 font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer disabled:opacity-50"
@@ -543,6 +630,65 @@ export const MasterBackupManager: React.FC<MasterBackupManagerProps> = ({
         </div>
 
       </div>
+
+      {/* MODAL DE QUERY SQL PARA SUPABASE */}
+      <AnimatePresence>
+        {showSqlModal && (
+          <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-950/80 p-4 sm:p-6 backdrop-blur-md">
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-slate-900 border border-white/10 w-full max-w-2xl rounded-3xl p-6 shadow-2xl space-y-4 max-h-[90vh] flex flex-col"
+            >
+              <div className="flex justify-between items-center border-b border-white/10 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-blue-500/20 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                    <Terminal size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-lg font-black text-white">Query SQL para o Supabase</h3>
+                    <p className="text-xs text-slate-400">Salvo no ficheiro <code className="text-amber-300">supabase_migration.sql</code></p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setShowSqlModal(false)}
+                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-300 leading-relaxed">
+                Execute o comando abaixo no <strong>SQL Editor</strong> do painel Supabase quando a cota estiver restabelecida para garantir que a coluna de suprimentos (<code className="text-amber-300">supplies</code>) exista na tabela de orçamentos:
+              </p>
+
+              <div className="relative bg-slate-950 rounded-2xl border border-white/10 p-4 overflow-x-auto flex-1 font-mono text-xs text-emerald-400">
+                <pre className="whitespace-pre-wrap">{SQL_MIGRATION_QUERY}</pre>
+              </div>
+
+              <div className="flex items-center justify-between gap-3 pt-2">
+                <span className="text-[11px] text-slate-400">Ficheiros criados: <code>supabase_migration.sql</code> e <code>supabase_schema.sql</code></span>
+                <div className="flex gap-2">
+                  <button
+                    onClick={handleCopySql}
+                    className="px-5 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold text-xs uppercase tracking-wider flex items-center gap-2 cursor-pointer shadow-lg shadow-blue-500/20 transition-all"
+                  >
+                    {sqlCopied ? <Check size={16} /> : <Copy size={16} />}
+                    <span>{sqlCopied ? 'Copiado!' : 'Copiar Query SQL'}</span>
+                  </button>
+                  <button
+                    onClick={() => setShowSqlModal(false)}
+                    className="px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-white font-bold text-xs uppercase tracking-wider cursor-pointer transition-all"
+                  >
+                    Fechar
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

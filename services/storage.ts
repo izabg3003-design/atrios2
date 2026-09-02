@@ -811,6 +811,7 @@ export const mapBudgetFromSupabase = (b: any): Budget => {
   // Garantir que arrays sejam arrays (caso venham como string JSON)
   mapped.items = safeParse(b.items);
   mapped.expenses = safeParse(b.expenses);
+  mapped.supplies = safeParse(b.supplies);
   mapped.payments = safeParse(b.payments);
   mapped.servicesSelected = safeParse(b.servicesSelected || b.services_selected);
   mapped.projectFiles = safeParse(b.projectFiles || b.project_files);

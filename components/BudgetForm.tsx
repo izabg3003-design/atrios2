@@ -11,6 +11,11 @@ import {
   Tag,
   CreditCard,
   Wallet,
+  ShoppingCart,
+  Check,
+  Circle,
+  Sparkles,
+  Share2,
   Upload,
   Calendar,
   Crown,
@@ -31,6 +36,7 @@ import {
   PlanType, 
   ServiceItem,
   ExpenseRecord,
+  SupplyItem,
   PaymentRecord,
   CurrencyCode,
   CURRENCIES
@@ -63,7 +69,7 @@ interface BudgetFormProps {
   currencyCode: CurrencyCode;
 }
 
-type FormTab = 'items' | 'expenses' | 'payments';
+type FormTab = 'items' | 'expenses' | 'supplies' | 'payments';
 
 const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUpgrade, initialData, locale, currencyCode }) => {
   const t = translations[locale];
@@ -96,6 +102,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
     { id: uuidv4(), description: '', quantity: 1, unit: t.unitDefault, pricePerUnit: 0, total: 0 }
   ]);
   const [expenses, setExpenses] = useState<ExpenseRecord[]>(initialData?.expenses || []);
+  const [supplies, setSupplies] = useState<SupplyItem[]>(initialData?.supplies || []);
   const [payments, setPayments] = useState<PaymentRecord[]>(initialData?.payments || []);
   const [projectFiles, setProjectFiles] = useState<{ name: string; url: string; id: string }[]>(initialData?.projectFiles || []);
 
@@ -276,6 +283,65 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
       return exp;
     });
     setExpenses(updatedExpenses);
+  };
+
+  // Funções da Lista de Compras / Suprimentos (Areia, Pedra, Cimento, etc.)
+  const addSupply = () => {
+    setSupplies([
+      ...supplies,
+      {
+        id: uuidv4(),
+        name: '',
+        quantity: 1,
+        unit: 'sacos',
+        purchased: false
+      }
+    ]);
+  };
+
+  const removeSupply = (id: string) => {
+    setSupplies(supplies.filter(s => s.id !== id));
+  };
+
+  const updateSupply = (id: string, field: keyof SupplyItem, value: any) => {
+    setSupplies(supplies.map(s => {
+      if (s.id === id) {
+        return { ...s, [field]: value };
+      }
+      return s;
+    }));
+  };
+
+  const toggleSupplyPurchased = (id: string) => {
+    setSupplies(supplies.map(s => {
+      if (s.id === id) {
+        return { ...s, purchased: !s.purchased };
+      }
+      return s;
+    }));
+  };
+
+  const addQuickSupply = (quickName: string, defaultQty: number, unit: string) => {
+    const exists = supplies.some(s => s.name.toLowerCase() === quickName.toLowerCase());
+    if (exists) {
+      setSupplies(supplies.map(s => {
+        if (s.name.toLowerCase() === quickName.toLowerCase()) {
+          return { ...s, quantity: (s.quantity || 0) + defaultQty };
+        }
+        return s;
+      }));
+      return;
+    }
+    setSupplies([
+      ...supplies,
+      {
+        id: uuidv4(),
+        name: quickName,
+        quantity: defaultQty,
+        unit,
+        purchased: false
+      }
+    ]);
   };
 
   const addPayment = () => {
@@ -492,6 +558,7 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
         servicesSelected: selectedServices,
         items,
         expenses,
+        supplies,
         payments,
         projectFiles,
         totalAmount,
@@ -571,6 +638,15 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
               }`}
             >
               <Wallet size={14} className="sm:w-4 sm:h-4" /> {t.recordExpenses}
+            </button>
+            <button 
+              type="button"
+              onClick={() => setActiveTab('supplies')}
+              className={`px-3 sm:px-5 py-2 sm:py-2.5 rounded-lg sm:rounded-xl text-[8px] sm:text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all shadow-sm ${
+                activeTab === 'supplies' ? 'bg-amber-400 text-slate-900 scale-105 font-black' : 'bg-white/10 text-white/70 hover:bg-white/20'
+              }`}
+            >
+              <ShoppingCart size={14} className="sm:w-4 sm:h-4 text-amber-300" /> Lista de Compras ({supplies.length})
             </button>
             <button 
               type="button"
@@ -1118,6 +1194,338 @@ const BudgetForm: React.FC<BudgetFormProps> = ({ company, onSave, onCancel, onUp
                 {t.expenseLimitReached}
               </div>
             )}
+          </div>
+        )}
+
+        {activeTab === 'supplies' && (
+          <div className="space-y-8 animate-in fade-in duration-300">
+            {/* Header de Estatísticas e Ações */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              <div className="p-6 bg-slate-50 rounded-[2rem] border border-slate-100">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Total de Suprimentos</p>
+                <p className="text-2xl sm:text-3xl font-black text-slate-900">{supplies.length}</p>
+              </div>
+
+              <div className="p-6 bg-amber-50 rounded-[2rem] border border-amber-100">
+                <p className="text-[10px] font-black text-amber-600 uppercase tracking-widest mb-1">A Comprar</p>
+                <p className="text-2xl sm:text-3xl font-black text-amber-800">
+                  {supplies.filter(s => !s.purchased).length}
+                </p>
+              </div>
+
+              <div className="p-6 bg-emerald-50 rounded-[2rem] border border-emerald-100">
+                <p className="text-[10px] font-black text-emerald-600 uppercase tracking-widest mb-1">Já Comprados</p>
+                <p className="text-2xl sm:text-3xl font-black text-emerald-800">
+                  {supplies.filter(s => s.purchased).length}
+                </p>
+              </div>
+
+              <div className="p-6 bg-slate-900 text-white rounded-[2rem] border border-slate-800 flex flex-col justify-between">
+                <div>
+                  <p className="text-[10px] font-black text-slate-400 uppercase tracking-widest mb-1">Custo Est. Materiais</p>
+                  <p className="text-xl sm:text-2xl font-black text-amber-400">
+                    {formatValue(supplies.reduce((acc, s) => acc + ((s.estimatedPrice || 0) * (s.quantity || 1)), 0))}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Ações e Atalhos Rápidos */}
+            <div className="p-5 bg-slate-50 rounded-[2rem] border border-slate-200/80 space-y-3">
+              <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-wider text-slate-600">
+                  <Sparkles size={16} className="text-amber-500" />
+                  <span>Adicionar Rápido à Lista:</span>
+                </div>
+
+                {supplies.length > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      let text = `📋 *LISTA DE COMPRAS / SUPRIMENTOS*\n`;
+                      text += `🏢 *Obra/Cliente:* ${clientName || 'Orçamento'}\n`;
+                      if (workLocation) text += `📍 *Local:* ${workLocation}\n`;
+                      text += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+                      const pending = supplies.filter(s => !s.purchased);
+                      const completed = supplies.filter(s => s.purchased);
+
+                      if (pending.length > 0) {
+                        text += `⏳ *A COMPRAR (${pending.length}):*\n`;
+                        pending.forEach(item => {
+                          text += `▫️ ${item.quantity} ${item.unit} - *${item.name || 'Sem nome'}*`;
+                          if (item.notes) text += ` _(${item.notes})_`;
+                          text += `\n`;
+                        });
+                        text += `\n`;
+                      }
+
+                      if (completed.length > 0) {
+                        text += `✅ *JÁ COMPRADO (${completed.length}):*\n`;
+                        completed.forEach(item => {
+                          text += `▪️ ~${item.quantity} ${item.unit} - ${item.name}~\n`;
+                        });
+                        text += `\n`;
+                      }
+
+                      navigator.clipboard.writeText(text);
+                      const encoded = encodeURIComponent(text);
+                      window.open(`https://api.whatsapp.com/send?text=${encoded}`, '_blank');
+                    }}
+                    className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-xl text-xs font-black uppercase tracking-wider flex items-center gap-1.5 transition-all shadow-sm active:scale-95"
+                  >
+                    <Share2 size={14} />
+                    <span>Enviar no WhatsApp</span>
+                  </button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { name: 'Cimento CP-II', qty: 10, unit: 'sacos' },
+                  { name: 'Areia Média Lavada', qty: 2, unit: 'm³' },
+                  { name: 'Pedra Brita nº 1', qty: 2, unit: 'm³' },
+                  { name: 'Argamassa AC-III', qty: 5, unit: 'sacos' },
+                  { name: 'Tijolo / Bloco Cerâmico', qty: 500, unit: 'un' },
+                  { name: 'Aço / Ferro CA-50 8mm', qty: 10, unit: 'barras' },
+                  { name: 'Tinta Acrílica Fosca', qty: 2, unit: 'latas 18L' },
+                  { name: 'Tubo PVC 100mm', qty: 4, unit: 'barras' }
+                ].map((quick, idx) => (
+                  <button
+                    key={idx}
+                    type="button"
+                    onClick={() => addQuickSupply(quick.name, quick.qty, quick.unit)}
+                    className="px-3 py-1.5 bg-white hover:bg-amber-100 hover:text-amber-900 text-slate-700 rounded-xl text-xs font-bold border border-slate-200 transition-all flex items-center gap-1 shadow-sm active:scale-95"
+                  >
+                    <Plus size={12} className="text-slate-400" />
+                    <span>{quick.name}</span>
+                    <span className="text-[10px] text-slate-400 font-normal">({quick.qty} {quick.unit})</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Tabela de Suprimentos no Desktop */}
+            <div className="hidden md:block overflow-x-auto border-2 border-slate-100 rounded-[2rem]">
+              <table className="w-full border-collapse min-w-[850px]">
+                <thead>
+                  <tr className="text-left text-[10px] font-black text-slate-400 uppercase tracking-widest bg-slate-50">
+                    <th className="p-5 border-b border-slate-100 w-16 text-center">Status</th>
+                    <th className="p-5 border-b border-slate-100">Material / Suprimento</th>
+                    <th className="p-5 border-b border-slate-100 w-24 text-center">Qtd</th>
+                    <th className="p-5 border-b border-slate-100 w-36">Unidade</th>
+                    <th className="p-5 border-b border-slate-100 w-40">Preço Est. Unit.</th>
+                    <th className="p-5 border-b border-slate-100">Obs. / Fornecedor</th>
+                    <th className="p-5 border-b border-slate-100 w-16"></th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100">
+                  {supplies.length === 0 ? (
+                    <tr>
+                      <td colSpan={7} className="p-10 text-center text-slate-400 text-xs font-bold">
+                        Nenhum material adicionado. Use os botões acima ou clique em "Adicionar Material".
+                      </td>
+                    </tr>
+                  ) : (
+                    supplies.map((supply) => (
+                      <tr 
+                        key={supply.id} 
+                        className={`transition-colors ${supply.purchased ? 'bg-slate-50/60 opacity-70' : 'hover:bg-slate-50/50'}`}
+                      >
+                        <td className="p-5 text-center">
+                          <button
+                            type="button"
+                            onClick={() => toggleSupplyPurchased(supply.id)}
+                            className={`w-7 h-7 rounded-lg flex items-center justify-center transition-all mx-auto ${
+                              supply.purchased
+                                ? 'bg-emerald-500 text-white shadow-sm'
+                                : 'bg-slate-100 hover:bg-amber-100 text-slate-400 border border-slate-300'
+                            }`}
+                            title={supply.purchased ? 'Comprado' : 'Pendente'}
+                          >
+                            {supply.purchased ? <Check size={16} className="stroke-[3]" /> : <Circle size={14} />}
+                          </button>
+                        </td>
+
+                        <td className="p-5">
+                          <input 
+                            type="text" 
+                            value={supply.name || ''} 
+                            onChange={e => updateSupply(supply.id, 'name', e.target.value)} 
+                            placeholder="Ex: Cimento, Areia, Brita..." 
+                            className={`w-full bg-transparent outline-none font-bold text-slate-900 ${supply.purchased ? 'line-through text-slate-400' : ''}`} 
+                          />
+                        </td>
+
+                        <td className="p-5">
+                          <input 
+                            type="number" 
+                            min="0.1"
+                            step="any"
+                            value={supply.quantity || 1} 
+                            onChange={e => updateSupply(supply.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                            className="w-full bg-transparent outline-none font-black text-slate-900 text-center" 
+                          />
+                        </td>
+
+                        <td className="p-5">
+                          <select
+                            value={supply.unit || 'sacos'}
+                            onChange={e => updateSupply(supply.id, 'unit', e.target.value)}
+                            className="w-full bg-transparent outline-none font-bold text-slate-700 text-xs cursor-pointer"
+                          >
+                            <option value="sacos">sacos</option>
+                            <option value="m³">m³ (metros cúbicos)</option>
+                            <option value="kg">kg</option>
+                            <option value="ton">toneladas</option>
+                            <option value="un">un (unidades)</option>
+                            <option value="barras">barras</option>
+                            <option value="latas 18L">latas 18L</option>
+                            <option value="galões 3.6L">galões 3.6L</option>
+                            <option value="metros">metros</option>
+                            <option value="caixas">caixas</option>
+                            <option value="rolo">rolo</option>
+                          </select>
+                        </td>
+
+                        <td className="p-5">
+                          <div className="flex items-center gap-1">
+                            <span className="text-[10px] font-black text-slate-400">{currencyInfo.symbol}</span>
+                            <input 
+                              type="number" 
+                              step="0.01" 
+                              value={supply.estimatedPrice === undefined ? '' : (supply.estimatedPrice * currencyInfo.rate)} 
+                              onChange={e => updateSupply(supply.id, 'estimatedPrice', e.target.value === '' ? undefined : Number(e.target.value) / currencyInfo.rate)} 
+                              placeholder="0.00"
+                              className="w-full bg-transparent outline-none font-bold text-slate-700 text-sm" 
+                            />
+                          </div>
+                        </td>
+
+                        <td className="p-5">
+                          <input 
+                            type="text" 
+                            value={supply.notes || ''} 
+                            onChange={e => updateSupply(supply.id, 'notes', e.target.value)} 
+                            placeholder="Opcional: Loja, detalhes..." 
+                            className="w-full bg-transparent outline-none font-medium text-slate-500 text-xs" 
+                          />
+                        </td>
+
+                        <td className="p-5 text-right">
+                          <button 
+                            type="button" 
+                            onClick={() => removeSupply(supply.id)} 
+                            className="p-2 text-slate-300 hover:text-red-500 transition-all"
+                            title="Remover material"
+                          >
+                            <Trash2 size={18} />
+                          </button>
+                        </td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Visualização em Cartões no Mobile */}
+            <div className="md:hidden space-y-4">
+              {supplies.map((supply) => (
+                <div 
+                  key={supply.id} 
+                  className={`bg-white border-2 rounded-[1.5rem] p-5 space-y-4 relative overflow-hidden transition-all ${
+                    supply.purchased ? 'border-slate-200 bg-slate-50/60 opacity-80' : 'border-slate-100 shadow-sm'
+                  }`}
+                >
+                  <div className="flex items-center justify-between">
+                    <button
+                      type="button"
+                      onClick={() => toggleSupplyPurchased(supply.id)}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+                        supply.purchased
+                          ? 'bg-emerald-500 text-white'
+                          : 'bg-slate-100 text-slate-600 border border-slate-300'
+                      }`}
+                    >
+                      {supply.purchased ? <Check size={14} /> : <Circle size={14} />}
+                      <span>{supply.purchased ? 'Comprado' : 'A Comprar'}</span>
+                    </button>
+
+                    <button 
+                      type="button" 
+                      onClick={() => removeSupply(supply.id)} 
+                      className="p-2 text-slate-300 hover:text-red-500 transition-all"
+                    >
+                      <Trash2 size={18} />
+                    </button>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Material</label>
+                    <input 
+                      type="text" 
+                      value={supply.name || ''} 
+                      onChange={e => updateSupply(supply.id, 'name', e.target.value)} 
+                      className={`w-full bg-slate-50 px-3 py-2 rounded-xl outline-none font-bold text-slate-900 text-sm ${supply.purchased ? 'line-through text-slate-400' : ''}`}
+                      placeholder="Ex: Cimento, Areia..." 
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Quantidade</label>
+                      <input 
+                        type="number" 
+                        min="0.1"
+                        step="any"
+                        value={supply.quantity || 1} 
+                        onChange={e => updateSupply(supply.id, 'quantity', parseFloat(e.target.value) || 0)} 
+                        className="w-full bg-slate-50 px-3 py-2 rounded-xl outline-none font-black text-slate-900 text-sm text-center" 
+                      />
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Unidade</label>
+                      <select
+                        value={supply.unit || 'sacos'}
+                        onChange={e => updateSupply(supply.id, 'unit', e.target.value)}
+                        className="w-full bg-slate-50 px-3 py-2 rounded-xl outline-none font-bold text-slate-700 text-xs"
+                      >
+                        <option value="sacos">sacos</option>
+                        <option value="m³">m³</option>
+                        <option value="kg">kg</option>
+                        <option value="ton">toneladas</option>
+                        <option value="un">unidades</option>
+                        <option value="barras">barras</option>
+                        <option value="latas 18L">latas 18L</option>
+                        <option value="metros">metros</option>
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="space-y-1">
+                    <label className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Observações / Loja</label>
+                    <input 
+                      type="text" 
+                      value={supply.notes || ''} 
+                      onChange={e => updateSupply(supply.id, 'notes', e.target.value)} 
+                      className="w-full bg-slate-50 px-3 py-2 rounded-xl outline-none font-medium text-slate-600 text-xs" 
+                      placeholder="Opcional..." 
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            {/* Botão de Adicionar */}
+            <button 
+              type="button" 
+              onClick={addSupply} 
+              className="w-full py-6 border-2 border-dashed border-slate-200 rounded-[2rem] text-slate-400 font-black uppercase tracking-widest text-xs hover:border-amber-500 hover:text-amber-600 transition-all flex items-center justify-center gap-2"
+            >
+              <Plus size={18} /> Adicionar Material à Lista de Compras
+            </button>
           </div>
         )}
 

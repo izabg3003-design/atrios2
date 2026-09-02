@@ -53,6 +53,7 @@ import {
   ShieldCheck,
   Mail,
   ShoppingBag,
+  ShoppingCart,
   HardHat,
   Palette,
   RefreshCw,
@@ -111,6 +112,7 @@ import BudgetForm from './components/BudgetForm';
 import PremiumBanner from './components/PremiumBanner';
 import PaymentManager from './components/PaymentManager';
 import ExpenseManager from './components/ExpenseManager';
+import { SupplyListManager } from './components/SupplyListManager';
 import Plans from './components/Plans';
 import MasterPanel from './components/MasterPanel';
 import Reports from './components/Reports';
@@ -666,6 +668,7 @@ const App: React.FC = () => {
   const [selectedBudget, setSelectedBudget] = useState<Budget | undefined>(undefined);
   const [showPaymentManager, setShowPaymentManager] = useState(false);
   const [showExpenseManager, setShowExpenseManager] = useState(false);
+  const [showSupplyListManager, setShowSupplyListManager] = useState(false);
   const [pdfExportModalBudget, setPdfExportModalBudget] = useState<{ budget: Budget; docType: 'budget' | 'service_order' } | null>(null);
   const [budgetFilter, setBudgetFilter] = useState<BudgetStatus | 'all'>('all');
   const [searchTerm, setSearchTerm] = useState('');
@@ -3169,6 +3172,22 @@ const App: React.FC = () => {
                                   >
                                     <Wallet size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
                                   </button>
+                                   <button 
+                                    onClick={(e) => { 
+                                      e.stopPropagation();
+                                      setSelectedBudget(budget); 
+                                      setShowSupplyListManager(true); 
+                                    }} 
+                                    className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-amber-50 text-amber-600 rounded-xl lg:rounded-2xl hover:bg-amber-500 hover:text-white transition-all shadow-sm flex items-center justify-center relative"
+                                    title="Lista de Compras & Suprimentos da Obra"
+                                  >
+                                    <ShoppingCart size={16} className="sm:w-[18px] sm:h-[18px] lg:w-[22px] lg:h-[22px]" />
+                                    {budget.supplies && budget.supplies.length > 0 && (
+                                      <span className="absolute -top-1 -right-1 bg-amber-500 text-slate-900 text-[8px] font-black w-4 h-4 rounded-full flex items-center justify-center border border-white">
+                                        {budget.supplies.length}
+                                      </span>
+                                    )}
+                                  </button>
                                   <button 
                                     onClick={(e) => { e.stopPropagation(); openPdfExportModal(budget, 'budget'); }} 
                                     className="flex-1 sm:flex-none p-2.5 sm:p-3 lg:p-4 bg-blue-50 text-blue-600 rounded-xl lg:rounded-2xl hover:bg-blue-600 hover:text-white transition-all shadow-sm flex items-center justify-center"
@@ -3409,6 +3428,17 @@ const App: React.FC = () => {
           </main>
           {showPaymentManager && selectedBudget && <PaymentManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowPaymentManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowPaymentManager(false)} />}
           {showExpenseManager && selectedBudget && <ExpenseManager locale={locale} currencyCode={currencyCode} budget={selectedBudget} plan={currentUser?.plan || PlanType.FREE} onUpgrade={() => { setShowExpenseManager(false); setActiveTab('plans'); }} onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} onClose={() => setShowExpenseManager(false)} />}
+          {showSupplyListManager && selectedBudget && (
+            <SupplyListManager 
+              locale={locale} 
+              currencyCode={currencyCode} 
+              budget={selectedBudget} 
+              plan={currentUser?.plan || PlanType.FREE} 
+              onUpgrade={() => { setShowSupplyListManager(false); setActiveTab('plans'); }} 
+              onSave={(updated) => { handleSaveBudget(updated); setSelectedBudget(updated); }} 
+              onClose={() => setShowSupplyListManager(false)} 
+            />
+          )}
           {pdfExportModalBudget && currentUser && (
             <PdfExportModal
               isOpen={!!pdfExportModalBudget}

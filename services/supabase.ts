@@ -81,6 +81,11 @@ export interface SyncResult {
         }
       }
       
+      // Se falhou por cota ou rede, salva na fila de contingência
+      if (errorMsg.includes('quota') || errorMsg.includes('restricted') || errorMsg.includes('fetch') || errorMsg.includes('network') || error?.status === 429 || error?.status === 402) {
+        addToPendingSyncQueue(table, rawData);
+      }
+
       return { success: false, error };
     };
     
@@ -290,7 +295,7 @@ export interface SyncResult {
 
     // 5. Garantir que arrays/objetos sejam enviados como string se necessário
     // Algumas tabelas no Supabase podem estar como TEXT em vez de JSONB
-    const jsonFields = ['items', 'expenses', 'payments', 'services_selected', 'project_files', 'pdf_template', 'additionalImages', 'additional_images', 'customServices', 'custom_services'];
+    const jsonFields = ['items', 'expenses', 'supplies', 'payments', 'services_selected', 'project_files', 'pdf_template', 'additionalImages', 'additional_images', 'customServices', 'custom_services'];
     jsonFields.forEach(field => {
       if (cleanData[field] && typeof cleanData[field] === 'object') {
         // Se for um array de strings simples, não stringify (deixa o Supabase lidar como array do Postgres)
@@ -355,4 +360,109 @@ export const clearTranslationMessages = async (roomId: string): Promise<SyncResu
     return { success: false, error: err };
   }
 };
+
+// =========================================================================
+// FILA DE SINCRONIZAÇÃO EM CONTINGÊNCIA (SYNC QUEUE PARA QUANDO A COTA VOLTAR)
+// =========================================================================
+const SYNC_QUEUE_KEY = 'atrios_pending_sync_queue';
+
+export interface PendingSyncItem {
+  id: string;
+  table: string;
+  data: any;
+  timestamp: number;
+  retries: number;
+}
+
+export const getPendingSyncQueue = (): PendingSyncItem[] => {
+  if (typeof window === 'undefined') return [];
+  try {
+    const raw = localStorage.getItem(SYNC_QUEUE_KEY);
+    return raw ? JSON.parse(raw) : [];
+  } catch (e) {
+    return [];
+  }
+};
+
+export const savePendingSyncQueue = (queue: PendingSyncItem[]) => {
+  if (typeof window === 'undefined') return;
+  try {
+    localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(queue));
+  } catch (e) {}
+};
+
+export const addToPendingSyncQueue = (table: string, data: any) => {
+  if (!data) return;
+  try {
+    const queue = getPendingSyncQueue();
+    const itemId = data.id || `${table}_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`;
+    
+    // Se já existe atualização para o mesmo registro, substitui pela mais recente
+    const index = queue.findIndex(item => item.table === table && item.data?.id === data.id);
+    if (index >= 0) {
+      queue[index] = { id: itemId, table, data, timestamp: Date.now(), retries: 0 };
+    } else {
+      queue.push({ id: itemId, table, data, timestamp: Date.now(), retries: 0 });
+    }
+    savePendingSyncQueue(queue);
+    console.log(`[SyncQueue] Registro armazenado na fila de contingência: ${table} (${itemId})`);
+  } catch (e) {
+    console.warn('[SyncQueue] Erro ao enfileirar:', e);
+  }
+};
+
+export const removeFromPendingSyncQueue = (id: string) => {
+  const queue = getPendingSyncQueue().filter(item => item.id !== id);
+  savePendingSyncQueue(queue);
+};
+
+let isProcessingQueue = false;
+export const processPendingSyncQueue = async (): Promise<{ total: number; synced: number; failed: number }> => {
+  if (isProcessingQueue) return { total: 0, synced: 0, failed: 0 };
+  isProcessingQueue = true;
+
+  const queue = getPendingSyncQueue();
+  if (queue.length === 0) {
+    isProcessingQueue = false;
+    return { total: 0, synced: 0, failed: 0 };
+  }
+
+  console.log(`[SyncQueue] Processando fila de contingência com ${queue.length} registros...`);
+  let synced = 0;
+  let failed = 0;
+  const remaining: PendingSyncItem[] = [];
+
+  for (const item of queue) {
+    try {
+      const result = await syncToCloud(item.table, item.data);
+      if (result.success) {
+        synced++;
+        console.log(`[SyncQueue] Sucesso ao reenviar para o banco: ${item.table} (${item.id})`);
+      } else {
+        failed++;
+        item.retries = (item.retries || 0) + 1;
+        remaining.push(item);
+      }
+    } catch (err) {
+      failed++;
+      item.retries = (item.retries || 0) + 1;
+      remaining.push(item);
+    }
+  }
+
+  savePendingSyncQueue(remaining);
+  isProcessingQueue = false;
+  return { total: queue.length, synced, failed };
+};
+
+// Listeners de recuperação de conexão
+if (typeof window !== 'undefined') {
+  window.addEventListener('online', () => {
+    processPendingSyncQueue();
+  });
+  setInterval(() => {
+    processPendingSyncQueue();
+  }, 120000);
+}
+
 
