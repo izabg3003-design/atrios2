@@ -1,0 +1,24 @@
+[
+  {
+    "token": "fG1JMRDFSzKjajmL_-dEpS:APA91bFktXwkqtZYGR1O8Y1A4_54gOTqakqme7kkFRyPxv-meFpuRQuB-d9H_fvjgyLhOya3J8Z_IOvMjjMC9xj9nYTZqEmwxio2Xa4jqCNSVs_8vA6wkA4",
+    "companyId": "master",
+    "plan": "master",
+    "email": "atriosbuild@gmail.com",
+    "role": "master",
+    "phone": "987344566",
+    "name": "Átrios Build",
+    "updatedAt": "2026-09-28T19:19:29.110Z",
+    "createdAt": "2026-09-28T19:19:29.110Z"
+  },
+  {
+    "token": "fG1JMRDFSzKjajmL_-dEpS:APA91bHHjbuIqNcdVXsfF3EAJ-RgY3A2ht33Phk96kyeEn3Mv8i_jPHD4CLRqxkTndyycP12PqJHnhfO_QBBbztY0gj2Apcl1VPm6mzz50Y3Oh58_sSEAWw",
+    "companyId": "guest",
+    "plan": "free",
+    "email": "",
+    "role": "user",
+    "phone": "",
+    "name": "",
+    "updatedAt": "2026-09-30T19:39:59.889Z",
+    "createdAt": "2026-09-28T19:19:29.669Z"
+  }
+]

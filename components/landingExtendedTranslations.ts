@@ -1,0 +1,2296 @@
+import { Locale } from '../translations';
+
+export interface LocaleOption {
+  value: Locale;
+  label: string;
+  flag: string;
+  shortLabel: string;
+}
+
+export const LOCALE_OPTIONS: LocaleOption[] = [
+  { value: 'pt-PT', label: 'Português (PT)', flag: '🇵🇹', shortLabel: 'PT' },
+  { value: 'pt-BR', label: 'Português (BR)', flag: '🇧🇷', shortLabel: 'BR' },
+  { value: 'en-US', label: 'English (US)', flag: '🇺🇸', shortLabel: 'EN' },
+  { value: 'es-ES', label: 'Español', flag: '🇪🇸', shortLabel: 'ES' },
+  { value: 'fr-FR', label: 'Français', flag: '🇫🇷', shortLabel: 'FR' },
+  { value: 'it-IT', label: 'Italiano', flag: '🇮🇹', shortLabel: 'IT' },
+  { value: 'ru-RU', label: 'Русский', flag: '🇷🇺', shortLabel: 'RU' },
+  { value: 'hi-IN', label: 'हिन्दी', flag: '🇮🇳', shortLabel: 'HI' },
+  { value: 'bn-BD', label: 'বাংলা', flag: '🇧🇩', shortLabel: 'BN' },
+];
+
+export interface LandingExtended {
+  softwareSubtitle: string;
+  nav: {
+    features: string;
+    howItWorks: string;
+    forClients: string;
+    forPros: string;
+    portalClient: string;
+    login: string;
+    startFree: string;
+    register: string;
+  };
+  hero: {
+    bannerPill: string;
+    headline: {
+      line1: string;
+      line2: string;
+      line3: string;
+      highlight: string;
+    };
+    subtitle: string;
+    clientCard: {
+      title: string;
+      sub: string;
+      portalPrompt: string;
+      portalLink: string;
+    };
+    proCard: {
+      title: string;
+      sub: string;
+      loginPrompt: string;
+      loginLink: string;
+    };
+    video: {
+      tabVideo: string;
+      tabLive: string;
+      badge60s: string;
+      duration: string;
+      centerBtn: string;
+      subText: string;
+      step1: string;
+      step2: string;
+      step3: string;
+    };
+    trust: {
+      secure: string;
+      secureSub: string;
+      verified: string;
+      verifiedSub: string;
+      everywhere: string;
+      everywhereSub: string;
+    };
+  };
+  steps7: {
+    eyebrow: string;
+    title: string;
+    items: {
+      num: string;
+      title: string;
+      desc: string;
+    }[];
+  };
+  segments: {
+    clients: {
+      badge: string;
+      title: string;
+      sub: string;
+      bullets: string[];
+      previewTitle: string;
+      previewBadge: string;
+      previewCta: string;
+      cta: string;
+      portalPrompt: string;
+      portalLink: string;
+    };
+    pro: {
+      badge: string;
+      title: string;
+      sub: string;
+      bullets: string[];
+      previewTitle: string;
+      previewBadge: string;
+      stat1Label: string;
+      stat1Val: string;
+      stat2Label: string;
+      stat2Val: string;
+      stat3Label: string;
+      stat3Val: string;
+      cta: string;
+    };
+  };
+  timeTrackerBanner: {
+    badge: string;
+    title: string;
+    sub: string;
+    bullets: string[];
+    sampleWorker: string;
+    sampleRole: string;
+    sampleProject: string;
+    sampleHours: string;
+    sampleExtra: string;
+    sampleCost: string;
+    cta: string;
+  };
+  translatorBanner: {
+    badge: string;
+    title: string;
+    sub: string;
+    bullets: string[];
+    sampleSourceLang: string;
+    sampleSourceText: string;
+    sampleTargetLang: string;
+    sampleTargetText: string;
+    liveInterpreterLabel: string;
+    qrConnectLabel: string;
+    voiceAudioLabel: string;
+    cta: string;
+  };
+  features10: {
+    eyebrow: string;
+    title: string;
+    categories?: {
+      all: string;
+      commercial: string;
+      site: string;
+      aiTranslator: string;
+      finance: string;
+    };
+    items: {
+      title: string;
+      desc: string;
+      category?: 'commercial' | 'site' | 'aiTranslator' | 'finance';
+      isNew?: boolean;
+      isHighlighted?: boolean;
+      tag?: string;
+    }[];
+  };
+  comparison: {
+    before: {
+      badge: string;
+      title: string;
+      items: string[];
+    };
+    after: {
+      badge: string;
+      title: string;
+      items: string[];
+    };
+    ctaBanner: {
+      title: string;
+      sub: string;
+      trust: {
+        title: string;
+        sub: string;
+      }[];
+      clientTitle: string;
+      clientSub: string;
+      proTitle: string;
+      proSub: string;
+    };
+  };
+  footer: {
+    desc: string;
+    secure: string;
+    product: string;
+    company: string;
+    support: string;
+    features: string;
+    howItWorks: string;
+    pdfQuotes: string;
+    createFree: string;
+    privacy: string;
+    terms: string;
+    help: string;
+    demo: string;
+    installApp: string;
+    clientPortal: string;
+    rights: string;
+    tagline: string;
+  };
+}
+
+export const landingExtendedTranslations: Record<Locale, LandingExtended> = {
+  'pt-PT': {
+    softwareSubtitle: 'SOFTWARE PARA CONSTRUÇÃO CIVIL',
+    nav: {
+      features: 'Funcionalidades',
+      howItWorks: 'Como funciona',
+      forClients: 'Para Clientes',
+      forPros: 'Para Profissionais',
+      portalClient: 'Portal do Cliente (Ver Orçamentos)',
+      login: 'ENTRAR',
+      startFree: 'CRIAR CONTA GRÁTIS',
+      register: 'REGISTAR'
+    },
+    hero: {
+      bannerPill: 'VER BANNERS DE APRESENTAÇÃO DAS FUNÇÕES',
+      headline: {
+        line1: 'Encontre clientes.',
+        line2: 'Faça orçamentos.',
+        line3: 'Gerencie as suas obras.',
+        highlight: 'Tudo num só lugar com o Atrios Build.'
+      },
+      subtitle: 'Receba pedidos de orçamento de clientes, envie propostas profissionais e tenha todas as ferramentas para gerir o seu negócio e as suas obras.',
+      clientCard: {
+        title: 'PEDIR ORÇAMENTO GRÁTIS',
+        sub: 'Sou cliente e preciso de uma obra',
+        portalPrompt: 'Já pediu orçamento?',
+        portalLink: 'Portal do Cliente'
+      },
+      proCard: {
+        title: 'SOU PROFISSIONAL',
+        sub: 'Quero receber pedidos e gerir obras',
+        loginPrompt: 'Já tem conta?',
+        loginLink: 'Login Profissional'
+      },
+      video: {
+        tabVideo: 'VÍDEO HERO',
+        tabLive: 'EM DIRETO',
+        badge60s: '60 SEGUNDOS',
+        duration: '01:45 MIN',
+        centerBtn: 'VER DEMONSTRAÇÃO COMPLETA',
+        subText: 'Clique para assistir como funciona o Atrios Build',
+        step1: 'Pedidos',
+        step2: 'Propostas',
+        step3: 'Gestão'
+      },
+      trust: {
+        secure: 'Seguro e confiável',
+        secureSub: 'Os seus dados protegidos',
+        verified: 'Profissionais verificados',
+        verifiedSub: 'Mais segurança para si',
+        everywhere: 'Acesso em qualquer lugar',
+        everywhereSub: 'Web e App mobile'
+      }
+    },
+    steps7: {
+      eyebrow: 'DO PRIMEIRO CONTACTO AO RESULTADO DA OBRA',
+      title: 'Como funciona para todos',
+      items: [
+        { num: '01', title: 'Cliente solicita um orçamento', desc: 'O cliente descreve o que precisa e envia o pedido.' },
+        { num: '02', title: 'Profissional recebe o pedido', desc: 'Empresas e profissionais da plataforma são notificados.' },
+        { num: '03', title: 'Profissional prepara a proposta', desc: 'Analisa os detalhes da obra e prepara o orçamento.' },
+        { num: '04', title: 'Profissional envia a proposta', desc: 'O cliente recebe a proposta e pode tirar dúvidas.' },
+        { num: '05', title: 'Cliente analisa e escolhe', desc: 'Compara as propostas e escolhe o profissional ideal.' },
+        { num: '06', title: 'Obra é criada no Atrios Build', desc: 'O profissional inicia a obra e organiza tudo na plataforma.' },
+        { num: '07', title: 'Gere e acompanhe os resultados', desc: 'Controle custos, pagamentos e veja os resultados.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'PARA CLIENTES',
+        title: 'Precisa de uma obra?',
+        sub: 'Encontre profissionais qualificados na nossa plataforma.',
+        bullets: [
+          'Faça o seu pedido de orçamento grátis',
+          'Explique o serviço que precisa',
+          'Indique a localização e detalhes da obra',
+          'Receba propostas de profissionais verificados',
+          'Acompanhe os seus pedidos em tempo real',
+          'Escolha a melhor proposta para o seu projeto'
+        ],
+        previewTitle: 'Receba propostas',
+        previewBadge: '3 Propostas',
+        previewCta: 'VER TODAS AS PROPOSTAS →',
+        cta: 'PEDIR ORÇAMENTO GRÁTIS',
+        portalPrompt: 'Já pediu orçamento? Entrar no Portal do Cliente',
+        portalLink: 'Portal do Cliente'
+      },
+      pro: {
+        badge: 'PARA PROFISSIONAIS',
+        title: 'Transforme pedidos de orçamento em novas oportunidades.',
+        sub: 'Receba pedidos, feche obras e gerencie tudo no mesmo lugar.',
+        bullets: [
+          'Receba novos pedidos de orçamento',
+          'Consulte detalhes e localização da obra',
+          'Analise e prepare o seu orçamento',
+          'Envie propostas de forma profissional',
+          'Organize obras, clientes e documentos',
+          'Controlo de horas e ponto dos colaboradores por obra',
+          'Acompanhe pagamentos e resultados',
+          'Tudo numa única plataforma'
+        ],
+        previewTitle: 'Resumo do mês',
+        previewBadge: '+24% este mês',
+        stat1Label: 'Faturação',
+        stat1Val: '18.650 €',
+        stat2Label: 'Obras',
+        stat2Val: '8 Ativas',
+        stat3Label: 'Pedidos',
+        stat3Val: '12 Novos',
+        cta: 'QUERO RECEBER PEDIDOS'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'GESTÃO DE EQUIPA & PICAGEM DE PONTO',
+      title: 'Controlo de Horas dos Colaboradores por Obra',
+      sub: 'Registe entradas, saídas, pausas e horas extraordinárias da sua equipa. Saiba com precisão os custos reais de mão de obra em cada projeto.',
+      bullets: [
+        'Picagem de ponto rápida por telemóvel ou QR Code',
+        'Cálculo automático de horas normais e extraordinárias',
+        'Associação direta dos custos de pessoal a cada obra',
+        'Exportação de folhas de ponto e relatórios em PDF e Excel'
+      ],
+      sampleWorker: 'João Silva',
+      sampleRole: 'Oficial de Construção',
+      sampleProject: 'Obra: Moradia Cascais',
+      sampleHours: '8.0h Normais',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Custo Mão de Obra Calculado',
+      cta: 'COMEÇAR A GERIR EQUIPA'
+    },
+    translatorBanner: {
+      badge: 'INTELIGÊNCIA ARTIFICIAL & TRADUÇÃO SIMULTÂNEA',
+      title: 'Tradução em Tempo Real para Clientes e Obras Internacionais',
+      sub: 'Converse, envie mensagens e faça reuniões com clientes e parceiros de qualquer país. O Atrios Build traduz instantaneamente voz e texto sem barreiras de idiomas.',
+      bullets: [
+        'Tradução bidirecional instantânea em mais de 15 idiomas com IA',
+        'Acesso imediato para o cliente via QR Code ou link do WhatsApp (sem instalar nada)',
+        'Síntese de voz natural (Áudio / TTS) e transcrição de fala em tempo real',
+        'Histórico das conversas e orçamentos traduzidos guardado na ficha da obra'
+      ],
+      sampleSourceLang: 'Português',
+      sampleSourceText: 'Olá! Analisámos a sua obra e a proposta detalhada já está pronta.',
+      sampleTargetLang: 'Inglês (English)',
+      sampleTargetText: 'Hello! We analyzed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultâneo IA Ativo',
+      qrConnectLabel: 'QR Code de Ligação Rápida',
+      voiceAudioLabel: 'Áudio & Transcrição ao Vivo',
+      cta: 'EXPERIMENTAR TRADUÇÃO AO VIVO'
+    },
+    features10: {
+      eyebrow: 'TUDO O QUE PRECISA PARA GERIR O SEU NEGÓCIO',
+      title: 'Funcionalidades completas para o dia a dia',
+      categories: {
+        all: 'Todas as Funcionalidades',
+        commercial: 'Comercial & Clientes',
+        site: 'Obras & Equipa',
+        aiTranslator: 'Tradução IA & Voz',
+        finance: 'Finanças & Gestão'
+      },
+      items: [
+        { title: 'Orçamentos & Propostas', desc: 'Crie orçamentos e propostas profissionais em minutos.', category: 'commercial', tag: 'ESSENCIAL' },
+        { title: 'Pedidos de Orçamento', desc: 'Receba solicitações de clientes diretamente na plataforma.', category: 'commercial', isNew: true, tag: 'NOVO' },
+        { title: 'Portal do Cliente', desc: 'Acesso exclusivo para clientes consultarem e aprovarem propostas.', category: 'commercial', isHighlighted: true, tag: 'DESTAQUE' },
+        { title: 'Tradução em Tempo Real', desc: 'Comunique com clientes estrangeiros por voz e chat com tradução por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat & QR Code Multilíngue', desc: 'O cliente acede pelo telemóvel via QR Code para falar no idioma dele.', category: 'aiTranslator', isNew: true, tag: 'INOVAÇÃO' },
+        { title: 'Gestão de Obras', desc: 'Acompanhe etapas, materiais e o progresso de cada obra em tempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Controlo de Horas & Ponto', desc: 'Registe ponto, horas normais e extras dos colaboradores por obra com QR Code.', category: 'site', isNew: true, tag: 'NOVO' },
+        { title: 'Clientes & Fornecedores', desc: 'Organize contactos, históricos e documentos num só lugar centralizado.', category: 'commercial' },
+        { title: 'Controlo de Pagamentos', desc: 'Controle recebimentos, faturas, prazos e fluxo de caixa.', category: 'finance' },
+        { title: 'Relatórios & Lucro Real', desc: 'Indicadores financeiros e margens de lucro por projeto em tempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Arquivo de Documentos', desc: 'Guarde e aceda a fotos, contratos e ficheiros com segurança na cloud.', category: 'finance' },
+        { title: 'App Mobile & Web', desc: 'Aceda de qualquer lugar pelo telemóvel, tablet ou computador.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'ANTES ERA ASSIM...',
+        title: 'Antes era assim...',
+        items: [
+          'Pedidos espalhados pelo WhatsApp e chamadas',
+          'Orçamentos em papel ou planilhas',
+          'Informações desorganizadas',
+          'Dificuldade para acompanhar clientes',
+          'Pouco controle dos resultados'
+        ]
+      },
+      after: {
+        badge: 'AGORA É ASSIM COM ATRIOS BUILD',
+        title: 'Agora é assim com Atrios Build',
+        items: [
+          'Pedidos organizados num só lugar',
+          'Propostas profissionais e centralizadas',
+          'Clientes e obras organizados',
+          'Mais controle de custos e pagamentos',
+          'Mais tempo e mais lucro para o seu negócio'
+        ]
+      },
+      ctaBanner: {
+        title: 'A plataforma completa para profissionais da construção civil.',
+        sub: 'Mais organização, mais oportunidades e mais resultados. Comece agora com o Atrios Build.',
+        trust: [
+          { title: 'Segurança total', sub: 'Seus dados protegidos' },
+          { title: 'Suporte dedicado', sub: 'Estamos aqui para ajudar' },
+          { title: 'Atualizações', sub: 'Sempre melhor para si' },
+          { title: '+ Profissionais', sub: 'Plataforma em crescimento' }
+        ],
+        clientTitle: 'PEDIR ORÇAMENTO GRÁTIS',
+        clientSub: 'SOU CLIENTE E PRECISO DE UMA OBRA',
+        proTitle: 'QUERO SER PROFISSIONAL',
+        proSub: 'RECEBER PEDIDOS E GERIR OBRAS'
+      }
+    },
+    footer: {
+      desc: 'A plataforma completa para gestão de orçamentos, ordens de serviço e controlo financeiro de obras.',
+      secure: 'Dados seguros e encriptados',
+      product: 'PRODUTO',
+      company: 'EMPRESA',
+      support: 'SUPORTE',
+      features: 'Funcionalidades',
+      howItWorks: 'Como Funciona',
+      pdfQuotes: 'Orçamentos PDF',
+      createFree: 'Criar Conta Grátis →',
+      privacy: 'Privacidade',
+      terms: 'Termos de Uso',
+      help: 'Ajuda e Dúvidas',
+      demo: 'Ver Demonstração',
+      installApp: 'Instalar App Mobile',
+      clientPortal: 'Portal do Cliente (Login)',
+      rights: 'Todos os direitos reservados.',
+      tagline: 'Desenvolvido com excelência para profissionais da construção civil.'
+    }
+  },
+
+  'pt-BR': {
+    softwareSubtitle: 'SOFTWARE PARA CONSTRUÇÃO CIVIL',
+    nav: {
+      features: 'Funcionalidades',
+      howItWorks: 'Como funciona',
+      forClients: 'Para Clientes',
+      forPros: 'Para Profissionais',
+      portalClient: 'Portal do Cliente (Ver Orçamentos)',
+      login: 'ENTRAR',
+      startFree: 'CRIAR CONTA GRÁTIS',
+      register: 'CADASTRAR'
+    },
+    hero: {
+      bannerPill: 'VER BANNERS DE APRESENTAÇÃO DAS FUNÇÕES',
+      headline: {
+        line1: 'Encontre clientes.',
+        line2: 'Faça orçamentos.',
+        line3: 'Gerencie suas obras.',
+        highlight: 'Tudo em um só lugar com o Atrios Build.'
+      },
+      subtitle: 'Receba solicitações de orçamento de clientes, envie propostas profissionais e tenha todas as ferramentas para gerenciar seu negócio e suas obras.',
+      clientCard: {
+        title: 'PEDIR ORÇAMENTO GRÁTIS',
+        sub: 'Sou cliente e preciso de uma obra',
+        portalPrompt: 'Já pediu orçamento?',
+        portalLink: 'Portal do Cliente'
+      },
+      proCard: {
+        title: 'SOU PROFISSIONAL',
+        sub: 'Quero receber pedidos e gerenciar obras',
+        loginPrompt: 'Já tem conta?',
+        loginLink: 'Login Profissional'
+      },
+      video: {
+        tabVideo: 'VÍDEO HERO',
+        tabLive: 'AO VIVO',
+        badge60s: '60 SEGUNDOS',
+        duration: '01:45 MIN',
+        centerBtn: 'VER DEMONSTRAÇÃO COMPLETA',
+        subText: 'Clique para assistir como funciona o Atrios Build',
+        step1: 'Pedidos',
+        step2: 'Propostas',
+        step3: 'Gestão'
+      },
+      trust: {
+        secure: 'Seguro e confiável',
+        secureSub: 'Seus dados protegidos',
+        verified: 'Profissionais verificados',
+        verifiedSub: 'Mais segurança para você',
+        everywhere: 'Acesso em qualquer lugar',
+        everywhereSub: 'Web e App celular'
+      }
+    },
+    steps7: {
+      eyebrow: 'DO PRIMEIRO CONTATO AO RESULTADO DA OBRA',
+      title: 'Como funciona para todos',
+      items: [
+        { num: '01', title: 'Cliente solicita um orçamento', desc: 'O cliente descreve o que precisa e envia o pedido.' },
+        { num: '02', title: 'Profissional recebe o pedido', desc: 'Empresas e profissionais da plataforma são notificados.' },
+        { num: '03', title: 'Profissional prepara a proposta', desc: 'Analisa os detalhes da obra e prepara o orçamento.' },
+        { num: '04', title: 'Profissional envia a proposta', desc: 'O cliente recebe a proposta e pode tirar dúvidas.' },
+        { num: '05', title: 'Cliente analisa e escolhe', desc: 'Compara as propostas e escolhe o profissional ideal.' },
+        { num: '06', title: 'Obra é criada no Atrios Build', desc: 'O profissional inicia a obra e organiza tudo na plataforma.' },
+        { num: '07', title: 'Gerencie e acompanhe os resultados', desc: 'Controle custos, pagamentos e veja os lucros.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'PARA CLIENTES',
+        title: 'Precisa de uma reforma ou obra?',
+        sub: 'Encontre profissionais qualificados na nossa plataforma.',
+        bullets: [
+          'Faça seu pedido de orçamento grátis',
+          'Explique o serviço que você precisa',
+          'Indique a localização e detalhes do projeto',
+          'Receba propostas de profissionais verificados',
+          'Acompanhe seus pedidos em tempo real',
+          'Escolha a melhor proposta para o seu bolso'
+        ],
+        previewTitle: 'Receba propostas',
+        previewBadge: '3 Propostas',
+        previewCta: 'VER TODAS AS PROPOSTAS →',
+        cta: 'PEDIR ORÇAMENTO GRÁTIS',
+        portalPrompt: 'Já pediu orçamento? Entrar no Portal do Cliente',
+        portalLink: 'Portal do Cliente'
+      },
+      pro: {
+        badge: 'PARA PROFISSIONAIS',
+        title: 'Transforme pedidos de orçamento em novos contratos.',
+        sub: 'Receba pedidos, feche obras e gerencie tudo no mesmo lugar.',
+        bullets: [
+          'Receba novos pedidos de orçamento',
+          'Consulte detalhes e localização da obra',
+          'Analise e prepare o seu orçamento',
+          'Envie propostas em PDF com sua marca',
+          'Organize obras, clientes e materiais',
+          'Controle de horas e ponto dos colaboradores por obra',
+          'Acompanhe recebimentos e fluxo de caixa',
+          'Tudo em uma única plataforma'
+        ],
+        previewTitle: 'Resumo do mês',
+        previewBadge: '+24% este mês',
+        stat1Label: 'Faturamento',
+        stat1Val: 'R$ 68.500',
+        stat2Label: 'Obras',
+        stat2Val: '8 Ativas',
+        stat3Label: 'Pedidos',
+        stat3Val: '12 Novos',
+        cta: 'QUERO RECEBER PEDIDOS'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'GESTÃO DE EQUIPE & PONTO ELETRÔNICO',
+      title: 'Controle de Horas dos Colaboradores por Obra',
+      sub: 'Registre entradas, saídas, pausas e horas extras da sua equipe. Saiba com exatidão os custos reais de mão de obra em cada projeto.',
+      bullets: [
+        'Registro de ponto rápido pelo celular ou QR Code',
+        'Cálculo automático de horas normais e horas extras',
+        'Alocação direta dos custos de equipe por obra',
+        'Exportação de folhas de ponto e relatórios em PDF e Excel'
+      ],
+      sampleWorker: 'João Silva',
+      sampleRole: 'Oficial de Construção',
+      sampleProject: 'Obra: Residência Jardins',
+      sampleHours: '8.0h Normais',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Custo de Mão de Obra Calculado',
+      cta: 'COMEÇAR A GERENCIAR EQUIPE'
+    },
+    translatorBanner: {
+      badge: 'INTELIGÊNCIA ARTIFICIAL & TRADUÇÃO SIMULTÂNEA',
+      title: 'Tradução em Tempo Real para Clientes e Obras Internacionais',
+      sub: 'Converse, envie mensagens e faça reuniões com clientes e parceiros de qualquer país. O Atrios Build traduz instantaneamente voz e texto sem barreiras de idiomas.',
+      bullets: [
+        'Tradução bidirecional instantânea em mais de 15 idiomas com IA',
+        'Acesso imediato para o cliente via QR Code ou link de WhatsApp (sem instalar nada)',
+        'Síntese de voz natural (Áudio / TTS) e transcrição de fala em tempo real',
+        'Histórico das conversas e orçamentos traduzidos salvo na ficha da obra'
+      ],
+      sampleSourceLang: 'Português',
+      sampleSourceText: 'Olá! Analisamos a sua obra e a proposta detalhada já está pronta.',
+      sampleTargetLang: 'Inglês (English)',
+      sampleTargetText: 'Hello! We analyzed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultâneo IA Ativo',
+      qrConnectLabel: 'QR Code de Conexão Rápida',
+      voiceAudioLabel: 'Áudio & Transcrição ao Vivo',
+      cta: 'EXPERIMENTAR TRADUÇÃO AO VIVO'
+    },
+    features10: {
+      eyebrow: 'TUDO O QUE VOCÊ PRECISA PARA GERENCIAR SEU NEGÓCIO',
+      title: 'Funcionalidades completas para o dia a dia',
+      categories: {
+        all: 'Todas as Funcionalidades',
+        commercial: 'Comercial & Clientes',
+        site: 'Obras & Equipe',
+        aiTranslator: 'Tradução IA & Voz',
+        finance: 'Finanças & Gestão'
+      },
+      items: [
+        { title: 'Orçamentos & Propostas', desc: 'Crie orçamentos e propostas profissionais em minutos.', category: 'commercial', tag: 'ESSENCIAL' },
+        { title: 'Pedidos de Orçamento', desc: 'Receba solicitações de clientes direto na plataforma.', category: 'commercial', isNew: true, tag: 'NOVO' },
+        { title: 'Portal do Cliente', desc: 'Acesso exclusivo para clientes consultarem e aprovarem propostas.', category: 'commercial', isHighlighted: true, tag: 'DESTAQUE' },
+        { title: 'Tradução em Tempo Real', desc: 'Comunique-se com clientes estrangeiros por voz e chat com tradução por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat & QR Code Multilíngue', desc: 'O cliente acessa pelo celular via QR Code para falar no idioma dele.', category: 'aiTranslator', isNew: true, tag: 'INOVAÇÃO' },
+        { title: 'Gestão de Obras', desc: 'Acompanhe etapas, materiais e o andamento de cada obra em tempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Controle de Horas & Ponto', desc: 'Registre ponto, horas normais e extras dos colaboradores por obra com QR Code.', category: 'site', isNew: true, tag: 'NOVO' },
+        { title: 'Clientes & Fornecedores', desc: 'Organize contatos, históricos e documentos em um só lugar centralizado.', category: 'commercial' },
+        { title: 'Controle de Pagamentos', desc: 'Controle recebimentos, faturas, prazos e fluxo de caixa.', category: 'finance' },
+        { title: 'Relatórios & Lucro Real', desc: 'Indicadores financeiros e margens de lucro por projeto em tempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Arquivo de Documentos', desc: 'Guarde e acesse fotos, contratos e arquivos com segurança na nuvem.', category: 'finance' },
+        { title: 'App Celular & Web', desc: 'Acesse de qualquer lugar pelo celular, tablet ou computador.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'ANTES ERA ASSIM...',
+        title: 'Antes era assim...',
+        items: [
+          'Pedidos perdidos no WhatsApp e anotações',
+          'Orçamentos em papel ou planilhas confusas',
+          'Informações desorganizadas',
+          'Dificuldade para cobrar clientes',
+          'Sem clareza do lucro real da obra'
+        ]
+      },
+      after: {
+        badge: 'AGORA É ASSIM COM ATRIOS BUILD',
+        title: 'Agora é assim com Atrios Build',
+        items: [
+          'Pedidos centralizados em um só lugar',
+          'Propostas profissionais em PDF com 1 clique',
+          'Clientes e obras 100% organizados',
+          'Controle total de custos e pagamentos',
+          'Mais tempo livre e mais lucro no seu bolso'
+        ]
+      },
+      ctaBanner: {
+        title: 'A plataforma completa para profissionais da construção civil.',
+        sub: 'Mais organização, mais clientes e mais lucro. Comece agora com o Atrios Build.',
+        trust: [
+          { title: 'Segurança total', sub: 'Seus dados protegidos' },
+          { title: 'Suporte dedicado', sub: 'Estamos aqui para ajudar' },
+          { title: 'Atualizações', sub: 'Melhorias constantes' },
+          { title: '+ Profissionais', sub: 'Comunidade em crescimento' }
+        ],
+        clientTitle: 'PEDIR ORÇAMENTO GRÁTIS',
+        clientSub: 'SOU CLIENTE E PRECISO DE UMA OBRA',
+        proTitle: 'QUERO SER PROFISSIONAL',
+        proSub: 'RECEBER PEDIDOS E GERENCIAR OBRAS'
+      }
+    },
+    footer: {
+      desc: 'A plataforma completa para gestão de orçamentos, ordens de serviço e controle financeiro de obras.',
+      secure: 'Dados seguros e criptografados',
+      product: 'PRODUTO',
+      company: 'EMPRESA',
+      support: 'SUPORTE',
+      features: 'Funcionalidades',
+      howItWorks: 'Como Funciona',
+      pdfQuotes: 'Orçamentos PDF',
+      createFree: 'Criar Conta Grátis →',
+      privacy: 'Privacidade',
+      terms: 'Termos de Uso',
+      help: 'Ajuda e Dúvidas',
+      demo: 'Ver Demonstração',
+      installApp: 'Instalar App Mobile',
+      clientPortal: 'Portal do Cliente (Login)',
+      rights: 'Todos os direitos reservados.',
+      tagline: 'Desenvolvido com excelência para profissionais da construção civil.'
+    }
+  },
+
+  'en-US': {
+    softwareSubtitle: 'CONSTRUCTION MANAGEMENT SOFTWARE',
+    nav: {
+      features: 'Features',
+      howItWorks: 'How It Works',
+      forClients: 'For Clients',
+      forPros: 'For Professionals',
+      portalClient: 'Client Portal (View Quotes)',
+      login: 'LOG IN',
+      startFree: 'START FREE',
+      register: 'SIGN UP'
+    },
+    hero: {
+      bannerPill: 'VIEW FEATURE PRESENTATION BANNERS',
+      headline: {
+        line1: 'Find clients.',
+        line2: 'Build estimates.',
+        line3: 'Manage your projects.',
+        highlight: 'All in one place with Atrios Build.'
+      },
+      subtitle: 'Receive quote requests from homeowners, send branded PDF proposals, and access full project management tools in one intuitive platform.',
+      clientCard: {
+        title: 'REQUEST FREE QUOTE',
+        sub: 'I need work done on my property',
+        portalPrompt: 'Already requested a quote?',
+        portalLink: 'Client Portal'
+      },
+      proCard: {
+        title: "I'M A PROFESSIONAL",
+        sub: 'I want leads & project management',
+        loginPrompt: 'Already have an account?',
+        loginLink: 'Pro Login'
+      },
+      video: {
+        tabVideo: 'HERO VIDEO',
+        tabLive: 'LIVE DEMO',
+        badge60s: '60 SECONDS',
+        duration: '01:45 MIN',
+        centerBtn: 'WATCH FULL DEMO',
+        subText: 'Click to watch how Atrios Build works in action',
+        step1: 'Requests',
+        step2: 'Proposals',
+        step3: 'Management'
+      },
+      trust: {
+        secure: 'Secure & trusted',
+        secureSub: 'Bank-grade data encryption',
+        verified: 'Verified trades & pros',
+        verifiedSub: 'Peace of mind guaranteed',
+        everywhere: 'Access anywhere',
+        everywhereSub: 'Web, Tablet & Mobile App'
+      }
+    },
+    steps7: {
+      eyebrow: 'FROM FIRST CONTACT TO PROJECT COMPLETION',
+      title: 'How it works for everyone',
+      items: [
+        { num: '01', title: 'Client requests a quote', desc: 'The client describes their project details and submits.' },
+        { num: '02', title: 'Professional receives lead', desc: 'Vetted trades and contractors in the area are notified.' },
+        { num: '03', title: 'Pro builds the estimate', desc: 'Analyzes materials, labor hours and calculates pricing.' },
+        { num: '04', title: 'Pro sends branded PDF', desc: 'The client receives a crystal-clear proposal document.' },
+        { num: '05', title: 'Client reviews & approves', desc: 'Compares estimates and chooses the best contractor.' },
+        { num: '06', title: 'Project created in Atrios', desc: 'Contractor starts the job and organizes tasks in app.' },
+        { num: '07', title: 'Track payments & profits', desc: 'Monitor material expenses, invoices, and net margin.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'FOR CLIENTS',
+        title: 'Need renovation or construction work?',
+        sub: 'Connect with reliable, verified trade professionals in your area.',
+        bullets: [
+          'Submit your quote request 100% free',
+          'Describe the exact work you need done',
+          'Add location details and photos',
+          'Receive detailed proposals from verified contractors',
+          'Track your project requests in real-time',
+          'Pick the best quote for your budget'
+        ],
+        previewTitle: 'Receive quotes',
+        previewBadge: '3 Quotes',
+        previewCta: 'VIEW ALL PROPOSALS →',
+        cta: 'REQUEST FREE QUOTE',
+        portalPrompt: 'Already requested a quote? Open Client Portal',
+        portalLink: 'Client Portal'
+      },
+      pro: {
+        badge: 'FOR PROFESSIONALS',
+        title: 'Turn project inquiries into profitable contracts.',
+        sub: 'Win new leads, close jobs, and manage your entire business in one place.',
+        bullets: [
+          'Receive fresh job leads in your area',
+          'Inspect job scope, photos, and client details',
+          'Create itemized estimates with 1 click',
+          'Send branded PDF quotes with your logo',
+          'Manage tasks, materials, and work orders',
+          'Track crew hours and job site time tracking',
+          'Track milestone payments and client invoices',
+          'All inside one unified software'
+        ],
+        previewTitle: 'Monthly Overview',
+        previewBadge: '+24% this month',
+        stat1Label: 'Revenue',
+        stat1Val: '$18,650',
+        stat2Label: 'Projects',
+        stat2Val: '8 Active',
+        stat3Label: 'Leads',
+        stat3Val: '12 New',
+        cta: 'START RECEIVING LEADS'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'CREW MANAGEMENT & TIME CLOCK',
+      title: 'Employee Time Tracking & Job Costing',
+      sub: 'Clock in/out, log meal breaks, and track overtime by job site. Calculate exact labor costs for every construction project automatically.',
+      bullets: [
+        'Mobile time clock and job site QR Code punch-in',
+        'Automatic calculation of regular and overtime hours',
+        'Direct labor cost allocation to specific projects',
+        'One-click export of timesheets to PDF and Excel'
+      ],
+      sampleWorker: 'John Miller',
+      sampleRole: 'Lead Carpenter',
+      sampleProject: 'Site: Modern Villa Reno',
+      sampleHours: '8.0h Regular',
+      sampleExtra: '+1.5h Overtime',
+      sampleCost: 'Calculated Labor Cost',
+      cta: 'START TRACKING CREW TIME'
+    },
+    translatorBanner: {
+      badge: 'ARTIFICIAL INTELLIGENCE & REAL-TIME TRANSLATION',
+      title: 'Real-Time Live Translation for International Clients & Sites',
+      sub: 'Speak, chat, and meet with clients and partners from any country. Atrios Build instantly translates voice and text with zero language friction.',
+      bullets: [
+        'Instant two-way translation across 15+ languages powered by AI',
+        'Instant client access via QR Code or WhatsApp link (no app download needed)',
+        'Natural Voice Synthesis (Audio / TTS) and real-time speech transcription',
+        'Translation and chat history automatically archived to the job site profile'
+      ],
+      sampleSourceLang: 'English',
+      sampleSourceText: 'Hello! We reviewed your renovation specs and the estimate is ready.',
+      sampleTargetLang: 'Spanish (Español)',
+      sampleTargetText: '¡Hola! Hemos revisado las especificaciones y el presupuesto está listo.',
+      liveInterpreterLabel: 'Active AI Live Interpreter',
+      qrConnectLabel: 'Quick Connect QR Code',
+      voiceAudioLabel: 'Live Audio & Speech-to-Text',
+      cta: 'TRY REAL-TIME TRANSLATOR'
+    },
+    features10: {
+      eyebrow: 'EVERYTHING YOU NEED TO RUN YOUR BUSINESS',
+      title: 'Complete features for your daily operations',
+      categories: {
+        all: 'All Features',
+        commercial: 'Sales & Clients',
+        site: 'Job Site & Crew',
+        aiTranslator: 'AI Translation & Voice',
+        finance: 'Finance & Growth'
+      },
+      items: [
+        { title: 'Estimates & Quotes', desc: 'Create accurate, professional bids in minutes.', category: 'commercial', tag: 'ESSENTIAL' },
+        { title: 'Quote Requests', desc: 'Receive inquiries directly from homeowners in your area.', category: 'commercial', isNew: true, tag: 'NEW' },
+        { title: 'Client Portal', desc: 'Dedicated portal for clients to review and approve proposals.', category: 'commercial', isHighlighted: true, tag: 'POPULAR' },
+        { title: 'Real-Time Translation', desc: 'Communicate with foreign clients via AI voice and real-time chat.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'AI EXCLUSIVE' },
+        { title: 'Multilingual Chat & QR', desc: 'Clients scan a QR code to chat and hear audio in their native language.', category: 'aiTranslator', isNew: true, tag: 'INNOVATION' },
+        { title: 'Project Tracking', desc: 'Monitor job site progress, tasks, and milestones in real-time.', category: 'site', tag: 'CORE' },
+        { title: 'Employee Time Clock', desc: 'Track crew hours, regular vs overtime, and site labor costs with QR.', category: 'site', isNew: true, tag: 'NEW' },
+        { title: 'Client Directory', desc: 'Organize customers, suppliers, and contractor contacts in one hub.', category: 'commercial' },
+        { title: 'Invoicing & Payments', desc: 'Control incoming payments, deposits, and cash flow milestones.', category: 'finance' },
+        { title: 'Profit Reports', desc: 'Real-time financial analytics and true margin calculation.', category: 'finance', tag: 'METRICS' },
+        { title: 'Document Vault', desc: 'Safely store contracts, photos, and job receipts in the cloud.', category: 'finance' },
+        { title: 'Mobile & Web App', desc: 'Full-featured access from your smartphone, tablet, or PC.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'BEFORE ATRIOS...',
+        title: 'Before Atrios...',
+        items: [
+          'Quote requests scattered across texts, email & calls',
+          'Messy paper notes or complex spreadsheets',
+          'Disorganized project details and lost receipts',
+          'Difficulty tracking client payment schedules',
+          'No clear visibility into actual job profitability'
+        ]
+      },
+      after: {
+        badge: 'NOW WITH ATRIOS BUILD',
+        title: 'Now with Atrios Build',
+        items: [
+          'All project inquiries organized in one clean inbox',
+          'Branded PDF proposals generated in 60 seconds',
+          'Clients, tasks, and job sites 100% structured',
+          'Real-time cash flow and payment milestone alerts',
+          'Save 10+ hours per week and boost your profit margins'
+        ]
+      },
+      ctaBanner: {
+        title: 'The complete software suite for trades & construction pros.',
+        sub: 'More organization, higher win rates, and higher profits. Get started free with Atrios Build.',
+        trust: [
+          { title: 'Total Security', sub: 'Encrypted cloud backup' },
+          { title: 'Dedicated Support', sub: 'Here to help you grow' },
+          { title: 'Regular Updates', sub: 'Continuous improvements' },
+          { title: 'Growing Network', sub: 'Thousands of active pros' }
+        ],
+        clientTitle: 'REQUEST FREE ESTIMATE',
+        clientSub: 'I NEED A TRADE PROFESSIONAL',
+        proTitle: 'JOIN AS A CONTRACTOR',
+        proSub: 'GET LEADS & MANAGE PROJECTS'
+      }
+    },
+    footer: {
+      desc: 'The complete construction estimate, project management, and financial control platform for modern builders.',
+      secure: 'Secure & encrypted data',
+      product: 'PRODUCT',
+      company: 'COMPANY',
+      support: 'SUPPORT',
+      features: 'Features',
+      howItWorks: 'How It Works',
+      pdfQuotes: 'PDF Quotes',
+      createFree: 'Create Free Account →',
+      privacy: 'Privacy Policy',
+      terms: 'Terms of Service',
+      help: 'Help & FAQ',
+      demo: 'Watch Demo',
+      installApp: 'Install Mobile App',
+      clientPortal: 'Client Portal (Login)',
+      rights: 'All rights reserved.',
+      tagline: 'Crafted with precision for construction professionals.'
+    }
+  },
+
+  'es-ES': {
+    softwareSubtitle: 'SOFTWARE PARA LA CONSTRUCCIÓN CIVIL',
+    nav: {
+      features: 'Funciones',
+      howItWorks: 'Cómo funciona',
+      forClients: 'Para Clientes',
+      forPros: 'Para Profesionales',
+      portalClient: 'Portal del Cliente (Ver Presupuestos)',
+      login: 'ENTRAR',
+      startFree: 'CREAR CUENTA GRATIS',
+      register: 'REGISTRARSE'
+    },
+    hero: {
+      bannerPill: 'VER BANNERS DE PRESENTACIÓN DE FUNCIONES',
+      headline: {
+        line1: 'Encuentre clientes.',
+        line2: 'Cree presupuestos.',
+        line3: 'Gestione sus obras.',
+        highlight: 'Todo en un solo lugar con Atrios Build.'
+      },
+      subtitle: 'Reciba solicitudes de presupuesto, envíe propuestas en PDF profesionales y tenga todas las herramientas para gestionar su negocio y sus obras.',
+      clientCard: {
+        title: 'SOLICITAR PRESUPUESTO GRATIS',
+        sub: 'Soy cliente y necesito una obra o reforma',
+        portalPrompt: '¿Ya solicitó presupuesto?',
+        portalLink: 'Portal del Cliente'
+      },
+      proCard: {
+        title: 'SOY PROFESIONAL',
+        sub: 'Quiero recibir solicitudes y gestionar obras',
+        loginPrompt: '¿Ya tiene cuenta?',
+        loginLink: 'Login Profesional'
+      },
+      video: {
+        tabVideo: 'VÍDEO HERO',
+        tabLive: 'EN VIVO',
+        badge60s: '60 SEGUNDOS',
+        duration: '01:45 MIN',
+        centerBtn: 'VER DEMOSTRACIÓN COMPLETA',
+        subText: 'Haga clic para ver cómo funciona Atrios Build',
+        step1: 'Solicitudes',
+        step2: 'Propuestas',
+        step3: 'Gestión'
+      },
+      trust: {
+        secure: 'Seguro y confiable',
+        secureSub: 'Sus datos protegidos',
+        verified: 'Profesionales verificados',
+        verifiedSub: 'Mayor seguridad para usted',
+        everywhere: 'Acceso en cualquier lugar',
+        everywhereSub: 'Web y App móvil'
+      }
+    },
+    steps7: {
+      eyebrow: 'DEL PRIMER CONTACTO AL RESULTADO DE LA OBRA',
+      title: 'Cómo funciona para todos',
+      items: [
+        { num: '01', title: 'El cliente solicita un presupuesto', desc: 'El cliente describe lo que necesita y envía su solicitud.' },
+        { num: '02', title: 'El profesional recibe la solicitud', desc: 'Las empresas y profesionales de la plataforma son notificados.' },
+        { num: '03', title: 'El profesional prepara la propuesta', desc: 'Analiza los detalles de la obra y prepara el presupuesto.' },
+        { num: '04', title: 'Envío de propuesta profesional', desc: 'El cliente recibe una propuesta clara con su marca.' },
+        { num: '05', title: 'El cliente analiza y aprueba', desc: 'Compara las propuestas y elige al profesional ideal.' },
+        { num: '06', title: 'La obra se crea en Atrios Build', desc: 'El profesional inicia la obra y organiza todo en la plataforma.' },
+        { num: '07', title: 'Gestione y controle los resultados', desc: 'Controle costes, cobros y vea el beneficio real de la obra.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'PARA CLIENTES',
+        title: '¿Necesita una reforma u obra?',
+        sub: 'Encuentre profesionales cualificados en nuestra plataforma.',
+        bullets: [
+          'Solicite su presupuesto 100% gratis',
+          'Explique el servicio que necesita',
+          'Indique la ubicación y detalles de la obra',
+          'Reciba propuestas de profesionales verificados',
+          'Siga sus solicitudes en tiempo real',
+          'Elija la mejor propuesta para su proyecto'
+        ],
+        previewTitle: 'Reciba propuestas',
+        previewBadge: '3 Propuestas',
+        previewCta: 'VER TODAS LAS PROPUESTAS →',
+        cta: 'SOLICITAR PRESUPUESTO GRATIS',
+        portalPrompt: '¿Ya solicitó presupuesto? Entrar al Portal del Cliente',
+        portalLink: 'Portal del Cliente'
+      },
+      pro: {
+        badge: 'PARA PROFISSIONALES',
+        title: 'Transforme solicitudes de presupuesto en nuevas oportunidades.',
+        sub: 'Reciba pedidos, cierre obras y gestione todo en el mismo lugar.',
+        bullets: [
+          'Reciba nuevas solicitudes de presupuesto',
+          'Consulte detalles y ubicación de la obra',
+          'Analise y prepare su presupuesto en minutos',
+          'Envíe propuestas en PDF con su logotipo',
+          'Organice obras, clientes y documentos',
+          'Control de horas y fichaje de empleados por obra',
+          'Controle pagos y resultados financieros',
+          'Todo en una única plataforma'
+        ],
+        previewTitle: 'Resumen del mes',
+        previewBadge: '+24% este mes',
+        stat1Label: 'Facturación',
+        stat1Val: '18.650 €',
+        stat2Label: 'Obras',
+        stat2Val: '8 Activas',
+        stat3Label: 'Solicitudes',
+        stat3Val: '12 Nuevas',
+        cta: 'QUIERO RECIBIR SOLICITUDES'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'GESTIÓN DE EQUIPOS Y FICHAJE DE PUNTUALIDAD',
+      title: 'Control de Horas de los Empleados por Obra',
+      sub: 'Registre entradas, salidas, descansos y horas extras de su equipo. Conozca con precisión los costes reales de mano de obra en cada proyecto.',
+      bullets: [
+        'Fichaje rápido desde el móvil o con código QR en obra',
+        'Cálculo automático de horas ordinarias y extraordinarias',
+        'Imputación directa del coste de personal a cada obra',
+        'Exportación de partes de trabajo e informes a PDF y Excel'
+      ],
+      sampleWorker: 'Juan García',
+      sampleRole: 'Oficial de Albañilería',
+      sampleProject: 'Obra: Reforma Gran Vía',
+      sampleHours: '8.0h Ordinarias',
+      sampleExtra: '+1.5h Extras',
+      sampleCost: 'Coste de Mano de Obra Calculado',
+      cta: 'COMENZAR A GESTIONAR EQUIPO'
+    },
+    translatorBanner: {
+      badge: 'INTELIGENCIA ARTIFICIAL & TRADUCCIÓN SIMULTÁNEA',
+      title: 'Traducción en Tiempo Real para Clientes y Obras Internacionales',
+      sub: 'Hable, envíe mensajes y haga reuniones con clientes y socios de cualquier país. Atrios Build traduce al instante voz y texto sin barreras de idioma.',
+      bullets: [
+        'Traducción bidireccional instantánea en más de 15 idiomas con IA',
+        'Acceso inmediato para el cliente mediante código QR o enlace (sin instalar nada)',
+        'Síntesis de voz natural (Audio / TTS) y transcripción de voz en tiempo real',
+        'Historial de conversaciones y presupuestos guardado en la ficha del proyecto'
+      ],
+      sampleSourceLang: 'Español',
+      sampleSourceText: '¡Hola! Hemos revisado su proyecto y la propuesta detallada ya está lista.',
+      sampleTargetLang: 'Inglés (English)',
+      sampleTargetText: 'Hello! We reviewed your project and the detailed proposal is ready.',
+      liveInterpreterLabel: 'Intérprete Simultáneo IA Activo',
+      qrConnectLabel: 'Código QR de Conexión Rápida',
+      voiceAudioLabel: 'Audio y Transcripción en Vivo',
+      cta: 'PROBAR TRADUCCIÓN EN VIVO'
+    },
+    features10: {
+      eyebrow: 'TODO LO QUE NECESITA PARA GESTIONAR SU NEGOCIO',
+      title: 'Funcionalidades completas para el día a día',
+      categories: {
+        all: 'Todas las Funciones',
+        commercial: 'Comercial y Clientes',
+        site: 'Obras y Equipos',
+        aiTranslator: 'Traducción IA y Voz',
+        finance: 'Finanzas y Gestión'
+      },
+      items: [
+        { title: 'Presupuestos y Propuestas', desc: 'Cree presupuestos y propuestas profesionales en minutos.', category: 'commercial', tag: 'ESENCIAL' },
+        { title: 'Solicitudes de Obra', desc: 'Reciba solicitudes de clientes directamente en la plataforma.', category: 'commercial', isNew: true, tag: 'NUEVO' },
+        { title: 'Portal del Cliente', desc: 'Acceso exclusivo para que los clientes consulten y aprueben presupuestos.', category: 'commercial', isHighlighted: true, tag: 'DESTACADO' },
+        { title: 'Traducción en Tiempo Real', desc: 'Comuníquese con clientes extranjeros por voz y chat con traducción por IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVA' },
+        { title: 'Chat y QR Multilingüe', desc: 'El cliente escanea el QR desde su móvil para hablar en su idioma.', category: 'aiTranslator', isNew: true, tag: 'INNOVACIÓN' },
+        { title: 'Gestión de Obras', desc: 'Siga el progreso, materiales y fases de cada obra en tiempo real.', category: 'site', tag: 'POPULAR' },
+        { title: 'Control de Horas y Fichaje', desc: 'Registre fichaje, horas ordinarias y extras de empleados por obra con QR.', category: 'site', isNew: true, tag: 'NUEVO' },
+        { title: 'Clientes y Proveedores', desc: 'Organice clientes, proveedores y contactos en un solo lugar.', category: 'commercial' },
+        { title: 'Control de Pagos', desc: 'Controle cobros, facturas, plazos y flujo de caja.', category: 'finance' },
+        { title: 'Informes y Beneficio Real', desc: 'Informes financieros y cálculo de margen neto por obra en tiempo real.', category: 'finance', tag: 'MÉTRICAS' },
+        { title: 'Archivo de Documentos', desc: 'Guarde y acceda a documentos y fotos con total seguridad en la nube.', category: 'finance' },
+        { title: 'App Móvil y Web', desc: 'Acceda desde cualquier lugar con su móvil, tablet u ordenador.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'ANTES ERA ASÍ...',
+        title: 'Antes era así...',
+        items: [
+          'Solicitudes dispersas en WhatsApp y llamadas',
+          'Presupuestos en papel o tablas de Excel desordenadas',
+          'Información desorganizada y datos perdidos',
+          'Dificultad para hacer seguimiento a clientes',
+          'Sin control claro de los beneficios reales'
+        ]
+      },
+      after: {
+        badge: 'AHORA ES ASÍ CON ATRIOS BUILD',
+        title: 'Ahora es así con Atrios Build',
+        items: [
+          'Solicitudes organizadas en un solo lugar',
+          'Propuestas profesionales en PDF listas en segundos',
+          'Clientes, materiales y obras 100% organizados',
+          'Mayor control de costes y cobros pendientes',
+          'Más tiempo libre y más rentabilidad para su empresa'
+        ]
+      },
+      ctaBanner: {
+        title: 'La plataforma completa para profesionales de la construcción.',
+        sub: 'Más organización, más clientes y más resultados. Comience ahora gratis con Atrios Build.',
+        trust: [
+          { title: 'Seguridad total', sub: 'Datos encriptados' },
+          { title: 'Soporte dedicado', sub: 'Estamos para ayudarle' },
+          { title: 'Actualizaciones', sub: 'Siempre mejorando' },
+          { title: '+ Profesionales', sub: 'Plataforma en expansión' }
+        ],
+        clientTitle: 'SOLICITAR PRESUPUESTO GRATIS',
+        clientSub: 'SOY CLIENTE Y NECESITO UNA OBRA',
+        proTitle: 'QUIERO SER PROFESIONAL',
+        proSub: 'RECIBIR SOLICITUDES Y GESTIONAR OBRAS'
+      }
+    },
+    footer: {
+      desc: 'La plataforma integral para gestión de presupuestos, órdenes de trabajo y control financiero de obras.',
+      secure: 'Datos seguros y encriptados',
+      product: 'PRODUCTO',
+      company: 'EMPRESA',
+      support: 'SOPORTE',
+      features: 'Funciones',
+      howItWorks: 'Cómo Funciona',
+      pdfQuotes: 'Presupuestos PDF',
+      createFree: 'Crear Cuenta Gratis →',
+      privacy: 'Privacidad',
+      terms: 'Términos de Uso',
+      help: 'Ayuda y Preguntas',
+      demo: 'Ver Demostración',
+      installApp: 'Instalar App Móvil',
+      clientPortal: 'Portal del Cliente (Login)',
+      rights: 'Todos los derechos reservados.',
+      tagline: 'Desarrollado con excelencia para profesionales de la construcción.'
+    }
+  },
+
+  'fr-FR': {
+    softwareSubtitle: 'LOGICIEL DE GESTION DE CHANTIER',
+    nav: {
+      features: 'Fonctionnalités',
+      howItWorks: 'Comment ça marche',
+      forClients: 'Pour les Clients',
+      forPros: 'Pour les Professionnels',
+      portalClient: 'Portail Client (Voir Devis)',
+      login: 'CONNEXION',
+      startFree: 'COMMENCER GRATUITEMENT',
+      register: "S'INSCRIRE"
+    },
+    hero: {
+      bannerPill: 'VOIR LES BANNIÈRES DE DÉMONSTRATION',
+      headline: {
+        line1: 'Trouvez des clients.',
+        line2: 'Créez vos devis.',
+        line3: 'Gérez vos chantiers.',
+        highlight: 'Tout au même endroit avec Atrios Build.'
+      },
+      subtitle: 'Recevez des demandes de devis, envoyez des propositions PDF professionnelles et pilotez tous vos chantiers sur une seule plateforme intuitive.',
+      clientCard: {
+        title: 'DEMANDER UN DEVIS GRATUIT',
+        sub: "J'ai un projet de travaux ou de rénovation",
+        portalPrompt: 'Déjà demandé un devis ?',
+        portalLink: 'Portail Client'
+      },
+      proCard: {
+        title: 'JE SUIS PROFESSIONNEL',
+        sub: 'Recevoir des demandes et gérer mes chantiers',
+        loginPrompt: 'Déjà un compte ?',
+        loginLink: 'Connexion Pro'
+      },
+      video: {
+        tabVideo: 'VIDÉO HERO',
+        tabLive: 'EN DIRECT',
+        badge60s: '60 SECONDES',
+        duration: '01:45 MIN',
+        centerBtn: 'VOIR LA DÉMO COMPLÈTE',
+        subText: 'Cliquez pour découvrir le fonctionnement d’Atrios Build',
+        step1: 'Demandes',
+        step2: 'Devis',
+        step3: 'Gestion'
+      },
+      trust: {
+        secure: 'Sécurisé et fiable',
+        secureSub: 'Vos données protégées',
+        verified: 'Artisans vérifiés',
+        verifiedSub: 'Plus de sérénité pour vous',
+        everywhere: 'Accessible partout',
+        everywhereSub: 'Web, Tablette et Mobile'
+      }
+    },
+    steps7: {
+      eyebrow: 'DU PREMIER CONTACT À LA FIN DU CHANTIER',
+      title: 'Comment ça marche pour tous',
+      items: [
+        { num: '01', title: 'Le client dépose sa demande', desc: 'Il décrit son projet et soumet sa demande de devis.' },
+        { num: '02', title: 'L’artisan reçoit l’opportunité', desc: 'Les entreprises qualifiées du secteur sont notifiées.' },
+        { num: '03', title: 'L’artisan prépare son offre', desc: 'Calcule les matériaux, la main-d’œuvre et les marges.' },
+        { num: '04', title: 'Envoi du devis PDF soigné', desc: 'Le client reçoit une proposition claire avec logo.' },
+        { num: '05', title: 'Le client valide et choisit', desc: 'Compare les devis et choisit le meilleur professionnel.' },
+        { num: '06', title: 'Le chantier démarre sur Atrios', desc: 'L’artisan organise les tâches et le planning en ligne.' },
+        { num: '07', title: 'Suivi des paiements et profits', desc: 'Contrôlez les règlements, factures et rentabilité nette.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'POUR LES PARTICULIERS',
+        title: 'Vous avez des travaux à réaliser ?',
+        sub: 'Trouvez des artisans et entreprises du bâtiment qualifiés.',
+        bullets: [
+          'Déposez votre demande de devis 100% gratuitement',
+          'Détaillez le type de travaux dont vous avez besoin',
+          'Indiquez la localisation et vos délais souhaités',
+          'Recevez des propositions claires d’artisans vérifiés',
+          'Suivez l’avancement de vos demandes en direct',
+          'Sélectionnez la meilleure offre pour votre budget'
+        ],
+        previewTitle: 'Recevez des devis',
+        previewBadge: '3 Devis',
+        previewCta: 'VOIR TOUS LES DEVIS →',
+        cta: 'DEMANDER UN DEVIS GRATUIT',
+        portalPrompt: 'Déjà une demande ? Accéder au Portail Client',
+        portalLink: 'Portail Client'
+      },
+      pro: {
+        badge: 'POUR LES PROFESSIONNELS DU BÂTIMENT',
+        title: 'Transformez chaque demande en chantier rentable.',
+        sub: 'Recevez des chantiers ciblés, signez plus vite et gérez tout au même endroit.',
+        bullets: [
+          'Recevez de nouvelles demandes de devis qualifiées',
+          'Consultez les détails et photos des chantiers',
+          'Créez des devis précis en quelques clics',
+          'Générez des PDF élégants avec votre logo et mentions',
+          'Organisez vos équipes, matériaux et ordres de mission',
+          'Suivi des heures et pointage des équipes par chantier',
+          'Pilotez les acomptes, factures et règlements',
+          'Tout réuni sur une seule plateforme intuitive'
+        ],
+        previewTitle: 'Synthèse du mois',
+        previewBadge: '+24% ce mois-ci',
+        stat1Label: 'Chiffre d’Affaires',
+        stat1Val: '18.650 €',
+        stat2Label: 'Chantiers',
+        stat2Val: '8 Actifs',
+        stat3Label: 'Demandes',
+        stat3Val: '12 Nouvelles',
+        cta: 'RECEVOIR DES DEMANDES'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'GESTION D’ÉQUIPE & POINTAGE DE CHANTIER',
+      title: 'Suivi des Heures et Pointage des Ouvriers par Chantier',
+      sub: 'Enregistrez les arrivées, départs, pauses et heures supplémentaires de vos collaborateurs. Calculez précisément le coût réel de main-d’œuvre pour chaque projet.',
+      bullets: [
+        'Pointage mobile instantané ou badge par QR Code sur chantier',
+        'Calcul automatique des heures normales et majorées',
+        'Affectation directe des coûts de personnel à chaque chantier',
+        'Export des feuilles d’heures et rapports en PDF et Excel'
+      ],
+      sampleWorker: 'Thomas Martin',
+      sampleRole: 'Chef de Chantier',
+      sampleProject: 'Chantier: Rénovation Haussmann',
+      sampleHours: '8.0h Normales',
+      sampleExtra: '+1.5h Sup.',
+      sampleCost: 'Coût Main-d’œuvre Calculé',
+      cta: 'DÉMARRER LE SUIVI D’ÉQUIPE'
+    },
+    translatorBanner: {
+      badge: 'INTELLIGENCE ARTIFICIELLE & TRADUCTION SIMULTANÉE',
+      title: 'Traduction en Temps Réel pour Clients & Chantiers Internationaux',
+      sub: 'Échangez, négociez et tenez vos réunions de chantier avec des clients et partenaires de toutes nationalités. Atrios Build traduit instantanément voix et texte sans barrière linguistique.',
+      bullets: [
+        'Traduction bidirectionnelle instantanée en plus de 15 langues avec IA',
+        'Accès direct pour le client via QR Code ou lien WhatsApp (aucune application à installer)',
+        'Synthèse vocale naturelle (Audio / TTS) et transcription de la parole en direct',
+        'Historique des échanges et devis traduits automatiquement rattaché au dossier chantier'
+      ],
+      sampleSourceLang: 'Français',
+      sampleSourceText: 'Bonjour ! Nous avons finalisé l’étude de vos travaux et le devis est prêt.',
+      sampleTargetLang: 'Anglais (English)',
+      sampleTargetText: 'Hello! We finalized your project study and the estimate is ready.',
+      liveInterpreterLabel: 'Interprète IA en Direct Actif',
+      qrConnectLabel: 'QR Code de Connexion Rapide',
+      voiceAudioLabel: 'Audio & Transcription en Direct',
+      cta: 'TESTER LA TRADUCTION EN DIRECT'
+    },
+    features10: {
+      eyebrow: 'TOUT POUR PILOTER VOTRE ACTIVITÉ',
+      title: 'Des fonctionnalités complètes pour le quotidien',
+      categories: {
+        all: 'Toutes les Fonctions',
+        commercial: 'Commercial & Clients',
+        site: 'Chantiers & Équipes',
+        aiTranslator: 'Traduction IA & Voix',
+        finance: 'Finances & Gestion'
+      },
+      items: [
+        { title: 'Devis & Chiffrage', desc: 'Créez des devis et propositions professionnels en quelques minutes.', category: 'commercial', tag: 'ESSENTIEL' },
+        { title: 'Demandes de Travaux', desc: 'Recevez des demandes de particuliers directement sur votre compte.', category: 'commercial', isNew: true, tag: 'NOUVEAU' },
+        { title: 'Portail Client', desc: 'Espace dédié permettant aux clients de consulter et valider leurs devis.', category: 'commercial', isHighlighted: true, tag: 'VEDETTE' },
+        { title: 'Traduction en Temps Réel', desc: 'Communiquez avec vos clients étrangers par voix et chat traduit par IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA EXCLUSIVE' },
+        { title: 'Chat & QR Code Multilingue', desc: 'Le client scanne le QR code sur son smartphone pour dialoguer dans sa langue.', category: 'aiTranslator', isNew: true, tag: 'INNOVATION' },
+        { title: 'Gestion de Chantiers', desc: 'Suivez l’avancement de chaque chantier, tâches et approvisionnements en temps réel.', category: 'site', tag: 'POPULAIRE' },
+        { title: 'Pointage & Heures Équipe', desc: 'Suivez les heures d’équipe, pointages et coûts de main-d’œuvre avec QR Code.', category: 'site', isNew: true, tag: 'NOUVEAU' },
+        { title: 'Répertoire Clients', desc: 'Centralisez clients, sous-traitants et fournisseurs au même endroit.', category: 'commercial' },
+        { title: 'Suivi des Règlements', desc: 'Gardez le contrôle sur les acomptes, factures et trésorerie.', category: 'finance' },
+        { title: 'Tableaux de Bord & Marges', desc: 'Indicateurs de rentabilité et suivi des marges nettes par chantier en direct.', category: 'finance', tag: 'MÉTRIQUES' },
+        { title: 'Coffre-fort Documents', desc: 'Stockez plans, photos et justificatifs en toute sécurité dans le cloud.', category: 'finance' },
+        { title: 'Application Mobile & Web', desc: 'Accédez à toutes vos données depuis votre smartphone, tablette ou ordinateur.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'AVANT ATRIOS...',
+        title: 'Avant Atrios...',
+        items: [
+          'Demandes éparpillées sur WhatsApp, mails et SMS',
+          'Devis sur papier ou tableurs Excel fastidieux',
+          'Informations perdues et classeurs encombrants',
+          'Difficulté à relancer les clients et suivre les paiements',
+          'Manque de visibilité sur les bénéfices réels du chantier'
+        ]
+      },
+      after: {
+        badge: 'MAINTENANT AVEC ATRIOS BUILD',
+        title: 'Maintenant avec Atrios Build',
+        items: [
+          'Toutes vos demandes organisées dans une boîte de réception unique',
+          'Devis PDF soignés générés en 60 secondes chrono',
+          'Clients, équipes et chantiers 100% structurés',
+          'Suivi précis des acomptes, restes à payer et trésorerie',
+          'Gagnez des heures chaque semaine et augmentez vos marges'
+        ]
+      },
+      ctaBanner: {
+        title: 'Le logiciel tout-en-un pour les artisans et professionnels du BTP.',
+        sub: 'Plus d’organisation, plus de chantiers signés et plus de bénéfices. Démarrez gratuitement dès aujourd’hui.',
+        trust: [
+          { title: 'Sécurité Totale', sub: 'Sauvegarde cloud chiffrée' },
+          { title: 'Support Réactif', sub: 'À vos côtés au quotidien' },
+          { title: 'Évolutions Continues', sub: 'Mises à jour régulières' },
+          { title: 'Réseau Pro', sub: 'Des milliers d’utilisateurs' }
+        ],
+        clientTitle: 'DEMANDER UN DEVIS GRATUIT',
+        clientSub: 'J’AI UN PROJET DE TRAVAUX',
+        proTitle: 'REJOINDRE COMME ARTISAN',
+        proSub: 'RECEVOIR DES CHANTIERS ET GÉRER MES TRAVAUX'
+      }
+    },
+    footer: {
+      desc: 'La solution complète pour la réalisation de devis, la gestion de chantiers et le suivi financier du bâtiment.',
+      secure: 'Données sécurisées et chiffrées',
+      product: 'PRODUIT',
+      company: 'ENTREPRISE',
+      support: 'ASSISTANCE',
+      features: 'Fonctionnalités',
+      howItWorks: 'Comment ça marche',
+      pdfQuotes: 'Devis PDF',
+      createFree: 'Créer un Compte Gratuit →',
+      privacy: 'Confidentialité',
+      terms: 'Conditions Générales',
+      help: 'Aide & FAQ',
+      demo: 'Voir la Démonstration',
+      installApp: 'Installer l’App Mobile',
+      clientPortal: 'Portail Client (Connexion)',
+      rights: 'Tous droits réservés.',
+      tagline: 'Conçu avec rigueur pour les professionnels du bâtiment.'
+    }
+  },
+
+  'it-IT': {
+    softwareSubtitle: 'SOFTWARE PER EDILIZIA E COSTRUZIONI',
+    nav: {
+      features: 'Funzionalità',
+      howItWorks: 'Come funziona',
+      forClients: 'Per i Clienti',
+      forPros: 'Per i Professionisti',
+      portalClient: 'Portale Clienti (Vedi Preventivi)',
+      login: 'ACCEDI',
+      startFree: 'INIZIA GRATIS',
+      register: 'REGISTRATI'
+    },
+    hero: {
+      bannerPill: 'VEDI I BANNER DI PRESENTAZIONE',
+      headline: {
+        line1: 'Trova clienti.',
+        line2: 'Crea preventivi.',
+        line3: 'Gestisci i tuoi cantieri.',
+        highlight: 'Tutto in un unico posto con Atrios Build.'
+      },
+      subtitle: 'Ricevi richieste di preventivo, invia proposte PDF professionali e gestisci cantieri, pagamenti e margini in totale semplicità.',
+      clientCard: {
+        title: 'RICHIEDI PREVENTIVO GRATIS',
+        sub: 'Sono un cliente e ho bisogno di lavori',
+        portalPrompt: 'Hai già richiesto un preventivo?',
+        portalLink: 'Portale Clienti'
+      },
+      proCard: {
+        title: 'SONO UN PROFESSIONISTA',
+        sub: 'Voglio ricevere richieste e gestire cantieri',
+        loginPrompt: 'Hai già un account?',
+        loginLink: 'Login Professionista'
+      },
+      video: {
+        tabVideo: 'VIDEO HERO',
+        tabLive: 'DAL VIVO',
+        badge60s: '60 SECONDI',
+        duration: '01:45 MIN',
+        centerBtn: 'GUARDA LA DIMOSTRAZIONE',
+        subText: 'Clicca per scoprire come funziona Atrios Build',
+        step1: 'Richieste',
+        step2: 'Preventivi',
+        step3: 'Gestione'
+      },
+      trust: {
+        secure: 'Sicuro e affidabile',
+        secureSub: 'I tuoi dati protetti',
+        verified: 'Professionisti verificati',
+        verifiedSub: 'Massima tranquillità per te',
+        everywhere: 'Accesso ovunque',
+        everywhereSub: 'Web, Tablet e App mobile'
+      }
+    },
+    steps7: {
+      eyebrow: 'DAL PRIMO CONTATTO AL COMPLETAMENTO DELL’OPERA',
+      title: 'Come funziona per tutti',
+      items: [
+        { num: '01', title: 'Il cliente richiede un preventivo', desc: 'Descrive le esigenze del cantiere e invia la richiesta.' },
+        { num: '02', title: 'Il professionista riceve la notifica', desc: 'Imprese e artigiani qualificati della zona vengono avvisati.' },
+        { num: '03', title: 'Preparazione del computo', desc: 'Analizza materiali, manodopera e formula l’offerta.' },
+        { num: '04', title: 'Invio del preventivo PDF', desc: 'Il cliente riceve un documento chiaro con logo aziendale.' },
+        { num: '05', title: 'Il cliente valuta e approva', desc: 'Confronta le offerte e sceglie il professionista ideale.' },
+        { num: '06', title: 'Apertura cantiere su Atrios', desc: 'Il professionista avvia i lavori e organizza le fasi.' },
+        { num: '07', title: 'Controllo pagamenti e profitti', desc: 'Monitora spese, acconti ricevuti e guadagno netto.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'PER I CLIENTI',
+        title: 'Devi ristrutturare o costruire?',
+        sub: 'Trova professionisti qualificati e verificati per i tuoi lavori.',
+        bullets: [
+          'Invia la tua richiesta di preventivo gratuitamente',
+          'Spiega nel dettaglio i lavori di cui hai bisogno',
+          'Indica la posizione e le tempistiche desiderate',
+          'Ricevi proposte trasparenti da imprese verificate',
+          'Segui lo stato delle tue richieste in tempo reale',
+          'Scegli il preventivo migliore per il tuo budget'
+        ],
+        previewTitle: 'Ricevi preventivi',
+        previewBadge: '3 Preventivi',
+        previewCta: 'VEDI TUTTE LE PROPOSTE →',
+        cta: 'RICHIEDI PREVENTIVO GRATIS',
+        portalPrompt: 'Hai già inviato una richiesta? Accedi al Portale Clienti',
+        portalLink: 'Portale Clienti'
+      },
+      pro: {
+        badge: 'PER I PROFESSIONISTI',
+        title: 'Trasforma le richieste in contratti e cantieri redditizi.',
+        sub: 'Ricevi nuove commesse, chiudi accordi e gestisci tutto nello stesso posto.',
+        bullets: [
+          'Ricevi nuove richieste di preventivo qualificate',
+          'Esamina i dettagli del cantiere e le specifiche',
+          'Crea preventivi dettagliati in pochi minuti',
+          'Invia PDF professionali con il tuo logo e condizioni',
+          'Organizza cantieri, manodopera e materiali',
+          'Controllo ore e timbratura presenze operai per cantiere',
+          'Controlla scadenze di pagamento e flussi di cassa',
+          'Tutto in un’unica applicazione facile e moderna'
+        ],
+        previewTitle: 'Riepilogo del mese',
+        previewBadge: '+24% questo mese',
+        stat1Label: 'Fatturato',
+        stat1Val: '18.650 €',
+        stat2Label: 'Cantieri',
+        stat2Val: '8 Attivi',
+        stat3Label: 'Richieste',
+        stat3Val: '12 Nuove',
+        cta: 'VOGLIO RICEVERE RICHIESTE'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'GESTIONE SQUADRA E RILEVAZIONE PRESENZE',
+      title: 'Controllo Ore dei Collaboratori per Cantiere',
+      sub: 'Registra ingressi, uscite, pause e straordinari della tua squadra. Conosci con precisione millimetrica il costo reale della manodopera per ogni progetto.',
+      bullets: [
+        'Timbratura rapida da smartphone o tramite QR Code in cantiere',
+        'Calcolo automatico di ore ordinarie e straordinari',
+        'Attribuzione diretta del costo del personale a ciascun cantiere',
+        'Esportazione dei rapportini e fogli presenza in PDF ed Excel'
+      ],
+      sampleWorker: 'Marco Rossi',
+      sampleRole: 'Capocantiere',
+      sampleProject: 'Cantiere: Villa Navigli',
+      sampleHours: '8.0h Ordinarie',
+      sampleExtra: '+1.5h Straord.',
+      sampleCost: 'Costo Manodopera Calcolato',
+      cta: 'INIZIA A GESTIRE LA SQUADRA'
+    },
+    translatorBanner: {
+      badge: 'INTELLIGENZA ARTIFICIALE & TRADUZIONE SIMULTANEA',
+      title: 'Traduzione in Tempo Reale per Clienti e Cantieri Internazionali',
+      sub: 'Parla, chatta e conduci riunioni con clienti e partner esteri. Atrios Build traduce all’istante audio e testo senza barriere linguistiche.',
+      bullets: [
+        'Traduzione bidirezionale istantanea in oltre 15 lingue tramite IA',
+        'Accesso immediato per il cliente via QR Code o link (nessuna app da installare)',
+        'Sintesi vocale naturale (Audio / TTS) e trascrizione del parlato in tempo reale',
+        'Storico chat e preventivi tradotti salvati direttamente nella scheda del cantiere'
+      ],
+      sampleSourceLang: 'Italiano',
+      sampleSourceText: 'Buongiorno! Abbiamo completato il computo e il preventivo è pronto.',
+      sampleTargetLang: 'Inglese (English)',
+      sampleTargetText: 'Hello! We completed the survey and the estimate is ready.',
+      liveInterpreterLabel: 'Interprete IA Simultaneo Attivo',
+      qrConnectLabel: 'QR Code di Connessione Rapida',
+      voiceAudioLabel: 'Audio & Trascrizione dal Vivo',
+      cta: 'PROVA LA TRADUZIONE DAL VIVO'
+    },
+    features10: {
+      eyebrow: 'TUTTO IL NECESSARIO PER IL TUO LAVORO',
+      title: 'Funzionalità complete per la gestione quotidiana',
+      categories: {
+        all: 'Tutte le Funzionalità',
+        commercial: 'Commerciale & Clienti',
+        site: 'Cantieri & Squadra',
+        aiTranslator: 'Traduzione IA & Voce',
+        finance: 'Finanza & Controllo'
+      },
+      items: [
+        { title: 'Preventivi & Computi', desc: 'Crea preventivi professionali in PDF in pochi minuti.', category: 'commercial', tag: 'ESSENZIALE' },
+        { title: 'Richieste di Lavoro', desc: 'Ricevi richieste di preventivo da clienti della tua zona.', category: 'commercial', isNew: true, tag: 'NUOVO' },
+        { title: 'Portale Clienti', desc: 'Accesso dedicato per i clienti per consultare e approvare le proposte.', category: 'commercial', isHighlighted: true, tag: 'IN EVIDENZA' },
+        { title: 'Traduzione in Tempo Reale', desc: 'Comunica con clienti esteri via voce e chat tradotta dall’IA.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'IA ESCLUSIVA' },
+        { title: 'Chat & QR Code Multilingua', desc: 'Il cliente scansiona il QR Code dal telefono per parlare nella sua lingua.', category: 'aiTranslator', isNew: true, tag: 'INNOVAZIONE' },
+        { title: 'Gestione Cantieri', desc: 'Monitora l’avanzamento di ogni opera, materiali e fasi in tempo reale.', category: 'site', tag: 'POPOLARE' },
+        { title: 'Controllo Ore & Timbratura', desc: 'Traccia presenze, ore ordinarie e straordinari della squadra con QR Code.', category: 'site', isNew: true, tag: 'NUOVO' },
+        { title: 'Anagrafica Clienti', desc: 'Organizza clienti, fornitori e collaboratori in un unico hub.', category: 'commercial' },
+        { title: 'Controllo Pagamenti', desc: 'Traccia acconti, fatture emesse e saldi da incassare.', category: 'finance' },
+        { title: 'Report & Margine Reale', desc: 'Statistiche e analisi finanziaria del margine effettivo per cantiere.', category: 'finance', tag: 'METRICHE' },
+        { title: 'Archivio Documenti', desc: 'Salva in sicurezza foto, contratti e certificazioni sul cloud.', category: 'finance' },
+        { title: 'App Mobile & Web', desc: 'Accedi da ovunque con smartphone, tablet o computer.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'PRIMA ERA COSÌ...',
+        title: 'Prima era così...',
+        items: [
+          'Richieste sparse su WhatsApp, telefonate e foglietti',
+          'Preventivi su carta o fogli Excel complicati',
+          'Informazioni disordinate e documenti smarriti',
+          'Difficoltà nel seguire i clienti e riscuotere i pagamenti',
+          'Mancanza di chiarezza sul guadagno effettivo del cantiere'
+        ]
+      },
+      after: {
+        badge: 'ORA CON ATRIOS BUILD',
+        title: 'Ora con Atrios Build',
+        items: [
+          'Tutte le richieste organizzate in un unico cruscotto',
+          'Preventivi PDF professionali pronti in 60 secondi',
+          'Clienti, materiali e cantieri perfettamente strutturati',
+          'Controllo puntuale di costi, acconti e flussi di cassa',
+          'Più tempo libero e maggiore redditività per la tua impresa'
+        ]
+      },
+      ctaBanner: {
+        title: 'La piattaforma ideale per imprese edili, artigiani e tecnici.',
+        sub: 'Più organizzazione, più commesse e più margini. Inizia subito gratuitamente.',
+        trust: [
+          { title: 'Sicurezza Totale', sub: 'Backup cloud crittografato' },
+          { title: 'Supporto Dedicato', sub: 'Sempre al tuo fianco' },
+          { title: 'Aggiornamenti Continui', sub: 'Nuove funzioni ogni mese' },
+          { title: '+ Professionisti', sub: 'Una community in crescita' }
+        ],
+        clientTitle: 'RICHIEDI PREVENTIVO GRATIS',
+        clientSub: 'HO BISOGNO DI UN LAVORO EDILE',
+        proTitle: 'REGISTRATI COME PROFESSIONISTA',
+        proSub: 'RICEVI COMMESSE E GESTISCI I CANTIERI'
+      }
+    },
+    footer: {
+      desc: 'La piattaforma completa per la redazione di preventivi, gestione commesse e controllo economico dei cantieri.',
+      secure: 'Dati sicuri e crittografati',
+      product: 'PRODOTTO',
+      company: 'AZIENDA',
+      support: 'SUPPORTO',
+      features: 'Funzionalità',
+      howItWorks: 'Come Funziona',
+      pdfQuotes: 'Preventivi PDF',
+      createFree: 'Crea Account Gratis →',
+      privacy: 'Privacy Policy',
+      terms: 'Termini di Servizio',
+      help: 'Assistenza & Domande',
+      demo: 'Guarda Demo',
+      installApp: 'Installa App Mobile',
+      clientPortal: 'Portale Clienti (Login)',
+      rights: 'Tutti i diritti riservati.',
+      tagline: 'Sviluppato con eccellenza per i professionisti delle costruzioni.'
+    }
+  },
+
+  'ru-RU': {
+    softwareSubtitle: 'ПРОГРАММА ДЛЯ СТРОИТЕЛЬСТВА И РЕМОНТА',
+    nav: {
+      features: 'Возможности',
+      howItWorks: 'Как это работает',
+      forClients: 'Клиентам',
+      forPros: 'Строителям и мастерам',
+      portalClient: 'Портал заказчика (Сметы)',
+      login: 'ВХОД',
+      startFree: 'НАЧАТЬ БЕСПЛАТНО',
+      register: 'РЕГИСТРАЦИЯ'
+    },
+    hero: {
+      bannerPill: 'ПОСМОТРЕТЬ БАННЕРЫ ФУНКЦИЙ',
+      headline: {
+        line1: 'Находите клиентов.',
+        line2: 'Составляйте сметы.',
+        line3: 'Управляйте объектами.',
+        highlight: 'Всё в одном месте с Atrios Build.'
+      },
+      subtitle: 'Принимайте заявки от заказчиков, отправляйте профессиональные сметы в PDF и контролируйте стройку, платежи и прибыль в одной системе.',
+      clientCard: {
+        title: 'ЗАКАЗАТЬ СМЕТУ БЕСПЛАТНО',
+        sub: 'Мне нужен ремонт или строительство',
+        portalPrompt: 'Уже оставляли заявку?',
+        portalLink: 'Портал заказчика'
+      },
+      proCard: {
+        title: 'Я СТРОИТЕЛЬ / МАСТЕР',
+        sub: 'Хочу получать заказы и вести объекты',
+        loginPrompt: 'Уже зарегистрированы?',
+        loginLink: 'Вход для мастеров'
+      },
+      video: {
+        tabVideo: 'ВИДЕО ОБЗОР',
+        tabLive: 'В РЕАЛЬНОМ ВРЕМЕНИ',
+        badge60s: '60 СЕКУНД',
+        duration: '01:45 МИН',
+        centerBtn: 'ПОСМОТРЕТЬ ДЕМОНСТРАЦИЮ',
+        subText: 'Нажмите, чтобы увидеть, как работает Atrios Build',
+        step1: 'Заявки',
+        step2: 'Сметы',
+        step3: 'Управление'
+      },
+      trust: {
+        secure: 'Надежно и безопасно',
+        secureSub: 'Ваши данные защищены',
+        verified: 'Проверенные мастера',
+        verifiedSub: 'Гарантия спокойствия',
+        everywhere: 'Доступ отовсюду',
+        everywhereSub: 'Веб, планшет и мобильное приложение'
+      }
+    },
+    steps7: {
+      eyebrow: 'ОТ ПЕРВОГО ЗВОНКА ДО СДАЧИ ОБЪЕКТА',
+      title: 'Как это работает для всех',
+      items: [
+        { num: '01', title: 'Клиент отправляет заявку', desc: 'Заказчик описывает задачу и отправляет запрос на расчет.' },
+        { num: '02', title: 'Строитель получает заказ', desc: 'Проверенные мастера и компании региона получают уведомление.' },
+        { num: '03', title: 'Расчет коммерческого предложения', desc: 'Строитель рассчитывает материалы, работы и сроки.' },
+        { num: '04', title: 'Отправка сметы в PDF', desc: 'Клиент получает красивую и прозрачную смету с логотипом.' },
+        { num: '05', title: 'Клиент утверждает смету', desc: 'Сравнивает предложения и выбирает лучшего исполнителя.' },
+        { num: '06', title: 'Старт объекта в Atrios', desc: 'Мастер начинает работы и фиксирует все этапы в системе.' },
+        { num: '07', title: 'Учет финансов и прибыли', desc: 'Контроль оплат, расходов на закупки и чистой прибыли.' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'ДЛЯ ЗАКАЗЧИКОВ',
+        title: 'Нужен ремонт или стройка?',
+        sub: 'Найдите надежных строителей и мастеров на нашей платформе.',
+        bullets: [
+          'Разместите заявку на смету абсолютно бесплатно',
+          'Опишите требуемые работы и прикрепите фото',
+          'Укажите адрес и желаемые сроки начала',
+          'Получите понятные сметы от проверенных исполнителей',
+          'Отслеживайте статус заявки в реальном времени',
+          'Выберите лучшее предложение под ваш бюджет'
+        ],
+        previewTitle: 'Полученные предложения',
+        previewBadge: '3 Сметы',
+        previewCta: 'СМОТРЕТЬ ВСЕ ПРЕДЛОЖЕНИЯ →',
+        cta: 'ЗАКАЗАТЬ СМЕТУ БЕСПЛАТНО',
+        portalPrompt: 'Уже оставляли заявку? Войти в Портал заказчика',
+        portalLink: 'Портал заказчика'
+      },
+      pro: {
+        badge: 'ДЛЯ СТРОИТЕЛЕЙ И БРИГАД',
+        title: 'Превращайте входящие заявки в прибыльные контракты.',
+        sub: 'Получайте заказы, заключайте договоры и ведите объекты в одном месте.',
+        bullets: [
+          'Получайте свежие заявки на стройку и ремонт',
+          'Изучайте техзадание и фотографии объектов',
+          'Создавайте точные сметы за считанные минуты',
+          'Формируйте PDF сметы с вашим логотипом и условиями',
+          'Управляйте бригадами, материалами и нарядами',
+          'Учет рабочего времени и электронный табель бригад',
+          'Контролируйте авансы, оплаты и задолженности',
+          'Все инструменты в единой удобной программе'
+        ],
+        previewTitle: 'Итоги месяца',
+        previewBadge: '+24% в этом месяце',
+        stat1Label: 'Выручка',
+        stat1Val: '18 650 €',
+        stat2Label: 'Объекты',
+        stat2Val: '8 Активных',
+        stat3Label: 'Заявки',
+        stat3Val: '12 Новых',
+        cta: 'ХОЧУ ПОЛУЧАТЬ ЗАКАЗЫ'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'УПРАВЛЕНИЕ БРИГАДАМИ И ЭЛЕКТРОННЫЙ ТАБЕЛЬ',
+      title: 'Учет Рабочего Времени Сотрудников по Объектам',
+      sub: 'Фиксируйте приход, уход, обеденные перерывы и переработки мастеров. Рассчитывайте точные затраты на оплату труда по каждому строительному объекту.',
+      bullets: [
+        'Быстрая отметка времени со смартфона или по QR-коду на объекте',
+        'Автоматический расчет обычных и сверхурочных часов',
+        'Прямое отнесение фонда оплаты труда на себестоимость объекта',
+        'Выгрузка табелей учета рабочего времени в PDF и Excel'
+      ],
+      sampleWorker: 'Алексей Смирнов',
+      sampleRole: 'Бригадир / Мастер',
+      sampleProject: 'Объект: ЖК «Панорама»',
+      sampleHours: '8.0ч Осн.',
+      sampleExtra: '+1.5ч Сверхуроч.',
+      sampleCost: 'Расчет стоимости работ',
+      cta: 'НАЧАТЬ УЧЕТ ВРЕМЕНИ БРИГАД'
+    },
+    translatorBanner: {
+      badge: 'ИСКУССТВЕННЫЙ ИНТЕЛЛЕКТ И СИНХРОННЫЙ ПЕРЕВОД',
+      title: 'Синхронный Перевод Речи и Чата в Реальном Времени',
+      sub: 'Ведите переговоры, принимайте объекты и общайтесь с иностранными заказчиками и мастерами. Atrios Build мгновенно переводит голос и текст без языкового барьера.',
+      bullets: [
+        'Мгновенный двусторонний перевод на 15+ языков с помощью ИИ',
+        'Быстрый вход для клиента по QR-коду или ссылке (без установки приложений)',
+        'Озвучивание естественным голосом (Audio / TTS) и распознавание речи',
+        'История переговоров и переведенные сметы сохраняются в карточке объекта'
+      ],
+      sampleSourceLang: 'Русский',
+      sampleSourceText: 'Здравствуйте! Мы завершили расчет, подробная смета готова.',
+      sampleTargetLang: 'Английский (English)',
+      sampleTargetText: 'Hello! We finalized the calculations and the detailed estimate is ready.',
+      liveInterpreterLabel: 'ИИ-переводчик в реальном времени',
+      qrConnectLabel: 'QR-код для быстрого подключения',
+      voiceAudioLabel: 'Голос и транскрипция в эфире',
+      cta: 'ПОПРОБОВАТЬ ПЕРЕВОДЧИК ОНЛАЙН'
+    },
+    features10: {
+      eyebrow: 'ВСЁ ДЛЯ УПРАВЛЕНИЯ ВАШИМ СТРОИТЕЛЬНЫМ БИЗНЕСОМ',
+      title: 'Полный набор инструментов на каждый день',
+      categories: {
+        all: 'Все возможности',
+        commercial: 'Продажи и клиенты',
+        site: 'Объекты и бригады',
+        aiTranslator: 'ИИ-перевод и голос',
+        finance: 'Финансы и аналитика'
+      },
+      items: [
+        { title: 'Сметы и расчеты', desc: 'Создание профессиональных смет и расчетов за пару минут.', category: 'commercial', tag: 'БАЗОВЫЙ' },
+        { title: 'Биржа заявок', desc: 'Получайте прямые заказы от клиентов вашего города.', category: 'commercial', isNew: true, tag: 'НОВОЕ' },
+        { title: 'Портал заказчика', desc: 'Личный кабинет для клиента для просмотра и согласования смет.', category: 'commercial', isHighlighted: true, tag: 'ПОПУЛЯРНО' },
+        { title: 'Синхронный перевод ИИ', desc: 'Общение с иностранными клиентами голосом и в чате с переводом.', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'ИИ ЭКСКЛЮЗИВ' },
+        { title: 'Чат по QR-коду', desc: 'Клиент сканирует QR-код телефоном и общается на родном языке.', category: 'aiTranslator', isNew: true, tag: 'ИННОВАЦИЯ' },
+        { title: 'Учет объектов', desc: 'Отслеживайте ход выполнения работ, этапы и материалы в реальном времени.', category: 'site', tag: 'ОСНОВА' },
+        { title: 'Учет времени и табель', desc: 'Табель смен, учет часов и расчет затрат на рабочих по QR-коду.', category: 'site', isNew: true, tag: 'НОВОЕ' },
+        { title: 'База клиентов', desc: 'Удобное хранение контактов клиентов, мастеров и поставщиков.', category: 'commercial' },
+        { title: 'Платежи и финансы', desc: 'Контроль поступления оплат от заказчиков, авансов и расходов.', category: 'finance' },
+        { title: 'Отчеты и чистая прибыль', desc: 'Финансовая аналитика и расчет реальной чистой прибыли по каждому объекту.', category: 'finance', tag: 'МЕТРИКИ' },
+        { title: 'Хранилище файлов', desc: 'Надежное облачное хранение договоров, чеков и фотоотчетов.', category: 'finance' },
+        { title: 'Мобильное приложение', desc: 'Работайте со смартфона или планшета прямо со стройплощадки.', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'КАК БЫЛО РАНЬШЕ...',
+        title: 'Как было раньше...',
+        items: [
+          'Заявки теряются в чатах WhatsApp, звонках и блокнотах',
+          'Сметы на бумаге или в запутанных таблицах Excel',
+          'Хаос в документах и потерянные чеки на материалы',
+          'Сложно отслеживать график оплат заказчиков',
+          'Непонятно, сколько на самом деле заработано с объекта'
+        ]
+      },
+      after: {
+        badge: 'ТЕПЕРЬ С ATRIOS BUILD',
+        title: 'Теперь с Atrios Build',
+        items: [
+          'Все заказы и клиенты в единой аккуратной системе',
+          'Профессиональная PDF смета формируется за 60 секунд',
+          'Материалы, мастера и объекты структурированы на 100%',
+          'Полный контроль оплат, расходов и кассовых разрывов',
+          'Экономия 10+ часов в неделю и рост чистой прибыли'
+        ]
+      },
+      ctaBanner: {
+        title: 'Комплексная платформа для строителей, бригадиров и компаний.',
+        sub: 'Больше порядка, больше выгодных заказов и выше доход. Начните бесплатно прямо сейчас.',
+        trust: [
+          { title: 'Полная безопасность', sub: 'Зашифрованные копии' },
+          { title: 'Поддержка', sub: 'Помощь на каждом этапе' },
+          { title: 'Обновления', sub: 'Постоянные улучшения' },
+          { title: '+ Строителей', sub: 'Растущее сообщество' }
+        ],
+        clientTitle: 'ЗАКАЗАТЬ СМЕТУ БЕСПЛАТНО',
+        clientSub: 'МНЕ НУЖЕН СТРОИТЕЛЬ ИЛИ МАСТЕР',
+        proTitle: 'РЕГИСТРАЦИЯ ДЛЯ МАСТЕРОВ',
+        proSub: 'ПОЛУЧАТЬ ЗАКАЗЫ И ВЕСТИ ОБЪЕКТЫ'
+      }
+    },
+    footer: {
+      desc: 'Комплексная программа для составления смет, управления строительными проектами и финансового контроля.',
+      secure: 'Данные зашифрованы и защищены',
+      product: 'ПРОДУКТ',
+      company: 'КОМПАНИЯ',
+      support: 'ПОДДЕРЖКА',
+      features: 'Возможности',
+      howItWorks: 'Как это работает',
+      pdfQuotes: 'Сметы в PDF',
+      createFree: 'Создать аккаунт бесплатно →',
+      privacy: 'Конфиденциальность',
+      terms: 'Условия сервиса',
+      help: 'Помощь и вопросы',
+      demo: 'Смотреть демо',
+      installApp: 'Установить приложение',
+      clientPortal: 'Портал заказчика (Вход)',
+      rights: 'Все права защищены.',
+      tagline: 'Создано со знанием дела для специалистов строительной отрасли.'
+    }
+  },
+
+  'hi-IN': {
+    softwareSubtitle: 'निर्माण एवं ठेकेदारी प्रबंधन सॉफ्टवेयर',
+    nav: {
+      features: 'विशेषताएं',
+      howItWorks: 'यह कैसे काम करता है',
+      forClients: 'ग्राहकों के लिए',
+      forPros: 'ठेकेदारों और कारीगरों के लिए',
+      portalClient: 'ग्राहक पोर्टल (कोटेशन देखें)',
+      login: 'लॉग इन',
+      startFree: 'मुफ्त शुरू करें',
+      register: 'साइन अप'
+    },
+    hero: {
+      bannerPill: 'सुविधाओं के प्रस्तुति बैनर देखें',
+      headline: {
+        line1: 'ग्राहक खोजें।',
+        line2: 'कोटेशन बनाएं।',
+        line3: 'अपनी साइट प्रबंधित करें।',
+        highlight: 'Atrios Build के साथ सब कुछ एक ही जगह।'
+      },
+      subtitle: 'ग्राहकों से काम के अनुरोध प्राप्त करें, पेशेवर PDF प्रस्ताव भेजें और अपने निर्माण व्यवसाय को आसानी से प्रबंधित करें।',
+      clientCard: {
+        title: 'मुफ्त कोटेशन का अनुरोध करें',
+        sub: 'मुझे निर्माण या मरम्मत का काम करवाना है',
+        portalPrompt: 'क्या पहले अनुरोध भेजा है?',
+        portalLink: 'ग्राहक पोर्टल'
+      },
+      proCard: {
+        title: 'मैं ठेकेदार / कारीगर हूँ',
+        sub: 'मुझे काम के नए अवसर और प्रबंधन चाहिए',
+        loginPrompt: 'क्या खाता पहले से है?',
+        loginLink: 'कारीगर लॉगिन'
+      },
+      video: {
+        tabVideo: 'वीडियो ओवरव्यू',
+        tabLive: 'लाइव डेमो',
+        badge60s: '60 सेकंड',
+        duration: '01:45 मिनट',
+        centerBtn: 'पूरा डेमो देखें',
+        subText: 'Atrios Build कैसे काम करता है, देखने के लिए क्लिक करें',
+        step1: 'अनुरोध',
+        step2: 'प्रस्ताव',
+        step3: 'प्रबंधन'
+      },
+      trust: {
+        secure: 'सुरक्षित और विश्वसनीय',
+        secureSub: 'आपका डेटा पूरी तरह सुरक्षित',
+        verified: 'सत्यापित ठेकेदार',
+        verifiedSub: 'आपके लिए पूर्ण मानसिक शांति',
+        everywhere: 'कहीं भी उपयोग करें',
+        everywhereSub: 'वेब, टैबलेट और मोबाइल ऐप'
+      }
+    },
+    steps7: {
+      eyebrow: 'शुरुआत से लेकर काम पूरा होने तक',
+      title: 'यह सभी के लिए कैसे काम करता है',
+      items: [
+        { num: '01', title: 'ग्राहक कोटेशन मांगता है', desc: 'ग्राहक अपने काम का विवरण दर्ज करके अनुरोध भेजता है।' },
+        { num: '02', title: 'ठेकेदार को सूचना मिलती है', desc: 'इलाके के सत्यापित ठेकेदारों को नया काम सूचित किया जाता है।' },
+        { num: '03', title: 'ठेकेदार कोटेशन तैयार करता है', desc: 'सामग्री, मजदूरी और समय सीमा का सटीक हिसाब लगाया जाता है।' },
+        { num: '04', title: 'पेशेवर PDF प्रस्ताव भेजा जाता है', desc: 'ग्राहक को स्पष्ट और लोगो युक्त प्रस्ताव मिलता है।' },
+        { num: '05', title: 'ग्राहक चुनता है और मंजूरी देता है', desc: 'प्रस्तावों की तुलना करके सबसे उपयुक्त ठेकेदार चुना जाता है।' },
+        { num: '06', title: 'प्रोजेक्ट Atrios में शुरू होता है', desc: 'ठेकेदार काम शुरू करता है और सभी कार्य व्यवस्थित करता है।' },
+        { num: '07', title: 'भुगतान और मुनाफे का हिसाब', desc: 'प्राप्त भुगतान, खर्चे और वास्तविक मुनाफे की निगरानी।' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'ग्राहकों के लिए',
+        title: 'क्या आपको निर्माण या मरम्मत करवानी है?',
+        sub: 'हमारे प्लेटफॉर्म पर अनुभवी और सत्यापित ठेकेदार खोजें।',
+        bullets: [
+          '100% मुफ्त कोटेशन का अनुरोध दर्ज करें',
+          'अपनी जरूरत और काम का विवरण बताएं',
+          'स्थान और संभावित समय सीमा चुनें',
+          'सत्यापित कारीगरों से विस्तृत प्रस्ताव पाएं',
+          'अपने अनुरोध को रियल-टाइम में ट्रैक करें',
+          'अपने बजट के अनुसार सर्वश्रेष्ठ प्रस्ताव चुनें'
+        ],
+        previewTitle: 'प्राप्त कोटेशन',
+        previewBadge: '3 प्रस्ताव',
+        previewCta: 'सभी प्रस्ताव देखें →',
+        cta: 'मुफ्त कोटेशन मांगें',
+        portalPrompt: 'क्या पहले अनुरोध किया है? ग्राहक पोर्टल में लॉगिन करें',
+        portalLink: 'ग्राहक पोर्टल'
+      },
+      pro: {
+        badge: 'ठेकेदारों और कारीगरों के लिए',
+        title: 'काम के अनुरोधों को लाभदायक प्रोजेक्ट्स में बदलें।',
+        sub: 'नए ग्राहक पाएं, काम पक्का करें और सभी साइट्स एक ही ऐप से चलाएं।',
+        bullets: [
+          'अपने क्षेत्र में काम के नए अनुरोध प्राप्त करें',
+          'काम का विवरण और स्थान की जानकारी देखें',
+          'मिनटों में पेशेवर कोटेशन और बिल तैयार करें',
+          'अपने लोगो और शर्तों के साथ सुंदर PDF भेजें',
+          'मजदूरों, सामग्रियों और कार्यों का हिसाब रखें',
+          'साइट पर मजदूरों के काम के घंटे और हाजिरी का नियंत्रण',
+          'भुगतान और बकाया राशि पर पूरा नियंत्रण रखें',
+          'सब कुछ एक आधुनिक और सरल सॉफ्टवेयर में'
+        ],
+        previewTitle: 'माह का सारांश',
+        previewBadge: '+24% इस माह',
+        stat1Label: 'राजस्व',
+        stat1Val: '₹1,50,000',
+        stat2Label: 'प्रोजेक्ट',
+        stat2Val: '8 सक्रिय',
+        stat3Label: 'अनुरोध',
+        stat3Val: '12 नए',
+        cta: 'काम के अनुरोध पाना शुरू करें'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'मजदूर प्रबंधन और डिजिटल हाजिरी',
+      title: 'साइट अनुसार मजदूरों के काम के घंटे और हाजिरी का नियंत्रण',
+      sub: 'काम पर आने, जाने, लंच ब्रेक और ओवरटाइम का सटीक रिकॉर्ड रखें। हर निर्माण प्रोजेक्ट में मजदूरी की वास्तविक लागत तुरंत जानें।',
+      bullets: [
+        'मोबाइल या साइट QR कोड से त्वरित डिजिटल हाजिरी',
+        'सामान्य और ओवरटाइम घंटों की स्वचालित गणना',
+        'मजदूरी लागत का सीधा प्रोजेक्ट अनुसार आवंटन',
+        'PDF और Excel में टाइमशीट और रिपोर्ट एक क्लिक में डाउनलोड'
+      ],
+      sampleWorker: 'राजेश कुमार',
+      sampleRole: 'मुख्य मिस्त्री',
+      sampleProject: 'साइट: विला रिनोवेशन',
+      sampleHours: '8.0h सामान्य',
+      sampleExtra: '+1.5h ओवरटाइम',
+      sampleCost: 'मजदूरी लागत की गणना',
+      cta: 'टीम हाजिरी प्रबंधन शुरू करें'
+    },
+    translatorBanner: {
+      badge: 'आर्टिफिशियल इंटेलिजेंस और रियल-टाइम अनुवाद',
+      title: 'विदेशी ग्राहकों और बहुभाषी प्रोजेक्ट्स के लिए रीयल-टाइम अनुवाद',
+      sub: 'किसी भी देश या भाषा के ग्राहक के साथ आसानी से बातचीत करें। Atrios Build तुरंत आवाज और टेक्स्ट का सटीक अनुवाद करता है।',
+      bullets: [
+        'AI द्वारा 15+ भाषाओं में तत्काल दोतरफा अनुवाद',
+        'QR कोड या लिंक से ग्राहक तुरंत जुड़ें (कोई ऐप इंस्टॉल करने की जरूरत नहीं)',
+        'प्राकृतिक आवाज में उच्चारण (Audio / TTS) और रियल-टाइम स्पीच ट्रांसक्रिप्शन',
+        'सभी बातचीत और कोटेशन का इतिहास सीधे प्रोजेक्ट फाइल में सुरक्षित'
+      ],
+      sampleSourceLang: 'हिन्दी',
+      sampleSourceText: 'नमस्ते! हमने आपके प्रोजेक्ट का विवरण देखा है और कोटेशन तैयार है।',
+      sampleTargetLang: 'अंग्रेजी (English)',
+      sampleTargetText: 'Hello! We reviewed your project details and the quotation is ready.',
+      liveInterpreterLabel: 'सक्रिय AI दुभाषिया',
+      qrConnectLabel: 'त्वरित कनेक्ट QR कोड',
+      voiceAudioLabel: 'लाइव ऑडियो और टेक्स्ट',
+      cta: 'लाइव अनुवाद का अनुभव करें'
+    },
+    features10: {
+      eyebrow: 'आपके व्यवसाय प्रबंधन के लिए आवश्यक सब कुछ',
+      title: 'दैनिक कार्यों के लिए संपूर्ण सुविधाएं',
+      categories: {
+        all: 'सभी सुविधाएं',
+        commercial: 'व्यापार और ग्राहक',
+        site: 'साइट और मजदूर',
+        aiTranslator: 'AI अनुवाद व आवाज',
+        finance: 'वित्त और लाभ'
+      },
+      items: [
+        { title: 'कोटेशन और एस्टीमेट', desc: 'मिनटों में पेशेवर निर्माण कोटेशन बनाएं।', category: 'commercial', tag: 'प्रमुख' },
+        { title: 'काम के नए अनुरोध', desc: 'सीधे अपने इलाके के ग्राहकों से काम की मांग पाएं।', category: 'commercial', isNew: true, tag: 'नया' },
+        { title: 'ग्राहक पोर्टल', desc: 'ग्राहकों के लिए कोटेशन देखने और स्वीकृत करने का विशेष पोर्टल।', category: 'commercial', isHighlighted: true, tag: 'लोकप्रिय' },
+        { title: 'रीयल-टाइम AI अनुवाद', desc: 'विदेशी ग्राहकों से आवाज और चैट में तुरंत अनुवाद के साथ बात करें।', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'विशेष AI' },
+        { title: 'मल्टीलिंगुअल QR चैट', desc: 'ग्राहक अपने मोबाइल से QR कोड स्कैन कर अपनी भाषा में बात करें।', category: 'aiTranslator', isNew: true, tag: 'नवाचार' },
+        { title: 'प्रोजेक्ट ट्रैकिंग', desc: 'साइट की प्रगति, कार्यों और सामान की रियल-टाइम निगरानी।', category: 'site', tag: 'कोर' },
+        { title: 'मजदूरों की हाजिरी और समय', desc: 'मजदूरों के घंटे, सामान्य व ओवरटाइम और साइट मजदूरी लागत।', category: 'site', isNew: true, tag: 'नया' },
+        { title: 'ग्राहक डायरेक्टरी', desc: 'ग्राहकों और सप्लायर्स की जानकारी एक जगह रखें।', category: 'commercial' },
+        { title: 'भुगतान नियंत्रण', desc: 'आए हुए भुगतान, अग्रिम और बकाया राशि का ट्रैक रखें।', category: 'finance' },
+        { title: 'लाभ और रिपोर्ट्स', desc: 'वास्तविक मुनाफे और मार्जिन का सटीक वित्तीय विश्लेषण।', category: 'finance', tag: 'रिपोर्ट्स' },
+        { title: 'दस्तावेज़ वॉल्ट', desc: 'कागजात, बिल और साइट की तस्वीरें सुरक्षित रखें।', category: 'finance' },
+        { title: 'मोबाइल ऐप व वेब', desc: 'अपने फोन, टैबलेट या कंप्यूटर से कहीं भी इस्तेमाल करें।', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'पहले ऐसा होता था...',
+        title: 'पहले ऐसा होता था...',
+        items: [
+          'व्हाट्सएप और फोन कॉल्स में काम की जानकारी खो जाना',
+          'कागज या जटिल एक्सेल में उलझे हुए एस्टीमेट',
+          'सामग्री के खोए हुए बिल और हिसाब में गड़बड़ी',
+          'ग्राहकों से बकाया पैसे मांगने में परेशानी',
+          'प्रोजेक्ट से वास्तव में कितना मुनाफा हुआ, इसका पता न होना'
+        ]
+      },
+      after: {
+        badge: 'अब ATRIOS BUILD के साथ',
+        title: 'अब Atrios Build के साथ',
+        items: [
+          'सभी काम और ग्राहक एक ही व्यवस्थित जगह',
+          '60 सेकंड में पेशेवर PDF कोटेशन तैयार',
+          'सामग्री, मजदूर और प्रोजेक्ट्स 100% व्यवस्थित',
+          'खर्चों और पेमेंट्स पर पूर्ण स्पष्टता और नियंत्रण',
+          'सप्ताह में 10+ घंटे बचाएं और अपना मुनाफा बढ़ाएं'
+        ]
+      },
+      ctaBanner: {
+        title: 'निर्माण पेशेवरों और ठेकेदारों के लिए संपूर्ण सॉफ्टवेयर।',
+        sub: 'अधिक संगठन, अधिक ग्राहक और अधिक मुनाफा। Atrios Build के साथ मुफ्त शुरुआत करें।',
+        trust: [
+          { title: 'पूर्ण सुरक्षा', sub: 'एन्क्रिप्टेड क्लाउड बैकअप' },
+          { title: 'समर्पित सहायता', sub: 'हर कदम पर आपकी मदद' },
+          { title: 'नियमित अपडेट', sub: 'लगातार नई सुविधाएं' },
+          { title: '+ ठेकेदार साथी', sub: 'तेजी से बढ़ता समुदाय' }
+        ],
+        clientTitle: 'मुफ्त कोटेशन मांगें',
+        clientSub: 'मुझे कारीगर या ठेकेदार चाहिए',
+        proTitle: 'ठेकेदार के रूप में जुड़ें',
+        proSub: 'काम पाएं और प्रोजेक्ट मैनेज करें'
+      }
+    },
+    footer: {
+      desc: 'निर्माण कोटेशन, कार्य आदेश और साइट वित्तीय नियंत्रण के लिए पूर्ण मंच।',
+      secure: 'डेटा सुरक्षित और एन्क्रिप्टेड है',
+      product: 'उत्पाद',
+      company: 'कंपनी',
+      support: 'सहायता',
+      features: 'विशेषताएं',
+      howItWorks: 'यह कैसे काम करता है',
+      pdfQuotes: 'PDF कोटेशन',
+      createFree: 'मुफ्त खाता बनाएं →',
+      privacy: 'गोपनीयता नीति',
+      terms: 'उपयोग की शर्तें',
+      help: 'मदद और सवाल',
+      demo: 'डेमो देखें',
+      installApp: 'मोबाइल ऐप इंस्टॉल करें',
+      clientPortal: 'ग्राहक पोर्टल (लॉगिन)',
+      rights: 'सर्वाधिकार सुरक्षित।',
+      tagline: 'निर्माण पेशेवरों के लिए विशेषज्ञता के साथ निर्मित।'
+    }
+  },
+
+  'bn-BD': {
+    softwareSubtitle: 'নির্মাণ ব্যবস্থাপনা সফটওয়্যার',
+    nav: {
+      features: 'বৈশিষ্ট্যসমূহ',
+      howItWorks: 'কীভাবে কাজ করে',
+      forClients: 'গ্রাহকদের জন্য',
+      forPros: 'ঠিকাদার ও মিস্ত্রিদের জন্য',
+      portalClient: 'ক্লায়েন্ট পোর্টাল (কোটেশন দেখুন)',
+      login: 'লগ ইন',
+      startFree: 'বিনামূল্যে শুরু করুন',
+      register: 'নিবন্ধন করুন'
+    },
+    hero: {
+      bannerPill: 'ফিচার প্রেজেন্টেশন ব্যানার দেখুন',
+      headline: {
+        line1: 'ক্লায়েন্ট খুঁজুন।',
+        line2: 'কোটেশন তৈরি করুন।',
+        line3: 'প্রজেক্ট পরিচালনা করুন।',
+        highlight: 'সবকিছু এক জায়গায় Atrios Build এর সাথে।'
+      },
+      subtitle: 'গ্রাহকদের কাছ থেকে কাজের অনুরোধ পান, পেশাদার PDF কোটেশন পাঠান এবং সহজেই প্রজেক্ট ও হিসাব পরিচালনা করুন।',
+      clientCard: {
+        title: 'বিনামূল্যে কোটেশনের অনুরোধ করুন',
+        sub: 'আমার নির্মাণ বা মেরামতের কাজ প্রয়োজন',
+        portalPrompt: 'ইতিমধ্যে অনুরোধ জমা দিয়েছেন?',
+        portalLink: 'ক্লায়েন্ট পোর্টাল'
+      },
+      proCard: {
+        title: 'আমি ঠিকাদার / পেশাদার',
+        sub: 'নতুন কাজের সুযোগ পেতে এবং পরিচালনা করতে চাই',
+        loginPrompt: 'ইতিমধ্যে অ্যাকাউন্ট আছে?',
+        loginLink: 'প্রফেশনাল লগইন'
+      },
+      video: {
+        tabVideo: 'ভিডিও বিবরণ',
+        tabLive: 'লাইভ ডেমো',
+        badge60s: '৬০ সেকেন্ড',
+        duration: '০১:৪৫ মিনিট',
+        centerBtn: 'সম্পূর্ণ ডেমো দেখুন',
+        subText: 'Atrios Build কীভাবে কাজ করে তা দেখতে ক্লিক করুন',
+        step1: 'অনুরোধ',
+        step2: 'কোটেশন',
+        step3: 'ব্যবস্থাপনা'
+      },
+      trust: {
+        secure: 'নিরাপদ ও নির্ভরযোগ্য',
+        secureSub: 'আপনার ডেটা সম্পূর্ণ সুরক্ষিত',
+        verified: 'যাচাইকৃত ঠিকাদার',
+        verifiedSub: 'আপনার কাজের শতভাগ নিশ্চয়তা',
+        everywhere: 'যেকোনো ডিভাইস থেকে ব্যবহার',
+        everywhereSub: 'ওয়েব, ট্যাবলেট ও মোবাইল অ্যাপ'
+      }
+    },
+    steps7: {
+      eyebrow: 'প্রথম যোগাযোগ থেকে কাজ সম্পন্ন পর্যন্ত',
+      title: 'সবার জন্য এটি কীভাবে কাজ করে',
+      items: [
+        { num: '01', title: 'ক্লায়েন্ট কোটেশন চান', desc: 'ক্লায়েন্ট কাজের বিস্তারিত লিখে রিকোয়েস্ট পাঠান।' },
+        { num: '02', title: 'ঠিকাদার নোটিফিকেশন পান', desc: 'এলাকার যাচাইকৃত ঠিকাদাররা নতুন কাজের খবর পান।' },
+        { num: '03', title: 'কোটেশন তৈরি ও যাচাই', desc: 'মালামাল ও শ্রম খরচের নিখুঁত হিসাব করা হয়।' },
+        { num: '04', title: 'পেশাদার PDF পাঠানো', desc: 'ক্লায়েন্ট লোগো সহ স্পষ্ট কোটেশন ডকুমেন্ট পান।' },
+        { num: '05', title: 'ক্লায়েন্ট যাচাই করে অনুমোদন দেন', desc: 'প্রস্তাবনা তুলনা করে সেরা ঠিকাদার বেছে নেন।' },
+        { num: '06', title: 'Atrios-এ প্রজেক্ট শুরু', desc: 'ঠিকাদার কাজ শুরু করেন এবং সব গুছিয়ে রাখেন।' },
+        { num: '07', title: 'পেমেন্ট ও লাভের হিসাব', desc: 'আদায়কৃত টাকা, খরচ ও প্রকৃত মুনাফার লাইভ ট্র্যাকিং।' }
+      ]
+    },
+    segments: {
+      clients: {
+        badge: 'গ্রাহকদের জন্য',
+        title: 'আপনার কি নির্মাণ বা সংস্কারের কাজ প্রয়োজন?',
+        sub: 'আমাদের প্ল্যাটফর্মে দক্ষ ও যাচাইকৃত ঠিকাদার খুঁজে নিন।',
+        bullets: [
+          '১০০% বিনামূল্যে কাজের কোটেশন চান',
+          'আপনার প্রয়োজনীয় কাজের বিস্তারিত জানান',
+          'ঠিকানা ও সম্ভাব্য সময়সীমা উল্লেখ করুন',
+          'যাচাইকৃত মিস্ত্রিদের থেকে কোটেশন পান',
+          'রিয়েল-টাইমে কাজের অগ্রগতি দেখুন',
+          'বাজেট অনুযায়ী সেরা প্রস্তাব বেছে নিন'
+        ],
+        previewTitle: 'প্রাপ্ত কোটেশন',
+        previewBadge: '৩টি প্রস্তাব',
+        previewCta: 'সব প্রস্তাব দেখুন →',
+        cta: 'বিনামূল্যে কোটেশন চান',
+        portalPrompt: 'আগে অনুরোধ করেছেন? ক্লায়েন্ট পোর্টালে ঢুকুন',
+        portalLink: 'ক্লায়েন্ট পোর্টাল'
+      },
+      pro: {
+        badge: 'ঠিকাদার ও পেশাদারদের জন্য',
+        title: 'কাজের অনুরোধগুলোকে লাভজনক প্রজেক্টে রূপান্তর করুন।',
+        sub: 'নতুন কাজ পান, চুক্তি চূড়ান্ত করুন এবং সব কাজ এক জায়গা থেকেই চালান।',
+        bullets: [
+          'আপনার এলাকায় নতুন কাজের সুযোগ পান',
+          'কাজের পরিধি ও ছবি দেখে বিশ্লেষণ করুন',
+          'কয়েক মিনিটে নিখুঁত এস্টিমেট ও বিল বানান',
+          'নিজের লোগো সহ সুন্দর PDF কোটেশন পাঠান',
+          'শ্রমিক, মালামাল ও কাজের তালিকা সামলান',
+          'সাইটে কর্মীদের কাজের সময় ও ডিজিটাল হাজিরা ট্র্যাকিং',
+          'বকেয়া টাকা ও আদায়ের হিসাব রাখুন',
+          'সবকিছু একটি আধুনিক সহজ সফটওয়্যারে'
+        ],
+        previewTitle: 'মাসের সারাংশ',
+        previewBadge: '+২৪% এই মাসে',
+        stat1Label: 'মোট আয়',
+        stat1Val: '৳১,৮৫,০০০',
+        stat2Label: 'প্রজেক্ট',
+        stat2Val: '৮টি রানিং',
+        stat3Label: 'অনুরোধ',
+        stat3Val: '১২টি নতুন',
+        cta: 'কাজের অনুরোধ পেতে শুরু করুন'
+      }
+    },
+    timeTrackerBanner: {
+      badge: 'কর্মী ব্যবস্থাপনা ও ডিজিটাল হাজিরা',
+      title: 'সাইট অনুযায়ী কর্মীদের কাজের সময় ও হাজিরা নিয়ন্ত্রণ',
+      sub: 'কাজে প্রবেশ, প্রস্থান, খাবারের বিরতি ও ওভারটাইমের নিখুঁত হিসাব রাখুন। প্রতিটি নির্মাণ প্রকল্পে শ্রমিকের প্রকৃত মজুরি ব্যয় সরাসরি হিসাব করুন।',
+      bullets: [
+        'মোবাইল বা সাইট QR কোড দিয়ে সহজে ডিজিটাল হাজিরা',
+        'স্বাভাবিক ও ওভারটাইম ঘণ্টার স্বয়ংক্রিয় হিসাব',
+        'নির্দিষ্ট প্রকল্পে শ্রমিকের খরচ সরাসরি বণ্টন',
+        'এক ক্লিকেই PDF ও Excel ফরম্যাটে টাইমশিট ডাউনলোড'
+      ],
+      sampleWorker: 'করিম হোসেন',
+      sampleRole: 'প্রধান মিস্ত্রি',
+      sampleProject: 'সাইট: মডার্ন ভিলা সংস্কার',
+      sampleHours: '৮.০ ঘণ্টা স্বাভাবিক',
+      sampleExtra: '+১.৫ ঘণ্টা ওভারটাইম',
+      sampleCost: 'হিসাবকৃত মোট মজুরি',
+      cta: 'টিম হাজিরা পরিচালনা শুরু করুন'
+    },
+    translatorBanner: {
+      badge: 'কৃত্রিম বুদ্ধিমত্তা ও রিয়েল-টাইম অনুবাদ',
+      title: 'বিদেশি ক্লায়েন্ট ও বহুমাত্রিক প্রজেক্টের জন্য লাইভ অনুবাদ',
+      sub: 'যেকোনো দেশের ক্লায়েন্টের সাথে নিজের ভাষায় কথা বলুন ও চ্যাট করুন। Atrios Build সরাসরি ভয়েস ও টেক্সট অনুবাদ করে সব ভাষার বাধা দূর করে।',
+      bullets: [
+        'AI এর মাধ্যমে ১৫টিরও বেশি ভাষায় তাৎক্ষণিক দ্বি-মুখী অনুবাদ',
+        'QR কোড বা লিঙ্কের মাধ্যমে ক্লায়েন্টের তাৎক্ষণিক প্রবেশ (কোনো অ্যাপ ডাউনলোড ছাড়াই)',
+        'স্বাভাবিক কণ্ঠে অডিও উচ্চারণ (Audio / TTS) এবং সরাসরি ভয়েস টাইপিং',
+        'অনূদিত সমস্ত বার্তা ও কোটেশনের ইতিহাস সরাসরি প্রজেক্ট ফাইলে সংরক্ষিত'
+      ],
+      sampleSourceLang: 'বাংলা',
+      sampleSourceText: 'হ্যালো! আমরা আপনার কাজের বিবরণ পর্যালোচনা করেছি এবং কোটেশন প্রস্তুত।',
+      sampleTargetLang: 'ইংরেজি (English)',
+      sampleTargetText: 'Hello! We reviewed your project details and the quotation is ready.',
+      liveInterpreterLabel: 'সক্রিয় AI লাইভ ইন্টারপ্রেটার',
+      qrConnectLabel: 'দ্রুত সংযোগ QR কোড',
+      voiceAudioLabel: 'লাইভ অডিও ও টেক্সট',
+      cta: 'লাইভ অনুবাদের ডেমো দেখুন'
+    },
+    features10: {
+      eyebrow: 'ব্যবসা পরিচালনার সব টুলস এক সাথে',
+      title: 'দৈনন্দিন কাজের জন্য পূর্ণাঙ্গ সমাধান',
+      categories: {
+        all: 'সকল সুবিধা',
+        commercial: 'বাণিজ্য ও ক্লায়েন্ট',
+        site: 'সাইট ও কর্মীদল',
+        aiTranslator: 'AI অনুবাদ ও ভয়েস',
+        finance: 'অর্থায়ন ও হিসাব'
+      },
+      items: [
+        { title: 'কোটেশন ও এস্টিমেট', desc: 'মিনিটের মধ্যে পেশাদার নির্মাণ কোটেশন তৈরি করুন।', category: 'commercial', tag: 'প্রয়োজনীয়' },
+        { title: 'কাজের সুযোগ ও অনুসন্ধান', desc: 'আপনার এলাকার গ্রাহকদের থেকে সরাসরি কাজের অনুরোধ পান।', category: 'commercial', isNew: true, tag: 'নতুন' },
+        { title: 'ক্লায়েন্ট পোর্টাল', desc: 'ক্লায়েন্টদের কোটেশন দেখা ও অনুমোদনের বিশেষ অনলাইন পোর্টাল।', category: 'commercial', isHighlighted: true, tag: 'জনপ্রিয়' },
+        { title: 'রিয়েল-টাইম AI অনুবাদ', desc: 'বিদেশি ক্লায়েন্টদের সাথে ভয়েস ও চ্যাটে তাৎক্ষণিক অনুবাদে কথা বলুন।', category: 'aiTranslator', isNew: true, isHighlighted: true, tag: 'বিশেষ AI' },
+        { title: 'বহুভাষিক QR চ্যাট', desc: 'ক্লায়েন্ট ফোনে QR কোড স্ক্যান করে নিজের মাতৃভাষায় কথা বলতে পারেন।', category: 'aiTranslator', isNew: true, tag: 'উদ্ভাবন' },
+        { title: 'প্রজেক্ট ট্র্যাকিং', desc: 'সাইটের কাজের অগ্রগতি ও ধাপসমূহ সরাসরি রিয়েল-টাইমে দেখুন।', category: 'site', tag: 'কোর' },
+        { title: 'কর্মীদের হাজিরা ও সময়', desc: 'শ্রমিকদের কাজের সময়, সাধারণ ও ওভারটাইম এবং সাইট মজুরি খরচ।', category: 'site', isNew: true, tag: 'নতুন' },
+        { title: 'ক্লায়েন্ট ডিরেক্টরি', desc: 'গ্রাহক ও সাপ্লায়ারদের তথ্য সুন্দরভাবে সাজিয়ে রাখুন।', category: 'commercial' },
+        { title: 'পেমেন্ট ট্র্যাকিং', desc: 'আদায়, বিল এবং খরচের পূর্ণ হিসাব রাখুন।', category: 'finance' },
+        { title: 'লাভ ও আর্থিক রিপোর্ট', desc: 'প্রকৃত লাভ এবং আর্থিক অগ্রগতির স্পষ্ট চিত্র।', category: 'finance', tag: 'অ্যানালিটিক্স' },
+        { title: 'ডকুমেন্ট ভল্ট', desc: 'চুক্তিপত্র, রসিদ ও কাজের ছবি নিরাপদে ক্লাউডে সংরক্ষণ করুন।', category: 'finance' },
+        { title: 'মোবাইল অ্যাপ ও ওয়েব', desc: 'ফোন, ট্যাবলেট বা কম্পিউটার থেকেই সাইটে বসে পুরো প্রজেক্ট চালান।', category: 'site' }
+      ]
+    },
+    comparison: {
+      before: {
+        badge: 'আগে যেমন হতো...',
+        title: 'আগে যেমন হতো...',
+        items: [
+          'হোয়াটসঅ্যাপ ও ফোনে কাজের হিসাব এলোমেলো থাকা',
+          'কাগজে বা এক্সেলে ভুলভ্রান্তিময় এস্টিমেট',
+          'কাগজপত্র ও মালামালের ভাউচার হারিয়ে যাওয়া',
+          'ক্লায়েন্টের থেকে টাকা আদায়ে ঝক্কি',
+          'প্রজেক্ট থেকে আসলেই কত লাভ হলো তা অজানা থাকা'
+        ]
+      },
+      after: {
+        badge: 'এখন ATRIOS BUILD এর সাথে',
+        title: 'এখন Atrios Build এর সাথে',
+        items: [
+          'সব প্রজেক্ট ও ক্লায়েন্ট তথ্য এক জায়গায় পরিপাটি',
+          '৬০ সেকেন্ডে প্রস্তুত পেশাদার ব্র্যান্ডেড PDF কোটেশন',
+          'মালামাল, শ্রমিক ও সাইট ১০০% নিয়ন্ত্রিত',
+          'খরচ ও পাওনার নিখুঁত হিসাব ও নোটিফিকেশন',
+          'সপ্তাহে ১০+ ঘণ্টা সময় বাঁচান এবং মুনাফা বৃদ্ধি করুন'
+        ]
+      },
+      ctaBanner: {
+        title: 'নির্মাণ পেশাদার ও ঠিকাদারদের জন্য সম্পূর্ণ সফটওয়্যার।',
+        sub: 'বেশি গুছানো কাজ, বেশি ক্লায়েন্ট এবং বেশি লাভ। Atrios Build এর সাথে আজই বিনামূল্যে শুরু করুন।',
+        trust: [
+          { title: 'পূর্ণ নিরাপত্তা', sub: 'এনক্রিপ্টেড ক্লাউড ব্যাকআপ' },
+          { title: 'ডেডিকেটেড সাপোর্ট', sub: 'আপনার পাশে সার্বক্ষণিক সাহায্য' },
+          { title: 'নিয়মিত আপডেট', sub: 'নতুন নতুন সুবিধা সংযোজন' },
+          { title: '+ ঠিকাদার সম্প্রদায়', sub: 'দ্রুত বর্ধনশীল ব্যবহারকারী' }
+        ],
+        clientTitle: 'বিনামূল্যে কোটেশন চান',
+        clientSub: 'আমার মিস্ত্রি বা ঠিকাদার প্রয়োজন',
+        proTitle: 'ঠিকাদার হিসেবে যোগ দিন',
+        proSub: 'কাজ পান এবং প্রজেক্ট পরিচালনা করুন'
+      }
+    },
+    footer: {
+      desc: 'নির্মাণ কোটেশন, ওয়ার্ক অর্ডার এবং আর্থিক প্রকল্প নিয়ন্ত্রণের জন্য সম্পূর্ণ সফটওয়্যার।',
+      secure: 'ডেটা নিরাপদ এবং এনক্রিপ্ট করা',
+      product: 'পণ্য',
+      company: 'প্রতিষ্ঠান',
+      support: 'সহায়তা',
+      features: 'বৈশিষ্ট্যসমূহ',
+      howItWorks: 'কীভাবে কাজ করে',
+      pdfQuotes: 'PDF কোটেশন',
+      createFree: 'ফ্রি অ্যাকাউন্ট খুলুন →',
+      privacy: 'গোপনীয়তা নীতি',
+      terms: 'ব্যবহারের শর্তাবলী',
+      help: 'সাহায্য ও জিজ্ঞাসা',
+      demo: 'ডেমো দেখুন',
+      installApp: 'মোবাইল অ্যাপ ইনস্টল',
+      clientPortal: 'ক্লায়েন্ট পোর্টাল (লগইন)',
+      rights: 'সর্বস্বত্ব সংরক্ষিত।',
+      tagline: 'নির্মাণ শিল্পের পেশাদারদের জন্য নিখুঁতভাবে তৈরি।'
+    }
+  }
+};
+
+export const getLandingExtended = (locale: Locale): LandingExtended => {
+  return landingExtendedTranslations[locale] || landingExtendedTranslations['pt-PT'];
+};

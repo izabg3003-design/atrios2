@@ -1,0 +1,20 @@
+[
+  {
+    "subscription": {
+      "endpoint": "https://fcm.googleapis.com/fcm/send/fmbJW9o6NtM:APA91bHRkclv9jOQT5E4GbZNi2rSMo5yrwmXuq3096CQdIqqM99YbD8lU7eA0t5OmLHo_wr6_51R7gCsIT4YTxJNL-QsJh-xFfYPZ3loES4bMDyRJirelt5SJObfswAxHJnD1oMNRmwt",
+      "expirationTime": null,
+      "keys": {
+        "p256dh": "BPaLUJn_Bb0OvJLOQDY1Qi8GiOztEGUPX3DBOGINH8V5EvjIlY2gY7BCLfvo64AJqkaWZ87BoPrOAwbYJQtRdWg",
+        "auth": "-HPDf5gsqgW4fhMg2DJTSg"
+      }
+    },
+    "companyId": "guest",
+    "plan": "free",
+    "email": "",
+    "role": "user",
+    "phone": "",
+    "name": "",
+    "updatedAt": "2026-09-30T19:39:59.680Z",
+    "createdAt": "2026-09-30T19:37:58.608Z"
+  }
+]
