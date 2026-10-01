@@ -51,7 +51,8 @@ import {
   MessageSquare,
   Bot,
   Radio,
-  SlidersHorizontal
+  SlidersHorizontal,
+  Bell
 } from 'lucide-react';
 import { Translation, Locale } from '../translations';
 import { CurrencyCode, CURRENCIES, HeroVideoConfig, ActionVideoConfig } from '../types';
@@ -74,6 +75,8 @@ interface LandingPageProps {
   onOpenClientPortal?: () => void;
   onOpenIntroBanners?: () => void;
   isIntroActive?: boolean;
+  notificationPermission?: NotificationPermission;
+  onRequestPushPermission?: () => void;
 }
 
 const STEP_ICONS = [FileText, Users, FileText, Send, Users, HardHat, TrendingUp];
@@ -95,7 +98,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   onOpenLegal,
   onOpenClientPortal,
   onOpenIntroBanners,
-  isIntroActive = false
+  isIntroActive = false,
+  notificationPermission,
+  onRequestPushPermission
 }) => {
   const [showDemoModal, setShowDemoModal] = useState(false);
   const [showClientRequestModal, setShowClientRequestModal] = useState(false);
@@ -413,6 +418,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </select>
               </div>
 
+              {/* Push Notification Activation / Status */}
+              {notificationPermission !== 'granted' ? (
+                <button
+                  type="button"
+                  onClick={onRequestPushPermission}
+                  className="hidden md:inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-50 hover:bg-amber-100 text-amber-900 border border-amber-300 rounded-xl text-xs font-bold transition-all shadow-xs shrink-0 cursor-pointer animate-pulse"
+                  title="Ativar Notificações Push Instantâneas"
+                >
+                  <Bell size={13} className="text-amber-600 animate-bounce" />
+                  <span>Ativar Push</span>
+                </button>
+              ) : (
+                <div 
+                  className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-1.5 bg-emerald-50 text-emerald-800 border border-emerald-200 rounded-xl text-xs font-bold shrink-0"
+                  title="Notificações Push ativas no dispositivo"
+                >
+                  <CheckCircle2 size={13} className="text-emerald-600" />
+                  <span>Push Ativo</span>
+                </div>
+              )}
+
               {/* Login Button */}
               <button
                 onClick={onLogin}
@@ -501,6 +527,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </button>
 
                 <div className="pt-3 border-t border-slate-100 flex flex-col gap-2">
+                  {notificationPermission !== 'granted' && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setMobileMenuOpen(false);
+                        onRequestPushPermission?.();
+                      }}
+                      className="w-full py-2.5 px-3 bg-amber-50 hover:bg-amber-100 text-amber-950 border border-amber-300 rounded-xl font-bold text-xs flex items-center justify-center gap-2 shadow-xs transition-all active:scale-98"
+                    >
+                      <Bell size={15} className="text-amber-600 animate-bounce" />
+                      <span>🔔 Ativar Notificações no Telemóvel</span>
+                    </button>
+                  )}
                   {onOpenClientPortal && (
                     <button
                       onClick={() => { onOpenClientPortal(); setMobileMenuOpen(false); }}

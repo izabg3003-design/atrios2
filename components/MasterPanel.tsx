@@ -192,6 +192,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const [pushBody, setPushBody] = useState('');
   const [showEmojiPickerFor, setShowEmojiPickerFor] = useState<'title' | 'body' | null>(null);
   const [pushAudience, setPushAudience] = useState<AudienceType>('all');
+  const globalPushChannelRef = useRef<any>(null);
   const [pushHistory, setPushHistory] = useState<PushNotification[]>(() => {
     try {
       const stored = localStorage.getItem('atrios_push_history');
@@ -1133,6 +1134,8 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       )
       .subscribe();
 
+    globalPushChannelRef.current = globalPushChannel;
+
     // Sincronização de solicitações de orçamentos e dados gerais a cada 10 minutos (economia de banco)
     const budgetSyncInterval = setInterval(() => {
       console.log("[MasterPanel] Sincronizando dados e orçamentos (intervalo 10 min)...");
@@ -1193,6 +1196,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
       supabase.removeChannel(candidatesChannel);
       supabase.removeChannel(clientRequestsChannel);
       supabase.removeChannel(globalPushChannel);
+      globalPushChannelRef.current = null;
       clearInterval(budgetSyncInterval);
       clearInterval(expiryRealtimeCheckInterval);
       window.removeEventListener('storage', handleStorageChange);
@@ -1552,24 +1556,21 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
     // Trigger push balloon on Master's screen as well
     triggerPushNotificationSubmit(pushTitle, pushBody);
 
-    // Broadcast real-time to online users!
-    const channel = supabase.channel('global-push-notifications');
-    channel.subscribe((status) => {
-      if (status === 'SUBSCRIBED') {
-        channel.send({
-          type: 'broadcast',
-          event: 'push',
-          payload: newPush
-        }).then(() => {
-          console.log('[MasterPanel] Real-time push broadcast sent.');
-          try {
-            supabase.removeChannel(channel);
-          } catch (e) {
-            console.error(e);
-          }
-        });
-      }
-    });
+    // 1. Broadcast em tempo real imediato (0ms via WebSocket persistente)
+    try {
+      const activePushCh = globalPushChannelRef.current || supabase.channel('global-push-notifications');
+      activePushCh.send({
+        type: 'broadcast',
+        event: 'push',
+        payload: newPush
+      }).then(() => {
+        console.log('[Master Realtime Push] Disparado instantaneamente via WebSocket!');
+      }).catch((err: any) => {
+        console.warn('[Master Realtime Push Broadcast Error]:', err);
+      });
+    } catch (e) {
+      console.warn('[Master Realtime Push Channel Exception]:', e);
+    }
 
     // Enviar broadcast offline/background PWA Push (para que chegue com o app completamente fechado!)
     fetch('/api/push/send-broadcast', {

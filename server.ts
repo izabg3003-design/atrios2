@@ -458,6 +458,14 @@ function broadcastRealtimePush(title: string, body: string, targetAudience: stri
         payload
       }).catch((e: any) => console.warn('[Supabase Realtime Push Error]', e?.message || e));
     }
+    
+    // Broadcast redundante para garantir entrega a qualquer cliente conectado via canal secundário
+    const backupCh = supabase.channel('global-push-notifications');
+    backupCh.send({
+      type: 'broadcast',
+      event: 'push',
+      payload
+    }).catch(() => {});
   } catch (err) {
     console.warn('[Supabase Realtime Channel Exception]', err);
   }
@@ -1453,17 +1461,26 @@ async function startServer() {
       }
       if (!targetAudience || targetAudience === 'all') return true;
       if (targetAudience === 'landing' || targetAudience === 'guest') {
-        return cId === 'guest' || !cId || !isMasterSub(sub);
+        // Landing deve ser entregue a TODOS os aparelhos (visitantes e utilizadores na landing page)
+        return true;
       }
-      if (targetAudience === 'free' && plan === 'free') return true;
-      if (targetAudience === 'all_premium' && plan !== 'free') return true;
-      if (targetAudience === 'premium_monthly' && plan === 'premium_monthly') return true;
-      if (targetAudience === 'premium_annual' && plan === 'premium_annual') return true;
+      if (targetAudience === 'free') {
+        return plan === 'free' || cId === 'guest' || !plan || role === 'user';
+      }
+      if (targetAudience === 'all_premium') {
+        return plan !== 'free' && plan !== 'guest';
+      }
+      if (targetAudience === 'premium_monthly') {
+        return plan === 'premium_monthly';
+      }
+      if (targetAudience === 'premium_annual') {
+        return plan === 'premium_annual';
+      }
       if (targetAudience === 'client' || targetAudience === 'clients') {
         return role === 'client' || phone.length > 0 || cId.startsWith('client');
       }
       if (targetAudience === 'users' || targetAudience === 'companies') {
-        return role === 'user' || (role !== 'client' && !isMasterSub(sub));
+        return role === 'user' || role !== 'client';
       }
 
       // Se for um ID de empresa, telefone, nome ou email específico:
@@ -1507,8 +1524,8 @@ async function startServer() {
     // Fallback de Entrega: Se nenhum dispositivo coincidir exatamente (ex: dispositivo registado antes do login como 'guest'),
     // garantimos a entrega para que alertas e notificações urgentes nunca se percam com o app fechado!
     if (filteredWeb.length === 0 && filteredFcm.length === 0) {
-      if (targetAudience === 'master' || targetAudience === 'all') {
-        console.log(`[PWA Push] Nenhuma subscrição explicitamente rotulada para '${targetAudience}'. Usando todas as ${uniqueWebSubs.length} subscrições ativas.`);
+      if (targetAudience === 'master' || targetAudience === 'all' || targetAudience === 'landing' || targetAudience === 'guest') {
+        console.log(`[PWA Push Fallback] Usando todas as ${uniqueWebSubs.length} subscrições ativas para garantir entrega a '${targetAudience}'.`);
         filteredWeb = uniqueWebSubs;
         filteredFcm = uniqueFcmSubs;
       } else {

@@ -270,6 +270,16 @@ const App: React.FC = () => {
     return null;
   });
 
+  const viewRef = useRef<string>(view);
+  useEffect(() => {
+    viewRef.current = view;
+  }, [view]);
+
+  const currentUserRef = useRef<Company | null>(currentUser);
+  useEffect(() => {
+    currentUserRef.current = currentUser;
+  }, [currentUser]);
+
   const [pwaPrompt, setPwaPrompt] = useState<any>(null);
   const [fcmToken, setFcmToken] = useState<string | null>(() => localStorage.getItem('atrios_fcm_token'));
   
@@ -480,6 +490,13 @@ const App: React.FC = () => {
     // Carregar configurações globais da nuvem (vídeos do hero, vídeos de demonstração, etc.)
     fetchCloudAppSettings();
 
+    // Registo imediato do Service Worker para receção de push em todas as telas (incluindo Landing Page)
+    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
+      navigator.serviceWorker.register('/firebase-messaging-sw.js').catch((err) => {
+        console.warn('[SW Reg]:', err?.message || err);
+      });
+    }
+
     const unsubscribe = onMessageListener((payload) => {
       console.log('Foreground notification received:', payload);
       const title = payload.notification?.title || payload.data?.title || 'Alerta Átrios';
@@ -551,7 +568,8 @@ const App: React.FC = () => {
           } catch (e) {}
 
           const currentU = currentUserRef.current || knownIdentity;
-          const isMasterView = view === 'master';
+          const isMasterView = viewRef.current === 'master';
+          const isLandingView = viewRef.current === 'landing';
 
           const cId = String(currentU?.id || '').toLowerCase();
           const email = String(currentU?.email || '').toLowerCase();
@@ -564,8 +582,17 @@ const App: React.FC = () => {
 
           // Check if user, master, or visitor matches targetAudience
           let isMatch = false;
+
+          // Se for para todos, landing ou visitantes:
           if (targetLower === 'all' || targetLower === 'landing' || targetLower === 'guest') {
             isMatch = true;
+          } else if (isLandingView) {
+            // Qualquer visitante ou utilizador na landing page deve receber todas as notificações gerais/novidades
+            if (targetLower !== 'master') {
+              isMatch = true;
+            } else if (isMasterUser) {
+              isMatch = true;
+            }
           } else if (targetLower === 'master' && isMasterUser) {
             isMatch = true;
           } else if (currentU) {
@@ -573,21 +600,24 @@ const App: React.FC = () => {
             else if (targetLower === 'all_premium' && currentU.plan !== PlanType.FREE) isMatch = true;
             else if (targetLower === 'premium_monthly' && currentU.plan === PlanType.PREMIUM_MONTHLY) isMatch = true;
             else if (targetLower === 'premium_annual' && currentU.plan === PlanType.PREMIUM_ANNUAL) isMatch = true;
+            else if (targetLower === 'users' || targetLower === 'companies') isMatch = true;
             else if (cId === targetLower || email === targetLower || (cId && targetLower.includes(cId)) || (email && targetLower.includes(email))) isMatch = true;
           }
             
           if (isMatch) {
             console.log('[Push Match] Exibindo notificação:', title, body);
-            triggerPushNotificationSubmit(title, body);
+            triggerPushNotificationSubmit(title, body, payload.payload?.data);
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log('[App PushChannel Realtime Status]:', status);
+      });
 
     return () => {
       supabase.removeChannel(pushChannel);
     };
-  }, [currentUser?.id, currentUser?.plan, currentUser?.email, view]);
+  }, []); // Mantém canal permanente conectado por toda a sessão
 
   // Salvar identidade persistente do utilizador no dispositivo para push mesmo deslogado
   useEffect(() => {
@@ -613,19 +643,14 @@ const App: React.FC = () => {
       if (saved) knownIdentity = JSON.parse(saved);
     } catch (e) {}
 
-    const isMaster = view === 'master' || 
-      currentUser?.email?.toLowerCase().includes('izarellebraga') || 
-      currentUser?.id === 'master' || 
-      currentUser?.email?.toLowerCase().includes('atriosbuild') || 
-      currentUser?.id === 'FSE8GE362';
-
-    const effectiveUser = currentUser || knownIdentity;
+    const isMaster = view === 'master';
+    const effectiveUser = currentUser || (view !== 'landing' ? knownIdentity : (knownIdentity?.id !== 'master' ? knownIdentity : null));
 
     const cId = isMaster ? 'master' : (effectiveUser?.id || 'guest');
     const uPlan = isMaster ? 'master' : (effectiveUser?.plan || 'free');
     const uEmail = currentUser?.email || (isMaster ? 'izarellebraga@gmail.com' : (effectiveUser?.email || ''));
-    const uRole = isMaster ? 'master' : (effectiveUser?.role || 'user');
-    const uName = currentUser?.name || currentUser?.companyName || (isMaster ? 'Master Admin' : (effectiveUser?.name || ''));
+    const uRole = isMaster ? 'master' : (effectiveUser?.role || (cId === 'guest' ? 'guest' : 'user'));
+    const uName = currentUser?.name || currentUser?.companyName || (isMaster ? 'Master Admin' : (effectiveUser?.name || 'Visitante'));
     const uPhone = currentUser?.phone || currentUser?.contactPhone || (effectiveUser?.phone || '');
 
     if (fcmToken) {
@@ -663,7 +688,7 @@ const App: React.FC = () => {
         }
       }).catch(() => {});
     }
-  }, [fcmToken, currentUser?.id, currentUser?.plan, currentUser?.email, view]);
+  }, [fcmToken, currentUser?.id, currentUser?.plan, currentUser?.email, view, notificationPermission]);
 
   // Heartbeat para atualizar o status online do utilizador no Supabase e LocalStorage
   useEffect(() => {
@@ -986,8 +1011,6 @@ const App: React.FC = () => {
   
   const [showSettingsConfirmModal, setShowSettingsConfirmModal] = useState(false);
   const [showLegalModal, setShowLegalModal] = useState<'terms' | 'privacy' | null>(null);
-
-  const currentUserRef = useRef<Company | null>(null);
 
   useEffect(() => {
     if (currentUser && view === 'app') {
@@ -2567,6 +2590,321 @@ const App: React.FC = () => {
   return (
     <>
       <InAppPushBalloonContainer />
+
+      {/* Notificação Push Prompt Global (Visível na Landing Page, Login, App, etc.) */}
+      {showNotificationPrompt && (notificationPermission === 'default' || notificationPermission === 'denied') && (
+        <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-8 sm:bottom-8 sm:max-w-md z-[99999] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.3)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
+          <button 
+            onClick={dismissPushPrompt} 
+            className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full flex items-center justify-center transition-all cursor-pointer"
+          >
+            <X size={14} />
+          </button>
+          <div className="flex gap-4 items-start">
+            <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 shadow-lg ${
+              notificationPermission === 'denied' 
+                ? 'bg-amber-100 text-amber-600 shadow-amber-500/5' 
+                : 'bg-amber-500 text-white shadow-amber-500/20'
+            }`}>
+              {notificationPermission === 'denied' ? (
+                <Lock size={24} />
+              ) : (
+                <Bell className="animate-bounce" size={24} />
+              )}
+            </div>
+            <div className="space-y-2 col-span-3">
+              <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
+                {notificationPermission === 'denied' 
+                  ? t.pushStatusDenied 
+                  : t.pushTitle}
+              </h4>
+              <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
+                {notificationPermission === 'denied' 
+                  ? t.pushUnblockGuide
+                  : t.pushDesc}
+              </p>
+              <div className="pt-2 flex items-center gap-4">
+                {notificationPermission !== 'denied' ? (
+                  <button 
+                    onClick={handleRequestPushPermission} 
+                    className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95 cursor-pointer"
+                  >
+                    {t.pushAllowBtn}
+                  </button>
+                ) : (
+                  <button 
+                    onClick={() => {
+                      setShowUnblockGuideModal(true);
+                    }} 
+                    className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95 cursor-pointer"
+                  >
+                    {locale.startsWith('pt') ? 'Como Ativar?' : (locale.startsWith('es') ? '¿Cómo activar?' : (locale.startsWith('fr') ? 'Comment activer ?' : (locale.startsWith('it') ? 'Come attivare?' : 'How to enable?')))}
+                  </button>
+                )}
+                <button 
+                  onClick={dismissPushPrompt} 
+                  className="text-slate-400 hover:text-slate-600 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors cursor-pointer"
+                >
+                  {t.pushLaterBtn}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal Guia de Desbloqueio Global */}
+      {showUnblockGuideModal && (
+        <div className="fixed inset-0 z-[100005] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
+          <div className="relative bg-white rounded-[2rem] w-full max-w-2xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] animate-in zoom-in-95 duration-300">
+            {/* Botão de Fechar */}
+            <button 
+              onClick={() => setShowUnblockGuideModal(false)} 
+              className="absolute top-6 right-6 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-full transition-all z-10 cursor-pointer"
+            >
+              <X size={18} />
+            </button>
+
+            {/* Cabeçalho */}
+            <div className="p-6 pb-4 sm:p-8 sm:pb-4 border-b border-slate-100 shrink-0 text-left">
+              <div className="flex gap-4 items-start">
+                <div className="w-12 h-12 rounded-[1rem] bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
+                  <Lock size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
+                    Como Ativar Notificações 🔒
+                  </h3>
+                  <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed mt-1">
+                    As notificações estão bloqueadas no seu navegador. Escolha o seu abaixo e siga os passos simples para ativá-las:
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Seletor de Abas */}
+            <div className="px-6 py-2 sm:px-8 border-b border-slate-50 overflow-x-auto flex gap-2 scrollbar-none shrink-0 bg-slate-50/50">
+              <button 
+                onClick={() => setUnblockTab('chrome')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  unblockTab === 'chrome' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Google Chrome
+              </button>
+              <button 
+                onClick={() => setUnblockTab('edge')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  unblockTab === 'edge' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Microsoft Edge
+              </button>
+              <button 
+                onClick={() => setUnblockTab('firefox')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  unblockTab === 'firefox' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Mozilla Firefox
+              </button>
+              <button 
+                onClick={() => setUnblockTab('safari')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  unblockTab === 'safari' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                Safari (Mac)
+              </button>
+              <button 
+                onClick={() => setUnblockTab('android')}
+                className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap cursor-pointer ${
+                  unblockTab === 'android' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
+                }`}
+              >
+                📱 Android (Chrome)
+              </button>
+            </div>
+
+            {/* Conteúdo das Instruções */}
+            <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 text-left">
+              {unblockTab === 'chrome' && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3">
+                    <h4 className="text-sm font-black text-emerald-800 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Método 1 (mais fácil)
+                    </h4>
+                    <ol className="text-xs sm:text-sm text-emerald-950 font-medium space-y-2 list-decimal pl-5">
+                      <li>Abra o Chrome</li>
+                      <li>Clique no menu (<span className="font-bold">⋮</span> no canto superior direito)</li>
+                      <li>Vá em <span className="font-bold">Definições</span></li>
+                      <li>Clique em <span className="font-bold">Privacidade e segurança</span></li>
+                      <li>Abra <span className="font-bold">Definições do site</span></li>
+                      <li>Clique em <span className="font-bold">Notificações</span></li>
+                      <li>Procure o site do nosso app</li>
+                      <li>Em <span className="font-bold">“Bloqueados”</span>, remova o site ou altere para <span className="font-bold text-emerald-700">Permitir</span></li>
+                    </ol>
+                  </div>
+
+                  <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3">
+                    <h4 className="text-sm font-black text-blue-800 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Método 2 (direto)
+                    </h4>
+                    <p className="text-xs sm:text-sm text-blue-950 font-medium">
+                      Copie e cole este endereço na barra de pesquisa do Chrome:
+                    </p>
+                    <div className="flex items-center gap-2 bg-white border border-blue-100 p-2 rounded-xl">
+                      <code className="text-xs sm:text-sm font-mono text-blue-600 flex-1 select-all">
+                        chrome://settings/content/notifications
+                      </code>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText('chrome://settings/content/notifications');
+                          setCopiedUrl('chrome');
+                          setTimeout(() => setCopiedUrl(null), 2000);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0 cursor-pointer"
+                      >
+                        {copiedUrl === 'chrome' ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                    <ol className="text-xs sm:text-sm text-blue-950 font-medium space-y-1 list-decimal pl-5 mt-2">
+                      <li>Encontre o nosso site</li>
+                      <li>Altere a permissão para <span className="font-bold text-blue-700">Permitir</span></li>
+                    </ol>
+                  </div>
+                </div>
+              )}
+
+              {unblockTab === 'edge' && (
+                <div className="space-y-6">
+                  <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3">
+                    <h4 className="text-sm font-black text-emerald-800 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Método Passo a Passo
+                    </h4>
+                    <ol className="text-xs sm:text-sm text-emerald-950 font-medium space-y-2 list-decimal pl-5">
+                      <li>Abra o Microsoft Edge</li>
+                      <li>Clique no menu (<span className="font-bold">⋯</span>)</li>
+                      <li>Vá em <span className="font-bold">Definições</span></li>
+                      <li>Clique em <span className="font-bold">Cookies e permissões do site</span></li>
+                      <li>Selecione <span className="font-bold">Notificações</span></li>
+                      <li>Encontre o site do app</li>
+                      <li>Clique em <span className="font-bold text-emerald-700">Permitir</span></li>
+                    </ol>
+                  </div>
+
+                  <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3">
+                    <h4 className="text-sm font-black text-blue-800 flex items-center gap-2">
+                      <CheckCircle2 size={16} /> Link Direto
+                    </h4>
+                    <p className="text-xs sm:text-sm text-blue-950 font-medium">
+                      Copie e cole este endereço na barra de pesquisa do Edge:
+                    </p>
+                    <div className="flex items-center gap-2 bg-white border border-blue-100 p-2 rounded-xl">
+                      <code className="text-xs sm:text-sm font-mono text-blue-600 flex-1 select-all">
+                        edge://settings/content/notifications
+                      </code>
+                      <button 
+                        onClick={() => {
+                          navigator.clipboard.writeText('edge://settings/content/notifications');
+                          setCopiedUrl('edge');
+                          setTimeout(() => setCopiedUrl(null), 2000);
+                        }}
+                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0 cursor-pointer"
+                      >
+                        {copiedUrl === 'edge' ? 'Copiado!' : 'Copiar'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {unblockTab === 'firefox' && (
+                <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl space-y-3">
+                  <h4 className="text-sm font-black text-amber-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} /> Instruções do Firefox
+                  </h4>
+                  <ol className="text-xs sm:text-sm text-amber-950 font-medium space-y-2 list-decimal pl-5">
+                    <li>Abra o Mozilla Firefox</li>
+                    <li>Clique no menu (<span className="font-bold">☰</span>)</li>
+                    <li>Vá em <span className="font-bold">Definições</span></li>
+                    <li>Clique em <span className="font-bold">Privacidade e Segurança</span></li>
+                    <li>Desça até <span className="font-bold">“Permissões”</span></li>
+                    <li>Em <span className="font-bold">Notificações</span>, clique em <span className="font-bold">Definições...</span></li>
+                    <li>Remova o site da lista de bloqueio</li>
+                    <li>Clique em <span className="font-bold">Salvar alterações</span></li>
+                  </ol>
+                </div>
+              )}
+
+              {unblockTab === 'safari' && (
+                <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl space-y-3">
+                  <h4 className="text-sm font-black text-purple-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} /> Instruções do Safari (Mac)
+                  </h4>
+                  <ol className="text-xs sm:text-sm text-purple-950 font-medium space-y-2 list-decimal pl-5">
+                    <li>Abra o Safari</li>
+                    <li>No topo da tela, clique em <span className="font-bold">Safari &gt; Definições</span></li>
+                    <li>Vá até a aba <span className="font-bold">Sites</span></li>
+                    <li>Na barra lateral esquerda, clique em <span className="font-bold">Notificações</span></li>
+                    <li>Encontre o site do aplicativo</li>
+                    <li>Altere para <span className="font-bold text-purple-700">Permitir</span></li>
+                  </ol>
+                </div>
+              )}
+
+              {unblockTab === 'android' && (
+                <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
+                  <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
+                    <CheckCircle2 size={16} /> Android (Chrome no telemóvel)
+                  </h4>
+                  <ol className="text-xs sm:text-sm text-slate-900 font-medium space-y-2 list-decimal pl-5">
+                    <li>Abra o navegador Chrome no telemóvel</li>
+                    <li>Clique nos três pontos (<span className="font-bold">⋮</span> no canto superior direito)</li>
+                    <li>Vá em <span className="font-bold">Definições</span></li>
+                    <li>Desça e clique em <span className="font-bold">Definições de site</span></li>
+                    <li>Clique em <span className="font-bold">Notificações</span></li>
+                    <li>Procure o nosso site na lista</li>
+                    <li>Toque nele e altere o acesso para <span className="font-bold text-slate-900">Permitir</span></li>
+                  </ol>
+                </div>
+              )}
+
+              {/* Alerta importante */}
+              <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
+                <h5 className="text-xs sm:text-sm font-black text-amber-800 flex items-center gap-2 uppercase tracking-wide">
+                  ⚠️ Importante
+                </h5>
+                <ul className="text-xs text-amber-950 font-semibold space-y-1 list-disc pl-5">
+                  <li>Se o site estiver em “Bloqueados”, o navegador não vai perguntar novamente por segurança.</li>
+                  <li>Após conceder a permissão nas configurações, <span className="font-bold">atualize a página do aplicativo</span>.</li>
+                  <li>As notificações só funcionam se estiverem configuradas em <span className="font-bold text-emerald-700">“Permitir”</span>.</li>
+                </ul>
+              </div>
+            </div>
+
+            {/* Rodapé */}
+            <div className="p-4 sm:p-6 border-t border-slate-100 shrink-0 bg-slate-50 flex justify-end gap-3">
+              <button 
+                onClick={() => {
+                  setShowUnblockGuideModal(false);
+                  window.location.reload();
+                }}
+                className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center gap-2 cursor-pointer"
+              >
+                <RefreshCw size={14} /> Atualizar Página
+              </button>
+              <button 
+                onClick={() => setShowUnblockGuideModal(false)}
+                className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95 cursor-pointer"
+              >
+                Fechar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <div className={`flex ${(view === 'landing' || view === 'client-portal' || view === 'worker-portal' || view === 'login' || view === 'signup' || view === 'forgot-password') ? 'min-h-screen overflow-y-auto items-start' : 'h-screen overflow-hidden items-center'} bg-slate-50 relative w-full max-w-full overflow-x-hidden justify-center`}>
       {showCertificateModal && (
         <CertificateModal 
@@ -2720,6 +3058,8 @@ const App: React.FC = () => {
           onOpenClientPortal={() => setView('client-portal')}
           onOpenIntroBanners={() => setShowFullscreenIntro(true)}
           isIntroActive={showFullscreenIntro}
+          notificationPermission={notificationPermission}
+          onRequestPushPermission={handleRequestPushPermission}
         />
       ) : view === 'login' ? (
         <div className="min-h-screen w-full bg-slate-50 flex items-center justify-center p-4 sm:p-6 relative overflow-hidden">
@@ -3695,318 +4035,6 @@ const App: React.FC = () => {
                   100% { width: 100%; }
                 }
               `}</style>
-            </div>
-          )}
-          
-          {showNotificationPrompt && (notificationPermission === 'default' || notificationPermission === 'denied') && (
-            <div className="fixed bottom-4 right-4 left-4 sm:left-auto sm:right-8 sm:bottom-8 sm:max-w-md z-[80] bg-white text-slate-900 p-6 rounded-[2rem] shadow-[0_25px_60px_-15px_rgba(0,0,0,0.2)] border border-slate-100 animate-in slide-in-from-bottom-8 duration-500">
-              <button 
-                onClick={dismissPushPrompt} 
-                className="absolute top-4 right-4 w-8 h-8 bg-slate-100 hover:bg-slate-200 text-slate-400 hover:text-slate-600 rounded-full flex items-center justify-center transition-all"
-              >
-                <X size={14} />
-              </button>
-              <div className="flex gap-4 items-start">
-                <div className={`w-12 h-12 rounded-[1rem] flex items-center justify-center shrink-0 shadow-lg ${
-                  notificationPermission === 'denied' 
-                    ? 'bg-amber-100 text-amber-600 shadow-amber-500/5' 
-                    : 'bg-amber-500 text-white shadow-amber-500/20'
-                }`}>
-                  {notificationPermission === 'denied' ? (
-                    <Lock size={24} />
-                  ) : (
-                    <Bell className="animate-bounce" size={24} />
-                  )}
-                </div>
-                <div className="space-y-2 col-span-3">
-                  <h4 className="text-base sm:text-lg font-black text-slate-900 tracking-tight">
-                    {notificationPermission === 'denied' 
-                      ? t.pushStatusDenied 
-                      : t.pushTitle}
-                  </h4>
-                  <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed">
-                    {notificationPermission === 'denied' 
-                      ? t.pushUnblockGuide
-                      : t.pushDesc}
-                  </p>
-                  <div className="pt-2 flex items-center gap-4">
-                    {notificationPermission !== 'denied' ? (
-                      <button 
-                        onClick={handleRequestPushPermission} 
-                        className="px-5 py-3 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
-                      >
-                        {t.pushAllowBtn}
-                      </button>
-                    ) : (
-                      <button 
-                        onClick={() => {
-                          setShowUnblockGuideModal(true);
-                        }} 
-                        className="px-5 py-3 bg-amber-500 hover:bg-amber-400 text-slate-950 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-xl active:scale-95"
-                      >
-                        {locale.startsWith('pt') ? 'Como Ativar?' : (locale.startsWith('es') ? '¿Cómo activar?' : (locale.startsWith('fr') ? 'Comment activer ?' : (locale.startsWith('it') ? 'Come attivare?' : 'How to enable?')))}
-                      </button>
-                    )}
-                    <button 
-                      onClick={dismissPushPrompt} 
-                      className="text-slate-400 hover:text-slate-600 text-[10px] sm:text-xs font-black uppercase tracking-widest transition-colors"
-                    >
-                      {t.pushLaterBtn}
-                    </button>
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {showUnblockGuideModal && (
-            <div className="fixed inset-0 z-[10005] flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4 animate-in fade-in duration-300">
-              <div className="relative bg-white rounded-[2rem] w-full max-w-2xl border border-slate-100 shadow-2xl overflow-hidden flex flex-col max-h-[90vh] sm:max-h-[85vh] animate-in zoom-in-95 duration-300">
-                {/* Botão de Fechar */}
-                <button 
-                  onClick={() => setShowUnblockGuideModal(false)} 
-                  className="absolute top-6 right-6 p-2 bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-700 rounded-full transition-all z-10"
-                >
-                  <X size={18} />
-                </button>
-
-                {/* Cabeçalho */}
-                <div className="p-6 pb-4 sm:p-8 sm:pb-4 border-b border-slate-100 shrink-0 text-left">
-                  <div className="flex gap-4 items-start">
-                    <div className="w-12 h-12 rounded-[1rem] bg-amber-500 text-white flex items-center justify-center shrink-0 shadow-lg shadow-amber-500/20">
-                      <Lock size={24} />
-                    </div>
-                    <div>
-                      <h3 className="text-xl sm:text-2xl font-black text-slate-900 tracking-tight">
-                        Como Ativar Notificações 🔒
-                      </h3>
-                      <p className="text-xs sm:text-sm text-slate-500 font-medium leading-relaxed mt-1">
-                        As notificações estão bloqueadas no seu navegador. Escolha o seu abaixo e siga os passos simples para ativá-las:
-                      </p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Seletor de Abas */}
-                <div className="px-6 py-2 sm:px-8 border-b border-slate-50 overflow-x-auto flex gap-2 scrollbar-none shrink-0 bg-slate-50/50">
-                  <button 
-                    onClick={() => setUnblockTab('chrome')}
-                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-                      unblockTab === 'chrome' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Google Chrome
-                  </button>
-                  <button 
-                    onClick={() => setUnblockTab('edge')}
-                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-                      unblockTab === 'edge' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Microsoft Edge
-                  </button>
-                  <button 
-                    onClick={() => setUnblockTab('firefox')}
-                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-                      unblockTab === 'firefox' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Mozilla Firefox
-                  </button>
-                  <button 
-                    onClick={() => setUnblockTab('safari')}
-                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-                      unblockTab === 'safari' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    Safari (Mac)
-                  </button>
-                  <button 
-                    onClick={() => setUnblockTab('android')}
-                    className={`px-4 py-2 rounded-xl text-xs sm:text-sm font-bold transition-all whitespace-nowrap ${
-                      unblockTab === 'android' ? 'bg-slate-900 text-white shadow-md' : 'text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    📱 Android (Chrome)
-                  </button>
-                </div>
-
-                {/* Conteúdo das Instruções */}
-                <div className="flex-1 overflow-y-auto p-6 sm:p-8 space-y-6 text-left">
-                  {unblockTab === 'chrome' && (
-                    <div className="space-y-6">
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3">
-                        <h4 className="text-sm font-black text-emerald-800 flex items-center gap-2">
-                          <CheckCircle2 size={16} /> Método 1 (mais fácil)
-                        </h4>
-                        <ol className="text-xs sm:text-sm text-emerald-950 font-medium space-y-2 list-decimal pl-5">
-                          <li>Abra o Chrome</li>
-                          <li>Clique no menu (<span className="font-bold">⋮</span> no canto superior direito)</li>
-                          <li>Vá em <span className="font-bold">Definições</span></li>
-                          <li>Clique em <span className="font-bold">Privacidade e segurança</span></li>
-                          <li>Abra <span className="font-bold">Definições do site</span></li>
-                          <li>Clique em <span className="font-bold">Notificações</span></li>
-                          <li>Procure o site do nosso app</li>
-                          <li>Em <span className="font-bold">“Bloqueados”</span>, remova o site ou altere para <span className="font-bold text-emerald-700">Permitir</span></li>
-                        </ol>
-                      </div>
-
-                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3">
-                        <h4 className="text-sm font-black text-blue-800 flex items-center gap-2">
-                          <CheckCircle2 size={16} /> Método 2 (direto)
-                        </h4>
-                        <p className="text-xs sm:text-sm text-blue-950 font-medium">
-                          Copie e cole este endereço na barra de pesquisa do Chrome:
-                        </p>
-                        <div className="flex items-center gap-2 bg-white border border-blue-100 p-2 rounded-xl">
-                          <code className="text-xs sm:text-sm font-mono text-blue-600 flex-1 select-all">
-                            chrome://settings/content/notifications
-                          </code>
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText('chrome://settings/content/notifications');
-                              setCopiedUrl('chrome');
-                              setTimeout(() => setCopiedUrl(null), 2000);
-                            }}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
-                          >
-                            {copiedUrl === 'chrome' ? 'Copiado!' : 'Copiar'}
-                          </button>
-                        </div>
-                        <ol className="text-xs sm:text-sm text-blue-950 font-medium space-y-1 list-decimal pl-5 mt-2">
-                          <li>Encontre o nosso site</li>
-                          <li>Altere a permissão para <span className="font-bold text-blue-700">Permitir</span></li>
-                        </ol>
-                      </div>
-                    </div>
-                  )}
-
-                  {unblockTab === 'edge' && (
-                    <div className="space-y-6">
-                      <div className="p-4 bg-emerald-50/50 border border-emerald-100 rounded-2xl space-y-3">
-                        <h4 className="text-sm font-black text-emerald-800 flex items-center gap-2">
-                          <CheckCircle2 size={16} /> Método Passo a Passo
-                        </h4>
-                        <ol className="text-xs sm:text-sm text-emerald-950 font-medium space-y-2 list-decimal pl-5">
-                          <li>Abra o Microsoft Edge</li>
-                          <li>Clique no menu (<span className="font-bold">⋯</span>)</li>
-                          <li>Vá em <span className="font-bold">Definições</span></li>
-                          <li>Clique em <span className="font-bold">Cookies e permissões do site</span></li>
-                          <li>Selecione <span className="font-bold">Notificações</span></li>
-                          <li>Encontre o site do app</li>
-                          <li>Clique em <span className="font-bold text-emerald-700">Permitir</span></li>
-                        </ol>
-                      </div>
-
-                      <div className="p-4 bg-blue-50/50 border border-blue-100 rounded-2xl space-y-3">
-                        <h4 className="text-sm font-black text-blue-800 flex items-center gap-2">
-                          <CheckCircle2 size={16} /> Link Direto
-                        </h4>
-                        <p className="text-xs sm:text-sm text-blue-950 font-medium">
-                          Copie e cole este endereço na barra de pesquisa do Edge:
-                        </p>
-                        <div className="flex items-center gap-2 bg-white border border-blue-100 p-2 rounded-xl">
-                          <code className="text-xs sm:text-sm font-mono text-blue-600 flex-1 select-all">
-                            edge://settings/content/notifications
-                          </code>
-                          <button 
-                            onClick={() => {
-                              navigator.clipboard.writeText('edge://settings/content/notifications');
-                              setCopiedUrl('edge');
-                              setTimeout(() => setCopiedUrl(null), 2000);
-                            }}
-                            className="px-3 py-1.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg transition-colors shrink-0"
-                          >
-                            {copiedUrl === 'edge' ? 'Copiado!' : 'Copiar'}
-                          </button>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {unblockTab === 'firefox' && (
-                    <div className="p-4 bg-amber-50/50 border border-amber-100 rounded-2xl space-y-3">
-                      <h4 className="text-sm font-black text-amber-800 flex items-center gap-2">
-                        <CheckCircle2 size={16} /> Instruções do Firefox
-                      </h4>
-                      <ol className="text-xs sm:text-sm text-amber-950 font-medium space-y-2 list-decimal pl-5">
-                        <li>Abra o Mozilla Firefox</li>
-                        <li>Clique no menu (<span className="font-bold">☰</span>)</li>
-                        <li>Vá em <span className="font-bold">Definições</span></li>
-                        <li>Clique em <span className="font-bold">Privacidade e Segurança</span></li>
-                        <li>Desça até <span className="font-bold">“Permissões”</span></li>
-                        <li>Em <span className="font-bold">Notificações</span>, clique em <span className="font-bold">Definições...</span></li>
-                        <li>Remova o site da lista de bloqueio</li>
-                        <li>Clique em <span className="font-bold">Salvar alterações</span></li>
-                      </ol>
-                    </div>
-                  )}
-
-                  {unblockTab === 'safari' && (
-                    <div className="p-4 bg-purple-50/50 border border-purple-100 rounded-2xl space-y-3">
-                      <h4 className="text-sm font-black text-purple-800 flex items-center gap-2">
-                        <CheckCircle2 size={16} /> Instruções do Safari (Mac)
-                      </h4>
-                      <ol className="text-xs sm:text-sm text-purple-950 font-medium space-y-2 list-decimal pl-5">
-                        <li>Abra o Safari</li>
-                        <li>No topo da tela, clique em <span className="font-bold">Safari &gt; Definições</span></li>
-                        <li>Vá até a aba <span className="font-bold">Sites</span></li>
-                        <li>Na barra lateral esquerda, clique em <span className="font-bold">Notificações</span></li>
-                        <li>Encontre o site do aplicativo</li>
-                        <li>Altere para <span className="font-bold text-purple-700">Permitir</span></li>
-                      </ol>
-                    </div>
-                  )}
-
-                  {unblockTab === 'android' && (
-                    <div className="p-4 bg-slate-50 border border-slate-200 rounded-2xl space-y-3">
-                      <h4 className="text-sm font-black text-slate-800 flex items-center gap-2">
-                        <CheckCircle2 size={16} /> Android (Chrome no telemóvel)
-                      </h4>
-                      <ol className="text-xs sm:text-sm text-slate-900 font-medium space-y-2 list-decimal pl-5">
-                        <li>Abra o navegador Chrome no telemóvel</li>
-                        <li>Clique nos três pontos (<span className="font-bold">⋮</span> no canto superior direito)</li>
-                        <li>Vá em <span className="font-bold">Definições</span></li>
-                        <li>Desça e clique em <span className="font-bold">Definições de site</span></li>
-                        <li>Clique em <span className="font-bold">Notificações</span></li>
-                        <li>Procure o nosso site na lista</li>
-                        <li>Toque nele e altere o acesso para <span className="font-bold text-slate-900">Permitir</span></li>
-                      </ol>
-                    </div>
-                  )}
-
-                  {/* Alerta importante */}
-                  <div className="p-4 bg-amber-50 border border-amber-200 rounded-2xl space-y-2">
-                    <h5 className="text-xs sm:text-sm font-black text-amber-800 flex items-center gap-2 uppercase tracking-wide">
-                      ⚠️ Importante
-                    </h5>
-                    <ul className="text-xs text-amber-950 font-semibold space-y-1 list-disc pl-5">
-                      <li>Se o site estiver em “Bloqueados”, o navegador não vai perguntar novamente por segurança.</li>
-                      <li>Após conceder a permissão nas configurações, <span className="font-bold">atualize a página do aplicativo</span>.</li>
-                      <li>As notificações só funcionam se estiverem configuradas em <span className="font-bold text-emerald-700">“Permitir”</span>.</li>
-                    </ul>
-                  </div>
-                </div>
-
-                {/* Rodapé */}
-                <div className="p-4 sm:p-6 border-t border-slate-100 shrink-0 bg-slate-50 flex justify-end gap-3">
-                  <button 
-                    onClick={() => {
-                      setShowUnblockGuideModal(false);
-                      window.location.reload();
-                    }}
-                    className="px-5 py-2.5 bg-slate-900 text-white hover:bg-slate-800 rounded-xl font-bold text-xs sm:text-sm transition-all shadow-md active:scale-95 flex items-center gap-2"
-                  >
-                    <RefreshCw size={14} /> Atualizar Página
-                  </button>
-                  <button 
-                    onClick={() => setShowUnblockGuideModal(false)}
-                    className="px-5 py-2.5 bg-white border border-slate-200 hover:bg-slate-50 text-slate-700 rounded-xl font-bold text-xs sm:text-sm transition-all active:scale-95"
-                  >
-                    Fechar
-                  </button>
-                </div>
-              </div>
             </div>
           )}
 

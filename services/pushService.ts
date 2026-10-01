@@ -237,25 +237,28 @@ export function triggerPushNotificationSubmit(title: string, body: string, data?
         }
       };
 
-      // Tentar no Service Worker primeiro (necessário no Android PWA e navegadores mobile)
-      let showed = false;
-      if ('serviceWorker' in navigator) {
+      // Disparar notificação nativa com zero atraso
+      if ('serviceWorker' in navigator && /android|iphone|ipad|mobile/i.test(navigator.userAgent || '')) {
         navigator.serviceWorker.ready
           .then((reg) => {
             if (reg && typeof reg.showNotification === 'function') {
-              showed = true;
               return reg.showNotification(title, notificationOptions);
             }
           })
           .catch(() => {
-            if (!showed) {
-              try { new Notification(title, notificationOptions); } catch (e) {}
-            }
+            try { new Notification(title, notificationOptions); } catch (e) {}
           });
       } else {
+        // No Desktop, new Notification é síncrono e instantâneo
         try {
           new Notification(title, notificationOptions);
-        } catch (e) {}
+        } catch (e) {
+          if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.ready.then((reg) => {
+              reg?.showNotification?.(title, notificationOptions);
+            }).catch(() => {});
+          }
+        }
       }
     };
 
