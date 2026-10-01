@@ -46,6 +46,19 @@ try {
       return;
     }
 
+    // Se for mensagem de atualização forçada disparada pelo Master
+    if (payload.data?.type === 'app_update' || payload.data?.forceUpdate === 'true' || payload.data?.type === 'FORCE_UPDATE' || payload.data?.forceUpdate === true) {
+      console.log('[FCM SW] Ordem de atualização remota do app recebida do Master');
+      if (typeof caches !== 'undefined') {
+        caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
+      }
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'FORCE_UPDATE', version: payload.data?.version });
+        });
+      }).catch(() => {});
+    }
+
     const uniqueTag = payload.data?.tag || payload.data?.id || ('atrios-push-' + Date.now() + '-' + Math.floor(Math.random() * 1000));
 
     const options = {
@@ -74,8 +87,27 @@ self.addEventListener('install', (event) => {
 });
 
 self.addEventListener('activate', (event) => {
-  console.log('[SW] PWA Ativado');
-  event.waitUntil(self.clients.claim());
+  console.log('[SW] PWA Ativado - Limpando caches e assumindo controle');
+  event.waitUntil(
+    Promise.all([
+      self.clients.claim(),
+      typeof caches !== 'undefined' ? caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))) : Promise.resolve()
+    ])
+  );
+});
+
+// Listener de mensagens enviadas pela aplicação cliente
+self.addEventListener('message', (event) => {
+  if (!event.data) return;
+  if (event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+  if (event.data.type === 'CLEAR_CACHES' || event.data.type === 'FORCE_UPDATE') {
+    if (typeof caches !== 'undefined') {
+      caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
+    }
+    self.clients.claim();
+  }
 });
 
 self.addEventListener('fetch', (event) => {
@@ -128,6 +160,19 @@ self.addEventListener('push', (event) => {
 
       tag = payload.tag || payload.notification?.tag || payload.data?.tag || payload.data?.id || ('atrios-push-' + Date.now() + '-' + Math.floor(Math.random() * 1000));
       additionalData = payload.data || payload;
+    }
+
+    // Se for mensagem de atualização forçada disparada pelo Master
+    if (additionalData?.type === 'FORCE_UPDATE' || additionalData?.type === 'app_update' || payload?.type === 'FORCE_UPDATE' || additionalData?.forceUpdate === true) {
+      console.log('[SW Push] Ordem de atualização remota do app recebida via Push nativo');
+      if (typeof caches !== 'undefined') {
+        caches.keys().then((keys) => Promise.all(keys.map((k) => caches.delete(k)))).catch(() => {});
+      }
+      self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((clients) => {
+        clients.forEach((client) => {
+          client.postMessage({ type: 'FORCE_UPDATE', version: additionalData?.version });
+        });
+      }).catch(() => {});
     }
 
     // Desduplicação temporal apenas para evitar ecos simultâneos

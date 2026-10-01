@@ -1816,6 +1816,117 @@ async function startServer() {
     }
   });
 
+  // 3.6. Consulta de versão e estado de atualização remota (OTA)
+  const APP_VERSION_FILE = path.join(process.cwd(), "app_version.json");
+
+  interface AppVersionData {
+    version: string;
+    versionCode: number;
+    updatedAt: string;
+    message?: string;
+    forceUpdate?: boolean;
+  }
+
+  function getAppVersionData(): AppVersionData {
+    if (fs.existsSync(APP_VERSION_FILE)) {
+      try {
+        const content = fs.readFileSync(APP_VERSION_FILE, "utf8");
+        return JSON.parse(content);
+      } catch (e) {
+        console.error("[AppVersion] Error parsing app_version.json:", e);
+      }
+    }
+    const defaultVersion: AppVersionData = {
+      version: "1.2.0",
+      versionCode: 120,
+      updatedAt: new Date().toISOString(),
+      message: "Sistema otimizado com notificações instantâneas e PWA atualizado.",
+      forceUpdate: true
+    };
+    try {
+      fs.writeFileSync(APP_VERSION_FILE, JSON.stringify(defaultVersion, null, 2), "utf8");
+    } catch (err) {}
+    return defaultVersion;
+  }
+
+  app.get("/api/app-version", (req, res) => {
+    res.setHeader("Cache-Control", "no-store, no-cache, must-revalidate, proxy-revalidate");
+    res.setHeader("Pragma", "no-cache");
+    res.setHeader("Expires", "0");
+    const data = getAppVersionData();
+    res.json(data);
+  });
+
+  // 3.7. Disparar Atualização Remota Forçada a partir do Master (OTA)
+  app.post("/api/admin/force-update", async (req, res) => {
+    try {
+      const { customMessage } = req.body || {};
+      const current = getAppVersionData();
+      const newCode = (current.versionCode || 120) + 1;
+      const parts = (current.version || "1.2.0").split(".");
+      const major = parts[0] || "1";
+      const minor = parts[1] || "2";
+      const patch = parseInt(parts[2] || "0", 10) + 1;
+      const newVersion = `${major}.${minor}.${patch}`;
+      const now = new Date().toISOString();
+
+      const updatedData: AppVersionData = {
+        version: newVersion,
+        versionCode: newCode,
+        updatedAt: now,
+        message: customMessage || "O aplicativo foi atualizado pelo sistema com melhorias importantes e novidades.",
+        forceUpdate: true
+      };
+
+      try {
+        fs.writeFileSync(APP_VERSION_FILE, JSON.stringify(updatedData, null, 2), "utf8");
+      } catch (saveErr) {
+        console.error("[AppUpdate] Error writing app_version.json:", saveErr);
+      }
+      console.log(`[AppUpdate] Master disparou ATUALIZAÇÃO FORÇADA para versão ${newVersion} (code: ${newCode})`);
+
+      // 1. Broadcast instantâneo em tempo real via Supabase Realtime WebSocket (0ms de latência para clientes abertos)
+      broadcastRealtimePush(
+        "🚀 Nova Atualização do Sistema Átrios!",
+        updatedData.message || "O aplicativo foi atualizado com melhorias essenciais.",
+        "all",
+        {
+          type: "FORCE_UPDATE",
+          version: updatedData.version,
+          versionCode: updatedData.versionCode,
+          updatedAt: updatedData.updatedAt,
+          forceUpdate: true
+        }
+      );
+
+      // 2. Disparo de Push Notification para todos os dispositivos instalados / em segundo plano
+      sendPushBroadcast(
+        "🚀 Sistema Átrios Atualizado!",
+        updatedData.message || "O aplicativo foi atualizado. Toque para acessar as novidades!",
+        "all",
+        {
+          type: "FORCE_UPDATE",
+          version: updatedData.version,
+          versionCode: updatedData.versionCode,
+          updatedAt: updatedData.updatedAt,
+          forceUpdate: true,
+          url: `/?_upd=${Date.now()}`
+        }
+      ).catch(err => console.error("[AppUpdate] Push broadcast warning:", err));
+
+      return res.json({
+        success: true,
+        version: updatedData.version,
+        versionCode: updatedData.versionCode,
+        updatedAt: updatedData.updatedAt,
+        message: "Atualização remota forçada com sucesso para todos os usuários!"
+      });
+    } catch (error: any) {
+      console.error("[AppUpdate] Failed to trigger force update:", error);
+      return res.status(500).json({ success: false, error: error?.message || "Falha ao disparar atualização remota." });
+    }
+  });
+
   // 4. Obter lista de agendamentos
   app.get("/api/push/scheduled", (req, res) => {
     const schedFile = path.join(process.cwd(), "scheduled_push.json");

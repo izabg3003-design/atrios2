@@ -23,6 +23,7 @@ import {
   LayoutDashboard,
   Package,
   ArrowUpRight,
+  ArrowRight,
   Search,
   Zap,
   Settings,
@@ -58,7 +59,8 @@ import {
   Hammer,
   Sparkles,
   Layers,
-  Database
+  Database,
+  RefreshCw
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -123,6 +125,7 @@ import { translateMessage } from '../services/gemini';
 import { MasterHeroVideoSettings } from './MasterHeroVideoSettings';
 import { MasterIntroBannersSettings } from './MasterIntroBannersSettings';
 import { MasterBackupManager } from './MasterBackupManager';
+import { MasterAppUpdateManager } from './MasterAppUpdateManager';
 import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from '../services/pushService';
 
 function urlBase64ToUint8Array(base64String: string) {
@@ -158,7 +161,7 @@ interface MasterPanelProps {
 const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
   const t = translations[locale];
   const [isSyncing, setIsSyncing] = useState(false);
-  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'banners' | 'client_requests' | 'backup'>('home');
+  const [activeTab, setActiveTab] = useState<'home' | 'users' | 'notifications' | 'messages' | 'coupons' | 'store' | 'products' | 'push' | 'jobs' | 'hero_video' | 'banners' | 'client_requests' | 'backup' | 'app_update'>('home');
   const [activeNotifications, setActiveNotifications] = useState<GlobalNotification[]>([]);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [targetAudience, setTargetAudience] = useState<AudienceType>('all');
@@ -2574,6 +2577,7 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
               { id: 'coupons', label: t.masterCouponsTab, icon: Ticket },
               { id: 'notifications', label: t.masterNotificationsTab, icon: Bell },
               { id: 'push', label: locale.startsWith('pt') ? 'Disparar Push' : 'Send Push', icon: Smartphone },
+              { id: 'app_update', label: locale.startsWith('pt') ? 'Atualizar App (OTA)' : 'App Update (OTA)', icon: RefreshCw },
               { id: 'backup', label: locale.startsWith('pt') ? 'Backup Base de Dados' : 'Database Backup', icon: Database },
             ].map(tab => (
               <button key={tab.id} onClick={() => setActiveTab(tab.id as any)} className={`relative px-6 py-2.5 rounded-xl font-black text-xs uppercase transition-all flex items-center gap-2 ${activeTab === tab.id ? 'bg-amber-50 text-slate-950 shadow-lg' : 'text-slate-400 hover:text-white'}`}>
@@ -2762,6 +2766,9 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 )}
               </div>
             )}
+
+            {/* Módulo de Atualização Remota Global OTA (Sem Reinstalar) */}
+            <MasterAppUpdateManager />
 
             <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
               <div className="bg-white/5 border border-white/10 p-8 rounded-[2.5rem] shadow-xl">
@@ -3486,6 +3493,25 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                     <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                     <span className="text-[9px] font-black uppercase tracking-wider">FCM Ativo: pushbuild-164d9</span>
                   </div>
+                </div>
+
+                {/* Banner de Atualização Remota OTA */}
+                <div className="bg-gradient-to-r from-amber-500/15 via-amber-500/5 to-transparent border border-amber-500/30 p-5 rounded-2xl flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-amber-500 text-slate-950 font-black shadow-md">
+                      <RefreshCw size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-black uppercase text-amber-400">Atualização do App Sem Reinstalar (OTA)</p>
+                      <p className="text-xs text-slate-300">Precisa forçar todos os telemóveis e navegadores a carregar o código mais recente?</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setActiveTab('app_update')}
+                    className="px-4 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 text-xs font-black uppercase tracking-wider transition shrink-0 cursor-pointer shadow-lg shadow-amber-500/20 flex items-center gap-2"
+                  >
+                    Abrir Painel OTA <ArrowRight size={14} />
+                  </button>
                 </div>
 
                 {/* Info do Projeto Firebase */}
@@ -4873,6 +4899,13 @@ const MasterPanel: React.FC<MasterPanelProps> = ({ onLogout, locale }) => {
                 </button>
               </div>
             </div>
+          </div>
+        )}
+
+        {/* TAB: Atualização Remota Global OTA (Sem Reinstalar) */}
+        {activeTab === 'app_update' && (
+          <div className="space-y-8 animate-in fade-in">
+            <MasterAppUpdateManager />
           </div>
         )}
 

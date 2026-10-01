@@ -12,13 +12,24 @@
   },
   {
     "token": "fG1JMRDFSzKjajmL_-dEpS:APA91bHHjbuIqNcdVXsfF3EAJ-RgY3A2ht33Phk96kyeEn3Mv8i_jPHD4CLRqxkTndyycP12PqJHnhfO_QBBbztY0gj2Apcl1VPm6mzz50Y3Oh58_sSEAWw",
-    "companyId": "guest",
-    "plan": "free",
-    "email": "",
-    "role": "user",
-    "phone": "",
-    "name": "",
-    "updatedAt": "2026-09-30T19:39:59.889Z",
+    "companyId": "master",
+    "plan": "master",
+    "email": "atriosbuild@gmail.com",
+    "role": "master",
+    "phone": "987344566",
+    "name": "Átrios Build",
+    "updatedAt": "2026-09-28T19:19:29.669Z",
     "createdAt": "2026-09-28T19:19:29.669Z"
+  },
+  {
+    "token": "fG1JMRDFSzKjajmL_-dEpS:APA91bEq0XaOM9eLc8R9Q3z5tAzdwv2g8y-WObNtyKYmHob-6eTkCjQrqV3wZNlL0V4TiUoAkcjpZlCbelYIOTWnrBkrIJGB3TppBDnAzJCjCsyF9wJ5uC8",
+    "companyId": "master",
+    "plan": "master",
+    "email": "izarellebraga@gmail.com",
+    "role": "master",
+    "phone": "",
+    "name": "Master Admin",
+    "updatedAt": "2026-10-01T18:40:21.431Z",
+    "createdAt": "2026-10-01T18:36:30.884Z"
   }
 ]

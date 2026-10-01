@@ -14,6 +14,7 @@ import { PdfExportModal } from './components/PdfExportModal';
 import { generateBudgetPDF, generateServiceOrderPDF, normalizeForPdf } from './services/pdfExportService';
 import { requestFcmToken, onMessageListener } from './services/firebase';
 import { registerPushSubscription, triggerInAppPush, triggerPushNotificationSubmit } from './services/pushService';
+import { initAppUpdateListeners, purgeAllCachesAndRefreshServiceWorker } from './services/appUpdateService';
 import { 
   LayoutDashboard, 
   PlusCircle, 
@@ -473,6 +474,9 @@ const App: React.FC = () => {
   }, [notificationPermission]);
 
   useEffect(() => {
+    // Inicializar serviço de atualização remota contínua (OTA sem reinstalação)
+    initAppUpdateListeners();
+
     // Carregar configurações globais da nuvem (vídeos do hero, vídeos de demonstração, etc.)
     fetchCloudAppSettings();
 
@@ -519,7 +523,26 @@ const App: React.FC = () => {
           console.log('[Supabase Realtime Push Broadcast Received]:', payload);
           if (!payload || !payload.payload) return;
           
-          const { title, body, targetAudience } = payload.payload;
+          const { title, body, targetAudience, data } = payload.payload;
+
+          // Se for ordem de atualização forçada disparada pelo Master (OTA sem reinstalação)
+          if (data?.type === 'FORCE_UPDATE' || payload.payload?.type === 'FORCE_UPDATE') {
+            console.log('[AppUpdate] Comando de atualização remota forçada recebido via Realtime WebSocket!');
+            const newVer = data?.version || 'mais recente';
+            triggerPushNotificationSubmit(
+              "🚀 Atualização do Sistema Aplicada!",
+              `O Átrios foi atualizado para a versão ${newVer}. A carregar as novidades...`
+            );
+            purgeAllCachesAndRefreshServiceWorker().then(() => {
+              if (data?.updatedAt) {
+                localStorage.setItem('atrios_applied_version_time', data.updatedAt);
+              }
+              setTimeout(() => {
+                window.location.reload();
+              }, 1200);
+            });
+            return;
+          }
 
           let knownIdentity: any = null;
           try {
