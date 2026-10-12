@@ -1,7 +1,7 @@
 {
-  "version": "1.2.2",
-  "versionCode": 122,
-  "updatedAt": "2026-10-01T18:38:02.733Z",
-  "message": "O aplicativo foi atualizado pelo sistema com melhorias importantes e novidades.",
+  "version": "1.2.3",
+  "versionCode": 123,
+  "updatedAt": "2026-10-12T13:57:00.000Z",
+  "message": "Atualização com correções e melhorias de performance nas notificações push e sistema Átrios.",
   "forceUpdate": true
 }
